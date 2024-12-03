@@ -91,14 +91,20 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Main Content */}
-      <View style={styles.content}>
-        <Image
-          source={require('../../assets/images/mm-logo-bg-fill-hat.png')}
-          style={styles.centerLogo}
-          resizeMode="contain"
-        />
-      </View>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.gridContainer}>
+          {managementCards.map((card, index) => (
+            <TouchableOpacity 
+              key={index}
+              style={[styles.card, { backgroundColor: card.color }]}
+              onPress={() => router.push(card.route)}
+            >
+              <Ionicons name={card.icon} size={32} color="#fff" />
+              <Text style={styles.cardTitle}>{card.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
 
       {/* Sidebar - Right Side */}
       {isSidebarOpen && (
