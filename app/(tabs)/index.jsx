@@ -1,7 +1,8 @@
-import { Image, StyleSheet, View, Text, TouchableOpacity, SafeAreaView, Animated } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, StyleSheet, View, Text, TouchableOpacity, SafeAreaView, Animated, StatusBar } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
+
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
@@ -166,10 +167,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   menuButton: {
     padding: 8,
     marginLeft: 8,
@@ -182,5 +179,39 @@ const styles = StyleSheet.create({
   centerLogo: {
     width: 200,
     height: 200,
+  },
+  sidebar: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 250,
+    backgroundColor: '#fff',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    padding: 20,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 20,
+  },
+  closeButton: {
+    padding: 5,
+  },
+  sidebarItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  sidebarText: {
+    marginLeft: 15,
+    fontSize: 16,
+    color: '#333',
   },
 });
