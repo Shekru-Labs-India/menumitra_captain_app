@@ -1,6 +1,16 @@
-import { Image, StyleSheet, View, Text, TouchableOpacity, SafeAreaView, Animated } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import {
+  Image,
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  Platform,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useState } from "react";
+import Sidebar from "../../components/Sidebar";
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -11,11 +21,12 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar backgroundColor="#fff" barStyle="dark-content" />
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
           <Image
-            source={require('../../assets/images/mm-logo-bg-fill-hat.png')}
+            source={require("../../assets/images/mm-logo-bg-fill-hat.png")}
             style={styles.headerLogo}
             resizeMode="contain"
           />
@@ -23,10 +34,14 @@ export default function HomeScreen() {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.menuButton}>
-            <Ionicons name="notifications-outline" size={24} color="#333" />
+            <MaterialCommunityIcons
+              name="bell-outline"
+              size={24}
+              color="#333"
+            />
           </TouchableOpacity>
           <TouchableOpacity onPress={toggleSidebar} style={styles.menuButton}>
-            <Ionicons name="menu" size={24} color="#333" />
+            <MaterialCommunityIcons name="menu" size={24} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
@@ -34,42 +49,14 @@ export default function HomeScreen() {
       {/* Main Content */}
       <View style={styles.content}>
         <Image
-          source={require('../../assets/images/mm-logo-bg-fill-hat.png')}
+          source={require("../../assets/images/mm-logo-bg-fill-hat.png")}
           style={styles.centerLogo}
           resizeMode="contain"
         />
       </View>
 
-      {/* Sidebar - Right Side */}
-      {isSidebarOpen && (
-        <View style={styles.sidebar}>
-          <View style={styles.sidebarHeader}>
-            <TouchableOpacity onPress={toggleSidebar} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="home" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Home</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="list" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Orders</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="person" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Profile</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="settings-outline" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Settings</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="log-out-outline" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Sidebar Component */}
+      <Sidebar isOpen={isSidebarOpen} onClose={toggleSidebar} />
     </SafeAreaView>
   );
 }
@@ -77,25 +64,26 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
   header: {
     height: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    backgroundColor: '#fff',
+    borderBottomColor: "#eee",
+    backgroundColor: "#fff",
   },
   headerTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   headerLogo: {
     width: 30,
@@ -104,8 +92,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
   },
   menuButton: {
     padding: 8,
@@ -113,52 +101,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   centerLogo: {
     width: 200,
     height: 200,
-  },
-  sidebar: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: 280,
-    backgroundColor: '#fff',
-    borderLeftWidth: 1,
-    borderLeftColor: '#eee',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: -2,
-      height: 0,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  sidebarHeader: {
-    height: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    paddingRight: 15,
-  },
-  closeButton: {
-    padding: 8,
-  },
-  sidebarItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  sidebarText: {
-    marginLeft: 15,
-    fontSize: 16,
-    color: '#333',
   },
 });
