@@ -52,7 +52,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="order-details"
         options={{
-          href: null,
+          href: "/order-details",
           headerShown: false,
         }}
       />

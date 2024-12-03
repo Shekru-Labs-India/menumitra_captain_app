@@ -26,7 +26,9 @@ export default function SupplierDetails() {
   const { suppliers, deleteSupplier } = useContext(SupplierContext);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  const supplier = suppliers.find((s) => s.id === id);
+  const supplier = suppliers ? suppliers.find((s) => s.id === id) : null;
+
+  console.log(suppliers);
 
   if (!supplier) {
     return (

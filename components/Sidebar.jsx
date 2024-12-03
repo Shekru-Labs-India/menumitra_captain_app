@@ -1,189 +1,151 @@
 import {
-  Box,
-  VStack,
-  Pressable,
-  HStack,
-  Icon,
+  StyleSheet,
+  View,
   Text,
-  IconButton,
-  Divider,
-} from "native-base";
-import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+  TouchableOpacity,
+  Platform,
+  StatusBar,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 export default function Sidebar({ isOpen, onClose }) {
-  const router = useRouter();
-
   const menuItems = [
     {
       title: "Home",
-      icon: (
-        <Icon
-          as={MaterialCommunityIcons}
-          name="home-variant-outline"
-          size={6}
-          color="coolGray.600"
-        />
-      ),
-      onPress: () => {
-        router.push("/(tabs)");
-        onClose();
-      },
+      icon: "home-variant-outline",
+      route: "/(tabs)",
     },
     {
       title: "Staff",
-      icon: (
-        <Icon
-          as={MaterialCommunityIcons}
-          name="account-group-outline"
-          size={6}
-          color="coolGray.600"
-        />
-      ),
-      onPress: () => {
-        router.push("/(tabs)/staff");
-        onClose();
-      },
+      icon: "account-group-outline",
+      route: "/(tabs)/staff",
     },
     {
       title: "Attendance",
-      icon: (
-        <Icon
-          as={MaterialCommunityIcons}
-          name="calendar-clock-outline"
-          size={6}
-          color="coolGray.600"
-        />
-      ),
-      onPress: () => {
-        router.push("/attendance");
-        onClose();
-      },
+      icon: "calendar-clock-outline",
+      route: "/attendance",
     },
     {
       title: "Inventory",
-      icon: (
-        <Icon as={Ionicons} name="cube-outline" size={6} color="coolGray.600" />
-      ),
-      onPress: () => {
-        router.push("/staff/inventory");
-        onClose();
-      },
+      icon: "package-variant-closed",
+      route: "/inventory",
     },
     {
       title: "Inventory Report",
-      icon: (
-        <Icon
-          as={MaterialCommunityIcons}
-          name="file-document-outline"
-          size={6}
-          color="coolGray.600"
-        />
-      ),
-      onPress: () => {
-        router.push("/inventory-report");
-        onClose();
-      },
+      icon: "file-document-outline",
+      route: "/inventory-report",
     },
     {
       title: "Order Report",
-      icon: (
-        <Icon
-          as={MaterialCommunityIcons}
-          name="clipboard-text-outline"
-          size={6}
-          color="coolGray.600"
-        />
-      ),
-      onPress: () => {
-        router.push("/order-report");
-        onClose();
-      },
+      icon: "clipboard-text-outline",
+      route: "/order-report",
     },
   ];
+
+  const handleNavigation = (route) => {
+    router.push(route);
+    onClose();
+  };
+
+  const handleLogout = () => {
+    router.replace("/login");
+  };
 
   if (!isOpen) return null;
 
   return (
-    <Box
-      position="absolute"
-      top={0}
-      right={0}
-      bottom={0}
-      w="300"
-      bg="white"
-      shadow={4}
-    >
-      {/* Header */}
-      <HStack
-        px={4}
-        py={3}
-        justifyContent="flex-end"
-        alignItems="center"
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
-      >
-        <IconButton
-          icon={
-            <Icon
-              as={MaterialCommunityIcons}
-              name="close"
-              size={6}
-              color="coolGray.600"
-            />
-          }
-          onPress={onClose}
-        />
-      </HStack>
+    <View style={styles.sidebar}>
+      <View style={styles.sidebarHeader}>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <MaterialCommunityIcons name="close" size={24} color="#333" />
+        </TouchableOpacity>
+      </View>
 
       {/* Menu Items */}
-      <VStack space={1} py={2}>
+      <View style={styles.menuContainer}>
         {menuItems.map((item, index) => (
-          <Pressable
+          <TouchableOpacity
             key={index}
-            px={5}
-            py={3}
-            onPress={item.onPress}
-            _pressed={{ bg: "coolGray.100" }}
+            style={styles.sidebarItem}
+            onPress={() => handleNavigation(item.route)}
           >
-            <HStack space={3} alignItems="center">
-              {item.icon}
-              <Text fontSize="md" color="coolGray.800">
-                {item.title}
-              </Text>
-            </HStack>
-          </Pressable>
+            <MaterialCommunityIcons name={item.icon} size={24} color="#333" />
+            <Text style={styles.sidebarText} numberOfLines={1}>
+              {item.title}
+            </Text>
+          </TouchableOpacity>
         ))}
-      </VStack>
+      </View>
 
       {/* Logout Button */}
-      <Pressable
-        position="absolute"
-        bottom={0}
-        left={0}
-        right={0}
-        py={4}
-        px={5}
-        borderTopWidth={1}
-        borderTopColor="coolGray.200"
-        onPress={() => {
-          router.replace("/login");
-          onClose();
-        }}
-        _pressed={{ bg: "coolGray.100" }}
+      <TouchableOpacity
+        style={[styles.sidebarItem, styles.logoutItem]}
+        onPress={handleLogout}
       >
-        <HStack space={3} alignItems="center">
-          <Icon
-            as={MaterialCommunityIcons}
-            name="logout-variant"
-            size={6}
-            color="red.500"
-          />
-          <Text fontSize="md" color="red.500">
-            Logout
-          </Text>
-        </HStack>
-      </Pressable>
-    </Box>
+        <MaterialCommunityIcons
+          name="logout-variant"
+          size={24}
+          color="#FF3B30"
+        />
+        <Text style={[styles.sidebarText, styles.logoutText]}>Logout</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  sidebar: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 300,
+    backgroundColor: "#fff",
+    borderLeftWidth: 1,
+    borderLeftColor: "#eee",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: -2,
+      height: 0,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  sidebarHeader: {
+    height: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    paddingRight: 15,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  menuContainer: {
+    flex: 1,
+  },
+  sidebarItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  sidebarText: {
+    marginLeft: 15,
+    fontSize: 16,
+    color: "#333",
+    flex: 1,
+  },
+  logoutItem: {
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+  },
+  logoutText: {
+    color: "#FF3B30",
+  },
+});
