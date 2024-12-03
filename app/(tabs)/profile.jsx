@@ -1,5 +1,5 @@
-import { StyleSheet, View } from 'react-native';
-import { Text } from 'react-native';
+import { StyleSheet, View } from "react-native";
+import { Text } from "react-native";
 
 export default function ProfileScreen() {
   return (
@@ -12,13 +12,13 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
   },
 });
