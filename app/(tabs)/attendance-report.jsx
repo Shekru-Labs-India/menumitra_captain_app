@@ -12,12 +12,15 @@ import {
   Icon,
   Heading,
   Divider,
+  IconButton,
 } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform } from 'react-native';
+import { useRouter } from 'expo-router';
 
 export default function AttendanceReportScreen() {
+  const router = useRouter();
   const [filterType, setFilterType] = useState('today');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateType, setDateType] = useState('start');
@@ -207,8 +210,29 @@ export default function AttendanceReportScreen() {
     <Box flex={1} bg="white" safeArea>
       <VStack space={4} flex={1}>
         {/* Header */}
-        <Box px={4} py={3}>
-          <Heading size="lg">Attendance Report</Heading>
+        <Box 
+          px={4} 
+          py={3} 
+          bg="white" 
+          shadow={2}
+          mb={1}
+          borderBottomWidth={1}
+          borderBottomColor="gray.100"
+        >
+          <HStack alignItems="center" justifyContent="space-between">
+            <IconButton
+              icon={<Icon as={Ionicons} name="arrow-back" size={6} color="gray.800" />}
+              onPress={() => router.back()}
+              variant="ghost"
+              _pressed={{ bg: "gray.100" }}
+              position="absolute"
+              left={0}
+              zIndex={1}
+            />
+            <Heading size="lg" flex={1} textAlign="center">
+              Attendance Report
+            </Heading>
+          </HStack>
         </Box>
 
         {/* Filter Section */}

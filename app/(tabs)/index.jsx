@@ -1,4 +1,4 @@
-import { Image, StyleSheet, View, Text, TouchableOpacity, SafeAreaView, Animated, StatusBar } from 'react-native';
+import { Image, StyleSheet, View, Text, TouchableOpacity, SafeAreaView, Animated, StatusBar, ScrollView } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
@@ -179,12 +179,34 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 15,
   },
-  centerLogo: {
-    width: 200,
-    height: 200,
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  card: {
+    width: '48%',
+    aspectRatio: 1,
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  cardTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    textAlign: 'center',
   },
   sidebar: {
     position: 'absolute',

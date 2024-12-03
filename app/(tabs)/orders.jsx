@@ -8,6 +8,7 @@ import {
   ScrollView,
   Icon,
   Heading,
+  IconButton,
 } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -126,15 +127,34 @@ export default function OrdersScreen() {
     <Box flex={1} bg="gray.50" safeArea>
       <VStack space={4} flex={1}>
         {/* Header */}
-        <Box px={4} py={3} bg="white">
-          <HStack justifyContent="space-between" alignItems="center">
-            <Heading size="lg">Orders List</Heading>
-           
+        <Box 
+          px={4} 
+          py={3} 
+          bg="white" 
+          shadow={2}
+          mb={1}
+          borderBottomWidth={1}
+          borderBottomColor="gray.100"
+        >
+          <HStack alignItems="center" justifyContent="space-between">
+            <IconButton
+              icon={<Icon as={Ionicons} name="arrow-back" size={6} color="gray.800" />}
+              onPress={() => router.back()}
+              variant="ghost"
+              _pressed={{ bg: "gray.100" }}
+              position="absolute"
+              left={0}
+              zIndex={1}
+            />
+            <Heading size="lg" flex={1} textAlign="center">
+             Orders
+            </Heading>
           </HStack>
         </Box>
+
         <Box alignItems="flex-end" px={4}>
         <Pressable onPress={isAllExpanded() ? collapseAll : expandAll}>
-              <Text color={isAllExpanded() ? "gray.500" : "blue.500"} fontSize="sm">
+              <Text color={isAllExpanded() ? "gray.500" : "gray.500"} fontSize="sm">
                 {isAllExpanded() ? "Collapse All" : "Expand All"}
               </Text>
             </Pressable>

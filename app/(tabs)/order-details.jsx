@@ -8,28 +8,45 @@ import {
   ScrollView,
   Pressable,
   Image,
+  Heading,
   Button,
+  IconButton,
 } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
-
+import { useRouter } from 'expo-router';
 // Import food images
 const foodImages = {
   butterChicken: require('../../assets/food/burger-with-melted-cheese.jpg'),
   maharashtrianThali: require('../../assets/food/burger-with-melted-cheese.jpg'),
 };
-
+const router = useRouter();
 export default function OrderDetailsScreen() {
   return (
     <Box flex={1} bg="gray.50" safeArea>
-      {/* Header */}
-      <Box px={4} py={3} bg="white" shadow={2}>
-        <HStack space={3} alignItems="center" >
-          <Pressable>
-            <Icon as={Ionicons} name="arrow-back" size={6} color="gray.800" />
-          </Pressable>
-          <Text fontSize="lg" fontWeight="semibold">Order Details</Text>
-        </HStack>
-      </Box>
+     <Box 
+          px={4} 
+          py={3} 
+          bg="white" 
+          shadow={2}
+          mb={1}
+          borderBottomWidth={1}
+          borderBottomColor="gray.100"
+        >
+          <HStack alignItems="center" justifyContent="space-between">
+            <IconButton
+              icon={<Icon as={Ionicons} name="arrow-back" size={6} color="gray.800" />}
+              onPress={() => router.back()}
+              variant="ghost"
+              _pressed={{ bg: "gray.100" }}
+              position="absolute"
+              left={0}
+              zIndex={1}
+            />
+            <Heading size="lg" flex={1} textAlign="center">
+              Order Details
+            </Heading>
+          </HStack>
+        </Box>
 
       <ScrollView flex={1} px={4}>
         {/* Order Info */}
