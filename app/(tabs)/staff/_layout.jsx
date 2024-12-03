@@ -10,19 +10,31 @@ export default function StaffLayout() {
         }}
       />
       <Stack.Screen
-        name="[id]"
+        name="inventory"
         options={{
           headerShown: false,
         }}
       />
       <Stack.Screen
-        name="edit/[id]"
+        name="suppliers/index"
         options={{
           headerShown: false,
         }}
       />
       <Stack.Screen
-        name="add"
+        name="suppliers/add"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="suppliers/[id]"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="suppliers/edit/[id]"
         options={{
           headerShown: false,
         }}
