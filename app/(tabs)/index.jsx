@@ -1,25 +1,80 @@
-import { Image, StyleSheet, View, Text, TouchableOpacity, SafeAreaView, Animated } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const router = useRouter();
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
+
+  const managementCards = [
+    { 
+      title: 'Staff Management',
+      icon: 'people',
+      color: '#4CAF50',
+      route: '/staff-management'
+    },
+    { 
+      title: 'Staff Attendance',
+      icon: 'calendar',
+      color: '#2196F3',
+      route: '/staff-attendance'
+    },
+    { 
+      title: 'Attendance Report',
+      icon: 'document-text',
+      color: '#9C27B0',
+      route: '/attendance-report'
+    },
+    { 
+      title: 'Inventory Management',
+      icon: 'cube',
+      color: '#FF9800',
+      route: '/inventory'
+    },
+    { 
+      title: 'Inventory Report',
+      icon: 'bar-chart',
+      color: '#F44336',
+      route: '/inventory-report'
+    },
+    { 
+      title: 'Orders',
+      icon: 'receipt',
+      color: '#3F51B5',
+      route: '/orders'
+    },
+    { 
+      title: 'Order Report',
+      icon: 'stats-chart',
+      color: '#009688',
+      route: '/order-report'
+    }
+  ];
+
+  const sidebarItems = [
+    { icon: 'home', title: 'Home' },
+    { icon: 'list', title: 'Orders' },
+    { icon: 'person', title: 'Profile' },
+    { icon: 'settings-outline', title: 'Settings' },
+    { icon: 'log-out-outline', title: 'Logout' }
+  ];
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
-          <Image
+          <Image 
             source={require('../../assets/images/mm-logo-bg-fill-hat.png')}
-            style={styles.headerLogo}
+            style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.headerTitle}>MenuMitra</Text>
+          <Text style={styles.headerTitle}>MenuMitra Captain</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.menuButton}>
@@ -32,15 +87,22 @@ export default function HomeScreen() {
       </View>
 
       {/* Main Content */}
-      <View style={styles.content}>
-        <Image
-          source={require('../../assets/images/mm-logo-bg-fill-hat.png')}
-          style={styles.centerLogo}
-          resizeMode="contain"
-        />
-      </View>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.gridContainer}>
+          {managementCards.map((card, index) => (
+            <TouchableOpacity 
+              key={index}
+              style={[styles.card, { backgroundColor: card.color }]}
+              onPress={() => router.push(card.route)}
+            >
+              <Ionicons name={card.icon} size={32} color="#fff" />
+              <Text style={styles.cardTitle}>{card.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
 
-      {/* Sidebar - Right Side */}
+      {/* Sidebar */}
       {isSidebarOpen && (
         <View style={styles.sidebar}>
           <View style={styles.sidebarHeader}>
@@ -48,26 +110,12 @@ export default function HomeScreen() {
               <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="home" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Home</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="list" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Orders</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="person" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Profile</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="settings-outline" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Settings</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="log-out-outline" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Logout</Text>
-          </TouchableOpacity>
+          {sidebarItems.map((item, index) => (
+            <TouchableOpacity key={index} style={styles.sidebarItem}>
+              <Ionicons name={item.icon} size={24} color="#333" />
+              <Text style={styles.sidebarText}>{item.title}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
     </SafeAreaView>
@@ -77,10 +125,10 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f5f5',
   },
   header: {
-    height: 60,
+    height: 70,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -93,19 +141,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerLogo: {
-    width: 30,
-    height: 30,
-    marginRight: 8,
+  logo: {
+    width: 40,
+    height: 40,
+    marginRight: 10,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   menuButton: {
     padding: 8,
@@ -113,12 +161,37 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    padding: 15,
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  card: {
+    width: '48%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  centerLogo: {
-    width: 200,
-    height: 200,
+  cardTitle: {
+    marginTop: 10,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   sidebar: {
     position: 'absolute',

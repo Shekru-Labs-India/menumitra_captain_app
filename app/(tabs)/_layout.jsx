@@ -48,6 +48,13 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="order-details"
+        options={{
+          href: null,
+          headerShown: false,
+        }}
+      />
     </Tabs>
   );
 }
