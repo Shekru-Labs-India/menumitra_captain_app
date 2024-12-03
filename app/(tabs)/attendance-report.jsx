@@ -1,208 +1,128 @@
-import React, { useState } from 'react';
-import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Pressable,
-  ScrollView,
-  Select,
-  Modal,
-  Button,
-  Icon,
-  Heading,
-  Divider,
-} from 'native-base';
-import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Platform } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, ScrollView } from 'react-native';
+import { useState } from 'react';
+import { Box, VStack, HStack, Heading, Select, CheckIcon } from 'native-base';
 
 export default function AttendanceReportScreen() {
-  const [filterType, setFilterType] = useState('today');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [dateType, setDateType] = useState('start'); // 'start' or 'end'
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  const [showCustomDateModal, setShowCustomDateModal] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
 
-  // Mock data for attendance records
-  const [attendanceData, setAttendanceData] = useState([
-    { id: 1, name: 'John Doe', date: '2024-03-01', status: 'present', checkIn: '09:00 AM', checkOut: '05:00 PM' },
-    { id: 2, name: 'Jane Smith', date: '2024-03-01', status: 'absent', checkIn: '-', checkOut: '-' },
-    // Add more mock data as needed
-  ]);
-
-  const filterOptions = [
-    { label: 'Today', value: 'today' },
-    { label: 'Yesterday', value: 'yesterday' },
-    { label: 'This Week', value: 'this_week' },
-    { label: 'Last Week', value: 'last_week' },
-    { label: 'This Month', value: 'this_month' },
-    { label: 'Last Month', value: 'last_month' },
-    { label: 'This Quarter', value: 'this_quarter' },
-    { label: 'Last 6 Months', value: 'last_6_months' },
-    { label: 'Custom Date', value: 'custom' },
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
   ];
 
-  const handleFilterChange = (value) => {
-    setFilterType(value);
-    if (value === 'custom') {
-      setShowCustomDateModal(true);
-    }
-  };
+  const years = ["2023", "2024"];
 
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      if (dateType === 'start') {
-        if (selectedDate > endDate) {
-          // If selected start date is after end date, update end date too
-          setEndDate(selectedDate);
-        }
-        setStartDate(selectedDate);
-      } else {
-        if (selectedDate < startDate) {
-          // If selected end date is before start date, update start date too
-          setStartDate(selectedDate);
-        }
-        setEndDate(selectedDate);
-      }
-    }
-  };
-
-  const showDateSelection = (type) => {
-    setDateType(type);
-    setShowDatePicker(true);
-  };
-
-  const applyCustomDateFilter = () => {
-    setShowCustomDateModal(false);
-    // Filter attendance data based on selected date range
-    const filteredData = attendanceData.filter(record => {
-      const recordDate = new Date(record.date);
-      // Set hours to 0 for proper date comparison
-      const start = new Date(startDate.setHours(0, 0, 0, 0));
-      const end = new Date(endDate.setHours(23, 59, 59, 999));
-      return recordDate >= start && recordDate <= end;
-    });
-    setAttendanceData(filteredData);
-  };
+  // Mock data for attendance report
+  const attendanceData = [
+    {
+      employeeName: "John Doe",
+      employeeId: "EMP001",
+      position: "Waiter",
+      presentDays: 22,
+      absentDays: 3,
+      leaves: 2,
+      overtime: 10
+    },
+    {
+      employeeName: "Jane Smith",
+      employeeId: "EMP002",
+      position: "Chef",
+      presentDays: 24,
+      absentDays: 1,
+      leaves: 1,
+      overtime: 15
+    },
+    // Add more mock data as needed
+  ];
 
   return (
-    <Box flex={1} bg="white" safeArea>
-      <VStack space={4} flex={1}>
-        {/* Header */}
-        <Box px={4} py={3}>
-          <Heading size="lg">Attendance Report</Heading>
-        </Box>
+    <SafeAreaView style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Box p={4}>
+          <Heading size="lg" mb={4}>Attendance Report</Heading>
+          
+          {/* Filters */}
+          <HStack space={4} mb={6}>
+            <Select
+              selectedValue={selectedMonth}
+              minWidth={150}
+              placeholder="Select Month"
+              onValueChange={itemValue => setSelectedMonth(itemValue)}
+              _selectedItem={{
+                bg: "cyan.600",
+                endIcon: <CheckIcon size={4} />
+              }}
+            >
+              {months.map((month, index) => (
+                <Select.Item key={index} label={month} value={month.toLowerCase()} />
+              ))}
+            </Select>
 
-        {/* Filter Section */}
-        <Box px={4}>
-          <Select
-            selectedValue={filterType}
-            onValueChange={handleFilterChange}
-            _selectedItem={{
-              bg: "primary.100",
-              endIcon: <Icon as={Ionicons} name="checkmark" size={4} />
-            }}
-          >
-            {filterOptions.map((option) => (
-              <Select.Item 
-                key={option.value} 
-                label={option.label} 
-                value={option.value}
-              />
-            ))}
-          </Select>
-        </Box>
+            <Select
+              selectedValue={selectedYear}
+              minWidth={100}
+              placeholder="Year"
+              onValueChange={itemValue => setSelectedYear(itemValue)}
+              _selectedItem={{
+                bg: "cyan.600",
+                endIcon: <CheckIcon size={4} />
+              }}
+            >
+              {years.map((year, index) => (
+                <Select.Item key={index} label={year} value={year} />
+              ))}
+            </Select>
+          </HStack>
 
-        {/* Report Content */}
-        <ScrollView flex={1} px={4}>
-          <VStack space={3}>
-            {attendanceData.map((record) => (
+          {/* Attendance Cards */}
+          <VStack space={4}>
+            {attendanceData.map((employee, index) => (
               <Box
-                key={record.id}
+                key={index}
                 bg="white"
                 p={4}
                 rounded="lg"
                 shadow={2}
-                borderWidth={1}
-                borderColor="gray.100"
               >
                 <VStack space={2}>
                   <HStack justifyContent="space-between" alignItems="center">
-                    <Text fontSize="md" fontWeight="bold">{record.name}</Text>
-                    <Text
-                      fontSize="sm"
-                      color={record.status === 'present' ? 'success.500' : 'danger.500'}
-                    >
-                      {record.status.toUpperCase()}
-                    </Text>
+                    <Heading size="sm">{employee.employeeName}</Heading>
+                    <Text color="gray.500">{employee.employeeId}</Text>
                   </HStack>
-                  <Divider />
-                  <HStack justifyContent="space-between">
-                    <Text fontSize="sm" color="gray.500">Date</Text>
-                    <Text fontSize="sm">{record.date}</Text>
-                  </HStack>
-                  <HStack justifyContent="space-between">
-                    <Text fontSize="sm" color="gray.500">Check In</Text>
-                    <Text fontSize="sm">{record.checkIn}</Text>
-                  </HStack>
-                  <HStack justifyContent="space-between">
-                    <Text fontSize="sm" color="gray.500">Check Out</Text>
-                    <Text fontSize="sm">{record.checkOut}</Text>
+                  <Text color="gray.500">{employee.position}</Text>
+                  
+                  <HStack space={4} mt={2}>
+                    <VStack alignItems="center">
+                      <Text color="green.500" fontWeight="bold">{employee.presentDays}</Text>
+                      <Text color="gray.500">Present</Text>
+                    </VStack>
+                    <VStack alignItems="center">
+                      <Text color="red.500" fontWeight="bold">{employee.absentDays}</Text>
+                      <Text color="gray.500">Absent</Text>
+                    </VStack>
+                    <VStack alignItems="center">
+                      <Text color="yellow.500" fontWeight="bold">{employee.leaves}</Text>
+                      <Text color="gray.500">Leaves</Text>
+                    </VStack>
+                    <VStack alignItems="center">
+                      <Text color="blue.500" fontWeight="bold">{employee.overtime}h</Text>
+                      <Text color="gray.500">Overtime</Text>
+                    </VStack>
                   </HStack>
                 </VStack>
               </Box>
             ))}
           </VStack>
-        </ScrollView>
-
-        {/* Custom Date Modal */}
-        <Modal isOpen={showCustomDateModal} onClose={() => setShowCustomDateModal(false)}>
-          <Modal.Content>
-            <Modal.Header>Select Date Range</Modal.Header>
-            <Modal.Body>
-              <VStack space={4}>
-                <Pressable onPress={() => showDateSelection('start')}>
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text>Start Date</Text>
-                    <Text>{startDate.toLocaleDateString()}</Text>
-                  </HStack>
-                </Pressable>
-                <Pressable onPress={() => showDateSelection('end')}>
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text>End Date</Text>
-                    <Text>{endDate.toLocaleDateString()}</Text>
-                  </HStack>
-                </Pressable>
-              </VStack>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button.Group space={2}>
-                <Button
-                  variant="ghost"
-                  onPress={() => setShowCustomDateModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button onPress={applyCustomDateFilter}>
-                  Apply
-                </Button>
-              </Button.Group>
-            </Modal.Footer>
-          </Modal.Content>
-        </Modal>
-
-        {/* Date Picker */}
-        {showDatePicker && Platform.OS !== 'web' && (
-          <DateTimePicker
-            value={dateType === 'start' ? startDate : endDate}
-            mode="date"
-            onChange={handleDateChange}
-          />
-        )}
-      </VStack>
-    </Box>
+        </Box>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+});
