@@ -14,11 +14,11 @@ import {
   Divider,
   IconButton,
 } from 'native-base';
-import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-
+import BoxIcon from '../../components/BoxIcon';
+import { Ionicons } from "@expo/vector-icons";
 export default function AttendanceReportScreen() {
   const router = useRouter();
   const [filterType, setFilterType] = useState('today');
@@ -221,7 +221,13 @@ export default function AttendanceReportScreen() {
         >
           <HStack alignItems="center" justifyContent="space-between">
             <IconButton
-              icon={<Icon as={Ionicons} name="arrow-back" size={6} color="gray.800" />}
+              icon={
+                <Icon
+                  as={Ionicons}
+                  name="arrow-back"
+                  size={6}
+                  color="gray.800"
+                />}
               onPress={() => router.back()}
               variant="ghost"
               _pressed={{ bg: "gray.100" }}
@@ -276,9 +282,8 @@ export default function AttendanceReportScreen() {
                   flexDirection="row"
                   alignItems="center"
                 >
-                  <Icon
-                    as={Ionicons}
-                    name="calendar-outline"
+                  <BoxIcon
+                    name="calendar"
                     size={5}
                     color={filterType === 'custom' ? "white" : "blue.500"}
                     mr={2}
@@ -303,7 +308,7 @@ export default function AttendanceReportScreen() {
             onPress={generateReport}
             bg="primary.500"
             _pressed={{ bg: "primary.600" }}
-            leftIcon={<Icon as={Ionicons} name="checkmark" size={5} color="white" />}
+            leftIcon={<BoxIcon name="document-text" size={20} color="white" />}
           >
             Apply
           </Button>
@@ -316,7 +321,7 @@ export default function AttendanceReportScreen() {
               <Text fontSize="md" fontWeight="semibold" color="gray.700">Total Days: {totalDays}</Text>
               <Pressable onPress={handleDownloadPDF}>
                 <HStack space={1} alignItems="center">
-                  <Icon as={Ionicons} name="download-outline" size={5} color="blue.500" />
+                  <BoxIcon name="document-text" size={20} color="#3b82f6" />
                   <Text fontSize="md" fontWeight="bold" color="blue.500">Download</Text>
                 </HStack>
               </Pressable>
@@ -338,11 +343,10 @@ export default function AttendanceReportScreen() {
                       alignItems="center" 
                       justifyContent="center"
                     >
-                      <Icon 
-                        as={Ionicons} 
-                        name="person" 
-                        size={8} 
-                        color="gray.500"
+                      <BoxIcon 
+                        name="staff"
+                        size={32}
+                        color="#6b7280"
                       />
                     </Box>
                   </Box>

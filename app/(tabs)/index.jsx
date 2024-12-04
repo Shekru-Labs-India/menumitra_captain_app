@@ -11,22 +11,22 @@ import {
   ScrollView,
   Platform,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { useRouter } from "expo-router";
-
+import BoxIcon from "../../components/BoxIcon";
+import Sidebar from "../../components/Sidebar";
 export default function HomeScreen() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
+      setIsSidebarOpen(!isSidebarOpen);
+    };
 
   const managementCards = [
     {
       title: "Staff Management",
-      icon: "people",
+      icon: "staff",
       color: "#4CAF50",
       route: "/staff-management",
     },
@@ -68,13 +68,7 @@ export default function HomeScreen() {
     },
   ];
 
-  const sidebarItems = [
-    { icon: "home", title: "Home" },
-    { icon: "list", title: "Orders" },
-    { icon: "person", title: "Profile" },
-    { icon: "settings-outline", title: "Settings" },
-    { icon: "log-out-outline", title: "Logout" },
-  ];
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -98,14 +92,10 @@ export default function HomeScreen() {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.menuButton}>
-            <MaterialCommunityIcons
-              name="bell-outline"
-              size={24}
-              color="#333"
-            />
+            <BoxIcon name="bell" size={24} color="#333" />
           </TouchableOpacity>
           <TouchableOpacity onPress={toggleSidebar} style={styles.menuButton}>
-            <MaterialCommunityIcons name="menu" size={24} color="#333" />
+            <BoxIcon name="menu" size={24} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
@@ -118,46 +108,14 @@ export default function HomeScreen() {
               style={[styles.card, { backgroundColor: card.color }]}
               onPress={() => router.push(card.route)}
             >
-              <Ionicons name={card.icon} size={32} color="#fff" />
+              <BoxIcon name={card.icon} size={32} color="#fff" />
               <Text style={styles.cardTitle}>{card.title}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
-
-      {/* Sidebar - Right Side */}
-      {isSidebarOpen && (
-        <View style={styles.sidebar}>
-          <View style={styles.sidebarHeader}>
-            <TouchableOpacity
-              onPress={toggleSidebar}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="home" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Home</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="list" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Orders</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="person" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Profile</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="settings-outline" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Settings</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="log-out-outline" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+     
     </SafeAreaView>
   );
 }

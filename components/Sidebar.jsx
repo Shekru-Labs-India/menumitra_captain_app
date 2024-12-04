@@ -6,39 +6,39 @@ import {
   Platform,
   StatusBar,
 } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import BoxIcon from "../app/components/BoxIcon";
 
 export default function Sidebar({ isOpen, onClose }) {
   const menuItems = [
     {
       title: "Home",
-      icon: "home-variant-outline",
+      icon: "home",
       route: "/(tabs)",
     },
     {
       title: "Staff",
-      icon: "account-group-outline",
+      icon: "staff",
       route: "/(tabs)/staff",
     },
     {
       title: "Attendance",
-      icon: "calendar-clock-outline",
+      icon: "calendar",
       route: "/attendance",
     },
     {
       title: "Inventory",
-      icon: "package-variant-closed",
+      icon: "cube",
       route: "/inventory",
     },
     {
       title: "Inventory Report",
-      icon: "file-document-outline",
+      icon: "document-text",
       route: "/inventory-report",
     },
     {
       title: "Order Report",
-      icon: "clipboard-text-outline",
+      icon: "receipt",
       route: "/order-report",
     },
   ];
@@ -58,7 +58,7 @@ export default function Sidebar({ isOpen, onClose }) {
     <View style={styles.sidebar}>
       <View style={styles.sidebarHeader}>
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <MaterialCommunityIcons name="close" size={24} color="#333" />
+          <BoxIcon name="close" size={24} color="#333" />
         </TouchableOpacity>
       </View>
 
@@ -70,7 +70,7 @@ export default function Sidebar({ isOpen, onClose }) {
             style={styles.sidebarItem}
             onPress={() => handleNavigation(item.route)}
           >
-            <MaterialCommunityIcons name={item.icon} size={24} color="#333" />
+            <BoxIcon name={item.icon} size={24} color="#333" />
             <Text style={styles.sidebarText} numberOfLines={1}>
               {item.title}
             </Text>
@@ -83,11 +83,7 @@ export default function Sidebar({ isOpen, onClose }) {
         style={[styles.sidebarItem, styles.logoutItem]}
         onPress={handleLogout}
       >
-        <MaterialCommunityIcons
-          name="logout-variant"
-          size={24}
-          color="#FF3B30"
-        />
+        <BoxIcon name="logout" size={24} color="#FF3B30" />
         <Text style={[styles.sidebarText, styles.logoutText]}>Logout</Text>
       </TouchableOpacity>
     </View>

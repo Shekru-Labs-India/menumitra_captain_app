@@ -29,6 +29,12 @@
       "bundler": "metro",
       "favicon": "./assets/images/favicon.png"
     },
+    "fonts": [
+      {
+        "asset": "./assets/fonts/boxicons.ttf",
+        "family": "boxicons"
+      }
+    ],
     "plugins": [
       "expo-router"
     ],
