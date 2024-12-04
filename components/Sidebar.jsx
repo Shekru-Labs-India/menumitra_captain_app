@@ -1,15 +1,18 @@
 import {
-  StyleSheet,
-  View,
+  Box,
+  VStack,
+  HStack,
   Text,
-  TouchableOpacity,
-  Platform,
+  IconButton,
+  Pressable,
+  Icon,
   StatusBar,
-} from "react-native";
+} from "native-base";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { Platform } from "react-native";
 
-export default function Sidebar({ isOpen, onClose }) {
+export const Sidebar = ({ isOpen, onClose }) => {
   const menuItems = [
     {
       title: "Home",
@@ -22,24 +25,29 @@ export default function Sidebar({ isOpen, onClose }) {
       route: "/(tabs)/staff",
     },
     {
-      title: "Attendance",
-      icon: "calendar-clock-outline",
-      route: "/attendance",
+      title: "Orders",
+      icon: "clipboard-list-outline",
+      route: "/(tabs)/orders",
+    },
+    {
+      title: "Profile",
+      icon: "account-outline",
+      route: "/(tabs)/profile",
     },
     {
       title: "Inventory",
       icon: "package-variant-closed",
-      route: "/inventory",
+      route: "/(tabs)/staff/inventory",
     },
     {
       title: "Inventory Report",
       icon: "file-document-outline",
-      route: "/inventory-report",
+      route: "/(tabs)/staff/inventory-report",
     },
     {
       title: "Order Report",
       icon: "clipboard-text-outline",
-      route: "/order-report",
+      route: "/(tabs)/staff/order-report",
     },
   ];
 
@@ -55,97 +63,79 @@ export default function Sidebar({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <View style={styles.sidebar}>
-      <View style={styles.sidebarHeader}>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <MaterialCommunityIcons name="close" size={24} color="#333" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Menu Items */}
-      <View style={styles.menuContainer}>
-        {menuItems.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.sidebarItem}
-            onPress={() => handleNavigation(item.route)}
-          >
-            <MaterialCommunityIcons name={item.icon} size={24} color="#333" />
-            <Text style={styles.sidebarText} numberOfLines={1}>
-              {item.title}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Logout Button */}
-      <TouchableOpacity
-        style={[styles.sidebarItem, styles.logoutItem]}
-        onPress={handleLogout}
+    <Box
+      w="300"
+      h="full"
+      bg="white"
+      position="absolute"
+      top="0"
+      right="0"
+      pt={Platform.OS === "android" ? `${StatusBar.currentHeight}px` : "0"}
+      shadow={5}
+    >
+      <HStack
+        justifyContent="flex-end"
+        p={4}
+        borderBottomWidth={1}
+        borderBottomColor="gray.200"
       >
-        <MaterialCommunityIcons
-          name="logout-variant"
-          size={24}
-          color="#FF3B30"
+        <IconButton
+          onPress={onClose}
+          icon={
+            <Icon
+              as={MaterialCommunityIcons}
+              name="close"
+              size={6}
+              color="gray.600"
+            />
+          }
         />
-        <Text style={[styles.sidebarText, styles.logoutText]}>Logout</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
+      </HStack>
 
-const styles = StyleSheet.create({
-  sidebar: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: 300,
-    backgroundColor: "#fff",
-    borderLeftWidth: 1,
-    borderLeftColor: "#eee",
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: -2,
-      height: 0,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  sidebarHeader: {
-    height: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    justifyContent: "center",
-    alignItems: "flex-end",
-    paddingRight: 15,
-  },
-  closeButton: {
-    padding: 8,
-  },
-  menuContainer: {
-    flex: 1,
-  },
-  sidebarItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  sidebarText: {
-    marginLeft: 15,
-    fontSize: 16,
-    color: "#333",
-    flex: 1,
-  },
-  logoutItem: {
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
-  logoutText: {
-    color: "#FF3B30",
-  },
-});
+      <VStack flex={1} space={0}>
+        {menuItems.map((item, index) => (
+          <Pressable
+            key={index}
+            onPress={() => handleNavigation(item.route)}
+            py={4}
+            px={6}
+            borderBottomWidth={1}
+            borderBottomColor="gray.200"
+          >
+            <HStack space={4} alignItems="center">
+              <Icon
+                as={MaterialCommunityIcons}
+                name={item.icon}
+                size={6}
+                color="gray.600"
+              />
+              <Text fontSize="md" color="gray.700">
+                {item.title}
+              </Text>
+            </HStack>
+          </Pressable>
+        ))}
+      </VStack>
+
+      <Pressable
+        onPress={handleLogout}
+        py={4}
+        px={6}
+        borderTopWidth={1}
+        borderTopColor="gray.200"
+      >
+        <HStack space={4} alignItems="center">
+          <Icon
+            as={MaterialCommunityIcons}
+            name="logout-variant"
+            size={6}
+            color="red.500"
+          />
+          <Text fontSize="md" color="red.500">
+            Logout
+          </Text>
+        </HStack>
+      </Pressable>
+    </Box>
+  );
+};

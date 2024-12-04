@@ -205,7 +205,7 @@ export default function OrdersScreen() {
                         key={order.id}
                         onPress={() => {
                           try {
-                            router.push("/order-details");
+                            router.push("/screens/order-details");
                           } catch (error) {
                             console.error("Navigation error:", error);
                           }

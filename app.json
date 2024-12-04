@@ -1,14 +1,13 @@
 {
   "expo": {
-    "name": "menumitra_captain_app",
-    "slug": "menumitra_captain_app",
+    "name": "MenuMitra Captain",
+    "slug": "menumitra-captain",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -23,24 +22,14 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.pratikshas29.menumitra_captain_app"
+      "package": "com.menumitra.captain"
     },
     "web": {
-      "bundler": "metro",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": [
-      "expo-router"
-    ],
-    "experiments": {
-      "tsconfigPaths": true
-    },
     "extra": {
-      "router": {
-        "origin": false
-      },
       "eas": {
-        "projectId": "bad083dd-6fe4-4487-af70-29325cb292b7"
+        "projectId": "95eebffa-48c1-47a9-ad25-0fa39e6f46de"
       }
     }
   }

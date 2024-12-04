@@ -14,6 +14,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { useRouter } from "expo-router";
+import { Sidebar } from "../../components/Sidebar";
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -28,43 +29,31 @@ export default function HomeScreen() {
       title: "Staff Management",
       icon: "people",
       color: "#4CAF50",
-      route: "/staff-management",
-    },
-    {
-      title: "Staff Attendance",
-      icon: "calendar",
-      color: "#2196F3",
-      route: "/staff-attendance",
-    },
-    {
-      title: "Attendance Report",
-      icon: "document-text",
-      color: "#9C27B0",
-      route: "/attendance-report",
+      route: "/(tabs)/staff",
     },
     {
       title: "Inventory Management",
       icon: "cube",
       color: "#FF9800",
-      route: "/staff/inventory",
+      route: "/(tabs)/staff/inventory",
     },
     {
       title: "Inventory Report",
       icon: "bar-chart",
       color: "#F44336",
-      route: "/inventory-report",
+      route: "/(tabs)/staff/inventory-report",
     },
     {
       title: "Orders",
       icon: "receipt",
       color: "#3F51B5",
-      route: "/orders",
+      route: "/(tabs)/orders",
     },
     {
       title: "Order Report",
       icon: "stats-chart",
       color: "#009688",
-      route: "/order-report",
+      route: "/(tabs)/staff/order-report",
     },
   ];
 
@@ -125,39 +114,8 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* Sidebar - Right Side */}
-      {isSidebarOpen && (
-        <View style={styles.sidebar}>
-          <View style={styles.sidebarHeader}>
-            <TouchableOpacity
-              onPress={toggleSidebar}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="home" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Home</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="list" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Orders</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="person" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Profile</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="settings-outline" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Settings</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarItem}>
-            <Ionicons name="log-out-outline" size={24} color="#333" />
-            <Text style={styles.sidebarText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* New Sidebar Component */}
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
     </SafeAreaView>
   );
 }
