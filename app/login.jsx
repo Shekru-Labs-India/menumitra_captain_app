@@ -54,7 +54,7 @@ export default function LoginScreen() {
 
     try {
       // Simulating API call with hardcoded validation
-      const allowedNumbers = ["9876543210", "8459719119"]; // Add your allowed numbers
+      const allowedNumbers = ["9579078460", "9999999999","8459719119"]; // Add your allowed numbers
 
       if (allowedNumbers.includes(mobileNumber)) {
         // Store mobile number if needed for OTP screen

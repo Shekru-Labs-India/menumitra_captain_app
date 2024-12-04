@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { NativeBaseProvider, extendTheme } from "native-base";
+import { SupplierProvider } from "../context/SupplierContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -51,14 +52,21 @@ export default function RootLayout() {
   }
 
   return (
-    <NativeBaseProvider theme={theme}>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" options={{ presentation: "modal" }} />
-        </Stack>
-        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-      </ThemeProvider>
-    </NativeBaseProvider>
+    <SupplierProvider>
+      <NativeBaseProvider theme={theme}>
+        <ThemeProvider
+          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+        >
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="+not-found"
+              options={{ presentation: "modal" }}
+            />
+          </Stack>
+          <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+        </ThemeProvider>
+      </NativeBaseProvider>
+    </SupplierProvider>
   );
 }

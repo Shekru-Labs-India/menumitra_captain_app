@@ -14,15 +14,17 @@ import {
 } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+
 // Import food images
 const foodImages = {
-  butterChicken: require('../../assets/food/burger-with-melted-cheese.jpg'),
-  maharashtrianThali: require('../../assets/food/burger-with-melted-cheese.jpg'),
+  butterChicken: require('../../../assets/food/burger-with-melted-cheese.jpg'),
+  maharashtrianThali: require('../../../assets/food/burger-with-melted-cheese.jpg'),
 };
-const router = useRouter();
+
 export default function OrderDetailsScreen() {
+  const router = useRouter();
   return (
-    <Box flex={1} bg="gray.50" safeArea>
+    <Box flex={1} bg="gray.50" safeArea position="relative">
      <Box 
           px={4} 
           py={3} 
@@ -31,6 +33,8 @@ export default function OrderDetailsScreen() {
           mb={1}
           borderBottomWidth={1}
           borderBottomColor="gray.100"
+          position="relative"
+          zIndex={1}
         >
           <HStack alignItems="center" justifyContent="space-between">
             <IconButton
@@ -112,7 +116,7 @@ export default function OrderDetailsScreen() {
         height="100px" // Set the desired height for the image
         width="100px" // Set the desired width for the image
         rounded="lg"
-        fallbackSource={require('../../assets/food/burger-with-melted-cheese.jpg')}
+        fallbackSource={require('../../../assets/food/burger-with-melted-cheese.jpg')}
       />
       {/* Offer Badge */}
       <Box
@@ -181,11 +185,10 @@ export default function OrderDetailsScreen() {
       <Image
         source={foodImages.butterChicken}
         alt="Butter Chicken"
-        resizeMode="cover" // Ensures the image fills the available space
         height="100px" // Set the desired height for the image
         width="100px" // Set the desired width for the image
         rounded="lg"
-        fallbackSource={require('../../assets/food/burger-with-melted-cheese.jpg')}
+        fallbackSource={require('../../../assets/food/burger-with-melted-cheese.jpg')}
       />
       {/* Offer Badge */}
       <Box

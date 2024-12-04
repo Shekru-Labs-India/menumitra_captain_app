@@ -23,11 +23,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="orders"
+        name="menu"
         options={{
-          title: "Orders",
+          title: "Menu",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list" size={size} color={color} />
+            <Ionicons name="menu" size={size} color={color} />
           ),
         }}
       />
@@ -38,22 +38,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people" size={size} color={color} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="order-details"
-        options={{
-          href: null,
-          headerShown: false,
         }}
       />
     </Tabs>
