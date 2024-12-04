@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Image,
   StyleSheet,
@@ -12,13 +12,42 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Sidebar } from "../../components/Sidebar";
+import { Audio } from "expo-av";
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [sound, setSound] = useState();
+  const [isPlaying, setIsPlaying] = useState(false);
   const router = useRouter();
+
+  // Cleanup sound on component unmount
+  useEffect(() => {
+    return sound
+      ? () => {
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
+
+  async function playSound() {
+    if (isPlaying) {
+      // If sound is playing, stop it
+      await sound.stopAsync();
+      await sound.unloadAsync();
+      setSound(undefined);
+      setIsPlaying(false);
+    } else {
+      // Load and play the sound
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        require("../../assets/sounds/simple-notification.mp3"), // Make sure to add your sound file
+        { shouldPlay: true }
+      );
+      setSound(newSound);
+      setIsPlaying(true);
+    }
+  }
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -57,14 +86,6 @@ export default function HomeScreen() {
     },
   ];
 
-  const sidebarItems = [
-    { icon: "home", title: "Home" },
-    { icon: "list", title: "Orders" },
-    { icon: "person", title: "Profile" },
-    { icon: "settings-outline", title: "Settings" },
-    { icon: "log-out-outline", title: "Logout" },
-  ];
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#fff" barStyle="dark-content" />
@@ -86,11 +107,11 @@ export default function HomeScreen() {
           <Text style={styles.headerTitle}>MenuMitra Captain</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.menuButton}>
+          <TouchableOpacity style={styles.menuButton} onPress={playSound}>
             <MaterialCommunityIcons
-              name="bell-outline"
+              name={isPlaying ? "bell-ring" : "bell-outline"}
               size={24}
-              color="#333"
+              color={isPlaying ? "#007AFF" : "#333"}
             />
           </TouchableOpacity>
           <TouchableOpacity onPress={toggleSidebar} style={styles.menuButton}>

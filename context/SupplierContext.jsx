@@ -1,8 +1,8 @@
-import React, { createContext, useState } from "react";
+import { createContext, useState } from "react";
 
 export const SupplierContext = createContext();
 
-export const SupplierProvider = ({ children }) => {
+export function SupplierProvider({ children }) {
   const [suppliers, setSuppliers] = useState([]);
 
   const addSupplier = (supplier) => {
@@ -28,4 +28,4 @@ export const SupplierProvider = ({ children }) => {
       {children}
     </SupplierContext.Provider>
   );
-};
+}
