@@ -18,7 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import BoxIcon from '../../components/BoxIcon';
-
+import { Ionicons } from "@expo/vector-icons";
 export default function AttendanceReportScreen() {
   const router = useRouter();
   const [filterType, setFilterType] = useState('today');
@@ -221,7 +221,13 @@ export default function AttendanceReportScreen() {
         >
           <HStack alignItems="center" justifyContent="space-between">
             <IconButton
-              icon={<BoxIcon name="arrowleft" size={24} color="#1f2937" />}
+              icon={
+                <Icon
+                  as={Ionicons}
+                  name="arrow-back"
+                  size={6}
+                  color="gray.800"
+                />}
               onPress={() => router.back()}
               variant="ghost"
               _pressed={{ bg: "gray.100" }}

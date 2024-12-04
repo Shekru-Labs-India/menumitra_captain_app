@@ -13,6 +13,8 @@ import {
   TextArea,
   Select,
   CheckIcon,
+  Divider,
+  HStack,
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -39,28 +41,78 @@ export default function EditSupplierScreen() {
     address: "",
   });
 
+  const [errors, setErrors] = useState({});
+
   useEffect(() => {
     const supplier = suppliers.find((s) => s.id === id);
     if (supplier) {
       setFormData(supplier);
+    } else {
+      toast.show({
+        description: "Supplier not found",
+        status: "error",
+      });
+      router.back();
     }
   }, [id]);
 
-  const handleUpdate = () => {
-    if (!formData.name || !formData.mobileNumber1) {
-      toast.show({
-        description: "Please fill in all required fields",
-        status: "error",
-      });
-      return;
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Required fields
+    if (!formData.name?.trim()) {
+      newErrors.name = "Name is required";
     }
 
-    updateSupplier(id, formData);
-    toast.show({
-      description: "Supplier updated successfully",
-      status: "success",
-    });
-    router.back();
+    if (!formData.mobileNumber1?.trim()) {
+      newErrors.mobileNumber1 = "Primary contact is required";
+    } else if (!/^\d{10}$/.test(formData.mobileNumber1.trim())) {
+      newErrors.mobileNumber1 = "Enter valid 10-digit number";
+    }
+
+    // Optional field validations
+    if (
+      formData.mobileNumber2?.trim() &&
+      !/^\d{10}$/.test(formData.mobileNumber2.trim())
+    ) {
+      newErrors.mobileNumber2 = "Enter valid 10-digit number";
+    }
+
+    if (
+      formData.website?.trim() &&
+      !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(
+        formData.website.trim()
+      )
+    ) {
+      newErrors.website = "Enter valid website URL";
+    }
+
+    if (formData.creditLimit?.trim() && isNaN(formData.creditLimit.trim())) {
+      newErrors.creditLimit = "Credit limit must be a number";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleUpdate = () => {
+    if (validateForm()) {
+      updateSupplier(id, {
+        ...formData,
+        name: formData.name.trim(),
+        mobileNumber1: formData.mobileNumber1.trim(),
+        mobileNumber2: formData.mobileNumber2?.trim(),
+        website: formData.website?.trim(),
+        creditLimit: formData.creditLimit?.trim(),
+        address: formData.address?.trim(),
+      });
+
+      toast.show({
+        description: "Supplier updated successfully",
+        status: "success",
+      });
+      router.back();
+    }
   };
 
   return (
@@ -89,13 +141,19 @@ export default function EditSupplierScreen() {
 
       <ScrollView px={4} py={4}>
         <VStack space={4}>
-          <FormControl isRequired>
+          {/* Basic Information */}
+          <Heading size="sm" color="coolGray.600">
+            Basic Information
+          </Heading>
+
+          <FormControl isRequired isInvalid={"name" in errors}>
             <FormControl.Label>Name</FormControl.Label>
             <Input
               value={formData.name}
               onChangeText={(text) => setFormData({ ...formData, name: text })}
               placeholder="Enter supplier name"
             />
+            <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
           </FormControl>
 
           <FormControl>
@@ -114,6 +172,76 @@ export default function EditSupplierScreen() {
               <Select.Item label="Inactive" value="inactive" />
             </Select>
           </FormControl>
+
+          <FormControl>
+            <FormControl.Label>Supplier Code</FormControl.Label>
+            <Input
+              value={formData.supplierCode}
+              onChangeText={(text) =>
+                setFormData({ ...formData, supplierCode: text })
+              }
+              placeholder="Enter supplier code"
+            />
+          </FormControl>
+
+          <Divider my={2} />
+
+          {/* Contact Information */}
+          <Heading size="sm" color="coolGray.600">
+            Contact Information
+          </Heading>
+
+          <FormControl isRequired isInvalid={"mobileNumber1" in errors}>
+            <FormControl.Label>Primary Contact</FormControl.Label>
+            <Input
+              value={formData.mobileNumber1}
+              onChangeText={(text) =>
+                setFormData({ ...formData, mobileNumber1: text })
+              }
+              placeholder="Enter primary mobile number"
+              keyboardType="phone-pad"
+            />
+            <FormControl.ErrorMessage>
+              {errors.mobileNumber1}
+            </FormControl.ErrorMessage>
+          </FormControl>
+
+          <FormControl isInvalid={"mobileNumber2" in errors}>
+            <FormControl.Label>Secondary Contact</FormControl.Label>
+            <Input
+              value={formData.mobileNumber2}
+              onChangeText={(text) =>
+                setFormData({ ...formData, mobileNumber2: text })
+              }
+              placeholder="Enter secondary mobile number"
+              keyboardType="phone-pad"
+            />
+            <FormControl.ErrorMessage>
+              {errors.mobileNumber2}
+            </FormControl.ErrorMessage>
+          </FormControl>
+
+          <FormControl isInvalid={"website" in errors}>
+            <FormControl.Label>Website</FormControl.Label>
+            <Input
+              value={formData.website}
+              onChangeText={(text) =>
+                setFormData({ ...formData, website: text })
+              }
+              placeholder="Enter website URL"
+              keyboardType="url"
+            />
+            <FormControl.ErrorMessage>
+              {errors.website}
+            </FormControl.ErrorMessage>
+          </FormControl>
+
+          <Divider my={2} />
+
+          {/* Business Information */}
+          <Heading size="sm" color="coolGray.600">
+            Business Information
+          </Heading>
 
           <FormControl>
             <FormControl.Label>Credit Rating</FormControl.Label>
@@ -135,7 +263,7 @@ export default function EditSupplierScreen() {
             </Select>
           </FormControl>
 
-          <FormControl>
+          <FormControl isInvalid={"creditLimit" in errors}>
             <FormControl.Label>Credit Limit</FormControl.Label>
             <Input
               value={formData.creditLimit}
@@ -144,6 +272,20 @@ export default function EditSupplierScreen() {
               }
               placeholder="Enter credit limit"
               keyboardType="numeric"
+            />
+            <FormControl.ErrorMessage>
+              {errors.creditLimit}
+            </FormControl.ErrorMessage>
+          </FormControl>
+
+          <FormControl>
+            <FormControl.Label>Owner Name</FormControl.Label>
+            <Input
+              value={formData.ownerName}
+              onChangeText={(text) =>
+                setFormData({ ...formData, ownerName: text })
+              }
+              placeholder="Enter owner name"
             />
           </FormControl>
 
@@ -159,64 +301,6 @@ export default function EditSupplierScreen() {
           </FormControl>
 
           <FormControl>
-            <FormControl.Label>Owner Name</FormControl.Label>
-            <Input
-              value={formData.ownerName}
-              onChangeText={(text) =>
-                setFormData({ ...formData, ownerName: text })
-              }
-              placeholder="Enter owner name"
-            />
-          </FormControl>
-
-          <FormControl>
-            <FormControl.Label>Supplier Code</FormControl.Label>
-            <Input
-              value={formData.supplierCode}
-              onChangeText={(text) =>
-                setFormData({ ...formData, supplierCode: text })
-              }
-              placeholder="Enter supplier code"
-            />
-          </FormControl>
-
-          <FormControl>
-            <FormControl.Label>Website</FormControl.Label>
-            <Input
-              value={formData.website}
-              onChangeText={(text) =>
-                setFormData({ ...formData, website: text })
-              }
-              placeholder="Enter website URL"
-              keyboardType="url"
-            />
-          </FormControl>
-
-          <FormControl isRequired>
-            <FormControl.Label>Mobile Number 1</FormControl.Label>
-            <Input
-              value={formData.mobileNumber1}
-              onChangeText={(text) =>
-                setFormData({ ...formData, mobileNumber1: text })
-              }
-              placeholder="Enter primary mobile number"
-              keyboardType="phone-pad"
-            />
-          </FormControl>
-
-          <FormControl>
-            <FormControl.Label>Mobile Number 2</FormControl.Label>
-            <Input
-              value={formData.mobileNumber2}
-              onChangeText={(text) =>
-                setFormData({ ...formData, mobileNumber2: text })
-              }
-              placeholder="Enter secondary mobile number"
-              keyboardType="phone-pad"
-            />
-          </FormControl>
-
-          <FormControl>
             <FormControl.Label>Address</FormControl.Label>
             <TextArea
               value={formData.address}
@@ -225,10 +309,11 @@ export default function EditSupplierScreen() {
               }
               placeholder="Enter complete address"
               autoCompleteType={undefined}
+              h={20}
             />
           </FormControl>
 
-          <Button mt={4} mb={8} onPress={handleUpdate}>
+          <Button mt={4} mb={8} colorScheme="blue" onPress={handleUpdate}>
             Update Supplier
           </Button>
         </VStack>

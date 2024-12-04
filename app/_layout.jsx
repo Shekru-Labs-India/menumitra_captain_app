@@ -10,6 +10,8 @@ import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { NativeBaseProvider, extendTheme } from "native-base";
 import { SupplierProvider } from "../context/SupplierContext";
+import { Slot, useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -40,6 +42,28 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+  const router = useRouter();
+
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const checkSession = async () => {
+    try {
+      const sessionData = await AsyncStorage.getItem("userSession");
+      if (sessionData) {
+        const { expiryDate } = JSON.parse(sessionData);
+        if (new Date(expiryDate) > new Date()) {
+          router.replace("/(tabs)");
+        } else {
+          await AsyncStorage.removeItem("userSession");
+          router.replace("/login");
+        }
+      }
+    } catch (error) {
+      console.error("Error checking session:", error);
+    }
+  };
 
   useEffect(() => {
     if (loaded) {
@@ -53,18 +77,15 @@ export default function RootLayout() {
 
   return (
     <SupplierProvider>
-      <NativeBaseProvider theme={theme}>
+      <NativeBaseProvider>
         <ThemeProvider
           value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
         >
           <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="+not-found"
-              options={{ presentation: "modal" }}
-            />
           </Stack>
-          <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
         </ThemeProvider>
       </NativeBaseProvider>
     </SupplierProvider>

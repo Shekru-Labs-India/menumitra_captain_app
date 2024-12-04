@@ -62,7 +62,7 @@ export default function SuppliersScreen() {
         rounded="lg"
         shadow={1}
         mb={3}
-        mx={4}
+        mx={1}
         p={4}
         borderWidth={1}
         borderColor="coolGray.200"
@@ -75,9 +75,7 @@ export default function SuppliersScreen() {
             <Text fontSize="lg" fontWeight="bold">
               {item.name}
             </Text>
-            <Text fontSize="sm" color="coolGray.600">
-              {item.type || "Not specified"}
-            </Text>
+
             <HStack space={2} mt={1}>
               <Text fontSize="sm" color="coolGray.500">
                 {item.mobileNumber1}
@@ -188,7 +186,7 @@ export default function SuppliersScreen() {
       >
         <Input
           flex={1}
-          placeholder="Search suppliers..."
+          placeholder="Search..."
           value={searchQuery}
           onChangeText={setSearchQuery}
           InputLeftElement={

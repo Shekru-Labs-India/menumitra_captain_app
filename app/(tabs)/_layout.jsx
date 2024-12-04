@@ -3,16 +3,7 @@ import BoxIcon from "../../components/BoxIcon";
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: "#0a7ea4",
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: "#fff",
-          borderTopColor: "#eee",
-        },
-      }}
-    >
+    <Tabs screenOptions={{ headerShown: false }}>
       <Tabs.Screen
         name="index"
         options={{
@@ -35,6 +26,16 @@ export default function TabLayout() {
         name="staff"
         options={{
           title: "Staff",
+          tabBarIcon: ({ color }) => (
+            <BoxIcon name="staff" size={24} color={color} />
+          ),
+          href: "/staff/index",
+        }}
+      />
+      <Tabs.Screen
+        name="orders"
+        options={{
+          title: "Orders",
           tabBarIcon: ({ color, size }) => (
             <BoxIcon name="staff" size={size} color={color} />
           ),

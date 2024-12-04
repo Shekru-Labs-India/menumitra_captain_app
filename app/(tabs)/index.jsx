@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Image,
   StyleSheet,
@@ -11,14 +11,44 @@ import {
   ScrollView,
   Platform,
 } from "react-native";
-import { useState } from "react";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { Sidebar } from "../../components/Sidebar";
+import { Audio } from "expo-av";
 import BoxIcon from "../../components/BoxIcon";
-import Sidebar from "../../components/Sidebar";
 export default function HomeScreen() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [sound, setSound] = useState();
+  const [isPlaying, setIsPlaying] = useState(false);
   const router = useRouter();
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Cleanup sound on component unmount
+  useEffect(() => {
+    return sound
+      ? () => {
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
+
+  async function playSound() {
+    if (isPlaying) {
+      // If sound is playing, stop it
+      await sound.stopAsync();
+      await sound.unloadAsync();
+      setSound(undefined);
+      setIsPlaying(false);
+    } else {
+      // Load and play the sound
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        require("../../assets/sounds/simple-notification.mp3"), // Make sure to add your sound file
+        { shouldPlay: true }
+      );
+      setSound(newSound);
+      setIsPlaying(true);
+    }
+  }
+
   const toggleSidebar = () => {
       setIsSidebarOpen(!isSidebarOpen);
     };
@@ -28,43 +58,31 @@ export default function HomeScreen() {
       title: "Staff Management",
       icon: "staff",
       color: "#4CAF50",
-      route: "/staff-management",
-    },
-    {
-      title: "Staff Attendance",
-      icon: "calendar",
-      color: "#2196F3",
-      route: "/staff-attendance",
-    },
-    {
-      title: "Attendance Report",
-      icon: "document-text",
-      color: "#9C27B0",
-      route: "/attendance-report",
+      route: "/(tabs)/staff",
     },
     {
       title: "Inventory Management",
       icon: "cube",
       color: "#FF9800",
-      route: "/staff/inventory",
+      route: "/(tabs)/staff/inventory",
     },
     {
       title: "Inventory Report",
       icon: "bar-chart",
       color: "#F44336",
-      route: "/inventory-report",
+      route: "/(tabs)/staff/inventory-report",
     },
     {
       title: "Orders",
       icon: "receipt",
       color: "#3F51B5",
-      route: "/orders",
+      route: "/(tabs)/orders",
     },
     {
       title: "Order Report",
       icon: "stats-chart",
       color: "#009688",
-      route: "/order-report",
+      route: "/(tabs)/staff/order-report",
     },
   ];
 
@@ -114,8 +132,9 @@ export default function HomeScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* New Sidebar Component */}
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-     
     </SafeAreaView>
   );
 }

@@ -24,6 +24,7 @@ export default function InventoryScreen() {
       name: "Suppliers",
       icon: "people-outline",
       description: "Manage all suppliers",
+      route: "/staff/suppliers",
     },
     // Add more categories if needed
   ]);
@@ -55,7 +56,7 @@ export default function InventoryScreen() {
       <FlatList
         data={categories}
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push("/staff/suppliers")}>
+          <Pressable onPress={() => router.push(item.route)}>
             <Box
               bg="white"
               rounded="lg"

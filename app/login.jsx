@@ -9,11 +9,34 @@ import {
   Alert,
 } from "react-native";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Keyboard } from "react-native";
 
 export default function LoginScreen() {
   const [mobileNumber, setMobileNumber] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Check for existing session on mount
+  useEffect(() => {
+    checkExistingSession();
+  }, []);
+
+  const checkExistingSession = async () => {
+    try {
+      const sessionData = await AsyncStorage.getItem("userSession");
+      if (sessionData) {
+        const { expiryDate } = JSON.parse(sessionData);
+        if (new Date(expiryDate) > new Date()) {
+          router.replace("/(tabs)");
+        } else {
+          await AsyncStorage.removeItem("userSession");
+        }
+      }
+    } catch (error) {
+      console.error("Error checking session:", error);
+    }
+  };
 
   const validateMobileNumber = (number) => {
     const mobileRegex = /^[6-9]\d{9}$/;
@@ -38,6 +61,9 @@ export default function LoginScreen() {
     }
 
     setMobileNumber(numbersOnly);
+    if (numbersOnly.length === 10) {
+      Keyboard.dismiss();
+    }
   };
 
   const handleSendOtp = async () => {
@@ -53,12 +79,14 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      // Simulating API call with hardcoded validation
-      const allowedNumbers = ["9579078460", "9999999999","8459719119"]; // Add your allowed numbers
+      const allowedNumbers = ["9999999999","9579078460", "8459719119"];
 
       if (allowedNumbers.includes(mobileNumber)) {
-        // Store mobile number if needed for OTP screen
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API delay
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Store mobile number in AsyncStorage
+        await AsyncStorage.setItem("tempMobile", mobileNumber);
+
         router.push({
           pathname: "/otp",
           params: { mobile: mobileNumber },
@@ -91,12 +119,12 @@ export default function LoginScreen() {
           <Text style={styles.prefix}>+91</Text>
           <TextInput
             style={styles.input}
-            placeholder="Mobile Number"
+            placeholder="Enter Mobile Number"
             placeholderTextColor="#666"
             keyboardType="numeric"
-            maxLength={10}
             value={mobileNumber}
             onChangeText={handleMobileNumberChange}
+            maxLength={10}
           />
         </View>
 
