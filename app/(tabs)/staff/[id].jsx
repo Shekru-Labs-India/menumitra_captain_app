@@ -10,13 +10,12 @@ import {
   Button,
   useToast,
   AlertDialog,
-  Icon,
   Divider,
   Badge,
   Avatar,
   Fab,
 } from "native-base";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar, Linking } from "react-native";
 
@@ -28,7 +27,6 @@ export default function StaffDetailsScreen() {
   const [staff, setStaff] = useState(null);
   const [deleteAlert, setDeleteAlert] = useState(false);
 
-  // Fetch staff details when component mounts
   useEffect(() => {
     if (!global.staffData) {
       global.staffData = [];
@@ -47,7 +45,7 @@ export default function StaffDetailsScreen() {
   }, [id]);
 
   const handleEdit = () => {
-    router.push(`/staff/edit/${id}`);
+    router.push(`/(tabs)/staff/edit/${id}`);
   };
 
   const handleDelete = () => {
@@ -102,16 +100,16 @@ export default function StaffDetailsScreen() {
         bg="coolGray.50"
       >
         <IconButton
-          icon={<Icon as={Ionicons} name="arrow-back" size={6} />}
+          icon={
+            <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
+          }
           onPress={() => router.back()}
         />
-        <Heading size="lg" flex={1} textAlign="center">
+        <Heading size="md" flex={1} textAlign="center">
           Staff Details
         </Heading>
         <IconButton
-          icon={
-            <Icon as={Ionicons} name="trash-outline" size={6} color="red.500" />
-          }
+          icon={<MaterialIcons name="delete" size={24} color="red.500" />}
           onPress={() => setDeleteAlert(true)}
         />
       </HStack>
@@ -151,35 +149,27 @@ export default function StaffDetailsScreen() {
             <Heading size="md">Contact Information</Heading>
             <VStack space={3}>
               <HStack space={3} alignItems="center">
-                <Icon
-                  as={Ionicons}
-                  name="call-outline"
-                  size={5}
-                  color="coolGray.500"
-                />
+                <MaterialIcons name="phone" size={24} color="coolGray.500" />
                 <Text flex={1}>{staff.phone}</Text>
-                <Icon
-                  as={Ionicons}
+                <MaterialIcons
                   name="call"
-                  size={5}
+                  size={24}
                   color="green.500"
                   onPress={() => handleCall(staff.phone)}
                 />
               </HStack>
               <HStack space={3} alignItems="center">
-                <Icon
-                  as={Ionicons}
-                  name="location-outline"
-                  size={5}
+                <MaterialIcons
+                  name="location-on"
+                  size={24}
                   color="coolGray.500"
                 />
                 <Text flex={1}>{staff.address || "Address not provided"}</Text>
               </HStack>
               <HStack space={3} alignItems="center">
-                <Icon
-                  as={Ionicons}
-                  name="alert-circle-outline"
-                  size={5}
+                <MaterialIcons
+                  name="emergency"
+                  size={24}
                   color="coolGray.500"
                 />
                 <Text flex={1}>
@@ -242,9 +232,7 @@ export default function StaffDetailsScreen() {
         renderInPortal={false}
         shadow={3}
         size="sm"
-        icon={
-          <Icon color="white" as={Ionicons} name="create-outline" size="md" />
-        }
+        icon={<MaterialIcons name="edit" size={24} color="white" />}
         onPress={handleEdit}
         position="absolute"
         bottom={10}

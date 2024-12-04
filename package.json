@@ -9,7 +9,10 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest --watchAll",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:android": "eas build -p android --profile preview",
+    "build:android-dev": "eas build -p android --profile development",
+    "build:android-prod": "eas build -p android --profile production"
   },
   "jest": {
     "preset": "jest-expo"
@@ -22,10 +25,12 @@
     "@react-navigation/bottom-tabs": "^7.0.0",
     "@react-navigation/elements": "^2.2.4",
     "@react-navigation/native": "^7.0.0",
+    "boxicons": "^2.1.4",
     "expo": "^52.0.14",
     "expo-av": "~15.0.1",
     "expo-blur": "~14.0.1",
     "expo-constants": "~17.0.3",
+    "expo-dev-client": "~5.0.5",
     "expo-font": "~13.0.1",
     "expo-haptics": "~14.0.0",
     "expo-image-picker": "~16.0.3",
@@ -49,7 +54,7 @@
     "react-native-screens": "~4.1.0",
     "react-native-svg": "^15.10.0",
     "react-native-web": "~0.19.13",
-    "react-native-webview": "13.12.2"
+    "react-native-webview": "^13.12.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

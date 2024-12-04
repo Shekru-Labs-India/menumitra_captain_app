@@ -7,14 +7,14 @@ import {
   IconButton,
   Button,
   useToast,
-  Icon,
   FormControl,
   Input,
   TextArea,
+  HStack,
 } from "native-base";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 
 export default function EditStaffScreen() {
   const router = useRouter();
@@ -34,6 +34,14 @@ export default function EditStaffScreen() {
     const staffMember = global.staffData.find((s) => s.id === id);
     if (staffMember) {
       setStaff(staffMember);
+      setFormData({
+        name: staffMember.name,
+        role: staffMember.role,
+        phone: staffMember.phone,
+        salary: staffMember.salary,
+        emergencyContact: staffMember.emergencyContact,
+        address: staffMember.address,
+      });
     }
   }, [id]);
 
@@ -83,14 +91,22 @@ export default function EditStaffScreen() {
         borderBottomColor="coolGray.200"
         bg="coolGray.50"
       >
-        <IconButton
-          position="absolute"
-          left={2}
-          top={2}
-          icon={<Icon as={Ionicons} name="arrow-back" size={6} />}
-          onPress={() => router.back()}
-        />
-        <Heading textAlign="center">Edit Staff Details</Heading>
+        <HStack alignItems="center" justifyContent="space-between">
+          <IconButton
+            icon={
+              <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
+            }
+            onPress={() => router.back()}
+            variant="ghost"
+            _pressed={{ bg: "gray.100" }}
+            position="absolute"
+            left={0}
+            zIndex={1}
+          />
+          <Heading size="md" flex={1} textAlign="center">
+            Edit Staff Details
+          </Heading>
+        </HStack>
       </Box>
 
       <ScrollView px={4} py={4}>
@@ -100,7 +116,7 @@ export default function EditStaffScreen() {
             <Input
               value={formData.name}
               onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder={staff?.name || "Enter name"}
+              placeholder="Enter name"
             />
           </FormControl>
 
@@ -109,7 +125,7 @@ export default function EditStaffScreen() {
             <Input
               value={formData.role}
               onChangeText={(text) => setFormData({ ...formData, role: text })}
-              placeholder={staff?.role || "Enter role"}
+              placeholder="Enter role"
             />
           </FormControl>
 
@@ -119,7 +135,7 @@ export default function EditStaffScreen() {
               value={formData.phone}
               onChangeText={(text) => setFormData({ ...formData, phone: text })}
               keyboardType="phone-pad"
-              placeholder={staff?.phone || "Enter phone number"}
+              placeholder="Enter phone number"
             />
           </FormControl>
 
@@ -131,7 +147,7 @@ export default function EditStaffScreen() {
                 setFormData({ ...formData, salary: text })
               }
               keyboardType="numeric"
-              placeholder={staff?.salary ? `₹${staff.salary}` : "Enter salary"}
+              placeholder="Enter salary"
             />
           </FormControl>
 
@@ -142,7 +158,7 @@ export default function EditStaffScreen() {
               onChangeText={(text) =>
                 setFormData({ ...formData, emergencyContact: text })
               }
-              placeholder={staff?.emergencyContact || "Enter emergency contact"}
+              placeholder="Enter emergency contact"
             />
           </FormControl>
 
@@ -153,12 +169,16 @@ export default function EditStaffScreen() {
               onChangeText={(text) =>
                 setFormData({ ...formData, address: text })
               }
-              placeholder={staff?.address || "Enter address"}
+              placeholder="Enter address"
               autoCompleteType={undefined}
             />
           </FormControl>
 
-          <Button mt={4} onPress={handleSave}>
+          <Button
+            mt={4}
+            onPress={handleSave}
+            leftIcon={<MaterialIcons name="save" size={20} color="white" />}
+          >
             Save Changes
           </Button>
         </VStack>

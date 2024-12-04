@@ -12,8 +12,9 @@ import { NativeBaseProvider, extendTheme } from "native-base";
 import { SupplierProvider } from "../context/SupplierContext";
 import { Slot, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { VersionProvider } from "../context/VersionContext";
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+// Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
 // Define your custom theme
@@ -39,8 +40,8 @@ const theme = extendTheme({
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+  const [fontsLoaded] = useFonts({
+    boxicons: require("../assets/fonts/boxicons.ttf"),
   });
   const router = useRouter();
 
@@ -66,28 +67,31 @@ export default function RootLayout() {
   };
 
   useEffect(() => {
-    if (loaded) {
+    if (fontsLoaded) {
+      // Hide splash screen once fonts are loaded
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [fontsLoaded]);
 
-  if (!loaded) {
+  if (!fontsLoaded) {
     return null;
   }
 
   return (
-    <SupplierProvider>
-      <NativeBaseProvider>
-        <ThemeProvider
-          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-        >
-          <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          </Stack>
-        </ThemeProvider>
-      </NativeBaseProvider>
-    </SupplierProvider>
+    <VersionProvider>
+      <SupplierProvider>
+        <NativeBaseProvider>
+          <ThemeProvider
+            value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+          >
+            <Stack>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="login" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack>
+          </ThemeProvider>
+        </NativeBaseProvider>
+      </SupplierProvider>
+    </VersionProvider>
   );
 }

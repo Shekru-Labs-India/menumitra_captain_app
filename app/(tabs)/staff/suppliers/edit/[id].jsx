@@ -16,7 +16,7 @@ import {
   Divider,
   HStack,
 } from "native-base";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar } from "react-native";
 import { SupplierContext } from "../../../../../context/SupplierContext";
@@ -133,7 +133,9 @@ export default function EditSupplierScreen() {
           position="absolute"
           left={2}
           top={2}
-          icon={<Icon as={Ionicons} name="arrow-back" size={6} />}
+          icon={
+            <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
+          }
           onPress={() => router.back()}
         />
         <Heading textAlign="center">Edit Supplier</Heading>
@@ -142,9 +144,12 @@ export default function EditSupplierScreen() {
       <ScrollView px={4} py={4}>
         <VStack space={4}>
           {/* Basic Information */}
-          <Heading size="sm" color="coolGray.600">
-            Basic Information
-          </Heading>
+          <HStack space={2} alignItems="center">
+            <MaterialIcons name="info" size={20} color="coolGray.600" />
+            <Heading size="sm" color="coolGray.600">
+              Basic Information
+            </Heading>
+          </HStack>
 
           <FormControl isRequired isInvalid={"name" in errors}>
             <FormControl.Label>Name</FormControl.Label>
@@ -187,9 +192,12 @@ export default function EditSupplierScreen() {
           <Divider my={2} />
 
           {/* Contact Information */}
-          <Heading size="sm" color="coolGray.600">
-            Contact Information
-          </Heading>
+          <HStack space={2} alignItems="center">
+            <MaterialIcons name="contacts" size={20} color="coolGray.600" />
+            <Heading size="sm" color="coolGray.600">
+              Contact Information
+            </Heading>
+          </HStack>
 
           <FormControl isRequired isInvalid={"mobileNumber1" in errors}>
             <FormControl.Label>Primary Contact</FormControl.Label>
@@ -239,9 +247,12 @@ export default function EditSupplierScreen() {
           <Divider my={2} />
 
           {/* Business Information */}
-          <Heading size="sm" color="coolGray.600">
-            Business Information
-          </Heading>
+          <HStack space={2} alignItems="center">
+            <MaterialIcons name="business" size={20} color="coolGray.600" />
+            <Heading size="sm" color="coolGray.600">
+              Business Information
+            </Heading>
+          </HStack>
 
           <FormControl>
             <FormControl.Label>Credit Rating</FormControl.Label>
@@ -252,7 +263,9 @@ export default function EditSupplierScreen() {
               }
               placeholder="Select credit rating"
               _selectedItem={{
-                endIcon: <CheckIcon size={4} />,
+                endIcon: (
+                  <MaterialIcons name="check" size={16} color="coolGray.600" />
+                ),
               }}
             >
               <Select.Item label="Excellent" value="excellent" />
@@ -313,7 +326,13 @@ export default function EditSupplierScreen() {
             />
           </FormControl>
 
-          <Button mt={4} mb={8} colorScheme="blue" onPress={handleUpdate}>
+          <Button
+            mt={4}
+            mb={8}
+            colorScheme="blue"
+            onPress={handleUpdate}
+            leftIcon={<MaterialIcons name="save" size={20} color="white" />}
+          >
             Update Supplier
           </Button>
         </VStack>

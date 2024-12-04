@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Box,
   VStack,
@@ -9,57 +9,70 @@ import {
   Select,
   Modal,
   Button,
-  Icon,
   Heading,
   Divider,
   IconButton,
-} from 'native-base';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Platform } from 'react-native';
-import { useRouter } from 'expo-router';
-import BoxIcon from '../../components/BoxIcon';
-import { Ionicons } from "@expo/vector-icons";
+} from "native-base";
+import { MaterialIcons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Platform } from "react-native";
+import { useRouter } from "expo-router";
+
 export default function AttendanceReportScreen() {
   const router = useRouter();
-  const [filterType, setFilterType] = useState('today');
+  const [filterType, setFilterType] = useState("today");
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [dateType, setDateType] = useState('start');
+  const [dateType, setDateType] = useState("start");
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [showCustomDateModal, setShowCustomDateModal] = useState(false);
   const [employeeInfo] = useState([
     {
       id: 1,
-      name: 'John Doe',
+      name: "John Doe",
       image: null,
       totalPresent: 22,
-      totalAbsent: 3
+      totalAbsent: 3,
     },
     {
       id: 2,
-      name: 'Jane Smith',
+      name: "Jane Smith",
       image: null,
       totalPresent: 18,
-      totalAbsent: 7
+      totalAbsent: 7,
     },
     {
       id: 3,
-      name: 'Mike Johnson',
+      name: "Mike Johnson",
       image: null,
       totalPresent: 20,
-      totalAbsent: 5
+      totalAbsent: 5,
     },
     {
       id: 4,
-      name: 'Sarah Williams',
+      name: "Sarah Williams",
       image: null,
       totalPresent: 25,
-      totalAbsent: 0
-    }
+      totalAbsent: 0,
+    },
   ]);
   const [attendanceData, setAttendanceData] = useState([
-    { id: 1, name: 'John Doe', date: '2024-03-01', status: 'present', checkIn: '09:00 AM', checkOut: '05:00 PM' },
-    { id: 2, name: 'Jane Smith', date: '2024-03-01', status: 'absent', checkIn: '-', checkOut: '-' },
+    {
+      id: 1,
+      name: "John Doe",
+      date: "2024-03-01",
+      status: "present",
+      checkIn: "09:00 AM",
+      checkOut: "05:00 PM",
+    },
+    {
+      id: 2,
+      name: "Jane Smith",
+      date: "2024-03-01",
+      status: "absent",
+      checkIn: "-",
+      checkOut: "-",
+    },
     // Add more mock data as needed
   ]);
   const [filteredData, setFilteredData] = useState([]);
@@ -67,34 +80,35 @@ export default function AttendanceReportScreen() {
   const [totalDays, setTotalDays] = useState(0);
 
   const filterOptions = [
-    { label: 'Today', value: 'today' },
-    { label: 'Yesterday', value: 'yesterday' },
-    { label: 'This Week', value: 'this_week' },
-    { label: 'Last Week', value: 'last_week' },
-    { label: 'This Month', value: 'this_month' },
-    { label: 'Last Month', value: 'last_month' },
-    { label: 'This Quarter', value: 'this_quarter' },
-    { label: 'Last 6 Months', value: 'last_6_months' },
-    { label: 'Custom Date', value: 'custom' },
+    { label: "Today", value: "today" },
+    { label: "Yesterday", value: "yesterday" },
+    { label: "This Week", value: "this_week" },
+    { label: "Last Week", value: "last_week" },
+    { label: "This Month", value: "this_month" },
+    { label: "Last Month", value: "last_month" },
+    { label: "This Quarter", value: "this_quarter" },
+    { label: "Last 6 Months", value: "last_6_months" },
+    { label: "Custom Date", value: "custom" },
   ];
 
   const handleFilterChange = (value) => {
     setFilterType(value);
-    if (value === 'custom') {
+    if (value === "custom") {
       setShowCustomDateModal(true);
     }
   };
 
   const handleDateChange = (event, selectedDate) => {
-    if (event.type === 'dismissed') {
+    if (event.type === "dismissed") {
       setShowDatePicker(false);
       return;
     }
-    
-    const currentDate = selectedDate || (dateType === 'start' ? startDate : endDate);
-    
+
+    const currentDate =
+      selectedDate || (dateType === "start" ? startDate : endDate);
+
     if (selectedDate) {
-      if (dateType === 'start') {
+      if (dateType === "start") {
         if (selectedDate > endDate) {
           setEndDate(selectedDate);
         }
@@ -106,8 +120,8 @@ export default function AttendanceReportScreen() {
         setEndDate(selectedDate);
       }
     }
-    
-    if (Platform.OS === 'android') {
+
+    if (Platform.OS === "android") {
       setShowDatePicker(false);
     }
   };
@@ -120,7 +134,7 @@ export default function AttendanceReportScreen() {
   const applyCustomDateFilter = () => {
     setShowCustomDateModal(false);
     // Filter attendance data based on selected date range
-    const filteredData = attendanceData.filter(record => {
+    const filteredData = attendanceData.filter((record) => {
       const recordDate = new Date(record.date);
       // Set hours to 0 for proper date comparison
       const start = new Date(startDate.setHours(0, 0, 0, 0));
@@ -142,46 +156,54 @@ export default function AttendanceReportScreen() {
     let endFilterDate = new Date();
 
     switch (filterType) {
-      case 'today':
+      case "today":
         startFilterDate.setHours(0, 0, 0, 0);
         endFilterDate.setHours(23, 59, 59, 999);
         break;
-      case 'yesterday':
+      case "yesterday":
         startFilterDate.setDate(today.getDate() - 1);
         startFilterDate.setHours(0, 0, 0, 0);
         endFilterDate = new Date(startFilterDate);
         endFilterDate.setHours(23, 59, 59, 999);
         break;
-      case 'this_week':
+      case "this_week":
         startFilterDate.setDate(today.getDate() - today.getDay());
         startFilterDate.setHours(0, 0, 0, 0);
         endFilterDate = new Date();
         break;
-      case 'last_week':
+      case "last_week":
         startFilterDate.setDate(today.getDate() - today.getDay() - 7);
         startFilterDate.setHours(0, 0, 0, 0);
         endFilterDate.setDate(today.getDate() - today.getDay() - 1);
         endFilterDate.setHours(23, 59, 59, 999);
         break;
-      case 'this_month':
+      case "this_month":
         startFilterDate = new Date(today.getFullYear(), today.getMonth(), 1);
         endFilterDate = new Date();
         break;
-      case 'last_month':
-        startFilterDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      case "last_month":
+        startFilterDate = new Date(
+          today.getFullYear(),
+          today.getMonth() - 1,
+          1
+        );
         endFilterDate = new Date(today.getFullYear(), today.getMonth(), 0);
         endFilterDate.setHours(23, 59, 59, 999);
         break;
-      case 'this_quarter':
+      case "this_quarter":
         const quarter = Math.floor(today.getMonth() / 3);
         startFilterDate = new Date(today.getFullYear(), quarter * 3, 1);
         endFilterDate = new Date();
         break;
-      case 'last_6_months':
-        startFilterDate = new Date(today.getFullYear(), today.getMonth() - 6, 1);
+      case "last_6_months":
+        startFilterDate = new Date(
+          today.getFullYear(),
+          today.getMonth() - 6,
+          1
+        );
         endFilterDate = new Date();
         break;
-      case 'custom':
+      case "custom":
         startFilterDate = new Date(startDate);
         startFilterDate.setHours(0, 0, 0, 0);
         endFilterDate = new Date(endDate);
@@ -193,7 +215,7 @@ export default function AttendanceReportScreen() {
     setTotalDays(days);
     setSelectedDays(days);
 
-    const filtered = attendanceData.filter(record => {
+    const filtered = attendanceData.filter((record) => {
       const recordDate = new Date(record.date);
       return recordDate >= startFilterDate && recordDate <= endFilterDate;
     });
@@ -203,17 +225,17 @@ export default function AttendanceReportScreen() {
 
   const handleDownloadPDF = () => {
     // TODO: Implement PDF download functionality
-    console.log('Downloading PDF...');
+    console.log("Downloading PDF...");
   };
 
   return (
     <Box flex={1} bg="white" safeArea>
       <VStack space={4} flex={1}>
         {/* Header */}
-        <Box 
-          px={4} 
-          py={3} 
-          bg="white" 
+        <Box
+          px={4}
+          py={3}
+          bg="white"
           shadow={2}
           mb={1}
           borderBottomWidth={1}
@@ -222,12 +244,12 @@ export default function AttendanceReportScreen() {
           <HStack alignItems="center" justifyContent="space-between">
             <IconButton
               icon={
-                <Icon
-                  as={Ionicons}
+                <MaterialIcons
                   name="arrow-back"
-                  size={6}
-                  color="gray.800"
-                />}
+                  size={24}
+                  color="coolGray.600"
+                />
+              }
               onPress={() => router.back()}
               variant="ghost"
               _pressed={{ bg: "gray.100" }}
@@ -235,7 +257,7 @@ export default function AttendanceReportScreen() {
               left={0}
               zIndex={1}
             />
-            <Heading size="lg" flex={1} textAlign="center">
+            <Heading size="md" flex={1} textAlign="center">
               Attendance Report
             </Heading>
           </HStack>
@@ -245,8 +267,8 @@ export default function AttendanceReportScreen() {
         <Box px={4}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <HStack space={2} py={2}>
-              {filterOptions.map((option) => (
-                option.value !== 'custom' ? (
+              {filterOptions.map((option) =>
+                option.value !== "custom" ? (
                   <Pressable
                     key={option.value}
                     onPress={() => handleFilterChange(option.value)}
@@ -258,38 +280,47 @@ export default function AttendanceReportScreen() {
                       bg={filterType === option.value ? "blue.500" : "gray.100"}
                     >
                       <Text
-                        color={filterType === option.value ? "white" : "gray.800"}
-                        fontWeight={filterType === option.value ? "bold" : "normal"}
+                        color={
+                          filterType === option.value ? "white" : "gray.800"
+                        }
+                        fontWeight={
+                          filterType === option.value ? "bold" : "normal"
+                        }
                       >
                         {option.label}
                       </Text>
                     </Box>
                   </Pressable>
                 ) : null
-              ))}
+              )}
             </HStack>
           </ScrollView>
-          
-          <HStack space={2} mt={2} alignItems="center" justifyContent="space-between">
+
+          <HStack
+            space={2}
+            mt={2}
+            alignItems="center"
+            justifyContent="space-between"
+          >
             {/* Custom Date Button */}
             <Box flex={1}>
-              <Pressable onPress={() => handleFilterChange('custom')}>
+              <Pressable onPress={() => handleFilterChange("custom")}>
                 <Box
                   px={4}
                   py={3}
                   rounded="lg"
-                  bg={filterType === 'custom' ? "blue.500" : "blue.100"}
+                  bg={filterType === "custom" ? "blue.500" : "blue.100"}
                   flexDirection="row"
                   alignItems="center"
                 >
-                  <BoxIcon
-                    name="calendar"
-                    size={5}
-                    color={filterType === 'custom' ? "white" : "blue.500"}
-                    mr={2}
+                  <MaterialIcons
+                    name="date-range"
+                    size={20}
+                    color={filterType === "custom" ? "white" : "#3b82f6"}
+                    style={{ marginRight: 8 }}
                   />
                   <Text
-                    color={filterType === 'custom' ? "white" : "blue.500"}
+                    color={filterType === "custom" ? "white" : "blue.500"}
                     fontWeight="semibold"
                   >
                     Custom Date Range
@@ -297,18 +328,18 @@ export default function AttendanceReportScreen() {
                 </Box>
               </Pressable>
             </Box>
-
-            {/* Apply Button */}
-          
           </HStack>
         </Box>
+
         <Box alignItems="flex-end" px={4}>
           <Button
             w="40%"
             onPress={generateReport}
             bg="primary.500"
             _pressed={{ bg: "primary.600" }}
-            leftIcon={<BoxIcon name="document-text" size={20} color="white" />}
+            leftIcon={
+              <MaterialIcons name="description" size={20} color="white" />
+            }
           >
             Apply
           </Button>
@@ -318,11 +349,19 @@ export default function AttendanceReportScreen() {
         <Box px={4} py={2}>
           <VStack space={3}>
             <HStack justifyContent="space-between" alignItems="center">
-              <Text fontSize="md" fontWeight="semibold" color="gray.700">Total Days: {totalDays}</Text>
+              <Text fontSize="md" fontWeight="semibold" color="gray.700">
+                Total Days: {totalDays}
+              </Text>
               <Pressable onPress={handleDownloadPDF}>
                 <HStack space={1} alignItems="center">
-                  <BoxIcon name="document-text" size={20} color="#3b82f6" />
-                  <Text fontSize="md" fontWeight="bold" color="blue.500">Download</Text>
+                  <MaterialIcons
+                    name="file-download"
+                    size={20}
+                    color="#3b82f6"
+                  />
+                  <Text fontSize="md" fontWeight="bold" color="blue.500">
+                    Download
+                  </Text>
                 </HStack>
               </Pressable>
             </HStack>
@@ -336,18 +375,14 @@ export default function AttendanceReportScreen() {
               <Box key={employee.id} bg="white" shadow={2} rounded="lg" p={4}>
                 <HStack space={4} alignItems="center">
                   <Box>
-                    <Box 
-                      bg="gray.200" 
-                      rounded="full" 
-                      size={16} 
-                      alignItems="center" 
+                    <Box
+                      bg="gray.200"
+                      rounded="full"
+                      size={16}
+                      alignItems="center"
                       justifyContent="center"
                     >
-                      <BoxIcon 
-                        name="staff"
-                        size={32}
-                        color="#6b7280"
-                      />
+                      <MaterialIcons name="person" size={32} color="#6b7280" />
                     </Box>
                   </Box>
                   <VStack flex={1}>
@@ -356,12 +391,20 @@ export default function AttendanceReportScreen() {
                     </Text>
                     <HStack space={4} mt={2}>
                       <VStack alignItems="center">
-                        <Text fontSize="sm" color="gray.500">Present</Text>
-                        <Text fontSize="lg" fontWeight="bold" color="green.500">{employee.totalPresent}</Text>
+                        <Text fontSize="sm" color="gray.500">
+                          Present
+                        </Text>
+                        <Text fontSize="lg" fontWeight="bold" color="green.500">
+                          {employee.totalPresent}
+                        </Text>
                       </VStack>
                       <VStack alignItems="center">
-                        <Text fontSize="sm" color="gray.500">Absent</Text>
-                        <Text fontSize="lg" fontWeight="bold" color="red.500">{employee.totalAbsent}</Text>
+                        <Text fontSize="sm" color="gray.500">
+                          Absent
+                        </Text>
+                        <Text fontSize="lg" fontWeight="bold" color="red.500">
+                          {employee.totalAbsent}
+                        </Text>
                       </VStack>
                     </HStack>
                   </VStack>
@@ -372,19 +415,34 @@ export default function AttendanceReportScreen() {
         </ScrollView>
 
         {/* Custom Date Modal */}
-        <Modal isOpen={showCustomDateModal} onClose={() => setShowCustomDateModal(false)}>
+        <Modal
+          isOpen={showCustomDateModal}
+          onClose={() => setShowCustomDateModal(false)}
+        >
           <Modal.Content>
             <Modal.Header>Select Date Range</Modal.Header>
             <Modal.Body>
               <VStack space={4}>
-                <Pressable onPress={() => showDateSelection('start')}>
-                  <HStack justifyContent="space-between" alignItems="center" bg="gray.100" p={3} rounded="md">
+                <Pressable onPress={() => showDateSelection("start")}>
+                  <HStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    bg="gray.100"
+                    p={3}
+                    rounded="md"
+                  >
                     <Text>Start Date</Text>
                     <Text>{startDate.toLocaleDateString()}</Text>
                   </HStack>
                 </Pressable>
-                <Pressable onPress={() => showDateSelection('end')}>
-                  <HStack justifyContent="space-between" alignItems="center" bg="gray.100" p={3} rounded="md">
+                <Pressable onPress={() => showDateSelection("end")}>
+                  <HStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    bg="gray.100"
+                    p={3}
+                    rounded="md"
+                  >
                     <Text>End Date</Text>
                     <Text>{endDate.toLocaleDateString()}</Text>
                   </HStack>
@@ -392,11 +450,15 @@ export default function AttendanceReportScreen() {
                 {showDatePicker && (
                   <DateTimePicker
                     testID="dateTimePicker"
-                    value={dateType === 'start' ? startDate : endDate}
+                    value={dateType === "start" ? startDate : endDate}
                     mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
                     onChange={handleDateChange}
-                    style={Platform.OS === 'ios' ? { width: '100%', backgroundColor: 'white' } : {}}
+                    style={
+                      Platform.OS === "ios"
+                        ? { width: "100%", backgroundColor: "white" }
+                        : {}
+                    }
                   />
                 )}
               </VStack>
@@ -409,9 +471,7 @@ export default function AttendanceReportScreen() {
                 >
                   Cancel
                 </Button>
-                <Button onPress={applyCustomDateFilter}>
-                  Apply
-                </Button>
+                <Button onPress={applyCustomDateFilter}>Apply</Button>
               </Button.Group>
             </Modal.Footer>
           </Modal.Content>

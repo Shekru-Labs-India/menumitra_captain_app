@@ -15,7 +15,7 @@ import {
   Select,
   CheckIcon,
 } from "native-base";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter } from "expo-router";
 import { SupplierContext } from "../../../../context/SupplierContext";
@@ -77,6 +77,7 @@ export default function SuppliersScreen() {
             </Text>
 
             <HStack space={2} mt={1}>
+              <MaterialIcons name="phone" size={16} color="coolGray.500" />
               <Text fontSize="sm" color="coolGray.500">
                 {item.mobileNumber1}
               </Text>
@@ -93,16 +94,7 @@ export default function SuppliersScreen() {
               </Text>
             </HStack>
           </VStack>
-          <IconButton
-            icon={
-              <Icon
-                as={MaterialIcons}
-                name="arrow-forward-ios"
-                size={5}
-                color="coolGray.400"
-              />
-            }
-          />
+          <MaterialIcons name="chevron-right" size={24} color="coolGray.400" />
         </HStack>
       </Box>
     </Pressable>
@@ -169,7 +161,9 @@ export default function SuppliersScreen() {
           position="absolute"
           left={2}
           top={2}
-          icon={<Icon as={Ionicons} name="arrow-back" size={6} />}
+          icon={
+            <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
+          }
           onPress={() => router.back()}
         />
         <Heading textAlign="center">Suppliers</Heading>
@@ -190,21 +184,19 @@ export default function SuppliersScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
           InputLeftElement={
-            <Icon
-              as={Ionicons}
+            <MaterialIcons
               name="search"
-              size={5}
-              ml={2}
+              size={20}
               color="coolGray.400"
+              style={{ marginLeft: 8 }}
             />
           }
         />
         <IconButton
           icon={
-            <Icon
-              as={MaterialIcons}
+            <MaterialIcons
               name={viewType === "list" ? "grid-view" : "view-list"}
-              size={6}
+              size={24}
               color="coolGray.600"
             />
           }
@@ -216,7 +208,9 @@ export default function SuppliersScreen() {
           onValueChange={setSortBy}
           placeholder="Sort by"
           _selectedItem={{
-            endIcon: <CheckIcon size={4} />,
+            endIcon: (
+              <MaterialIcons name="check" size={16} color="coolGray.600" />
+            ),
           }}
         >
           <Select.Item label="Name" value="name" />
@@ -225,10 +219,9 @@ export default function SuppliersScreen() {
         </Select>
         <IconButton
           icon={
-            <Icon
-              as={MaterialIcons}
+            <MaterialIcons
               name={sortOrder === "asc" ? "arrow-upward" : "arrow-downward"}
-              size={6}
+              size={24}
               color="coolGray.600"
             />
           }
@@ -247,6 +240,7 @@ export default function SuppliersScreen() {
         />
       ) : (
         <Box flex={1} justifyContent="center" alignItems="center">
+          <MaterialIcons name="error-outline" size={48} color="coolGray.400" />
           <Text color="coolGray.400">No suppliers found</Text>
         </Box>
       )}
@@ -255,7 +249,7 @@ export default function SuppliersScreen() {
         renderInPortal={false}
         shadow={2}
         size="sm"
-        icon={<Icon color="white" as={Ionicons} name="add" size="sm" />}
+        icon={<MaterialIcons name="add" size={24} color="white" />}
         onPress={() => router.push("/staff/suppliers/add")}
         position="absolute"
         bottom={4}

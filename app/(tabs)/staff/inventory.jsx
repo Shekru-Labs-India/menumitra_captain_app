@@ -4,7 +4,6 @@ import {
   Heading,
   VStack,
   IconButton,
-  Icon,
   Text,
   FlatList,
   HStack,
@@ -12,7 +11,7 @@ import {
   Fab,
   Pressable,
 } from "native-base";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -22,9 +21,9 @@ export default function InventoryScreen() {
     {
       id: "1",
       name: "Suppliers",
-      icon: "people-outline",
+      icon: "people",
       description: "Manage all suppliers",
-      route: "/staff/suppliers",
+      route: "/(tabs)/staff/suppliers",
     },
     // Add more categories if needed
   ]);
@@ -43,14 +42,22 @@ export default function InventoryScreen() {
         borderBottomColor="coolGray.200"
         bg="coolGray.50"
       >
-        <IconButton
-          position="absolute"
-          left={2}
-          top={2}
-          icon={<Icon as={Ionicons} name="arrow-back" size={6} />}
-          onPress={() => router.back()}
-        />
-        <Heading textAlign="center">Inventory</Heading>
+        <HStack alignItems="center" justifyContent="space-between">
+          <IconButton
+            icon={
+              <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
+            }
+            onPress={() => router.back()}
+            variant="ghost"
+            _pressed={{ bg: "gray.100" }}
+            position="absolute"
+            left={0}
+            zIndex={1}
+          />
+          <Heading size="md" flex={1} textAlign="center">
+            Inventory
+          </Heading>
+        </HStack>
       </Box>
 
       <FlatList
@@ -69,7 +76,7 @@ export default function InventoryScreen() {
             >
               <HStack space={3} alignItems="center">
                 <Avatar size="md" bg="cyan.500">
-                  <Icon as={Ionicons} name={item.icon} size={6} color="white" />
+                  <MaterialIcons name={item.icon} size={24} color="white" />
                 </Avatar>
                 <VStack flex={1}>
                   <Text fontSize="lg" fontWeight="bold">
@@ -79,15 +86,10 @@ export default function InventoryScreen() {
                     {item.description}
                   </Text>
                 </VStack>
-                <IconButton
-                  icon={
-                    <Icon
-                      as={MaterialIcons}
-                      name="arrow-forward-ios"
-                      size={5}
-                      color="coolGray.400"
-                    />
-                  }
+                <MaterialIcons
+                  name="arrow-forward-ios"
+                  size={20}
+                  color="coolGray.400"
                 />
               </HStack>
             </Box>

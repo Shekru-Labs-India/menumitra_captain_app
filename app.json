@@ -23,7 +23,9 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.pratikshas29.menumitra_captain_app"
+      "package": "com.pratikshas29.menumitra_captain_app",
+      "permissions": [],
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -36,7 +38,13 @@
       }
     ],
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-av",
+        {
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "tsconfigPaths": true

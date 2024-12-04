@@ -11,11 +11,11 @@ import {
   ScrollView,
   Platform,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Sidebar } from "../../components/Sidebar";
+import Sidebar from "../components/Sidebar";
 import { Audio } from "expo-av";
-import BoxIcon from "../../components/BoxIcon";
+
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sound, setSound] = useState();
@@ -50,43 +50,29 @@ export default function HomeScreen() {
   }
 
   const toggleSidebar = () => {
-      setIsSidebarOpen(!isSidebarOpen);
-    };
+    setIsSidebarOpen(!isSidebarOpen);
+  };
 
   const managementCards = [
     {
-      title: "Staff Management",
-      icon: "staff",
-      color: "#4CAF50",
+      title: "Staff",
+      icon: "group",
       route: "/(tabs)/staff",
-    },
-    {
-      title: "Inventory Management",
-      icon: "cube",
-      color: "#FF9800",
-      route: "/(tabs)/staff/inventory",
-    },
-    {
-      title: "Inventory Report",
-      icon: "bar-chart",
-      color: "#F44336",
-      route: "/(tabs)/staff/inventory-report",
+      color: "#4CAF50",
     },
     {
       title: "Orders",
       icon: "receipt",
-      color: "#3F51B5",
       route: "/(tabs)/orders",
+      color: "#2196F3",
     },
     {
-      title: "Order Report",
-      icon: "stats-chart",
-      color: "#009688",
-      route: "/(tabs)/staff/order-report",
+      title: "Inventory",
+      icon: "inventory",
+      route: "/(tabs)/staff/inventory",
+      color: "#FF9800",
     },
   ];
-
-
 
   return (
     <SafeAreaView style={styles.container}>
@@ -109,11 +95,11 @@ export default function HomeScreen() {
           <Text style={styles.headerTitle}>MenuMitra Captain</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.menuButton}>
-            <BoxIcon name="bell" size={24} color="#333" />
+          <TouchableOpacity style={styles.menuButton} onPress={playSound}>
+            <MaterialIcons name="notifications" size={24} color="#333" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={toggleSidebar} style={styles.menuButton}>
-            <BoxIcon name="menu" size={24} color="#333" />
+          <TouchableOpacity style={styles.menuButton} onPress={toggleSidebar}>
+            <MaterialIcons name="menu" size={24} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
@@ -126,14 +112,14 @@ export default function HomeScreen() {
               style={[styles.card, { backgroundColor: card.color }]}
               onPress={() => router.push(card.route)}
             >
-              <BoxIcon name={card.icon} size={32} color="#fff" />
+              <MaterialIcons name={card.icon} size={32} color="#fff" />
               <Text style={styles.cardTitle}>{card.title}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
 
-      {/* New Sidebar Component */}
+      {/* Sidebar Component */}
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
     </SafeAreaView>
   );
@@ -198,7 +184,7 @@ const styles = StyleSheet.create({
     width: "48%",
     aspectRatio: 1,
     borderRadius: 10,
-    padding: 15,
+    padding: 12,
     marginBottom: 15,
     alignItems: "center",
     justifyContent: "center",
@@ -210,43 +196,11 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
-    marginTop: 10,
+    marginTop: 8,
     textAlign: "center",
-  },
-  sidebar: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 250,
-    backgroundColor: "#fff",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    padding: 20,
-  },
-  sidebarHeader: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    marginBottom: 20,
-  },
-  closeButton: {
-    padding: 5,
-  },
-  sidebarItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  sidebarText: {
-    marginLeft: 15,
-    fontSize: 16,
-    color: "#333",
+    numberOfLines: 2,
+    adjustsFontSizeToFit: true,
   },
 });

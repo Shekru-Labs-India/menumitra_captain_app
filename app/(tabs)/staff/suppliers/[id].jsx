@@ -16,7 +16,7 @@ import {
   Badge,
   Divider,
 } from "native-base";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar, Linking } from "react-native";
 import { SupplierContext } from "../../../../context/SupplierContext";
@@ -125,7 +125,9 @@ export default function SupplierDetails() {
           position="absolute"
           left={2}
           top={2}
-          icon={<Icon as={Ionicons} name="arrow-back" size={6} />}
+          icon={
+            <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
+          }
           onPress={() => router.back()}
         />
         <Heading textAlign="center">Supplier Details</Heading>
@@ -134,7 +136,7 @@ export default function SupplierDetails() {
           right={2}
           top={2}
           icon={
-            <Icon as={Ionicons} name="trash-outline" size={6} color="red.500" />
+            <MaterialIcons name="delete-outline" size={24} color="red.500" />
           }
           onPress={() => setIsDeleteOpen(true)}
         />
@@ -178,10 +180,9 @@ export default function SupplierDetails() {
                 <IconButton
                   size="sm"
                   icon={
-                    <Icon
-                      as={Ionicons}
-                      name="call-outline"
-                      size={5}
+                    <MaterialIcons
+                      name="phone"
+                      size={20}
                       color="coolGray.500"
                     />
                   }
@@ -199,10 +200,9 @@ export default function SupplierDetails() {
                 <IconButton
                   size="sm"
                   icon={
-                    <Icon
-                      as={Ionicons}
-                      name="call-outline"
-                      size={5}
+                    <MaterialIcons
+                      name="phone"
+                      size={20}
                       color="coolGray.500"
                     />
                   }
@@ -220,10 +220,9 @@ export default function SupplierDetails() {
                 <IconButton
                   size="sm"
                   icon={
-                    <Icon
-                      as={Ionicons}
-                      name="globe-outline"
-                      size={5}
+                    <MaterialIcons
+                      name="language"
+                      size={20}
                       color="coolGray.500"
                     />
                   }
@@ -253,12 +252,7 @@ export default function SupplierDetails() {
 
             <HStack justifyContent="space-between" alignItems="center">
               <HStack space={2} alignItems="center">
-                <Icon
-                  as={Ionicons}
-                  name="star-outline"
-                  size={5}
-                  color="coolGray.500"
-                />
+                <MaterialIcons name="star" size={20} color="coolGray.500" />
                 <Text fontWeight="medium">Credit Rating:</Text>
               </HStack>
               <Badge
@@ -272,10 +266,9 @@ export default function SupplierDetails() {
 
             <HStack justifyContent="space-between" alignItems="center">
               <HStack space={2} alignItems="center">
-                <Icon
-                  as={Ionicons}
-                  name="wallet-outline"
-                  size={5}
+                <MaterialIcons
+                  name="account-balance-wallet"
+                  size={20}
                   color="coolGray.500"
                 />
                 <Text fontWeight="medium">Credit Limit:</Text>
@@ -285,12 +278,7 @@ export default function SupplierDetails() {
 
             <HStack justifyContent="space-between" alignItems="center">
               <HStack space={2} alignItems="center">
-                <Icon
-                  as={Ionicons}
-                  name="person-outline"
-                  size={5}
-                  color="coolGray.500"
-                />
+                <MaterialIcons name="person" size={20} color="coolGray.500" />
                 <Text fontWeight="medium">Owner Name:</Text>
               </HStack>
               <Text>{supplier.ownerName || "Not specified"}</Text>
@@ -298,10 +286,9 @@ export default function SupplierDetails() {
 
             <HStack justifyContent="space-between" alignItems="center">
               <HStack space={2} alignItems="center">
-                <Icon
-                  as={Ionicons}
-                  name="location-outline"
-                  size={5}
+                <MaterialIcons
+                  name="location-on"
+                  size={20}
                   color="coolGray.500"
                 />
                 <Text fontWeight="medium">Location:</Text>
@@ -316,7 +303,10 @@ export default function SupplierDetails() {
         {/* Address */}
         <Box p={4} bg="white">
           <VStack space={2}>
-            <Heading size="md">Address</Heading>
+            <HStack space={2} alignItems="center">
+              <MaterialIcons name="home" size={20} color="coolGray.600" />
+              <Heading size="md">Address</Heading>
+            </HStack>
             <Text color="coolGray.600">
               {supplier.address || "Address not specified"}
             </Text>
@@ -329,7 +319,7 @@ export default function SupplierDetails() {
         renderInPortal={false}
         shadow={3}
         size="md"
-        icon={<Icon color="white" as={Ionicons} name="pencil" size="sm" />}
+        icon={<MaterialIcons name="edit" size={24} color="white" />}
         onPress={() => router.push(`/staff/suppliers/edit/${id}`)}
         position="absolute"
         bottom={10}

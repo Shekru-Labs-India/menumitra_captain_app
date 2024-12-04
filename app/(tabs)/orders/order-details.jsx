@@ -4,7 +4,6 @@ import {
   VStack,
   HStack,
   Text,
-  Icon,
   ScrollView,
   Pressable,
   Image,
@@ -12,7 +11,7 @@ import {
   Button,
   IconButton,
 } from "native-base";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 // Import food images
@@ -39,7 +38,7 @@ export default function OrderDetailsScreen() {
         <HStack alignItems="center" justifyContent="space-between">
           <IconButton
             icon={
-              <Icon as={Ionicons} name="arrow-back" size={6} color="gray.800" />
+              <MaterialIcons name="arrow-back" size={24} color="gray.800" />
             }
             onPress={() => router.back()}
             variant="ghost"
@@ -48,7 +47,7 @@ export default function OrderDetailsScreen() {
             left={0}
             zIndex={1}
           />
-          <Heading size="lg" flex={1} textAlign="center">
+          <Heading size="md" flex={1} textAlign="center">
             Order Details
           </Heading>
         </HStack>
@@ -76,12 +75,7 @@ export default function OrderDetailsScreen() {
           </HStack>
           <HStack justifyContent="space-between" alignItems="center">
             <HStack space={3} alignItems="center">
-              <Icon
-                as={Ionicons}
-                name="business-outline"
-                size={4}
-                color="gray.600"
-              />
+              <MaterialIcons name="location-city" size={16} color="gray.600" />
               <VStack>
                 <Text fontSize="md" fontWeight="semibold">
                   VIRAJ HOTEL PUNE
@@ -106,12 +100,7 @@ export default function OrderDetailsScreen() {
 
           <HStack justifyContent="space-between" alignItems="center">
             <HStack space={2} alignItems="center">
-              <Icon
-                as={Ionicons}
-                name="receipt-outline"
-                size={3}
-                color="gray.600"
-              />
+              <MaterialIcons name="receipt" size={14} color="gray.600" />
               <Text fontSize="md" fontWeight="semibold">
                 2 Menu
               </Text>
@@ -159,9 +148,9 @@ export default function OrderDetailsScreen() {
               <Image
                 source={foodImages.butterChicken}
                 alt="Butter Chicken"
-                resizeMode="cover" // Ensures the image fills the available space
-                height="100px" // Set the desired height for the image
-                width="100px" // Set the desired width for the image
+                resizeMode="cover"
+                height="100px"
+                width="100px"
                 rounded="lg"
                 fallbackSource={require("../../../assets/food/burger-with-melted-cheese.jpg")}
               />
@@ -190,7 +179,7 @@ export default function OrderDetailsScreen() {
                 </Text>
                 {/* Star Rating */}
                 <HStack alignItems="center" space={1} mr={2}>
-                  <Icon as={Ionicons} name="star" size={4} color="orange.400" />
+                  <MaterialIcons name="star" size={16} color="orange.400" />
                   <Text fontSize="sm" color="gray.500">
                     4.5
                   </Text>
@@ -201,12 +190,7 @@ export default function OrderDetailsScreen() {
               <HStack space={2} alignItems="center" mt={1}>
                 {/* Cuisine */}
                 <HStack space={1} alignItems="center">
-                  <Icon
-                    as={Ionicons}
-                    name="leaf-outline"
-                    size={4}
-                    color="green.500"
-                  />
+                  <MaterialIcons name="eco" size={16} color="green.500" />
                   <Text fontSize="sm" color="gray.500">
                     NorthIndian
                   </Text>
@@ -214,101 +198,9 @@ export default function OrderDetailsScreen() {
 
                 {/* Spicy Indicator */}
                 <HStack space={1}>
-                  <Icon as={Ionicons} name="flame" size={4} color="red.500" />
-                  <Icon as={Ionicons} name="flame" size={4} color="red.500" />
-                  <Icon as={Ionicons} name="flame" size={4} color="gray.300" />
-                </HStack>
-              </HStack>
-
-              {/* Price Section */}
-              <HStack justifyContent="space-between" alignItems="center" mt={2}>
-                {/* Price */}
-                <HStack space={2} alignItems="center">
-                  <Text fontSize="md" fontWeight="semibold" color="blue.500">
-                    ₹300
-                  </Text>
-                  <Text
-                    fontSize="sm"
-                    color="gray.500"
-                    textDecorationLine="line-through"
-                  >
-                    ₹333.33
-                  </Text>
-                </HStack>
-                {/* Quantity */}
-                <Text fontSize="sm" color="gray.500" mr={2}>
-                  x1
-                </Text>
-              </HStack>
-            </VStack>
-          </HStack>
-        </Box>
-
-        {/* Card for Butter Chicken */}
-        <Box bg="white" rounded="lg" shadow={1} mb={4}>
-          <HStack space={3} alignItems="center">
-            {/* Image Section */}
-            <Box position="relative">
-              <Image
-                source={foodImages.butterChicken}
-                alt="Butter Chicken"
-                height="100px" // Set the desired height for the image
-                width="100px" // Set the desired width for the image
-                rounded="lg"
-                fallbackSource={require("../../../assets/food/burger-with-melted-cheese.jpg")}
-              />
-              {/* Offer Badge */}
-              <Box
-                position="absolute"
-                top={0}
-                left={0}
-                bg="red.500"
-                px={2}
-                py={1}
-                roundedBottomRight="sm"
-              >
-                <Text fontSize="xs" color="white">
-                  10% Off
-                </Text>
-              </Box>
-            </Box>
-
-            {/* Details Section */}
-            <VStack flex={1}>
-              {/* Food Name */}
-              <HStack justifyContent="space-between" alignItems="center">
-                <Text fontSize="md" fontWeight="semibold">
-                  Butter Chicken
-                </Text>
-                {/* Star Rating */}
-                <HStack alignItems="center" space={1} mr={2}>
-                  <Icon as={Ionicons} name="star" size={4} color="orange.400" />
-                  <Text fontSize="sm" color="gray.500">
-                    4.5
-                  </Text>
-                </HStack>
-              </HStack>
-
-              {/* Row: Cuisine and Spicy Index */}
-              <HStack space={2} alignItems="center" mt={1}>
-                {/* Cuisine */}
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={Ionicons}
-                    name="leaf-outline"
-                    size={4}
-                    color="green.500"
-                  />
-                  <Text fontSize="sm" color="gray.500">
-                    NorthIndian
-                  </Text>
-                </HStack>
-
-                {/* Spicy Indicator */}
-                <HStack space={1}>
-                  <Icon as={Ionicons} name="flame" size={4} color="red.500" />
-                  <Icon as={Ionicons} name="flame" size={4} color="red.500" />
-                  <Icon as={Ionicons} name="flame" size={4} color="gray.300" />
+                  <MaterialIcons name="whatshot" size={16} color="red.500" />
+                  <MaterialIcons name="whatshot" size={16} color="red.500" />
+                  <MaterialIcons name="whatshot" size={16} color="gray.300" />
                 </HStack>
               </HStack>
 
@@ -382,8 +274,6 @@ export default function OrderDetailsScreen() {
           </VStack>
         </Box>
 
-        {/* Payment Method */}
-
         {/* Invoice Button */}
         <HStack justifyContent="flex-end" px={4} py={2} mb={4}>
           <Pressable
@@ -394,12 +284,7 @@ export default function OrderDetailsScreen() {
             py={2}
             rounded="full"
           >
-            <Icon
-              as={Ionicons}
-              name="download-outline"
-              size={4}
-              color="gray.600"
-            />
+            <MaterialIcons name="file-download" size={16} color="gray.600" />
             <Text fontSize="sm" color="gray.600" ml={2}>
               Invoice
             </Text>

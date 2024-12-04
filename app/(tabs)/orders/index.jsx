@@ -6,11 +6,10 @@ import {
   Text,
   Pressable,
   ScrollView,
-  Icon,
   Heading,
   IconButton,
 } from "native-base";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 export default function OrdersScreen() {
@@ -67,11 +66,20 @@ export default function OrdersScreen() {
     ],
   };
 
+  const expandAll = () => {
+    const allDates = new Set(Object.keys(ordersByDate));
+    setExpandedDates(allDates);
+  };
+
+  const collapseAll = () => {
+    setExpandedDates(new Set());
+    setExpandedOrders(new Set());
+  };
+
   const toggleDateExpand = (date) => {
     const newExpandedDates = new Set(expandedDates);
     if (newExpandedDates.has(date)) {
       newExpandedDates.delete(date);
-      // Collapse all orders under this date
       const newExpandedOrders = new Set(expandedOrders);
       ordersByDate[date].forEach((order) => {
         newExpandedOrders.delete(order.id);
@@ -83,42 +91,6 @@ export default function OrdersScreen() {
     setExpandedDates(newExpandedDates);
   };
 
-  const toggleOrderExpand = (orderId) => {
-    const newExpandedOrders = new Set(expandedOrders);
-    if (newExpandedOrders.has(orderId)) {
-      newExpandedOrders.delete(orderId);
-    } else {
-      newExpandedOrders.add(orderId);
-    }
-    setExpandedOrders(newExpandedOrders);
-  };
-
-  const expandAll = () => {
-    const allDates = new Set(Object.keys(ordersByDate));
-    const allOrders = new Set();
-    Object.values(ordersByDate).forEach((orders) => {
-      orders.forEach((order) => allOrders.add(order.id));
-    });
-    setExpandedDates(allDates);
-    setExpandedOrders(allOrders);
-  };
-
-  const collapseAll = () => {
-    setExpandedDates(new Set());
-    setExpandedOrders(new Set());
-  };
-
-  const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case "completed":
-        return "green.500";
-      case "pending":
-        return "orange.500";
-      default:
-        return "gray.500";
-    }
-  };
-
   const isAllExpanded = () => {
     return Object.keys(ordersByDate).length === expandedDates.size;
   };
@@ -127,24 +99,11 @@ export default function OrdersScreen() {
     <Box flex={1} bg="gray.50" safeArea>
       <VStack space={4} flex={1}>
         {/* Header */}
-        <Box
-          px={4}
-          py={3}
-          bg="white"
-          shadow={2}
-          mb={1}
-          borderBottomWidth={1}
-          borderBottomColor="gray.100"
-        >
+        <Box px={4} py={3} bg="white" shadow={2} mb={1}>
           <HStack alignItems="center" justifyContent="space-between">
             <IconButton
               icon={
-                <Icon
-                  as={Ionicons}
-                  name="arrow-back"
-                  size={6}
-                  color="gray.800"
-                />
+                <MaterialIcons name="arrow-back" size={24} color="#333333" />
               }
               onPress={() => router.back()}
               variant="ghost"
@@ -153,7 +112,7 @@ export default function OrdersScreen() {
               left={0}
               zIndex={1}
             />
-            <Heading size="lg" flex={1} textAlign="center">
+            <Heading size="md" flex={1} textAlign="center">
               Orders
             </Heading>
           </HStack>
@@ -161,14 +120,12 @@ export default function OrdersScreen() {
 
         <Box alignItems="flex-end" px={4}>
           <Pressable onPress={isAllExpanded() ? collapseAll : expandAll}>
-            <Text
-              color={isAllExpanded() ? "gray.500" : "gray.500"}
-              fontSize="sm"
-            >
+            <Text color="gray.500" fontSize="sm">
               {isAllExpanded() ? "Collapse All" : "Expand All"}
             </Text>
           </Pressable>
         </Box>
+
         {/* Order List */}
         <ScrollView flex={1}>
           <VStack space={2} px={4}>
@@ -183,18 +140,13 @@ export default function OrdersScreen() {
                     <Text fontSize="md" fontWeight="semibold">
                       {date}
                     </Text>
-                    <HStack space={2} alignItems="center">
-                      <Icon
-                        as={Ionicons}
-                        name={
-                          expandedDates.has(date)
-                            ? "chevron-up"
-                            : "chevron-down"
-                        }
-                        size={5}
-                        color="gray.400"
-                      />
-                    </HStack>
+                    <MaterialIcons
+                      name={
+                        expandedDates.has(date) ? "expand-less" : "expand-more"
+                      }
+                      size={20}
+                      color="#A0AEC0"
+                    />
                   </HStack>
                 </Pressable>
 
@@ -204,14 +156,10 @@ export default function OrdersScreen() {
                       <Pressable
                         key={order.id}
                         onPress={() => {
-                          try {
-                            router.push({
-                              pathname: "/orders/order-details",
-                              params: { id: order.id },
-                            });
-                          } catch (error) {
-                            console.error("Navigation error:", error);
-                          }
+                          router.push({
+                            pathname: "/orders/order-details",
+                            params: { id: order.id },
+                          });
                         }}
                       >
                         <Box
@@ -222,17 +170,6 @@ export default function OrdersScreen() {
                           rounded="xl"
                           mb={2}
                           p={3}
-                          overflow="hidden"
-                          style={{
-                            shadowColor: "#000",
-                            shadowOffset: {
-                              width: 0,
-                              height: 1,
-                            },
-                            shadowOpacity: 0.18,
-                            shadowRadius: 1.0,
-                            elevation: 1,
-                          }}
                         >
                           <VStack space={1.5}>
                             {/* Order ID and Time */}
@@ -253,60 +190,47 @@ export default function OrdersScreen() {
                               </Text>
                             </HStack>
 
-                            {/* Hotel Info with Location Count */}
-                            <HStack
-                              space={1}
-                              alignItems="flex-start"
-                              justifyContent="space-between"
-                            >
-                              <HStack space={1} alignItems="flex-start">
-                                <Icon
-                                  as={Ionicons}
-                                  name="home-outline"
-                                  size={4}
-                                  color="gray.600"
-                                  mt={1}
-                                />
-                                <VStack space={0}>
-                                  <Text fontSize="sm" fontWeight="semibold">
-                                    {order.hotelName}
-                                  </Text>
-                                  <Text fontSize="xs" color="gray.500">
-                                    {order.location}
-                                  </Text>
-                                </VStack>
-                              </HStack>
-                              <Text fontSize="xs" color="gray.500">
-                                1
-                              </Text>
+                            {/* Hotel Info */}
+                            <HStack space={1} alignItems="flex-start">
+                              <MaterialIcons
+                                name="location-city"
+                                size={16}
+                                color="#4A5568"
+                              />
+                              <VStack space={0}>
+                                <Text fontSize="sm" fontWeight="semibold">
+                                  {order.hotelName}
+                                </Text>
+                                <Text fontSize="xs" color="gray.500">
+                                  {order.location}
+                                </Text>
+                              </VStack>
                             </HStack>
 
-                            {/* Order Type and Garden Info Row */}
+                            {/* Order Type and Garden Info */}
                             <HStack
                               justifyContent="space-between"
                               alignItems="center"
                             >
                               <HStack space={2} alignItems="center">
-                                <Icon
-                                  as={Ionicons}
+                                <MaterialIcons
                                   name={
                                     order.type.toLowerCase() === "dine in"
-                                      ? "restaurant-outline"
-                                      : "bicycle-outline"
+                                      ? "restaurant"
+                                      : "local-shipping"
                                   }
-                                  size={3.5}
-                                  color="gray.500"
+                                  size={14}
+                                  color="#718096"
                                 />
                                 <Text fontSize="xs" color="gray.600">
                                   {order.type}
                                 </Text>
                               </HStack>
                               <HStack space={1} alignItems="center">
-                                <Icon
-                                  as={Ionicons}
-                                  name="leaf-outline"
-                                  size={3.5}
-                                  color="gray.500"
+                                <MaterialIcons
+                                  name="spa"
+                                  size={14}
+                                  color="#718096"
                                 />
                                 <Text fontSize="xs" color="gray.600">
                                   {order.additionalInfo}
@@ -314,17 +238,16 @@ export default function OrdersScreen() {
                               </HStack>
                             </HStack>
 
-                            {/* Menu Count and Price Row */}
+                            {/* Menu Count and Price */}
                             <HStack
                               justifyContent="space-between"
                               alignItems="center"
                             >
                               <HStack space={2} alignItems="center">
-                                <Icon
-                                  as={Ionicons}
-                                  name="receipt-outline"
-                                  size={3.5}
-                                  color="gray.500"
+                                <MaterialIcons
+                                  name="assignment"
+                                  size={14}
+                                  color="#718096"
                                 />
                                 <Text fontSize="xs" color="gray.600">
                                   {order.menuCount}
@@ -348,14 +271,18 @@ export default function OrdersScreen() {
                               </HStack>
                             </HStack>
 
-                            {/* Status and Payment Row */}
+                            {/* Status and Payment */}
                             <HStack
                               justifyContent="space-between"
                               alignItems="center"
                             >
                               <Text
                                 fontSize="xs"
-                                color={getStatusColor(order.status)}
+                                color={
+                                  order.status.toLowerCase() === "completed"
+                                    ? "green.500"
+                                    : "orange.500"
+                                }
                               >
                                 {order.status}
                               </Text>
@@ -367,9 +294,20 @@ export default function OrdersScreen() {
                                 borderWidth={1}
                                 borderColor="gray.100"
                               >
-                                <Text fontSize="2xs" color="gray.600">
-                                  {order.paymentMode}
-                                </Text>
+                                <HStack space={1} alignItems="center">
+                                  <MaterialIcons
+                                    name={
+                                      order.paymentMode.toLowerCase() === "card"
+                                        ? "credit-card"
+                                        : "attach-money"
+                                    }
+                                    size={12}
+                                    color="#4A5568"
+                                  />
+                                  <Text fontSize="2xs" color="gray.600">
+                                    {order.paymentMode}
+                                  </Text>
+                                </HStack>
                               </Box>
                             </HStack>
                           </VStack>

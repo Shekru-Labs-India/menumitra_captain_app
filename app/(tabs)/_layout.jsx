@@ -1,24 +1,30 @@
 import { Tabs } from "expo-router";
-import BoxIcon from "../../components/BoxIcon";
+import { MaterialIcons } from "@expo/vector-icons";
 
 export default function TabLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: "#0891b2",
+        tabBarInactiveTintColor: "#6b7280",
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "500",
+        },
+        tabBarStyle: {
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => (
-            <BoxIcon name="home" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="menu"
-        options={{
-          title: "Menu",
-          tabBarIcon: ({ color, size }) => (
-            <BoxIcon name="menu" size={size} color={color} />
+            <MaterialIcons name="home" size={size} color={color} />
           ),
         }}
       />
@@ -26,10 +32,9 @@ export default function TabLayout() {
         name="staff"
         options={{
           title: "Staff",
-          tabBarIcon: ({ color }) => (
-            <BoxIcon name="staff" size={24} color={color} />
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="people" size={size} color={color} />
           ),
-          href: "/staff/index",
         }}
       />
       <Tabs.Screen
@@ -37,7 +42,16 @@ export default function TabLayout() {
         options={{
           title: "Orders",
           tabBarIcon: ({ color, size }) => (
-            <BoxIcon name="staff" size={size} color={color} />
+            <MaterialIcons name="receipt" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="account-circle" size={size} color={color} />
           ),
         }}
       />

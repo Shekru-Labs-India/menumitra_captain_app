@@ -7,7 +7,6 @@ import {
   IconButton,
   Button,
   useToast,
-  Icon,
   FormControl,
   Input,
   TextArea,
@@ -15,8 +14,9 @@ import {
   Center,
   Pressable,
   Text,
+  HStack,
 } from "native-base";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Platform, StatusBar } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -108,7 +108,7 @@ export default function AddStaffScreen() {
       safeArea
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
     >
-      {/* Single Header */}
+      {/* Header */}
       <Box
         px={4}
         py={3}
@@ -116,14 +116,22 @@ export default function AddStaffScreen() {
         borderBottomColor="coolGray.200"
         bg="coolGray.50"
       >
-        <IconButton
-          position="absolute"
-          left={2}
-          top={2}
-          icon={<Icon as={Ionicons} name="arrow-back" size={6} />}
-          onPress={() => router.back()}
-        />
-        <Heading textAlign="center">Add New Staff</Heading>
+        <HStack alignItems="center" justifyContent="space-between">
+          <IconButton
+            icon={
+              <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
+            }
+            onPress={() => router.back()}
+            variant="ghost"
+            _pressed={{ bg: "gray.100" }}
+            position="absolute"
+            left={0}
+            zIndex={1}
+          />
+          <Heading size="md" flex={1} textAlign="center">
+            Add New Staff
+          </Heading>
+        </HStack>
       </Box>
 
       <ScrollView px={4} py={4}>
@@ -137,7 +145,11 @@ export default function AddStaffScreen() {
                 source={image ? { uri: image } : null}
               >
                 {!image && (
-                  <Icon as={Ionicons} name="camera" size={8} color="white" />
+                  <MaterialIcons
+                    name="camera-alt"
+                    size={24}
+                    color="coolGray.400"
+                  />
                 )}
               </Avatar>
               <Text
@@ -214,7 +226,11 @@ export default function AddStaffScreen() {
             />
           </FormControl>
 
-          <Button mt={4} onPress={handleSave}>
+          <Button
+            mt={4}
+            onPress={handleSave}
+            leftIcon={<MaterialIcons name="save" size={20} color="white" />}
+          >
             Save
           </Button>
         </VStack>

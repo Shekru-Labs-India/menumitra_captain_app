@@ -15,14 +15,11 @@ import {
   Select,
   CheckIcon,
   Badge,
-  Icon,
   Fab,
   Pressable,
   Avatar,
-  TextArea,
-  Divider,
 } from "native-base";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -167,10 +164,7 @@ export default function StaffScreen() {
   const renderStaffItem = ({ item }) => (
     <Pressable
       onPress={() => {
-        router.push({
-          pathname: "/staff/[id]",
-          params: { id: item.id },
-        });
+        router.push(`/(tabs)/staff/${item.id}`);
       }}
     >
       <Box
@@ -183,45 +177,63 @@ export default function StaffScreen() {
         borderWidth={1}
         borderColor="coolGray.200"
       >
-        <HStack space={3} alignItems="center">
-          <Avatar size="md" bg="cyan.500">
-            {item.name?.charAt(0).toUpperCase()}
-          </Avatar>
-          <VStack flex={1}>
-            <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
-              {item.name}
-            </Text>
-            <Text fontSize="md" color="coolGray.600">
-              {item.role}
-            </Text>
-            <Text fontSize="sm" color="coolGray.500">
-              {item.phone}
-            </Text>
+        <HStack space={3} alignItems="center" justifyContent="space-between">
+          <HStack space={3} alignItems="center" flex={1}>
+            <Avatar size="md" bg="cyan.500">
+              {item.name?.charAt(0).toUpperCase()}
+            </Avatar>
+            <VStack flex={1}>
+              <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
+                {item.name}
+              </Text>
+              <Text fontSize="md" color="coolGray.600">
+                {item.role}
+              </Text>
+              <HStack space={2} alignItems="center">
+                <MaterialIcons name="phone" size={16} color="coolGray.500" />
+                <Text fontSize="sm" color="coolGray.500">
+                  {item.phone}
+                </Text>
+              </HStack>
+            </VStack>
+          </HStack>
+
+          <VStack space={2} alignItems="flex-end">
+            <Badge
+              colorScheme={getStatusColor(item.status)}
+              variant="subtle"
+              rounded="full"
+              mb={2}
+            >
+              {item.status}
+            </Badge>
+            <Button.Group size="xs" space={1}>
+              <Button
+                variant={item.status === "present" ? "solid" : "outline"}
+                colorScheme="success"
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleStatusChange(item.id, "present");
+                }}
+                isDisabled={item.status === "on leave"}
+                size="xs"
+              >
+                Present
+              </Button>
+              <Button
+                variant={item.status === "absent" ? "solid" : "outline"}
+                colorScheme="danger"
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleStatusChange(item.id, "absent");
+                }}
+                isDisabled={item.status === "on leave"}
+                size="xs"
+              >
+                Absent
+              </Button>
+            </Button.Group>
           </VStack>
-          <Button.Group
-            size="sm"
-            space={1}
-            position="absolute"
-            top={2}
-            right={2}
-          >
-            <Button
-              variant={item.status === "present" ? "solid" : "outline"}
-              colorScheme="success"
-              onPress={() => handleStatusChange(item.id, "present")}
-              isDisabled={item.status === "on leave"}
-            >
-              Present
-            </Button>
-            <Button
-              variant={item.status === "absent" ? "solid" : "outline"}
-              colorScheme="danger"
-              onPress={() => handleStatusChange(item.id, "absent")}
-              isDisabled={item.status === "on leave"}
-            >
-              Absent
-            </Button>
-          </Button.Group>
         </HStack>
       </Box>
     </Pressable>
@@ -230,10 +242,7 @@ export default function StaffScreen() {
   const renderGridItem = ({ item }) => (
     <Pressable
       onPress={() => {
-        router.push({
-          pathname: "/staff/[id]",
-          params: { id: item.id },
-        });
+        router.push(`/(tabs)/staff/${item.id}`);
       }}
       flex={1}
       m={1}
@@ -299,10 +308,12 @@ export default function StaffScreen() {
         borderBottomColor="coolGray.200"
       >
         <IconButton
-          icon={<Icon as={Ionicons} name="arrow-back" size={6} />}
+          icon={
+            <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
+          }
           onPress={() => router.back()}
         />
-        <Heading size="lg" flex={1} textAlign="center">
+        <Heading size="md" flex={1} textAlign="center">
           Staff Management
         </Heading>
       </HStack>
@@ -320,10 +331,9 @@ export default function StaffScreen() {
         <HStack space={2} alignItems="center">
           <IconButton
             icon={
-              <Icon
-                as={MaterialIcons}
+              <MaterialIcons
                 name={viewType === "list" ? "grid-view" : "view-list"}
-                size={6}
+                size={24}
                 color="coolGray.600"
               />
             }
@@ -345,10 +355,9 @@ export default function StaffScreen() {
           </Select>
           <IconButton
             icon={
-              <Icon
-                as={MaterialIcons}
+              <MaterialIcons
                 name={sortOrder === "asc" ? "arrow-upward" : "arrow-downward"}
-                size={6}
+                size={24}
                 color="coolGray.600"
               />
             }
@@ -364,13 +373,7 @@ export default function StaffScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
           InputLeftElement={
-            <Icon
-              as={Ionicons}
-              name="search"
-              size={5}
-              ml={2}
-              color="gray.400"
-            />
+            <MaterialIcons name="search" size={24} color="gray.400" />
           }
         />
         <HStack space={2}>
@@ -410,22 +413,18 @@ export default function StaffScreen() {
         data={filteredStaff}
         renderItem={viewType === "list" ? renderStaffItem : renderGridItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 8 }}
         numColumns={viewType === "grid" ? 2 : 1}
-        key={viewType}
+        key={viewType} // Force re-render when view type changes
+        contentContainerStyle={{ padding: 16 }}
       />
 
-      {/* FAB for adding new staff */}
+      {/* Add Staff FAB */}
       <Fab
         renderInPortal={false}
-        shadow={3}
+        shadow={2}
         size="sm"
-        bottom={10}
-        right={4}
-        icon={<Icon color="white" as={Ionicons} name="add" size="md" />}
-        onPress={() => {
-          router.push("/staff/add");
-        }}
+        icon={<MaterialIcons name="add" size={24} color="white" />}
+        onPress={() => router.push("/staff/add")}
       />
     </Box>
   );
