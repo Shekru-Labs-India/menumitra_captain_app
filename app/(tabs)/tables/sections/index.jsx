@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Box,
   ScrollView,
@@ -21,24 +21,25 @@ import { useRouter } from "expo-router";
 export default function TableSectionsScreen() {
   const router = useRouter();
   const toast = useToast();
-  const [viewType, setViewType] = useState("grid"); // 'grid' or 'list'
+  const [viewType, setViewType] = useState("list"); // 'grid' or 'list'
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
+  const [isAscending, setIsAscending] = useState(true);
 
   // Sample sections data
-  const [sections, setSections] = useState([
+  const [sections] = useState([
     {
-      id: 1,
+      id: "1",
       name: "Family Section",
-      totalTables: 12,
-      engagedTables: 8,
+      totalTables: 10,
+      engagedTables: 3,
       color: "#4CAF50",
     },
     {
-      id: 2,
-      name: "Outdoor Garden",
-      totalTables: 8,
-      engagedTables: 3,
+      id: "2",
+      name: "Garden Section",
+      totalTables: 6,
+      engagedTables: 2,
       color: "#2196F3",
     },
     {
@@ -57,32 +58,45 @@ export default function TableSectionsScreen() {
     },
   ]);
 
+  // Memoized sorting and filtering logic
+  const sortedSections = useMemo(() => {
+    let filtered = [...sections];
+
+    // Apply search filter
+    if (searchQuery) {
+      filtered = filtered.filter((section) =>
+        section.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case "name":
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case "totalTables":
+          comparison = a.totalTables - b.totalTables;
+          break;
+        case "engagedTables":
+          comparison = a.engagedTables - b.engagedTables;
+          break;
+      }
+      return isAscending ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [sections, searchQuery, sortBy, isAscending]);
+
   const handleSectionPress = (section) => {
     router.push(`/tables/sections/${section.id}`);
   };
 
-  // Filter sections based on search query
-  const filteredSections = sections.filter((section) =>
-    section.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Sort sections based on selected criteria
-  const sortedSections = [...filteredSections].sort((a, b) => {
-    switch (sortBy) {
-      case "name":
-        return a.name.localeCompare(b.name);
-      case "totalTables":
-        return b.totalTables - a.totalTables;
-      case "engagedTables":
-        return b.engagedTables - a.engagedTables;
-      default:
-        return 0;
-    }
-  });
-  const renderGridView = () => (
+  const renderGridView = (sections) => (
     <ScrollView px={4} py={2}>
       <HStack flexWrap="wrap" justifyContent="space-between">
-        {sortedSections.map((section) => (
+        {sections.map((section) => (
           <Pressable
             key={section.id}
             onPress={() => handleSectionPress(section)}
@@ -135,9 +149,9 @@ export default function TableSectionsScreen() {
     </ScrollView>
   );
 
-  const renderListView = () => (
+  const renderListView = (sections) => (
     <ScrollView>
-      {sortedSections.map((section) => (
+      {sections.map((section) => (
         <Pressable
           key={section.id}
           onPress={() => handleSectionPress(section)}
@@ -203,81 +217,71 @@ export default function TableSectionsScreen() {
         </HStack>
       </Box>
 
-      {/* Search and Filters with better alignment */}
-      <Box py={2} borderBottomWidth={1} borderBottomColor="coolGray.200">
-        <HStack
-          space={2}
-          px={4}
-          alignItems="center"
-          justifyContent="flex-start"
-        >
-          <Input
-            placeholder="Search..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            bg="white"
-            borderWidth={1}
-            borderColor="coolGray.200"
-            borderRadius="md"
-            fontSize="xs"
-            width="32%"
-            height="8"
-            InputLeftElement={
-              <Box pl={2}>
-                <MaterialIcons name="search" size={18} color="coolGray.500" />
-              </Box>
-            }
-          />
-          <Select
-            selectedValue={sortBy}
-            onValueChange={setSortBy}
-            bg="white"
-            borderWidth={1}
-            borderColor="coolGray.200"
-            borderRadius="md"
-            fontSize="xs"
-            placeholder="Sort"
-            width="24"
-            height="8"
-            _selectedItem={{
-              endIcon: <CheckIcon size={3} />,
-            }}
-          >
-            <Select.Item label="Name" value="name" />
-            <Select.Item label="Total Tables" value="totalTables" />
-            <Select.Item label="Engaged Tables" value="engagedTables" />
-          </Select>
-          <Box
-            height="8"
-            width="8"
-            borderWidth={1}
-            borderColor="coolGray.200"
-            borderRadius="md"
-            bg="white"
-          >
-            <IconButton
-              icon={
-                <MaterialIcons
-                  name={viewType === "grid" ? "view-list" : "grid-view"}
-                  size={12}
-                  color="coolGray.500"
-                />
-              }
-              onPress={() => setViewType(viewType === "grid" ? "list" : "grid")}
-              variant="unstyled"
-              _pressed={{ bg: "coolGray.100" }}
-              height="8"
-              width="8"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
+      {/* Search and Filters with suppliers design */}
+      <HStack
+        px={4}
+        py={2}
+        space={2}
+        alignItems="center"
+        borderBottomWidth={1}
+        borderBottomColor="coolGray.200"
+        bg="coolGray.50"
+      >
+        <Input
+          flex={1}
+          placeholder="Search..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          InputLeftElement={
+            <MaterialIcons
+              name="search"
+              size={20}
+              color="coolGray.400"
+              style={{ marginLeft: 8 }}
             />
-          </Box>
-        </HStack>
-      </Box>
+          }
+        />
+        <IconButton
+          icon={
+            <MaterialIcons
+              name={viewType === "grid" ? "view-list" : "grid-view"}
+              size={24}
+              color="coolGray.600"
+            />
+          }
+          onPress={() => setViewType(viewType === "grid" ? "list" : "grid")}
+        />
+        <Select
+          w="110"
+          selectedValue={sortBy}
+          onValueChange={setSortBy}
+          placeholder="Sort by"
+          _selectedItem={{
+            endIcon: (
+              <MaterialIcons name="check" size={16} color="coolGray.600" />
+            ),
+          }}
+        >
+          <Select.Item label="Name" value="name" />
+          <Select.Item label="Total Tables" value="totalTables" />
+          <Select.Item label="Engaged Tables" value="engagedTables" />
+        </Select>
+        <IconButton
+          icon={
+            <MaterialIcons
+              name={isAscending ? "arrow-upward" : "arrow-downward"}
+              size={24}
+              color="coolGray.600"
+            />
+          }
+          onPress={() => setIsAscending(!isAscending)}
+        />
+      </HStack>
 
       {/* Content */}
-      {viewType === "grid" ? renderGridView() : renderListView()}
+      {viewType === "grid"
+        ? renderGridView(sortedSections)
+        : renderListView(sortedSections)}
 
       {/* Floating Action Button */}
       <Pressable

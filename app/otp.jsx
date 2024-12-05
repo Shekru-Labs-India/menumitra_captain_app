@@ -1,19 +1,22 @@
 import {
-  StyleSheet,
-  View,
+  Box,
+  VStack,
+  HStack,
   Text,
-  TextInput,
-  TouchableOpacity,
+  Input,
+  Button,
   Image,
-  SafeAreaView,
-  Platform,
-  StatusBar,
-  Keyboard,
-} from "react-native";
-import { router } from "expo-router";
+  Icon,
+  Pressable,
+} from "native-base";
+import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState, useRef, useEffect } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Keyboard } from "react-native";
+import { router } from "expo-router";
+import { Linking } from "react-native";
+import { useVersion } from "../context/VersionContext";
 
 export default function OtpScreen() {
   const [otp, setOtp] = useState(["", "", "", ""]);
@@ -23,7 +26,8 @@ export default function OtpScreen() {
   const otpInputs = useRef([]);
   const params = useLocalSearchParams();
   const mobileNumber = params.mobile;
-
+  const navigation = useNavigation();
+  const { version } = useVersion();
   useEffect(() => {
     checkExistingSession();
   }, []);
@@ -41,6 +45,16 @@ export default function OtpScreen() {
       console.error("Error checking session:", error);
     }
   };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (otpInputs.current[0]) {
+        otpInputs.current[0].focus();
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -76,19 +90,23 @@ export default function OtpScreen() {
     setOtp(newOtp);
     setError("");
 
-    if (value && index < 3) {
-      otpInputs.current[index + 1].focus();
-    } else if (value && index === 3) {
-      Keyboard.dismiss();
+    if (value !== "") {
+      if (index < 3) {
+        otpInputs.current[index + 1].focus();
+      } else {
+        Keyboard.dismiss();
+      }
     }
   };
 
   const handleKeyPress = (e, index) => {
-    if (e.nativeEvent.key === "Backspace" && !otp[index] && index > 0) {
-      otpInputs.current[index - 1].focus();
-      const newOtp = [...otp];
-      newOtp[index - 1] = "";
-      setOtp(newOtp);
+    if (e.nativeEvent.key === "Backspace") {
+      if (index > 0 && otp[index] === "") {
+        const newOtp = [...otp];
+        newOtp[index - 1] = "";
+        setOtp(newOtp);
+        otpInputs.current[index - 1].focus();
+      }
     }
   };
 
@@ -98,7 +116,6 @@ export default function OtpScreen() {
     resetTimer();
     setError("");
     otpInputs.current[0].focus();
-    // Add your resend OTP logic here
   };
 
   const handleVerifyOtp = async () => {
@@ -112,7 +129,6 @@ export default function OtpScreen() {
 
     if (enteredOtp === validOtp) {
       try {
-        // Create session with 30-day expiry
         const thirtyDaysFromNow = new Date();
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
@@ -135,194 +151,222 @@ export default function OtpScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View
-        style={[
-          styles.content,
-          Platform.OS === "android" && { marginTop: StatusBar.currentHeight },
-        ]}
+    <Box flex={1} bg="white" safeArea>
+      <HStack
+        w="100%"
+        px={4}
+        py={3}
+        alignItems="center"
+        justifyContent="space-between"
+        bg="coolGray.100"
       >
-        <Image
-          source={require("../assets/images/mm-logo-bg-fill-hat.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>Verify OTP</Text>
-
-        <Text style={styles.otpText}>
-          Enter OTP sent to{"\n"}
-          <Text style={styles.mobileText}>
-            {formatMobileNumber(mobileNumber)}
-          </Text>
+        <Pressable onPress={() => navigation.goBack()}>
+          <Icon
+            as={MaterialIcons}
+            name="arrow-back"
+            size={6}
+            color="gray.600"
+          />
+        </Pressable>
+        <Text fontSize="lg" fontWeight="bold" color="#333">
+          Verify OTP
         </Text>
+        <Box w={6} />
+      </HStack>
 
-        <View style={styles.otpContainer}>
-          {[0, 1, 2, 3].map((index) => (
-            <TextInput
-              key={index}
-              ref={(ref) => (otpInputs.current[index] = ref)}
-              style={[
-                styles.otpInput,
-                otp[index] && styles.otpInputFilled,
-                error && styles.otpInputError,
-              ]}
-              keyboardType="numeric"
-              maxLength={1}
-              value={otp[index]}
-              onChangeText={(value) => handleOtpChange(value, index)}
-              onKeyPress={(e) => handleKeyPress(e, index)}
-              selectionColor="#007AFF"
-            />
-          ))}
-        </View>
+      <Box flex={1} px={6} justifyContent="center">
+        <VStack space={6} alignItems="center" w="100%">
+          <Image
+            source={require("../assets/images/mm-logo-bg-fill-hat.png")}
+            alt="MenuMitra Logo"
+            size="xl"
+            resizeMode="contain"
+            mb={0}
+          />
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <TouchableOpacity
-          style={[
-            styles.verifyButton,
-            otp.some((digit) => !digit) && styles.verifyButtonDisabled,
-          ]}
-          onPress={handleVerifyOtp}
-          disabled={otp.some((digit) => !digit)}
-        >
-          <Text style={styles.verifyButtonText}>Verify OTP</Text>
-        </TouchableOpacity>
-
-        <View style={styles.resendContainer}>
-          {!canResend ? (
-            <Text style={styles.resendText}>
-              Resend OTP in <Text style={styles.timerText}>{timer}s</Text>
+          <VStack space={1} alignItems="center" mb={2}>
+            <Text fontSize="md" color="coolGray.600" textAlign="center">
+              Enter OTP sent to
             </Text>
-          ) : (
-            <TouchableOpacity onPress={handleResendOtp}>
-              <Text style={styles.resendButton}>Resend OTP</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </SafeAreaView>
+            <Text
+              fontSize="md"
+              fontWeight="bold"
+              color="coolGray.600"
+              textAlign="center"
+            >
+              {formatMobileNumber(mobileNumber)}
+            </Text>
+          </VStack>
+
+          <HStack space={2} justifyContent="center" mb={4}>
+            {[0, 1, 2, 3].map((index) => (
+              <Input
+                key={index}
+                ref={(ref) => (otpInputs.current[index] = ref)}
+                w={12}
+                h={12}
+                textAlign="center"
+                fontSize="xl"
+                keyboardType="numeric"
+                maxLength={1}
+                value={otp[index]}
+                onChangeText={(value) => handleOtpChange(value, index)}
+                onKeyPress={(e) => handleKeyPress(e, index)}
+                borderWidth={1.5}
+                borderColor={otp[index] ? "#007AFF" : "#ddd"}
+                bg={otp[index] ? "#F0F8FF" : "#fff"}
+                _focus={{
+                  borderColor: "#007AFF",
+                  bg: "transparent",
+                }}
+                selectTextOnFocus
+              />
+            ))}
+          </HStack>
+
+          {error ? (
+            <Text color="red.500" fontSize="xs" mb={4}>
+              {error}
+            </Text>
+          ) : null}
+
+          <Button
+            w="80%"
+            h={12}
+            bg="#007AFF"
+            _pressed={{ bg: "#0056b3" }}
+            borderRadius="lg"
+            isDisabled={otp.some((digit) => !digit)}
+            onPress={handleVerifyOtp}
+            _text={{
+              fontSize: "md",
+              fontWeight: "bold",
+              color: "white",
+            }}
+            _disabled={{
+              bg: "coolGray.300",
+              _text: {
+                color: "gray.500",
+              },
+            }}
+          >
+            Verify OTP
+          </Button>
+
+          <HStack justifyContent="center" mt={0}>
+            {!canResend ? (
+              <Text color="coolGray.600" fontSize="sm">
+                Resend OTP in <Text fontWeight="bold">{timer}s</Text>
+              </Text>
+            ) : (
+              <Button variant="link" onPress={handleResendOtp}>
+                <Text color="#007AFF" fontSize="sm" fontWeight="bold">
+                  Resend OTP
+                </Text>
+              </Button>
+            )}
+          </HStack>
+        </VStack>
+      </Box>
+
+      <Box borderTopWidth={1} borderTopColor="coolGray.200" p={0}>
+        <VStack space={3} alignItems="center">
+          <HStack space={2} alignItems="center">
+            <Image
+              source={require("../assets/images/mm-logo.png")}
+              alt="MenuMitra Logo"
+              style={{
+                width: 35,
+                height: 35,
+              }}
+              resizeMode="contain"
+            />
+            <Text fontSize="md" fontWeight="semibold" color="coolGray.700">
+              MenuMitra
+            </Text>
+          </HStack>
+
+          <HStack space={8} justifyContent="center" mt={2}>
+            <Pressable
+              onPress={() =>
+                Linking.openURL(
+                  "https://www.facebook.com/people/Menu-Mitra/61565082412478/"
+                )
+              }
+            >
+              <Icon
+                as={MaterialCommunityIcons}
+                name="facebook"
+                size={7}
+                color="#1877F2"
+              />
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                Linking.openURL("https://www.instagram.com/menumitra/")
+              }
+            >
+              <Icon
+                as={MaterialCommunityIcons}
+                name="instagram"
+                size={7}
+                color="#E4405F"
+              />
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                Linking.openURL("https://www.youtube.com/@menumitra")
+              }
+            >
+              <Icon
+                as={MaterialCommunityIcons}
+                name="youtube"
+                size={7}
+                color="#FF0000"
+              />
+            </Pressable>
+            <Pressable
+              onPress={() => Linking.openURL("https://x.com/MenuMitra")}
+            >
+              <Icon
+                as={MaterialCommunityIcons}
+                name="twitter"
+                size={7}
+                color="#000000"
+              />
+            </Pressable>
+          </HStack>
+
+          <VStack space={1} alignItems="center" mt={2} mb={2}>
+            <HStack space={1} alignItems="center">
+              <Icon
+                as={MaterialCommunityIcons}
+                name="flash"
+                size={3}
+                color="gray.500"
+              />
+              <Text fontSize="xs" color="gray.500">
+                Powered by
+              </Text>
+            </HStack>
+            <Pressable
+              onPress={() => Linking.openURL("https://www.shekruweb.com")}
+            >
+              <Text
+                fontSize="xs"
+                color="#4CAF50"
+                fontWeight="medium"
+                textAlign="center"
+              >
+                Shekru Labs India Pvt. Ltd.
+              </Text>
+            </Pressable>
+            <Text fontSize="2xs" color="gray.500" mt={1} textAlign="center">
+              version {version || "1.0.0"}
+            </Text>
+          </VStack>
+        </VStack>
+      </Box>
+    </Box>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f9f9f9",
-  },
-  content: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  logo: {
-    width: 100,
-    height: 100,
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: "#333",
-  },
-  otpText: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 20,
-    textAlign: "center",
-    lineHeight: 24,
-  },
-  otpContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-    gap: 10,
-  },
-  otpInput: {
-    width: 50,
-    height: 50,
-    borderWidth: 1.5,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    textAlign: "center",
-    fontSize: 20,
-    backgroundColor: "#fff",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  otpInputFilled: {
-    borderColor: "#007AFF",
-    backgroundColor: "#F0F8FF",
-  },
-  otpInputError: {
-    borderColor: "#FF3B30",
-  },
-  errorText: {
-    color: "#FF3B30",
-    fontSize: 14,
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  verifyButton: {
-    width: "80%",
-    height: 48,
-    backgroundColor: "#007AFF",
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 10,
-    alignSelf: "center",
-    shadowColor: "#007AFF",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-  verifyButtonDisabled: {
-    backgroundColor: "#A2A2A2",
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  verifyButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  resendContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 20,
-    justifyContent: "center",
-  },
-  resendText: {
-    color: "#666",
-    fontSize: 14,
-  },
-  resendButton: {
-    color: "#007AFF",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  mobileText: {
-    fontWeight: "600",
-    color: "#333",
-    fontSize: 17,
-  },
-  timerText: {
-    fontWeight: "600",
-    color: "#007AFF",
-  },
-});

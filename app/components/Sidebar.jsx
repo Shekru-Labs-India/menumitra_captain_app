@@ -9,9 +9,11 @@ import {
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useVersion } from "../../context/VersionContext";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Sidebar({ isOpen, onClose }) {
   const { version, appName } = useVersion();
+  const { logout } = useAuth();
 
   const menuItems = [
     {
@@ -56,8 +58,13 @@ export default function Sidebar({ isOpen, onClose }) {
     onClose();
   };
 
-  const handleLogout = () => {
-    router.replace("/login");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      onClose();
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
   };
 
   if (!isOpen) return null;

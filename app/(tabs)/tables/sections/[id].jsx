@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Box,
   ScrollView,
@@ -26,70 +26,195 @@ export default function SectionTablesScreen() {
   const toast = useToast();
   const [selectedTable, setSelectedTable] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [activeSection, setActiveSection] = useState(id);
 
   // Sample section data with correct counts
-  const [section] = useState({
-    id: id,
-    name: "Family Section",
-    totalTables: 12,
-    engagedTables: 4, // Updated to match actual engaged tables
-  });
+  const [sections] = useState([
+    {
+      id: "1",
+      name: "Family Section",
+      totalTables: 3,
+      engagedTables: 1,
+    },
+    {
+      id: "2",
+      name: "Garden Section",
+      totalTables: 4,
+      engagedTables: 1,
+    },
+    {
+      id: "3",
+      name: "Rooftop Section",
+      totalTables: 8,
+      engagedTables: 3,
+    },
+  ]);
 
-  // Updated sample tables data with realistic information
+  // Add state for current section
+  const [currentSection, setCurrentSection] = useState(
+    sections.find((s) => s.id === id) || sections[0]
+  );
+
+  const handleSectionChange = (sectionId) => {
+    setActiveSection(sectionId);
+    setCurrentSection(sections.find((s) => s.id === sectionId) || sections[0]);
+    const sectionTables = tables.filter((t) => t.sectionId === sectionId);
+    setFilteredTables(sectionTables);
+  };
+
+  // Updated sample tables data
   const [tables, setTables] = useState([
-    { id: 1, number: "T1", capacity: 4, status: "AVAILABLE", row: 0, col: 0 },
+    // Family Section (id: "1") - 3 tables
+    {
+      id: 1,
+      number: "T1",
+      status: "AVAILABLE",
+      row: 0,
+      col: 0,
+      sectionId: "1",
+    },
     {
       id: 2,
       number: "T2",
-      capacity: 4,
       status: "ENGAGED",
       row: 0,
       col: 1,
+      sectionId: "1",
       customerName: "John Smith",
       menuCount: 3,
       grandTotal: 850,
+      engagedTime: new Date().setHours(13, 30),
     },
-    { id: 3, number: "T3", capacity: 6, status: "AVAILABLE", row: 0, col: 2 },
-    { id: 4, number: "T4", capacity: 4, status: "AVAILABLE", row: 0, col: 3 },
+    {
+      id: 3,
+      number: "T3",
+      status: "AVAILABLE",
+      row: 0,
+      col: 2,
+      sectionId: "1",
+    },
+
+    // Garden Section (id: "2") - 4 tables
+    {
+      id: 4,
+      number: "T1",
+      status: "AVAILABLE",
+      row: 0,
+      col: 0,
+      sectionId: "2",
+    },
     {
       id: 5,
-      number: "T5",
-      capacity: 2,
+      number: "T2",
       status: "ENGAGED",
-      row: 1,
-      col: 0,
-      customerName: "Sarah Wilson",
+      row: 0,
+      col: 1,
+      sectionId: "2",
+      customerName: "Emily Brown",
       menuCount: 2,
       grandTotal: 450,
+      engagedTime: new Date().setHours(14, 0),
     },
-    { id: 6, number: "T6", capacity: 8, status: "AVAILABLE", row: 1, col: 1 },
-    { id: 7, number: "T7", capacity: 4, status: "AVAILABLE", row: 1, col: 2 },
-    { id: 8, number: "T8", capacity: 4, status: "AVAILABLE", row: 1, col: 3 },
-    { id: 9, number: "T9", capacity: 6, status: "AVAILABLE", row: 2, col: 0 },
+    {
+      id: 6,
+      number: "T3",
+      status: "AVAILABLE",
+      row: 0,
+      col: 2,
+      sectionId: "2",
+    },
+    {
+      id: 7,
+      number: "T4",
+      status: "AVAILABLE",
+      row: 0,
+      col: 3,
+      sectionId: "2",
+    },
+
+    // Rooftop Section (id: "3") - 8 tables
+    {
+      id: 8,
+      number: "T1",
+      status: "AVAILABLE",
+      row: 0,
+      col: 0,
+      sectionId: "3",
+    },
+    {
+      id: 9,
+      number: "T2",
+      status: "ENGAGED",
+      row: 0,
+      col: 1,
+      sectionId: "3",
+      customerName: "Michael Wilson",
+      menuCount: 4,
+      grandTotal: 1200,
+      engagedTime: new Date().setHours(15, 0),
+    },
     {
       id: 10,
-      number: "T10",
-      capacity: 4,
+      number: "T3",
+      status: "AVAILABLE",
+      row: 0,
+      col: 2,
+      sectionId: "3",
+    },
+    {
+      id: 11,
+      number: "T4",
+      status: "AVAILABLE",
+      row: 1,
+      col: 0,
+      sectionId: "3",
+    },
+    {
+      id: 12,
+      number: "T5",
+      status: "ENGAGED",
+      row: 1,
+      col: 1,
+      sectionId: "3",
+      customerName: "Sarah Johnson",
+      menuCount: 3,
+      grandTotal: 750,
+      engagedTime: new Date().setHours(16, 0),
+    },
+    {
+      id: 13,
+      number: "T6",
+      status: "AVAILABLE",
+      row: 1,
+      col: 2,
+      sectionId: "3",
+    },
+    {
+      id: 14,
+      number: "T7",
+      status: "AVAILABLE",
+      row: 2,
+      col: 0,
+      sectionId: "3",
+    },
+    {
+      id: 15,
+      number: "T8",
       status: "ENGAGED",
       row: 2,
       col: 1,
-      customerName: "Mike Johnson",
-      menuCount: 4,
-      grandTotal: 1200,
-    },
-    { id: 11, number: "T11", capacity: 2, status: "AVAILABLE", row: 2, col: 2 },
-    {
-      id: 12,
-      number: "T12",
-      capacity: 8,
-      status: "ENGAGED",
-      row: 2,
-      col: 3,
-      customerName: "David Brown",
-      menuCount: 6,
-      grandTotal: 1650,
+      sectionId: "3",
+      customerName: "David Lee",
+      menuCount: 2,
+      grandTotal: 600,
+      engagedTime: new Date().setHours(13, 45),
     },
   ]);
+
+  // Add state for filtered tables
+  const [filteredTables, setFilteredTables] = useState(
+    tables.filter((t) => t.sectionId === id)
+  );
 
   // Add handleTablePress function
   const handleTablePress = (table) => {
@@ -100,27 +225,42 @@ export default function SectionTablesScreen() {
   };
 
   // Update renderTable function to use handleTablePress
-  const renderTable = (table) => (
-    <Pressable
-      key={table.id}
-      onPress={() => handleTablePress(table)}
-      opacity={1}
-      _pressed={{
-        opacity: table.status === "ENGAGED" ? 0.7 : 1,
-      }}
-    >
-      <Box {...getTableStyle(table.status)}>
-        <VStack alignItems="center" space={1}>
-          <Text color={getTextColor(table.status)} fontWeight="bold">
-            {table.number}
-          </Text>
-          <Text color={getTextColor(table.status)} fontSize="xs">
-            {table.capacity}P
-          </Text>
-        </VStack>
-      </Box>
-    </Pressable>
-  );
+  const renderTable = (table) => {
+    if (!table) return null;
+
+    return (
+      <Pressable
+        key={table.id}
+        onPress={() => handleTablePress(table)}
+        opacity={1}
+        _pressed={{
+          opacity: table.status === "ENGAGED" ? 0.7 : 1,
+        }}
+      >
+        <Box {...getTableStyle(table.status)}>
+          <VStack alignItems="center" space={0.5}>
+            <Text color={getTextColor(table.status)} fontWeight="bold">
+              {table.number}
+            </Text>
+            {table.status === "ENGAGED" && (
+              <Text
+                fontSize="9px"
+                color={getTextColor(table.status)}
+                numberOfLines={1}
+                style={{ letterSpacing: -0.3 }}
+              >
+                {new Date(table.engagedTime).toLocaleTimeString("en-US", {
+                  hour: "numeric",
+                  minute: "numeric",
+                  hour12: true,
+                })}
+              </Text>
+            )}
+          </VStack>
+        </Box>
+      </Pressable>
+    );
+  };
 
   // Add new state for filter
   const [activeFilter, setActiveFilter] = useState("ALL");
@@ -132,24 +272,43 @@ export default function SectionTablesScreen() {
 
   // Simplified filter function for only two states
   const getFilteredTables = () => {
+    const sectionTables = tables.filter((t) => t.sectionId === activeSection);
+
+    if (!sectionTables || sectionTables.length === 0) return [];
+
     switch (activeFilter) {
       case "AVAILABLE":
-        return tables.filter((table) => table.status === "AVAILABLE");
+        return sectionTables.filter((table) => table.status === "AVAILABLE");
       case "ENGAGED":
-        return tables.filter((table) => table.status === "ENGAGED");
+        return sectionTables.filter((table) => table.status === "ENGAGED");
       default:
-        return tables;
+        return sectionTables;
     }
   };
 
   // Group filtered tables by row
-  const tablesByRow = getFilteredTables().reduce((acc, table) => {
-    if (!acc[table.row]) {
-      acc[table.row] = [];
+  const tablesByRow = useMemo(() => {
+    const filteredTables = getFilteredTables();
+    const rows = {};
+
+    // Initialize empty grid
+    const maxRow = Math.max(...filteredTables.map((t) => t.row));
+    const maxCol = Math.max(...filteredTables.map((t) => t.col));
+
+    for (let i = 0; i <= maxRow; i++) {
+      rows[i] = Array(maxCol + 1).fill(null);
     }
-    acc[table.row][table.col] = table;
-    return acc;
-  }, {});
+
+    // Fill in tables
+    filteredTables.forEach((table) => {
+      if (!rows[table.row]) {
+        rows[table.row] = [];
+      }
+      rows[table.row][table.col] = table;
+    });
+
+    return rows;
+  }, [activeSection, activeFilter, tables]);
 
   // Updated Modal Component with only engaged functionality
   const TableActionModal = () => (
@@ -275,9 +434,47 @@ export default function SectionTablesScreen() {
             rounded="full"
           />
           <Heading size="md" textAlign="center">
-            {section.name}
+            {currentSection.name}
           </Heading>
         </HStack>
+      </Box>
+
+      <Box py={8} borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+          }}
+        >
+          <HStack space={3} alignItems="center">
+            {sections.map((section) => (
+              <Pressable
+                key={section.id}
+                onPress={() => handleSectionChange(section.id)}
+              >
+                <Box
+                  px={4}
+                  py={1.5}
+                  bg={activeSection === section.id ? "primary.500" : "white"}
+                  borderWidth={1}
+                  borderColor="primary.500"
+                  rounded="md"
+                >
+                  <Text
+                    color={
+                      activeSection === section.id ? "white" : "primary.500"
+                    }
+                    fontSize="sm"
+                    fontWeight="medium"
+                  >
+                    {section.name}
+                  </Text>
+                </Box>
+              </Pressable>
+            ))}
+          </HStack>
+        </ScrollView>
       </Box>
 
       {/* Filter Buttons with adjusted spacing */}
@@ -370,7 +567,7 @@ export default function SectionTablesScreen() {
                       Total
                     </Text>
                     <Heading size="lg" color="coolGray.700">
-                      {section.totalTables}
+                      {currentSection.totalTables}
                     </Heading>
                   </VStack>
                   <VStack alignItems="center" space={1}>
@@ -378,7 +575,7 @@ export default function SectionTablesScreen() {
                       Engaged
                     </Text>
                     <Heading size="lg" color="red.500">
-                      {section.engagedTables}
+                      {currentSection.engagedTables}
                     </Heading>
                   </VStack>
                   <VStack alignItems="center" space={1}>
@@ -386,7 +583,8 @@ export default function SectionTablesScreen() {
                       Available
                     </Text>
                     <Heading size="lg" color="green.500">
-                      {section.totalTables - section.engagedTables}
+                      {currentSection.totalTables -
+                        currentSection.engagedTables}
                     </Heading>
                   </VStack>
                 </HStack>
@@ -395,40 +593,23 @@ export default function SectionTablesScreen() {
 
             {/* Tables Grid - Adjusted spacing */}
             <VStack space={4}>
-              {Object.values(tablesByRow).map((row, rowIndex) => (
+              {Object.entries(tablesByRow).map(([rowIndex, row]) => (
                 <HStack
                   key={rowIndex}
                   space={7}
                   justifyContent="center"
                   alignItems="center"
                 >
-                  {row.map((table) => (
-                    <Pressable
-                      key={table.id}
-                      onPress={() => handleTablePress(table)}
-                      opacity={table.status === "MAINTENANCE" ? 0.7 : 1}
-                      _pressed={{
-                        opacity: table.status === "ENGAGED" ? 0.7 : 1,
-                      }}
-                    >
-                      <Box {...getTableStyle(table.status)}>
-                        <VStack alignItems="center" space={1}>
-                          <Text
-                            color={getTextColor(table.status)}
-                            fontWeight="bold"
-                          >
-                            {table.number}
-                          </Text>
-                          <Text
-                            color={getTextColor(table.status)}
-                            fontSize="xs"
-                          >
-                            {table.capacity}P
-                          </Text>
-                        </VStack>
+                  {Array.isArray(row) &&
+                    row.map((table, colIndex) => (
+                      <Box
+                        key={`${rowIndex}-${colIndex}`}
+                        width={16}
+                        height={16}
+                      >
+                        {renderTable(table)}
                       </Box>
-                    </Pressable>
-                  ))}
+                    ))}
                 </HStack>
               ))}
             </VStack>

@@ -18,9 +18,11 @@ import {
   Icon,
 } from "native-base";
 import { useRouter } from "expo-router";
+import { useAuth } from "../../context/AuthContext";
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { logout } = useAuth();
 
   const profileMenuItems = [
     {
@@ -177,12 +179,7 @@ export default function ProfileScreen() {
         </VStack>
 
         {/* Logout Button */}
-        <Pressable
-          onPress={() => {
-            // Handle logout
-          }}
-          _pressed={{ bg: "coolGray.100" }}
-        >
+        <Pressable onPress={logout} _pressed={{ bg: "coolGray.100" }}>
           <HStack space={4} py={4} px={6} alignItems="center">
             <Box p={2} rounded="full" bg="red.100">
               <Icon as={MaterialIcons} name="logout" size={6} color="red.600" />

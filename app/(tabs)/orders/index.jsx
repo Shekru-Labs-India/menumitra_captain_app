@@ -8,6 +8,7 @@ import {
   ScrollView,
   Heading,
   IconButton,
+  Button,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -128,30 +129,34 @@ export default function OrdersScreen() {
 
         {/* Order List */}
         <ScrollView flex={1}>
-          <VStack space={2} px={4}>
+          <VStack space={3} px={3} py={2}>
             {Object.entries(ordersByDate).map(([date, orders]) => (
-              <Box key={date}>
+              <Box key={date} mb={3}>
                 <Pressable onPress={() => toggleDateExpand(date)}>
                   <HStack
                     justifyContent="space-between"
                     alignItems="center"
                     mb={2}
+                    px={3}
+                    py={2}
+                    bg="gray.100"
+                    rounded="md"
                   >
-                    <Text fontSize="md" fontWeight="semibold">
+                    <Text fontSize="sm" fontWeight="semibold">
                       {date}
                     </Text>
                     <MaterialIcons
                       name={
                         expandedDates.has(date) ? "expand-less" : "expand-more"
                       }
-                      size={20}
+                      size={18}
                       color="#A0AEC0"
                     />
                   </HStack>
                 </Pressable>
 
                 {expandedDates.has(date) && (
-                  <VStack space={2} mt={2}>
+                  <VStack space={2}>
                     {orders.map((order) => (
                       <Pressable
                         key={order.id}
@@ -164,77 +169,78 @@ export default function OrdersScreen() {
                       >
                         <Box
                           bg="white"
-                          shadow="2"
+                          shadow={1}
+                          rounded="xl"
+                          p={3}
                           borderWidth={1}
                           borderColor="gray.100"
-                          rounded="xl"
-                          mb={2}
-                          p={3}
                         >
-                          <VStack space={1.5}>
+                          <VStack space={2}>
                             {/* Order ID and Time */}
                             <HStack
                               justifyContent="space-between"
                               alignItems="center"
                             >
                               <HStack space={1} alignItems="center">
-                                <Text fontSize="sm" color="gray.500">
-                                  #
-                                </Text>
-                                <Text fontSize="sm" fontWeight="semibold">
-                                  {order.id}
+                                <Text
+                                  fontSize="lg"
+                                  fontWeight="bold"
+                                  color="black"
+                                >
+                                  #{order.id}
                                 </Text>
                               </HStack>
-                              <Text fontSize="xs" color="gray.500">
+                              <Text fontSize="sm" color="gray.400">
                                 {order.time}
                               </Text>
                             </HStack>
 
-                            {/* Hotel Info */}
-                            <HStack space={1} alignItems="flex-start">
+                            {/* Hotel Name */}
+                            <HStack space={2} alignItems="center">
                               <MaterialIcons
-                                name="location-city"
-                                size={16}
-                                color="#4A5568"
+                                name="store"
+                                size={18}
+                                color="gray.700"
                               />
-                              <VStack space={0}>
-                                <Text fontSize="sm" fontWeight="semibold">
-                                  {order.hotelName}
-                                </Text>
-                                <Text fontSize="xs" color="gray.500">
-                                  {order.location}
-                                </Text>
-                              </VStack>
+                              <Text
+                                fontSize="md"
+                                fontWeight="semibold"
+                                color="gray.700"
+                              >
+                                {order.hotelName}
+                              </Text>
                             </HStack>
 
-                            {/* Order Type and Garden Info */}
+                            {/* Order Type and Location */}
                             <HStack
                               justifyContent="space-between"
                               alignItems="center"
                             >
-                              <HStack space={2} alignItems="center">
-                                <MaterialIcons
-                                  name={
-                                    order.type.toLowerCase() === "dine in"
-                                      ? "restaurant"
-                                      : "local-shipping"
-                                  }
-                                  size={14}
-                                  color="#718096"
-                                />
-                                <Text fontSize="xs" color="gray.600">
-                                  {order.type}
-                                </Text>
-                              </HStack>
-                              <HStack space={1} alignItems="center">
-                                <MaterialIcons
-                                  name="spa"
-                                  size={14}
-                                  color="#718096"
-                                />
-                                <Text fontSize="xs" color="gray.600">
-                                  {order.additionalInfo}
-                                </Text>
+                              <HStack space={4} alignItems="center">
+                                <HStack space={1} alignItems="center">
+                                  <MaterialIcons
+                                    name={
+                                      order.type.toLowerCase() === "dine in"
+                                        ? "restaurant"
+                                        : "local-shipping"
+                                    }
+                                    size={16}
+                                    color="gray.500"
+                                  />
+                                  <Text fontSize="sm" color="gray.500">
+                                    {order.type}
+                                  </Text>
+                                </HStack>
+                                <HStack space={1} alignItems="center">
+                                  <MaterialIcons
+                                    name="room"
+                                    size={16}
+                                    color="gray.500"
+                                  />
+                                  <Text fontSize="sm" color="gray.500">
+                                    {order.additionalInfo}
+                                  </Text>
+                                </HStack>
                               </HStack>
                             </HStack>
 
@@ -242,27 +248,28 @@ export default function OrdersScreen() {
                             <HStack
                               justifyContent="space-between"
                               alignItems="center"
+                              mt={1}
                             >
-                              <HStack space={2} alignItems="center">
+                              <HStack space={1} alignItems="center">
                                 <MaterialIcons
                                   name="assignment"
-                                  size={14}
-                                  color="#718096"
+                                  size={16}
+                                  color="gray.500"
                                 />
-                                <Text fontSize="xs" color="gray.600">
+                                <Text fontSize="sm" color="gray.500">
                                   {order.menuCount}
                                 </Text>
                               </HStack>
-                              <HStack alignItems="center" space={1}>
+                              <HStack alignItems="center" space={2}>
                                 <Text
-                                  fontSize="sm"
-                                  fontWeight="semibold"
+                                  fontSize="md"
+                                  fontWeight="bold"
                                   color="blue.500"
                                 >
                                   ₹{order.amount}
                                 </Text>
                                 <Text
-                                  fontSize="xs"
+                                  fontSize="sm"
                                   color="gray.400"
                                   textDecorationLine="line-through"
                                 >
@@ -275,9 +282,11 @@ export default function OrdersScreen() {
                             <HStack
                               justifyContent="space-between"
                               alignItems="center"
+                              mt={1}
                             >
                               <Text
-                                fontSize="xs"
+                                fontSize="sm"
+                                fontWeight="medium"
                                 color={
                                   order.status.toLowerCase() === "completed"
                                     ? "green.500"
@@ -289,10 +298,10 @@ export default function OrdersScreen() {
                               <Box
                                 bg="gray.50"
                                 px={2}
-                                py={0.5}
+                                py={1}
                                 rounded="full"
                                 borderWidth={1}
-                                borderColor="gray.100"
+                                borderColor="gray.200"
                               >
                                 <HStack space={1} alignItems="center">
                                   <MaterialIcons
@@ -301,10 +310,10 @@ export default function OrdersScreen() {
                                         ? "credit-card"
                                         : "attach-money"
                                     }
-                                    size={12}
-                                    color="#4A5568"
+                                    size={14}
+                                    color="gray.600"
                                   />
-                                  <Text fontSize="2xs" color="gray.600">
+                                  <Text fontSize="xs" color="gray.600">
                                     {order.paymentMode}
                                   </Text>
                                 </HStack>

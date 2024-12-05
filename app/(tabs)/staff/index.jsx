@@ -329,6 +329,20 @@ export default function StaffScreen() {
         bg="coolGray.50"
       >
         <HStack space={2} alignItems="center">
+          <Input
+            w="40%"
+            placeholder="Search..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            InputLeftElement={
+              <MaterialIcons
+                name="search"
+                size={24}
+                color="gray.400"
+                style={{ marginLeft: 8 }}
+              />
+            }
+          />
           <IconButton
             icon={
               <MaterialIcons
@@ -368,14 +382,6 @@ export default function StaffScreen() {
 
       {/* Search and Filters */}
       <VStack px={4} space={2}>
-        <Input
-          placeholder="Search staff..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          InputLeftElement={
-            <MaterialIcons name="search" size={24} color="gray.400" />
-          }
-        />
         <HStack space={2}>
           <Select
             flex={1}

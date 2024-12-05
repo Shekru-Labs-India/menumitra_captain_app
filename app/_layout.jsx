@@ -13,6 +13,7 @@ import { SupplierProvider } from "../context/SupplierContext";
 import { Slot, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { VersionProvider } from "../context/VersionContext";
+import { AuthProvider } from "../context/AuthContext";
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -52,17 +53,22 @@ export default function RootLayout() {
   const checkSession = async () => {
     try {
       const sessionData = await AsyncStorage.getItem("userSession");
-      if (sessionData) {
-        const { expiryDate } = JSON.parse(sessionData);
-        if (new Date(expiryDate) > new Date()) {
-          router.replace("/(tabs)");
-        } else {
-          await AsyncStorage.removeItem("userSession");
-          router.replace("/login");
-        }
+      if (!sessionData) {
+        router.replace("/login");
+        return;
+      }
+
+      const { expiryDate } = JSON.parse(sessionData);
+      if (new Date(expiryDate) > new Date()) {
+        router.replace("/(tabs)");
+      } else {
+        await AsyncStorage.removeItem("userSession");
+        await AsyncStorage.removeItem("authToken");
+        router.replace("/login");
       }
     } catch (error) {
       console.error("Error checking session:", error);
+      router.replace("/login");
     }
   };
 
@@ -78,20 +84,23 @@ export default function RootLayout() {
   }
 
   return (
-    <VersionProvider>
-      <SupplierProvider>
-        <NativeBaseProvider>
-          <ThemeProvider
-            value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-          >
-            <Stack>
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="login" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack>
-          </ThemeProvider>
-        </NativeBaseProvider>
-      </SupplierProvider>
-    </VersionProvider>
+    <AuthProvider>
+      <VersionProvider>
+        <SupplierProvider>
+          <NativeBaseProvider>
+            <ThemeProvider
+              value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+            >
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="login" />
+                <Stack.Screen name="otp" />
+                <Stack.Screen name="(tabs)" />
+              </Stack>
+            </ThemeProvider>
+          </NativeBaseProvider>
+        </SupplierProvider>
+      </VersionProvider>
+    </AuthProvider>
   );
 }
