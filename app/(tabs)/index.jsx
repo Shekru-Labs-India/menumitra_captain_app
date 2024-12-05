@@ -67,6 +67,12 @@ export default function HomeScreen() {
       color: "#2196F3",
     },
     {
+      title: "Table Section",
+      icon: "table-restaurant",
+      route: "/(tabs)/tables/sections",
+      color: "#9C27B0",
+    },
+    {
       title: "Inventory",
       icon: "inventory",
       route: "/(tabs)/staff/inventory",
