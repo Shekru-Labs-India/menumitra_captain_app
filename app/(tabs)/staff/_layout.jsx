@@ -8,6 +8,7 @@ export default function StaffLayout() {
       <Stack.Screen name="add" />
       <Stack.Screen name="edit/[id]" />
       <Stack.Screen name="inventory" />
+      <Stack.Screen name="inventory-items" />
     </Stack>
   );
 }

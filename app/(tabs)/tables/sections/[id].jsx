@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   Box,
   ScrollView,
@@ -15,6 +15,8 @@ import {
   Button,
   Divider,
   Icon,
+  FormControl,
+  Input,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
@@ -24,31 +26,60 @@ export default function SectionTablesScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const toast = useToast();
+  const scrollViewRef = useRef(null);
   const [selectedTable, setSelectedTable] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [activeSection, setActiveSection] = useState(id);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editSection, setEditSection] = useState({
+    name: "",
+    totalTables: "",
+    engagedTables: "",
+  });
 
   // Sample section data with correct counts
   const [sections] = useState([
     {
       id: "1",
       name: "Family Section",
-      totalTables: 3,
-      engagedTables: 1,
+      totalTables: 10,
+      engagedTables: 3,
+      color: "#4CAF50",
     },
     {
       id: "2",
       name: "Garden Section",
-      totalTables: 4,
-      engagedTables: 1,
+      totalTables: 6,
+      engagedTables: 2,
+      color: "#2196F3",
     },
     {
       id: "3",
-      name: "Rooftop Section",
-      totalTables: 8,
-      engagedTables: 3,
+      name: "Private Dining",
+      totalTables: 4,
+      engagedTables: 2,
+      color: "#9C27B0",
+    },
+    {
+      id: "4",
+      name: "Bar Section",
+      totalTables: 6,
+      engagedTables: 4,
+      color: "#FF9800",
     },
   ]);
+
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      const activeIndex = sections.findIndex(
+        (section) => section.id === activeSection
+      );
+      if (activeIndex !== -1) {
+        const scrollPosition = activeIndex * 120; // Adjust based on your item width
+        scrollViewRef.current.scrollTo({ x: scrollPosition, animated: true });
+      }
+    }
+  }, [activeSection]);
 
   // Add state for current section
   const [currentSection, setCurrentSection] = useState(
@@ -57,7 +88,8 @@ export default function SectionTablesScreen() {
 
   const handleSectionChange = (sectionId) => {
     setActiveSection(sectionId);
-    setCurrentSection(sections.find((s) => s.id === sectionId) || sections[0]);
+    const newSection = sections.find((s) => s.id === sectionId);
+    setCurrentSection(newSection);
     const sectionTables = tables.filter((t) => t.sectionId === sectionId);
     setFilteredTables(sectionTables);
   };
@@ -237,14 +269,60 @@ export default function SectionTablesScreen() {
           opacity: table.status === "ENGAGED" ? 0.7 : 1,
         }}
       >
-        <Box {...getTableStyle(table.status)}>
+        <Box {...getTableStyle(table.status)} position="relative">
+          {/* Price Overlay - adjusted positioning for larger box */}
+          {table.status === "ENGAGED" && (
+            <Box
+              position="absolute"
+              top={-14}
+              right={-22}
+              style={{
+                transform: [{ translateX: -20 }],
+                flexShrink: 0,
+                flexGrow: 0,
+              }}
+              bg={table.status === "ENGAGED" ? "red.500" : "green.500"}
+              px={0}
+              py={0}
+              alignSelf="center"
+              rounded="sm"
+              minWidth={20} // Increased minimum width
+              height={5}
+              justifyContent="center"
+            >
+              <Text
+                fontSize="13px"
+                color="white"
+                fontWeight="semibold"
+                textAlign="center"
+                style={{
+                  flexShrink: 0,
+                }}
+              >
+                ₹
+                {table.grandTotal >= 1000
+                  ? `${(table.grandTotal / 1000).toFixed(1)}K`
+                  : table.grandTotal.toLocaleString("en-IN", {
+                      maximumFractionDigits: 0,
+                      minimumFractionDigits: 0,
+                    })}
+              </Text>
+            </Box>
+          )}
+
           <VStack alignItems="center" space={0.5}>
-            <Text color={getTextColor(table.status)} fontWeight="bold">
+            <Text
+              color={getTextColor(table.status)}
+              fontSize="10px"
+              fontWeight="bold"
+            >
               {table.number}
             </Text>
+
             {table.status === "ENGAGED" && (
               <Text
-                fontSize="9px"
+                fontSize="12px"
+                bottom={-4}
                 color={getTextColor(table.status)}
                 numberOfLines={1}
                 style={{ letterSpacing: -0.3 }}
@@ -321,7 +399,7 @@ export default function SectionTablesScreen() {
               Table {selectedTable?.number}
             </Text>
             <Badge colorScheme="red" variant="solid" rounded="md">
-              ENGAGED
+              OCCUPIED
             </Badge>
           </HStack>
         </Modal.Header>
@@ -373,7 +451,7 @@ export default function SectionTablesScreen() {
                   colorScheme="red"
                   leftIcon={<Icon as={MaterialIcons} name="cancel" size="sm" />}
                 >
-                  Cancel
+                  Cancel Order
                 </Button>
                 <Button
                   flex={1}
@@ -384,7 +462,7 @@ export default function SectionTablesScreen() {
                     <Icon as={MaterialIcons} name="check-circle" size="sm" />
                   }
                 >
-                  Complete
+                  Complete Order
                 </Button>
               </HStack>
             </VStack>
@@ -398,8 +476,8 @@ export default function SectionTablesScreen() {
   const getTableStyle = (status) => ({
     p: 3,
     rounded: "lg",
-    width: 16,
-    height: 16,
+    width: 20, // Changed from 20 to 30
+    height: 20, // Changed from 20 to 30
     justifyContent: "center",
     alignItems: "center",
     bg: "white",
@@ -412,6 +490,29 @@ export default function SectionTablesScreen() {
     return status === "AVAILABLE" ? "green.500" : "red.500";
   };
 
+  // Add this function to handle section update
+  const handleEditSection = () => {
+    if (!editSection.name.trim()) {
+      toast.show({
+        description: "Section name is required",
+        placement: "top",
+        status: "warning",
+      });
+      return;
+    }
+
+    // Add your API call here
+    console.log("Updating section:", editSection);
+
+    toast.show({
+      description: "Section updated successfully",
+      placement: "top",
+      status: "success",
+    });
+
+    setShowEditModal(false);
+  };
+
   return (
     <Box
       flex={1}
@@ -419,7 +520,7 @@ export default function SectionTablesScreen() {
       safeArea
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
     >
-      {/* Header - Reduced vertical padding */}
+      {/* Header */}
       <Box px={4} py={3} borderBottomWidth={1} borderBottomColor="coolGray.200">
         <HStack alignItems="center" justifyContent="center" position="relative">
           <IconButton
@@ -436,11 +537,28 @@ export default function SectionTablesScreen() {
           <Heading size="md" textAlign="center">
             {currentSection.name}
           </Heading>
+          <IconButton
+            position="absolute"
+            right={-9}
+            icon={<MaterialIcons name="edit" size={24} color="coolGray.500" />}
+            onPress={() => {
+              setEditSection({
+                name: currentSection.name,
+                totalTables: currentSection.totalTables.toString(),
+                engagedTables: currentSection.engagedTables.toString(),
+              });
+              setShowEditModal(true);
+            }}
+            variant="ghost"
+            _pressed={{ bg: "coolGray.100" }}
+            rounded="full"
+          />
         </HStack>
       </Box>
 
       <Box py={8} borderBottomWidth={1} borderBottomColor="coolGray.200">
         <ScrollView
+          ref={scrollViewRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
@@ -460,6 +578,8 @@ export default function SectionTablesScreen() {
                   borderWidth={1}
                   borderColor="primary.500"
                   rounded="md"
+                  minW="120px"
+                  alignItems="center"
                 >
                   <Text
                     color={
@@ -497,7 +617,7 @@ export default function SectionTablesScreen() {
                 rounded="md"
               >
                 <Text
-                  color={activeFilter === "ALL" ? "white" : "primary.500"}
+                  color={activeFilter === "ALL" ? "gray.500" : "primary.500"}
                   fontSize="sm"
                   fontWeight="medium"
                 >
@@ -537,7 +657,7 @@ export default function SectionTablesScreen() {
                   fontSize="sm"
                   fontWeight="medium"
                 >
-                  Engaged
+                  Occupied
                 </Text>
               </Box>
             </Pressable>
@@ -572,7 +692,7 @@ export default function SectionTablesScreen() {
                   </VStack>
                   <VStack alignItems="center" space={1}>
                     <Text color="red.500" fontSize="sm">
-                      Engaged
+                      Occupied
                     </Text>
                     <Heading size="lg" color="red.500">
                       {currentSection.engagedTables}
@@ -590,26 +710,36 @@ export default function SectionTablesScreen() {
                 </HStack>
               </VStack>
             </Box>
-
             {/* Tables Grid - Adjusted spacing */}
-            <VStack space={4}>
+
+            <VStack space={1}>
               {Object.entries(tablesByRow).map(([rowIndex, row]) => (
                 <HStack
                   key={rowIndex}
-                  space={7}
-                  justifyContent="center"
+                  space={10}
+                  px={0}
+                  py={3}
                   alignItems="center"
+                  justifyContent="flex-start"
                 >
-                  {Array.isArray(row) &&
-                    row.map((table, colIndex) => (
-                      <Box
-                        key={`${rowIndex}-${colIndex}`}
-                        width={16}
-                        height={16}
-                      >
-                        {renderTable(table)}
-                      </Box>
-                    ))}
+                  {Array.from({ length: 3 }).map((_, colIndex) => (
+                    <Box key={`${rowIndex}-${colIndex}`} width={20} height={20}>
+                      {row[colIndex] ? (
+                        renderTable(row[colIndex])
+                      ) : (
+                        <Box
+                          p={3}
+                          rounded="lg"
+                          width={20}
+                          height={20}
+                          borderWidth={1}
+                          borderStyle="dashed"
+                          borderColor="gray.200"
+                          opacity={0.5}
+                        />
+                      )}
+                    </Box>
+                  ))}
                 </HStack>
               ))}
             </VStack>
@@ -618,6 +748,51 @@ export default function SectionTablesScreen() {
       </ScrollView>
 
       <TableActionModal />
+      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)}>
+        <Modal.Content maxWidth="400px">
+          <HStack
+            alignItems="center"
+            justifyContent="space-between"
+            px={1}
+            py={2}
+          >
+            <Modal.Header flex={1} textAlign="center">
+              <Text numberOfLines={1} ellipsizeMode="tail">
+                Edit {currentSection.name}
+              </Text>
+            </Modal.Header>
+            <Modal.CloseButton position="absolute" right={2} />
+          </HStack>
+          <Modal.Body>
+            <FormControl isRequired>
+              <FormControl.Label>
+                <HStack space={1} alignItems="center">
+                  <Text>Section Name </Text>
+                </HStack>
+              </FormControl.Label>
+              <Input
+                value={editSection.name}
+                onChangeText={(value) =>
+                  setEditSection((prev) => ({ ...prev, name: value }))
+                }
+                placeholder="Enter section name"
+              />
+            </FormControl>
+          </Modal.Body>
+          <Modal.Footer>
+            <HStack space={2} width="100%" justifyContent="space-between">
+              <Button
+                variant="ghost"
+                colorScheme="blueGray"
+                onPress={() => setShowEditModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button onPress={handleEditSection}>Save Changes</Button>
+            </HStack>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
     </Box>
   );
 }

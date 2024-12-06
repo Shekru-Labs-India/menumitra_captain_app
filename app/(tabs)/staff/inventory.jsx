@@ -25,6 +25,13 @@ export default function InventoryScreen() {
       description: "Manage all suppliers",
       route: "/(tabs)/staff/suppliers",
     },
+    {
+      id: "2",
+      name: "Inventory",
+      icon: "inventory",
+      description: "Manage inventory items",
+      route: "/(tabs)/staff/inventory-items",
+    },
     // Add more categories if needed
   ]);
 
@@ -55,7 +62,7 @@ export default function InventoryScreen() {
             zIndex={1}
           />
           <Heading size="md" flex={1} textAlign="center">
-            Inventory
+            Inventory Management
           </Heading>
         </HStack>
       </Box>

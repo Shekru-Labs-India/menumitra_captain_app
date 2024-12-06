@@ -16,10 +16,13 @@ import { useState, useEffect, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 
+const API_BASE_URL = "https://men4u.xyz/captain_api";
+
 export default function LoginScreen() {
   const [mobileNumber, setMobileNumber] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
   const { version } = useVersion();
   const mobileInputRef = useRef(null);
 
@@ -55,9 +58,10 @@ export default function LoginScreen() {
     const numbersOnly = text.replace(/[^0-9]/g, "");
     setMobileNumber(numbersOnly);
 
-    // Clear error when input is empty
+    // Clear all errors when input is empty
     if (numbersOnly.length === 0) {
       setErrorMessage("");
+      setApiError("");
       return;
     }
 
@@ -84,31 +88,48 @@ export default function LoginScreen() {
 
   const handleSendOtp = async () => {
     if (!validateMobileNumber(mobileNumber)) {
-      Alert.alert(
-        "Invalid Number",
-        "Please enter a valid 10-digit mobile number",
-        [{ text: "OK" }]
-      );
+      setApiError("Please enter a valid 10-digit mobile number");
       return;
     }
 
     setIsLoading(true);
+    setApiError("");
 
     try {
-      const allowedNumbers = ["9999999999", "9579078460", "8459719119"];
-      if (allowedNumbers.includes(mobileNumber)) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await fetch(`${API_BASE_URL}/captain_login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mobile: mobileNumber,
+        }),
+      });
+
+      const data = await response.json();
+      console.log("Complete API Response:", data);
+
+      // Check if st (status) is 1 which indicates success
+      if (data && data.st === 1) {
+        console.log("Success condition met, proceeding to OTP screen");
         await AsyncStorage.setItem("tempMobile", mobileNumber);
+
+        // Extract OTP from message if present (assuming it's always 1234 in this case)
+        const otpMatch = data.msg.match(/\d{4}/);
+        if (otpMatch) {
+          await AsyncStorage.setItem("currentOtp", otpMatch[0]);
+        }
+
         router.push({ pathname: "/otp", params: { mobile: mobileNumber } });
       } else {
-        Alert.alert("Access Denied", "This mobile number is not authorized", [
-          { text: "OK" },
-        ]);
+        console.log("Success condition not met, showing error");
+        setApiError(data.msg || "This mobile number is not authorized");
       }
     } catch (error) {
-      Alert.alert("Error", "Something went wrong. Please try again.", [
-        { text: "OK" },
-      ]);
+      console.error("API Error:", error);
+      setApiError(
+        "Something went wrong. Please check your internet connection and try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -140,7 +161,9 @@ export default function LoginScreen() {
               alignItems="center"
               w="100%"
               borderWidth={1}
-              borderColor={errorMessage ? "red.500" : "coolGray.500"}
+              borderColor={
+                errorMessage || apiError ? "red.500" : "coolGray.500"
+              }
               borderRadius="lg"
               p={2}
               zIndex={1}
@@ -167,7 +190,7 @@ export default function LoginScreen() {
                 value={mobileNumber}
                 onChangeText={handleMobileNumberChange}
                 maxLength={10}
-                borderWidth={0} // Remove the border by setting borderWidth to 0
+                borderWidth={0}
                 _focus={{
                   bg: "transparent",
                 }}
@@ -176,6 +199,11 @@ export default function LoginScreen() {
             {errorMessage ? (
               <Text color="red.500" fontSize="xs" pl={2}>
                 {errorMessage}
+              </Text>
+            ) : null}
+            {apiError ? (
+              <Text color="red.500" fontSize="xs" pl={2}>
+                {apiError}
               </Text>
             ) : null}
           </VStack>

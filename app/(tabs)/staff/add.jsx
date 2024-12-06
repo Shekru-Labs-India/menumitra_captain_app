@@ -15,6 +15,8 @@ import {
   Pressable,
   Text,
   HStack,
+  Select,
+  CheckIcon,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -28,65 +30,109 @@ export default function AddStaffScreen() {
   const [formData, setFormData] = useState({
     name: "",
     role: "",
+    dob: "",
+    aadharNo: "",
     phone: "",
-    salary: "",
-    joinDate: new Date().toISOString().split("T")[0],
-    status: "present",
-    emergencyContact: "",
     address: "",
   });
 
-  const pickImage = async () => {
-    // Request permission
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  const roles = ["Waiter", "Chef", "Cleaner", "Receptionist"];
 
-    if (status !== "granted") {
+  const pickImage = async () => {
+    try {
+      // Request permission
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== "granted") {
+        toast.show({
+          description: "Permission to access gallery was denied",
+          status: "error",
+        });
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        setImage(result.assets[0].uri);
+      }
+    } catch (error) {
       toast.show({
-        description:
-          "Sorry, we need camera roll permissions to make this work!",
+        description: "Error picking image",
         status: "error",
       });
-      return;
-    }
-
-    // Launch image picker
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      console.log(error);
     }
   };
 
-  const handleSave = () => {
-    // Validate phone number
+  const validateForm = () => {
+    // Check if all fields are filled
+    if (
+      !formData.name ||
+      !formData.role ||
+      !formData.dob ||
+      !formData.aadharNo ||
+      !formData.phone ||
+      !formData.address
+    ) {
+      toast.show({
+        description: "All fields are mandatory",
+        status: "error",
+      });
+      return false;
+    }
+
+    // Validate phone number (10 digits)
     const phoneRegex = /^\d{10}$/;
     if (!phoneRegex.test(formData.phone)) {
       toast.show({
         description: "Please enter a valid 10-digit phone number",
         status: "error",
       });
-      return;
+      return false;
     }
 
-    // Validate salary
-    if (formData.salary && isNaN(formData.salary)) {
+    // Validate Aadhar number (12 digits)
+    const aadharRegex = /^\d{12}$/;
+    if (!aadharRegex.test(formData.aadharNo)) {
       toast.show({
-        description: "Please enter a valid salary amount",
+        description: "Please enter a valid 12-digit Aadhar number",
         status: "error",
       });
-      return;
+      return false;
     }
 
-    // Add image to form data
+    // Validate DOB (age should be at least 18)
+    const dob = new Date(formData.dob);
+    const today = new Date();
+    const age = today.getFullYear() - dob.getFullYear();
+    if (age < 18 || isNaN(dob.getTime())) {
+      toast.show({
+        description: "Staff member must be at least 18 years old",
+        status: "error",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSave = () => {
+    if (!validateForm()) return;
+
     const newStaff = {
       id: Date.now().toString(),
       ...formData,
-      avatarUrl: image, // Save the image URI
+      avatarUrl: image,
+      status: "present",
+      joinDate: new Date().toISOString().split("T")[0],
     };
 
     if (!global.staffData) {
@@ -108,7 +154,6 @@ export default function AddStaffScreen() {
       safeArea
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
     >
-      {/* Header */}
       <Box
         px={4}
         py={3}
@@ -136,7 +181,6 @@ export default function AddStaffScreen() {
 
       <ScrollView px={4} py={4}>
         <VStack space={4}>
-          {/* Avatar Upload Section */}
           <Center>
             <Pressable onPress={pickImage}>
               <Avatar
@@ -168,60 +212,71 @@ export default function AddStaffScreen() {
             <Input
               value={formData.name}
               onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder="Enter name"
+              placeholder="Enter full name"
             />
           </FormControl>
 
           <FormControl isRequired>
             <FormControl.Label>Role</FormControl.Label>
+            <Select
+              selectedValue={formData.role}
+              onValueChange={(value) =>
+                setFormData({ ...formData, role: value })
+              }
+              placeholder="Select role"
+              _selectedItem={{
+                bg: "cyan.600",
+                endIcon: <CheckIcon size="5" color="white" />,
+              }}
+            >
+              {roles.map((role) => (
+                <Select.Item key={role} label={role} value={role} />
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl isRequired>
+            <FormControl.Label>Date of Birth</FormControl.Label>
             <Input
-              value={formData.role}
-              onChangeText={(text) => setFormData({ ...formData, role: text })}
-              placeholder="Enter role"
+              value={formData.dob}
+              onChangeText={(text) => setFormData({ ...formData, dob: text })}
+              placeholder="YYYY-MM-DD"
+              keyboardType="numeric"
             />
           </FormControl>
 
           <FormControl isRequired>
-            <FormControl.Label>Phone</FormControl.Label>
+            <FormControl.Label>Aadhar Number</FormControl.Label>
+            <Input
+              value={formData.aadharNo}
+              onChangeText={(text) =>
+                setFormData({ ...formData, aadharNo: text })
+              }
+              placeholder="Enter 12-digit Aadhar number"
+              keyboardType="numeric"
+              maxLength={12}
+            />
+          </FormControl>
+
+          <FormControl isRequired>
+            <FormControl.Label>Mobile Number</FormControl.Label>
             <Input
               value={formData.phone}
               onChangeText={(text) => setFormData({ ...formData, phone: text })}
+              placeholder="Enter 10-digit mobile number"
               keyboardType="phone-pad"
-              placeholder="Enter phone number"
+              maxLength={10}
             />
           </FormControl>
 
-          <FormControl>
-            <FormControl.Label>Salary</FormControl.Label>
-            <Input
-              value={formData.salary}
-              onChangeText={(text) =>
-                setFormData({ ...formData, salary: text })
-              }
-              keyboardType="numeric"
-              placeholder="Enter salary"
-            />
-          </FormControl>
-
-          <FormControl>
-            <FormControl.Label>Emergency Contact</FormControl.Label>
-            <Input
-              value={formData.emergencyContact}
-              onChangeText={(text) =>
-                setFormData({ ...formData, emergencyContact: text })
-              }
-              placeholder="Enter emergency contact"
-            />
-          </FormControl>
-
-          <FormControl>
+          <FormControl isRequired>
             <FormControl.Label>Address</FormControl.Label>
             <TextArea
               value={formData.address}
               onChangeText={(text) =>
                 setFormData({ ...formData, address: text })
               }
-              placeholder="Enter address"
+              placeholder="Enter complete address"
               autoCompleteType={undefined}
             />
           </FormControl>

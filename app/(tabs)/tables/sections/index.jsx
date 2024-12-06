@@ -14,6 +14,9 @@ import {
   Menu,
   Select,
   CheckIcon,
+  FormControl,
+  Modal,
+  Button,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
@@ -25,6 +28,8 @@ export default function TableSectionsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [isAscending, setIsAscending] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newSectionName, setNewSectionName] = useState("");
 
   // Sample sections data
   const [sections] = useState([
@@ -93,6 +98,29 @@ export default function TableSectionsScreen() {
     router.push(`/tables/sections/${section.id}`);
   };
 
+  const handleAddSection = () => {
+    if (!newSectionName.trim()) {
+      toast.show({
+        description: "Section name is required",
+        placement: "top",
+        status: "warning",
+      });
+      return;
+    }
+
+    // Add your API call here
+    console.log("Creating new section:", newSectionName);
+
+    toast.show({
+      description: "Section added successfully",
+      placement: "top",
+      status: "success",
+    });
+
+    setNewSectionName("");
+    setShowAddModal(false);
+  };
+
   const renderGridView = (sections) => (
     <ScrollView px={4} py={2}>
       <HStack flexWrap="wrap" justifyContent="space-between">
@@ -126,7 +154,7 @@ export default function TableSectionsScreen() {
                   </VStack>
                   <VStack alignItems="center" flex={1}>
                     <Text fontSize="xs" color="red.500">
-                      Engaged
+                      Occupied
                     </Text>
                     <Text fontSize="lg" fontWeight="bold" color="red.500">
                       {section.engagedTables}
@@ -169,7 +197,7 @@ export default function TableSectionsScreen() {
                   Total: {section.totalTables}
                 </Text>
                 <Text fontSize="sm" color="red.500">
-                  Engaged: {section.engagedTables}
+                  Occupied: {section.engagedTables}
                 </Text>
                 <Text fontSize="sm" color="green.500">
                   Free: {section.totalTables - section.engagedTables}
@@ -187,113 +215,166 @@ export default function TableSectionsScreen() {
     </ScrollView>
   );
   return (
-    <Box
-      flex={1}
-      bg="white"
-      safeArea
-      pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
-    >
-      {/* Header with back button and centered title */}
+    <>
       <Box
-        px={4}
-        py={4}
-        bg="gray.50"
-        borderBottomWidth={1}
-        borderBottomColor="gray.200"
+        flex={1}
+        bg="white"
+        safeArea
+        pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
       >
-        <HStack alignItems="center" justifyContent="center" position="relative">
-          <IconButton
-            position="absolute"
-            left={0}
-            icon={<MaterialIcons name="arrow-back" size={22} />}
-            onPress={() => router.back()}
-            variant="ghost"
-            _pressed={{ bg: "gray.200" }}
-            rounded="full"
+        {/* Header with back button and centered title */}
+        <Box
+          px={4}
+          py={4}
+          bg="gray.50"
+          borderBottomWidth={1}
+          borderBottomColor="gray.200"
+        >
+          <HStack
+            alignItems="center"
+            justifyContent="center"
+            position="relative"
+          >
+            <IconButton
+              position="absolute"
+              left={0}
+              icon={<MaterialIcons name="arrow-back" size={22} />}
+              onPress={() => router.back()}
+              variant="ghost"
+              _pressed={{ bg: "gray.200" }}
+              rounded="full"
+            />
+            <Heading size="md" textAlign="center">
+              Restaurant Sections
+            </Heading>
+          </HStack>
+        </Box>
+
+        {/* Search and Filters with suppliers design */}
+        <HStack
+          px={4}
+          py={2}
+          space={2}
+          alignItems="center"
+          borderBottomWidth={1}
+          borderBottomColor="coolGray.200"
+          bg="coolGray.50"
+        >
+          <Input
+            flex={1}
+            placeholder="Search..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            InputLeftElement={
+              <MaterialIcons
+                name="search"
+                size={20}
+                color="coolGray.400"
+                style={{ marginLeft: 8 }}
+              />
+            }
           />
-          <Heading size="md" textAlign="center">
-            Restaurant Sections
-          </Heading>
+          <IconButton
+            icon={
+              <MaterialIcons
+                name={viewType === "grid" ? "view-list" : "grid-view"}
+                size={24}
+                color="coolGray.600"
+              />
+            }
+            onPress={() => setViewType(viewType === "grid" ? "list" : "grid")}
+          />
+          <Select
+            w="110"
+            selectedValue={sortBy}
+            onValueChange={setSortBy}
+            placeholder="Sort by"
+            _selectedItem={{
+              endIcon: (
+                <MaterialIcons name="check" size={16} color="coolGray.600" />
+              ),
+            }}
+          >
+            <Select.Item label="Name" value="name" />
+            <Select.Item label="Total Tables" value="totalTables" />
+            <Select.Item label="Engaged Tables" value="engagedTables" />
+          </Select>
+          <IconButton
+            icon={
+              <MaterialIcons
+                name={isAscending ? "arrow-upward" : "arrow-downward"}
+                size={24}
+                color="coolGray.600"
+              />
+            }
+            onPress={() => setIsAscending(!isAscending)}
+          />
         </HStack>
+
+        {/* Content */}
+        {viewType === "grid"
+          ? renderGridView(sortedSections)
+          : renderListView(sortedSections)}
+
+        {/* Floating Action Button */}
+        <Pressable
+          onPress={() => setShowAddModal(true)}
+          position="absolute"
+          bottom={8}
+          right={8}
+        >
+          <Box bg="green.500" rounded="full" p={3}>
+            <MaterialIcons name="add" size={28} color="white" />
+          </Box>
+        </Pressable>
       </Box>
 
-      {/* Search and Filters with suppliers design */}
-      <HStack
-        px={4}
-        py={2}
-        space={2}
-        alignItems="center"
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
-        bg="coolGray.50"
-      >
-        <Input
-          flex={1}
-          placeholder="Search..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          InputLeftElement={
-            <MaterialIcons
-              name="search"
-              size={20}
-              color="coolGray.400"
-              style={{ marginLeft: 8 }}
-            />
-          }
-        />
-        <IconButton
-          icon={
-            <MaterialIcons
-              name={viewType === "grid" ? "view-list" : "grid-view"}
-              size={24}
-              color="coolGray.600"
-            />
-          }
-          onPress={() => setViewType(viewType === "grid" ? "list" : "grid")}
-        />
-        <Select
-          w="110"
-          selectedValue={sortBy}
-          onValueChange={setSortBy}
-          placeholder="Sort by"
-          _selectedItem={{
-            endIcon: (
-              <MaterialIcons name="check" size={16} color="coolGray.600" />
-            ),
-          }}
-        >
-          <Select.Item label="Name" value="name" />
-          <Select.Item label="Total Tables" value="totalTables" />
-          <Select.Item label="Engaged Tables" value="engagedTables" />
-        </Select>
-        <IconButton
-          icon={
-            <MaterialIcons
-              name={isAscending ? "arrow-upward" : "arrow-downward"}
-              size={24}
-              color="coolGray.600"
-            />
-          }
-          onPress={() => setIsAscending(!isAscending)}
-        />
-      </HStack>
-
-      {/* Content */}
-      {viewType === "grid"
-        ? renderGridView(sortedSections)
-        : renderListView(sortedSections)}
-
-      {/* Floating Action Button */}
-      <Pressable
-        onPress={() => router.push("/tables/sections/add")}
-        position="absolute"
-        bottom={8}
-        right={8}
-      >
-        <Box bg="green.500" rounded="full" p={3}>
-          <MaterialIcons name="add" size={28} color="white" />
-        </Box>
-      </Pressable>
-    </Box>
+      {/* Add Section Modal */}
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)}>
+        <Modal.Content maxWidth="400px">
+          <HStack
+            alignItems="center"
+            justifyContent="space-between"
+            px={1}
+            py={2}
+          >
+            <Modal.Header flex={1} textAlign="center">
+              Add New Section
+            </Modal.Header>
+            <Modal.CloseButton position="absolute" right={2} />
+          </HStack>
+          <Modal.Body>
+            <FormControl isRequired>
+              <FormControl.Label>
+                <HStack space={1} alignItems="center">
+                  <Text>Section Name </Text>
+                </HStack>
+              </FormControl.Label>
+              <Input
+                value={newSectionName}
+                onChangeText={setNewSectionName}
+                placeholder="Enter section name"
+                autoFocus
+              />
+            </FormControl>
+          </Modal.Body>
+          <Modal.Footer>
+            <HStack space={2} width="100%" justifyContent="space-between">
+              <Button
+                variant="ghost"
+                colorScheme="blueGray"
+                onPress={() => {
+                  setNewSectionName("");
+                  setShowAddModal(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onPress={handleAddSection}>Add Section</Button>
+            </HStack>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
+    </>
   );
 }

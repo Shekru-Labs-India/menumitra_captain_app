@@ -18,6 +18,8 @@ import { router } from "expo-router";
 import { Linking } from "react-native";
 import { useVersion } from "../context/VersionContext";
 
+const API_BASE_URL = "https://men4u.xyz/captain_api";
+
 export default function OtpScreen() {
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [timer, setTimer] = useState(30);
@@ -125,26 +127,49 @@ export default function OtpScreen() {
     }
 
     const enteredOtp = otp.join("");
-    const validOtp = "1234";
 
-    if (enteredOtp === validOtp) {
-      try {
-        const thirtyDaysFromNow = new Date();
-        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
-        const sessionData = {
+    try {
+      const response = await fetch(`${API_BASE_URL}/captain_verify_otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           mobile: mobileNumber,
-          expiryDate: thirtyDaysFromNow.toISOString(),
-        };
+          otp: enteredOtp,
+        }),
+      });
 
-        await AsyncStorage.setItem("userSession", JSON.stringify(sessionData));
-        router.replace("/(tabs)");
-      } catch (error) {
-        console.error("Error saving session:", error);
-        setError("Failed to save session. Please try again.");
+      const data = await response.json();
+      console.log("Verify OTP Response:", data);
+
+      if (data && data.st === 1) {
+        try {
+          const thirtyDaysFromNow = new Date();
+          thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+          const sessionData = {
+            mobile: mobileNumber,
+            expiryDate: thirtyDaysFromNow.toISOString(),
+          };
+
+          await AsyncStorage.setItem(
+            "userSession",
+            JSON.stringify(sessionData)
+          );
+          router.replace("/(tabs)");
+        } catch (error) {
+          console.error("Error saving session:", error);
+          setError("Failed to save session. Please try again.");
+        }
+      } else {
+        setError(data.msg || "Invalid OTP. Please try again.");
+        setOtp(["", "", "", ""]);
+        otpInputs.current[0].focus();
       }
-    } else {
-      setError("Invalid OTP. Please try again.");
+    } catch (error) {
+      console.error("API Error:", error);
+      setError("Something went wrong. Please try again.");
       setOtp(["", "", "", ""]);
       otpInputs.current[0].focus();
     }

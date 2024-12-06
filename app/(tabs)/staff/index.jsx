@@ -20,17 +20,76 @@ import {
   Avatar,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Platform, StatusBar } from "react-native";
+import { Platform, StatusBar, Linking } from "react-native";
 import { useRouter } from "expo-router";
 
-// Initialize global staff data if it doesn't exist
-if (!global.staffData) {
-  global.staffData = [];
+// First, initialize the sample data
+const initialStaffData = [
+  {
+    id: "1",
+    name: "Rahul Kumar",
+    role: "Waiter",
+    phone: "9876543210",
+    salary: "15000",
+    joinDate: "2024-01-15",
+    status: "present",
+    emergencyContact: "9876543211",
+    address: "123 Main Street, Mumbai",
+    notes: "Experienced waiter with excellent customer service skills",
+  },
+  {
+    id: "2",
+    name: "Priya Sharma",
+    role: "Chef",
+    phone: "9876543220",
+    salary: "35000",
+    joinDate: "2023-12-01",
+    status: "present",
+    emergencyContact: "9876543221",
+    address: "456 Park Road, Delhi",
+    notes: "Head chef with 5 years of experience",
+  },
+  {
+    id: "3",
+    name: "Amit Patel",
+    role: "Cleaner",
+    phone: "9876543230",
+    salary: "12000",
+    joinDate: "2024-02-01",
+    status: "present",
+    emergencyContact: "9876543231",
+    address: "789 Garden Lane, Pune",
+    notes: "Responsible for maintaining restaurant cleanliness",
+  },
+  {
+    id: "4",
+    name: "Sneha Verma",
+    role: "Receptionist",
+    phone: "9876543240",
+    salary: "20000",
+    joinDate: "2024-01-01",
+    status: "present",
+    emergencyContact: "9876543241",
+    address: "321 Lake View, Bangalore",
+    notes: "Handles guest relations and reservations",
+  },
+];
+
+// Initialize global data with sample data if empty
+if (!global.staffData || global.staffData.length === 0) {
+  global.staffData = initialStaffData;
 }
+
+// Add this function to handle phone calls
+const handlePhonePress = (phoneNumber) => {
+  Linking.openURL(`tel:${phoneNumber}`);
+};
 
 export default function StaffScreen() {
   const router = useRouter();
-  const [staffList, setStaffList] = useState(global.staffData);
+  const [staffList, setStaffList] = useState(
+    global.staffData || initialStaffData
+  );
   const [modalVisible, setModalVisible] = useState(false);
   const [viewType, setViewType] = useState("list");
   const [searchQuery, setSearchQuery] = useState("");
@@ -189,12 +248,17 @@ export default function StaffScreen() {
               <Text fontSize="md" color="coolGray.600">
                 {item.role}
               </Text>
-              <HStack space={2} alignItems="center">
-                <MaterialIcons name="phone" size={16} color="coolGray.500" />
-                <Text fontSize="sm" color="coolGray.500">
-                  {item.phone}
-                </Text>
-              </HStack>
+              <IconButton
+                icon={<MaterialIcons name="phone" size={20} color="green" />}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handlePhonePress(item.phone);
+                }}
+                variant="ghost"
+                _pressed={{ bg: "coolGray.100" }}
+                p={1}
+                alignSelf="flex-start"
+              />
             </VStack>
           </HStack>
 
@@ -415,13 +479,14 @@ export default function StaffScreen() {
       </VStack>
 
       {/* Staff List */}
+      {/* Staff List */}
       <FlatList
         data={filteredStaff}
         renderItem={viewType === "list" ? renderStaffItem : renderGridItem}
         keyExtractor={(item) => item.id}
         numColumns={viewType === "grid" ? 2 : 1}
-        key={viewType} // Force re-render when view type changes
-        contentContainerStyle={{ padding: 16 }}
+        key={viewType}
+        contentContainerStyle={{ paddingHorizontal: 4, paddingVertical: 20 }}
       />
 
       {/* Add Staff FAB */}
