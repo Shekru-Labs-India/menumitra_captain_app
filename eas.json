@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 5.9.1"
+    "version": ">= 14.0.2",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -14,18 +15,13 @@
       }
     },
     "production": {
+      "autoIncrement": true,
       "android": {
-        "buildType": "app-bundle",
-        "credentialsSource": "local"
+        "buildType": "app-bundle"
       }
     }
   },
   "submit": {
-    "production": {
-      "android": {
-        "track": "internal",
-        "releaseStatus": "completed"
-      }
-    }
+    "production": {}
   }
 }

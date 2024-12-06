@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "MenuMitra Captain",
-    "slug": "menumitra_captain_app",
+    "name": "MenuMitra Captain App",
+    "slug": "menumitra-captain-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -24,7 +24,10 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -53,9 +56,14 @@
         "origin": false
       },
       "eas": {
-        "projectId": "bad083dd-6fe4-4487-af70-29325cb292b7"
+        "projectId": "e479e606-1f3d-4b2d-94f9-0d5b68bd2be8"
       }
     },
-    "platforms": ["ios", "android", "web"]
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "owner": "santosh_mhetre1"
   }
 }
