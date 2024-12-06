@@ -36,6 +36,7 @@ export default function SectionTablesScreen() {
     totalTables: "",
     engagedTables: "",
   });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Sample section data with correct counts
   const [sections] = useState([
@@ -513,6 +514,69 @@ export default function SectionTablesScreen() {
     setShowEditModal(false);
   };
 
+  // Add this function to handle delete
+  const handleDeleteSection = () => {
+    // Here you would typically make an API call to delete the section
+    console.log("Deleting section:", currentSection.id);
+
+    toast.show({
+      description: "Section deleted successfully",
+      placement: "top",
+      status: "success",
+    });
+
+    // Close the modal
+    setShowDeleteModal(false);
+
+    // Navigate back
+    router.back();
+  };
+
+  // Update the DeleteConfirmationModal component
+  const DeleteConfirmationModal = () => (
+    <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
+      <Modal.Content maxWidth="400px">
+        <Modal.CloseButton />
+        <Modal.Header>Delete Section</Modal.Header>
+        <Modal.Body>
+          <VStack space={3}>
+            <Text>
+              Are you sure you want to delete "{currentSection.name}"? This
+              action cannot be undone.
+            </Text>
+            {currentSection.engagedTables > 0 && (
+              <Box bg="orange.100" p={3} rounded="md">
+                <Text color="orange.800">
+                  Warning: This section has {currentSection.engagedTables}{" "}
+                  occupied tables.
+                </Text>
+              </Box>
+            )}
+          </VStack>
+        </Modal.Body>
+        <Modal.Footer>
+          <HStack space={2} width="100%" justifyContent="space-between">
+            <Button
+              variant="outline"
+              colorScheme="coolGray"
+              onPress={() => setShowDeleteModal(false)}
+              leftIcon={<Icon as={MaterialIcons} name="close" size="sm" />}
+            >
+              Cancel
+            </Button>
+            <Button
+              colorScheme="red"
+              onPress={handleDeleteSection}
+              rightIcon={<Icon as={MaterialIcons} name="delete" size="sm" />}
+            >
+              Delete
+            </Button>
+          </HStack>
+        </Modal.Footer>
+      </Modal.Content>
+    </Modal>
+  );
+
   return (
     <Box
       flex={1}
@@ -520,15 +584,13 @@ export default function SectionTablesScreen() {
       safeArea
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
     >
-      {/* Header */}
+      {/* Modified Header */}
       <Box px={4} py={3} borderBottomWidth={1} borderBottomColor="coolGray.200">
         <HStack alignItems="center" justifyContent="center" position="relative">
           <IconButton
             position="absolute"
             left={-9}
-            icon={
-              <MaterialIcons name="arrow-back" size={24} color="coolGray.500" />
-            }
+            icon={<MaterialIcons name="arrow-back" size={24} color="#64748B" />}
             onPress={() => router.back()}
             variant="ghost"
             _pressed={{ bg: "coolGray.100" }}
@@ -540,15 +602,8 @@ export default function SectionTablesScreen() {
           <IconButton
             position="absolute"
             right={-9}
-            icon={<MaterialIcons name="edit" size={24} color="coolGray.500" />}
-            onPress={() => {
-              setEditSection({
-                name: currentSection.name,
-                totalTables: currentSection.totalTables.toString(),
-                engagedTables: currentSection.engagedTables.toString(),
-              });
-              setShowEditModal(true);
-            }}
+            icon={<MaterialIcons name="delete" size={24} color="red.500" />}
+            onPress={() => setShowDeleteModal(true)}
             variant="ghost"
             _pressed={{ bg: "coolGray.100" }}
             rounded="full"
@@ -793,6 +848,35 @@ export default function SectionTablesScreen() {
           </Modal.Footer>
         </Modal.Content>
       </Modal>
+
+      {/* Add this before the closing Box component */}
+      <Pressable
+        position="absolute"
+        bottom={8}
+        right={8}
+        onPress={() => {
+          setEditSection({
+            name: currentSection.name,
+            totalTables: currentSection.totalTables.toString(),
+            engagedTables: currentSection.engagedTables.toString(),
+          });
+          setShowEditModal(true);
+        }}
+      >
+        <Box
+          bg="primary.500"
+          p={3}
+          rounded="full"
+          shadow={3}
+          _pressed={{
+            bg: "primary.600",
+          }}
+        >
+          <Icon as={MaterialIcons} name="edit" size={6} color="white" />
+        </Box>
+      </Pressable>
+
+      <DeleteConfirmationModal />
     </Box>
   );
 }
