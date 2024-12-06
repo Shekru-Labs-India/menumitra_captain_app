@@ -33,7 +33,7 @@
       "bundler": "metro",
       "favicon": "./assets/images/favicon.png"
     },
-    "fonts": [
+    "fontFamily": [
       {
         "asset": "./assets/fonts/boxicons.ttf",
         "family": "boxicons"
@@ -44,7 +44,7 @@
       [
         "expo-av",
         {
-          "microphonePermission": false
+          "microphonePermission": true
         }
       ]
     ],
