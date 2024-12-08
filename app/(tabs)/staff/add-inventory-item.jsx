@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Heading,
@@ -12,13 +12,22 @@ import {
   Button,
   FormControl,
   TextArea,
+  useToast,
+  Spinner,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const API_BASE_URL = "https://men4u.xyz/captain_api";
 
 export default function AddInventoryItemScreen() {
   const router = useRouter();
+  const toast = useToast();
+  const [restaurantId, setRestaurantId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     name: "",
     supplierId: "",
@@ -32,9 +41,31 @@ export default function AddInventoryItemScreen() {
     tax: "",
     paymentStatus: "pending",
     orderId: "",
+    type: "",
   });
 
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    getStoredData();
+  }, []);
+
+  const getStoredData = async () => {
+    try {
+      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+      if (storedRestaurantId) {
+        setRestaurantId(parseInt(storedRestaurantId));
+      } else {
+        toast.show({
+          description: "Please login again",
+          status: "error",
+        });
+        router.replace("/login");
+      }
+    } catch (error) {
+      console.error("Error getting stored data:", error);
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -44,6 +75,7 @@ export default function AddInventoryItemScreen() {
     if (!formData.supplierId) newErrors.supplierId = "Supplier ID is required";
     if (!formData.category) newErrors.category = "Category is required";
     if (!formData.serialNo) newErrors.serialNo = "Serial No. is required";
+    if (!formData.type) newErrors.type = "Type is required";
 
     // Price validation
     if (!formData.price) {
@@ -73,13 +105,71 @@ export default function AddInventoryItemScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (validateForm()) {
-      console.log("Form submitted:", formData);
-      // Add API call here
-      router.back();
+      try {
+        setIsLoading(true);
+        const response = await fetch(
+          `${API_BASE_URL}/captain_manage/inventory_create`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              restaurant_id: restaurantId,
+              name: formData.name,
+              quantity: parseInt(formData.quantity),
+              type: formData.type || formData.category,
+            }),
+          }
+        );
+
+        const data = await response.json();
+        console.log("Create Inventory Response:", data);
+
+        if (data.st === 1) {
+          toast.show({
+            description: "Inventory item added successfully",
+            status: "success",
+          });
+          router.push({
+            pathname: "/(tabs)/staff/inventory-items",
+            params: { refresh: Date.now() },
+          });
+        } else {
+          toast.show({
+            description: data.msg || "Failed to add inventory item",
+            status: "error",
+          });
+        }
+      } catch (error) {
+        console.error("Create Inventory Error:", error);
+        toast.show({
+          description: "Failed to add inventory item",
+          status: "error",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
+
+  const typeField = (
+    <FormControl isRequired isInvalid={"type" in errors}>
+      <FormControl.Label>Type</FormControl.Label>
+      <Select
+        selectedValue={formData.type}
+        onValueChange={(value) => setFormData({ ...formData, type: value })}
+        placeholder="Select type"
+      >
+        <Select.Item label="Furniture" value="furniture" />
+        <Select.Item label="Crockery" value="crockery" />
+        <Select.Item label="Cutlery" value="cutlery" />
+      </Select>
+      <FormControl.ErrorMessage>{errors.type}</FormControl.ErrorMessage>
+    </FormControl>
+  );
 
   return (
     <Box
@@ -161,6 +251,8 @@ export default function AddInventoryItemScreen() {
               {errors.category}
             </FormControl.ErrorMessage>
           </FormControl>
+
+          {typeField}
 
           {/* Price and Quantity */}
           <HStack space={4}>
@@ -283,6 +375,8 @@ export default function AddInventoryItemScreen() {
             mt={4}
             colorScheme="blue"
             onPress={handleSubmit}
+            isLoading={isLoading}
+            isLoadingText="Adding Item..."
             _text={{ fontSize: "md", fontWeight: "semibold" }}
           >
             Add Item

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   FlatList,
@@ -18,67 +18,16 @@ import {
   Fab,
   Pressable,
   Avatar,
+  Spinner,
+  SimpleGrid,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar, Linking } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
-// First, initialize the sample data
-const initialStaffData = [
-  {
-    id: "1",
-    name: "Rahul Kumar",
-    role: "Waiter",
-    phone: "9876543210",
-    salary: "15000",
-    joinDate: "2024-01-15",
-    status: "present",
-    emergencyContact: "9876543211",
-    address: "123 Main Street, Mumbai",
-    notes: "Experienced waiter with excellent customer service skills",
-  },
-  {
-    id: "2",
-    name: "Priya Sharma",
-    role: "Chef",
-    phone: "9876543220",
-    salary: "35000",
-    joinDate: "2023-12-01",
-    status: "present",
-    emergencyContact: "9876543221",
-    address: "456 Park Road, Delhi",
-    notes: "Head chef with 5 years of experience",
-  },
-  {
-    id: "3",
-    name: "Amit Patel",
-    role: "Cleaner",
-    phone: "9876543230",
-    salary: "12000",
-    joinDate: "2024-02-01",
-    status: "present",
-    emergencyContact: "9876543231",
-    address: "789 Garden Lane, Pune",
-    notes: "Responsible for maintaining restaurant cleanliness",
-  },
-  {
-    id: "4",
-    name: "Sneha Verma",
-    role: "Receptionist",
-    phone: "9876543240",
-    salary: "20000",
-    joinDate: "2024-01-01",
-    status: "present",
-    emergencyContact: "9876543241",
-    address: "321 Lake View, Bangalore",
-    notes: "Handles guest relations and reservations",
-  },
-];
-
-// Initialize global data with sample data if empty
-if (!global.staffData || global.staffData.length === 0) {
-  global.staffData = initialStaffData;
-}
+const API_BASE_URL = "https://men4u.xyz/captain_api";
 
 // Add this function to handle phone calls
 const handlePhonePress = (phoneNumber) => {
@@ -87,9 +36,7 @@ const handlePhonePress = (phoneNumber) => {
 
 export default function StaffScreen() {
   const router = useRouter();
-  const [staffList, setStaffList] = useState(
-    global.staffData || initialStaffData
-  );
+  const [staffList, setStaffList] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [viewType, setViewType] = useState("list");
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,6 +45,9 @@ export default function StaffScreen() {
   const [sortBy, setSortBy] = useState("");
   const [sortOrder, setSortOrder] = useState("asc");
   const toast = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const params = useLocalSearchParams();
+  const [restaurantId, setRestaurantId] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -110,11 +60,6 @@ export default function StaffScreen() {
     address: "",
     notes: "",
   });
-
-  // Update global data when staffList changes
-  useEffect(() => {
-    global.staffData = staffList;
-  }, [staffList]);
 
   // Filter and sort staff list
   const filteredStaff = staffList
@@ -198,7 +143,7 @@ export default function StaffScreen() {
 
   const handleStatusChange = (staffId, newStatus) => {
     const updatedStaffList = staffList.map((staff) =>
-      staff.id === staffId ? { ...staff, status: newStatus } : staff
+      staff.staff_id === staffId ? { ...staff, status: newStatus } : staff
     );
     setStaffList(updatedStaffList);
     toast.show({
@@ -223,7 +168,10 @@ export default function StaffScreen() {
   const renderStaffItem = ({ item }) => (
     <Pressable
       onPress={() => {
-        router.push(`/(tabs)/staff/${item.id}`);
+        router.push({
+          pathname: `/(tabs)/staff/${item.staff_id}`,
+          params: { restaurant_id: item.restaurant_id },
+        });
       }}
     >
       <Box
@@ -238,8 +186,12 @@ export default function StaffScreen() {
       >
         <HStack space={3} alignItems="center" justifyContent="space-between">
           <HStack space={3} alignItems="center" flex={1}>
-            <Avatar size="md" bg="cyan.500">
-              {item.name?.charAt(0).toUpperCase()}
+            <Avatar
+              size="md"
+              bg="cyan.500"
+              source={item.photo ? { uri: item.photo } : null}
+            >
+              {!item.photo && item.name?.charAt(0).toUpperCase()}
             </Avatar>
             <VStack flex={1}>
               <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
@@ -248,56 +200,37 @@ export default function StaffScreen() {
               <Text fontSize="md" color="coolGray.600">
                 {item.role}
               </Text>
-              <IconButton
-                icon={<MaterialIcons name="phone" size={20} color="green" />}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handlePhonePress(item.phone);
-                }}
-                variant="ghost"
-                _pressed={{ bg: "coolGray.100" }}
-                p={1}
-                alignSelf="flex-start"
-              />
+              <Text fontSize="sm" color="coolGray.500">
+                {item.mobile}
+              </Text>
+            </VStack>
+            <VStack alignItems="flex-end" space={2}>
+              <Button.Group size="xs" space={1}>
+                <Button
+                  variant="outline"
+                  colorScheme="success"
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleStatusChange(item.staff_id, "present");
+                  }}
+                  size="xs"
+                >
+                  Present
+                </Button>
+                <Button
+                  variant="outline"
+                  colorScheme="danger"
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleStatusChange(item.staff_id, "absent");
+                  }}
+                  size="xs"
+                >
+                  Absent
+                </Button>
+              </Button.Group>
             </VStack>
           </HStack>
-
-          <VStack space={2} alignItems="flex-end">
-            <Badge
-              colorScheme={getStatusColor(item.status)}
-              variant="subtle"
-              rounded="full"
-              mb={2}
-            >
-              {item.status}
-            </Badge>
-            <Button.Group size="xs" space={1}>
-              <Button
-                variant={item.status === "present" ? "solid" : "outline"}
-                colorScheme="success"
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleStatusChange(item.id, "present");
-                }}
-                isDisabled={item.status === "on leave"}
-                size="xs"
-              >
-                Present
-              </Button>
-              <Button
-                variant={item.status === "absent" ? "solid" : "outline"}
-                colorScheme="danger"
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleStatusChange(item.id, "absent");
-                }}
-                isDisabled={item.status === "on leave"}
-                size="xs"
-              >
-                Absent
-              </Button>
-            </Button.Group>
-          </VStack>
         </HStack>
       </Box>
     </Pressable>
@@ -306,7 +239,10 @@ export default function StaffScreen() {
   const renderGridItem = ({ item }) => (
     <Pressable
       onPress={() => {
-        router.push(`/(tabs)/staff/${item.id}`);
+        router.push({
+          pathname: `/(tabs)/staff/${item.staff_id}`,
+          params: { restaurant_id: restaurantId },
+        });
       }}
       flex={1}
       m={1}
@@ -320,7 +256,11 @@ export default function StaffScreen() {
         borderColor="coolGray.200"
       >
         <VStack space={2} alignItems="center">
-          <Avatar size="lg" bg="cyan.500">
+          <Avatar
+            size="lg"
+            bg="cyan.500"
+            source={item.photo ? { uri: item.photo } : null}
+          >
             {item.name?.charAt(0).toUpperCase()}
           </Avatar>
           <VStack space={1} alignItems="center">
@@ -330,11 +270,17 @@ export default function StaffScreen() {
             <Text fontSize="sm" color="coolGray.600" textAlign="center">
               {item.role}
             </Text>
+            <Text fontSize="xs" color="coolGray.500">
+              ID: #{item.staff_id}
+            </Text>
             <Button.Group size="sm" space={1}>
               <Button
                 variant={item.status === "present" ? "solid" : "outline"}
                 colorScheme="success"
-                onPress={() => handleStatusChange(item.id, "present")}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleStatusChange(item.staff_id, "present");
+                }}
                 isDisabled={item.status === "on leave"}
                 size="xs"
               >
@@ -343,7 +289,10 @@ export default function StaffScreen() {
               <Button
                 variant={item.status === "absent" ? "solid" : "outline"}
                 colorScheme="danger"
-                onPress={() => handleStatusChange(item.id, "absent")}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleStatusChange(item.staff_id, "absent");
+                }}
                 isDisabled={item.status === "on leave"}
                 size="xs"
               >
@@ -355,6 +304,88 @@ export default function StaffScreen() {
       </Box>
     </Pressable>
   );
+
+  const fetchStaffList = async () => {
+    if (!restaurantId) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/staff_listview`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: restaurantId,
+          }),
+        }
+      );
+
+      const data = await response.json();
+      console.log("Staff List Response:", data);
+
+      if (data.st === 1) {
+        const staffWithStatus = (data.lists || []).map((staff) => ({
+          ...staff,
+          status: staff.status || "present",
+        }));
+        setStaffList(staffWithStatus);
+      } else {
+        toast.show({
+          description: data.msg || "Failed to fetch staff list",
+          status: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Fetch Staff List Error:", error);
+      toast.show({
+        description: "Failed to fetch staff list",
+        status: "error",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Replace useEffect with useFocusEffect
+  useFocusEffect(
+    useCallback(() => {
+      if (restaurantId) {
+        console.log("Screen focused, fetching staff list...");
+        fetchStaffList();
+      }
+    }, [restaurantId])
+  );
+
+  // Keep existing useEffect for initial load
+  useEffect(() => {
+    if (restaurantId) {
+      fetchStaffList();
+    }
+  }, [restaurantId, params.refresh]);
+
+  useEffect(() => {
+    const getStoredData = async () => {
+      try {
+        const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+        if (storedRestaurantId) {
+          setRestaurantId(parseInt(storedRestaurantId));
+        } else {
+          toast.show({
+            description: "Please login again",
+            status: "error",
+          });
+          router.replace("/login");
+        }
+      } catch (error) {
+        console.error("Error getting stored data:", error);
+      }
+    };
+
+    getStoredData();
+  }, []);
 
   return (
     <Box
@@ -479,15 +510,26 @@ export default function StaffScreen() {
       </VStack>
 
       {/* Staff List */}
-      {/* Staff List */}
-      <FlatList
-        data={filteredStaff}
-        renderItem={viewType === "list" ? renderStaffItem : renderGridItem}
-        keyExtractor={(item) => item.id}
-        numColumns={viewType === "grid" ? 2 : 1}
-        key={viewType}
-        contentContainerStyle={{ paddingHorizontal: 4, paddingVertical: 20 }}
-      />
+      {isLoading ? (
+        <Box flex={1} justifyContent="center" alignItems="center">
+          <Spinner size="lg" />
+          <Text mt={2}>Loading staff list...</Text>
+        </Box>
+      ) : (
+        <FlatList
+          data={filteredStaff}
+          renderItem={viewType === "list" ? renderStaffItem : renderGridItem}
+          keyExtractor={(item) => item.staff_id?.toString()}
+          numColumns={viewType === "grid" ? 2 : 1}
+          key={viewType}
+          contentContainerStyle={{ paddingHorizontal: 4, paddingVertical: 20 }}
+          ListEmptyComponent={
+            <Box flex={1} justifyContent="center" alignItems="center" py={10}>
+              <Text color="gray.500">No staff members found</Text>
+            </Box>
+          }
+        />
+      )}
 
       {/* Add Staff FAB */}
       <Fab

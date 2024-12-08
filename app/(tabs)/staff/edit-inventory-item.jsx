@@ -16,12 +16,18 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const API_BASE_URL = "https://men4u.xyz/captain_api";
 
 export default function EditInventoryItemScreen() {
   const router = useRouter();
   const toast = useToast();
-  const { itemId } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const itemId = params?.itemId;
   const [loading, setLoading] = useState(true);
+  const [restaurantId, setRestaurantId] = useState(null);
+
   const [formData, setFormData] = useState({
     name: "",
     supplierId: "",
@@ -35,28 +41,157 @@ export default function EditInventoryItemScreen() {
     tax: "",
     paymentStatus: "pending",
     orderId: "",
+    type: "",
   });
+
   const [errors, setErrors] = useState({});
 
-  // Fetch existing item data
   useEffect(() => {
-    // Simulate API call - replace with actual API call
-    setFormData({
-      name: "Sample Item 1",
-      supplierId: "SUP123",
-      description: "This is a sample inventory item",
-      category: "Electronics",
-      price: "1500",
-      quantity: "10",
-      serialNo: "SER001",
-      status: "in",
-      brandName: "Brand X",
-      tax: "18",
-      paymentStatus: "paid",
-      orderId: "ORD123",
-    });
-    setLoading(false);
+    console.log("Received params:", params); // Debug log
+    console.log("Received itemId:", itemId); // Debug log
+    if (!itemId) {
+      toast.show({
+        description: "No item ID provided",
+        status: "error",
+      });
+      router.back();
+      return;
+    }
+    getStoredData();
   }, [itemId]);
+
+  const getStoredData = async () => {
+    try {
+      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+      if (storedRestaurantId) {
+        console.log("Restaurant ID:", storedRestaurantId); // Debug log
+        setRestaurantId(parseInt(storedRestaurantId));
+        await fetchInventoryDetails(
+          parseInt(storedRestaurantId),
+          parseInt(itemId)
+        );
+      } else {
+        toast.show({
+          description: "Please login again",
+          status: "error",
+        });
+        router.replace("/login");
+      }
+    } catch (error) {
+      console.error("Error getting stored data:", error);
+      setLoading(false);
+    }
+  };
+
+  const fetchInventoryDetails = async (restId, invId) => {
+    try {
+      console.log("Fetching with params:", {
+        restaurant_id: restId.toString(),
+        inventory_id: parseInt(invId),
+      });
+
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/inventory_view`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: restId.toString(),
+            inventory_id: parseInt(invId),
+          }),
+        }
+      );
+
+      const data = await response.json();
+      console.log("API Response:", data);
+
+      if (data.st === 1 && data.data) {
+        setFormData((prevData) => ({
+          ...prevData,
+          name: data.data.name || "",
+          category: data.data.type || "",
+          quantity: data.data.quantity?.toString() || "0",
+          type: data.data.type || "",
+          // Keep other fields with their default values
+          supplierId: prevData.supplierId,
+          description: prevData.description,
+          price: prevData.price,
+          serialNo: prevData.serialNo,
+          status: prevData.status,
+          brandName: prevData.brandName,
+          tax: prevData.tax,
+          paymentStatus: prevData.paymentStatus,
+          orderId: prevData.orderId,
+        }));
+
+        toast.show({
+          description: "Item details loaded successfully",
+          status: "success",
+        });
+      } else {
+        throw new Error(data.msg || "Failed to fetch item details");
+      }
+    } catch (error) {
+      console.error("Fetch Error:", error);
+      toast.show({
+        description: error.message || "Failed to fetch item details",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (validateForm()) {
+      try {
+        setLoading(true);
+        const response = await fetch(
+          `${API_BASE_URL}/captain_manage/inventory_update`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              inventory_id: parseInt(itemId),
+              restaurant_id: restaurantId.toString(),
+              name: formData.name,
+              quantity: parseInt(formData.quantity),
+              type: formData.type || formData.category,
+            }),
+          }
+        );
+
+        const data = await response.json();
+        if (data.st === 1) {
+          toast.show({
+            description: "Item updated successfully",
+            status: "success",
+          });
+          router.push({
+            pathname: "/(tabs)/staff/inventory-items",
+            params: { refresh: Date.now() },
+          });
+        } else {
+          toast.show({
+            description: data.msg || "Failed to update item",
+            status: "error",
+          });
+        }
+      } catch (error) {
+        console.error("Update Error:", error);
+        toast.show({
+          description: "Failed to update item",
+          status: "error",
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -89,18 +224,6 @@ export default function EditInventoryItemScreen() {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const handleUpdate = () => {
-    if (validateForm()) {
-      // Add API call here
-      console.log("Updated data:", formData);
-      toast.show({
-        description: "Item updated successfully",
-        placement: "top",
-      });
-      router.back();
-    }
   };
 
   return (
@@ -143,8 +266,58 @@ export default function EditInventoryItemScreen() {
                 setFormData({ ...formData, name: value })
               }
               placeholder="Enter item name"
+              isReadOnly={loading}
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
+          </FormControl>
+
+          <FormControl isRequired isInvalid={"category" in errors}>
+            <FormControl.Label>Category/Type</FormControl.Label>
+            <Input
+              value={formData.category}
+              onChangeText={(value) => {
+                setFormData({
+                  ...formData,
+                  category: value,
+                  type: value, // Update both category and type
+                });
+              }}
+              placeholder="Enter category"
+              isReadOnly={loading}
+            />
+            <FormControl.ErrorMessage>
+              {errors.category}
+            </FormControl.ErrorMessage>
+          </FormControl>
+
+          <FormControl isRequired isInvalid={"quantity" in errors}>
+            <FormControl.Label>Quantity</FormControl.Label>
+            <Input
+              keyboardType="numeric"
+              value={formData.quantity}
+              onChangeText={(value) =>
+                setFormData({ ...formData, quantity: value })
+              }
+              placeholder="Enter quantity"
+              isReadOnly={loading}
+            />
+            <FormControl.ErrorMessage>
+              {errors.quantity}
+            </FormControl.ErrorMessage>
+          </FormControl>
+
+          {/* Keep other form fields but mark them as optional */}
+          <FormControl>
+            <FormControl.Label>Description (Optional)</FormControl.Label>
+            <TextArea
+              h={20}
+              value={formData.description}
+              onChangeText={(value) =>
+                setFormData({ ...formData, description: value })
+              }
+              placeholder="Enter item description"
+              isReadOnly={loading}
+            />
           </FormControl>
 
           <FormControl isRequired isInvalid={"supplierId" in errors}>
@@ -158,32 +331,6 @@ export default function EditInventoryItemScreen() {
             />
             <FormControl.ErrorMessage>
               {errors.supplierId}
-            </FormControl.ErrorMessage>
-          </FormControl>
-
-          <FormControl>
-            <FormControl.Label>Description</FormControl.Label>
-            <TextArea
-              h={20}
-              value={formData.description}
-              onChangeText={(value) =>
-                setFormData({ ...formData, description: value })
-              }
-              placeholder="Enter item description"
-            />
-          </FormControl>
-
-          <FormControl isRequired isInvalid={"category" in errors}>
-            <FormControl.Label>Category</FormControl.Label>
-            <Input
-              value={formData.category}
-              onChangeText={(value) =>
-                setFormData({ ...formData, category: value })
-              }
-              placeholder="Enter category"
-            />
-            <FormControl.ErrorMessage>
-              {errors.category}
             </FormControl.ErrorMessage>
           </FormControl>
 
@@ -304,6 +451,8 @@ export default function EditInventoryItemScreen() {
             mt={4}
             colorScheme="blue"
             onPress={handleUpdate}
+            isLoading={loading}
+            isLoadingText="Updating..."
             _text={{ fontSize: "md", fontWeight: "semibold" }}
           >
             Update Item

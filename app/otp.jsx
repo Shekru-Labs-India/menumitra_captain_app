@@ -19,6 +19,8 @@ import { Linking } from "react-native";
 import { useVersion } from "../context/VersionContext";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
+const TEST_MOBILE = "9999999999";
+const TEST_OTP = "1234";
 
 export default function OtpScreen() {
   const [otp, setOtp] = useState(["", "", "", ""]);
@@ -145,6 +147,14 @@ export default function OtpScreen() {
 
       if (data && data.st === 1) {
         try {
+          await AsyncStorage.setItem("captain_id", data.captain_id.toString());
+          await AsyncStorage.setItem(
+            "restaurant_id",
+            data.restaurant_id.toString()
+          );
+          await AsyncStorage.setItem("captain_name", data.captain_name);
+          await AsyncStorage.setItem("role", data.role);
+
           const thirtyDaysFromNow = new Date();
           thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
@@ -159,8 +169,8 @@ export default function OtpScreen() {
           );
           router.replace("/(tabs)");
         } catch (error) {
-          console.error("Error saving session:", error);
-          setError("Failed to save session. Please try again.");
+          console.error("Error saving data:", error);
+          setError("Failed to save login data. Please try again.");
         }
       } else {
         setError(data.msg || "Invalid OTP. Please try again.");

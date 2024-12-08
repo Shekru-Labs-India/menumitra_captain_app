@@ -20,6 +20,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar } from "react-native";
 import { SupplierContext } from "../../../../../context/SupplierContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function EditSupplierScreen() {
   const router = useRouter();
@@ -95,23 +96,50 @@ export default function EditSupplierScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleUpdate = () => {
-    if (validateForm()) {
-      updateSupplier(id, {
-        ...formData,
-        name: formData.name.trim(),
-        mobileNumber1: formData.mobileNumber1.trim(),
-        mobileNumber2: formData.mobileNumber2?.trim(),
-        website: formData.website?.trim(),
-        creditLimit: formData.creditLimit?.trim(),
-        address: formData.address?.trim(),
-      });
+  const handleSubmit = async (values) => {
+    try {
+      const restaurantId = await AsyncStorage.getItem("restaurant_id");
 
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/supplier/update`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            supplier_id: id,
+            restaurant_id: parseInt(restaurantId),
+            name: values.name,
+            supplier_status: values.status,
+            credit_rating: values.creditRating,
+            credit_limit: parseInt(values.creditLimit),
+            location: values.location,
+            owner_name: values.ownerName,
+            website: values.website,
+            mobile_number1: values.mobileNumber1,
+            mobile_number2: values.mobileNumber2,
+            address: values.address,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.st === 1) {
+        toast.show({
+          description: "Supplier updated successfully",
+          status: "success",
+        });
+        router.back();
+      } else {
+        throw new Error(data.msg || "Failed to update supplier");
+      }
+    } catch (error) {
       toast.show({
-        description: "Supplier updated successfully",
-        status: "success",
+        description: error.message,
+        status: "error",
       });
-      router.back();
     }
   };
 
@@ -330,7 +358,7 @@ export default function EditSupplierScreen() {
             mt={4}
             mb={8}
             colorScheme="blue"
-            onPress={handleUpdate}
+            onPress={handleSubmit}
             leftIcon={<MaterialIcons name="save" size={20} color="white" />}
           >
             Update Supplier

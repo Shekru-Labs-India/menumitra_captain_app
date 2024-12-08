@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import {
   Box,
   ScrollView,
@@ -18,6 +18,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Platform, StatusBar } from "react-native";
 import { SupplierContext } from "../../../../context/SupplierContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const API_BASE_URL = "https://men4u.xyz/captain_api";
 
 export default function AddSupplierScreen() {
   const router = useRouter();
@@ -38,7 +41,78 @@ export default function AddSupplierScreen() {
     address: "",
   });
 
-  const handleSave = () => {
+  const [creditRatingChoices, setCreditRatingChoices] = useState([]);
+  const [statusChoices, setStatusChoices] = useState([]);
+
+  useEffect(() => {
+    fetchCreditRatingChoices();
+    fetchStatusChoices();
+  }, []);
+
+  const fetchCreditRatingChoices = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/supplier_credit_rating_choices`,
+        {
+          method: "GET",
+        }
+      );
+
+      const data = await response.json();
+      console.log("Credit Rating Choices:", data);
+
+      if (data.st === 1 && data.credit_rating_choices) {
+        // Convert the choices object to an array of options
+        const choices = Object.entries(data.credit_rating_choices).map(
+          ([key]) => ({
+            label:
+              key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " "),
+            value: key,
+          })
+        );
+        setCreditRatingChoices(choices);
+      }
+    } catch (error) {
+      console.error("Failed to fetch credit rating choices:", error);
+      toast.show({
+        description: "Failed to load credit rating options",
+        status: "error",
+      });
+    }
+  };
+
+  const fetchStatusChoices = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/supplier_status_choices`,
+        {
+          method: "GET",
+        }
+      );
+
+      const data = await response.json();
+      console.log("Status Choices:", data);
+
+      if (data.st === 1 && data.supplier_status_choices) {
+        // Convert the choices object to an array of options
+        const choices = Object.entries(data.supplier_status_choices).map(
+          ([key]) => ({
+            label: key.charAt(0).toUpperCase() + key.slice(1),
+            value: key,
+          })
+        );
+        setStatusChoices(choices);
+      }
+    } catch (error) {
+      console.error("Failed to fetch status choices:", error);
+      toast.show({
+        description: "Failed to load status options",
+        status: "error",
+      });
+    }
+  };
+
+  const handleSave = async () => {
     if (!formData.name || !formData.mobileNumber1) {
       toast.show({
         description: "Please fill in all required fields",
@@ -47,12 +121,49 @@ export default function AddSupplierScreen() {
       return;
     }
 
-    addSupplier(formData);
-    toast.show({
-      description: "Supplier added successfully",
-      status: "success",
-    });
-    router.back();
+    try {
+      const restaurantId = await AsyncStorage.getItem("restaurant_id");
+
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/supplier/create`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: parseInt(restaurantId),
+            name: formData.name,
+            supplier_status: formData.status || "active",
+            credit_rating: formData.creditRating,
+            credit_limit: parseInt(formData.creditLimit),
+            location: formData.location,
+            owner_name: formData.ownerName,
+            website: formData.website,
+            mobile_number1: formData.mobileNumber1,
+            mobile_number2: formData.mobileNumber2,
+            address: formData.address,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.st === 1) {
+        toast.show({
+          description: "Supplier created successfully",
+          status: "success",
+        });
+        router.back();
+      } else {
+        throw new Error(data.msg || "Failed to create supplier");
+      }
+    } catch (error) {
+      toast.show({
+        description: error.message,
+        status: "error",
+      });
+    }
   };
 
   return (
@@ -102,8 +213,13 @@ export default function AddSupplierScreen() {
                 endIcon: <CheckIcon size={4} />,
               }}
             >
-              <Select.Item label="Active" value="active" />
-              <Select.Item label="Inactive" value="inactive" />
+              {statusChoices.map((choice) => (
+                <Select.Item
+                  key={choice.value}
+                  label={choice.label}
+                  value={choice.value}
+                />
+              ))}
             </Select>
           </FormControl>
 
@@ -119,11 +235,13 @@ export default function AddSupplierScreen() {
                 endIcon: <CheckIcon size={4} />,
               }}
             >
-              <Select.Item label="Excellent" value="excellent" />
-              <Select.Item label="Good" value="good" />
-              <Select.Item label="Bad" value="bad" />
-              <Select.Item label="Very Bad" value="very_bad" />
-              <Select.Item label="Not Rated" value="not_rated" />
+              {creditRatingChoices.map((choice) => (
+                <Select.Item
+                  key={choice.value}
+                  label={choice.label}
+                  value={choice.value}
+                />
+              ))}
             </Select>
           </FormControl>
 

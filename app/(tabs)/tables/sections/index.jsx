@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Box,
   ScrollView,
@@ -17,51 +17,175 @@ import {
   FormControl,
   Modal,
   Button,
+  Spinner,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
+
+const API_BASE_URL = "https://men4u.xyz/captain_api";
+
 export default function TableSectionsScreen() {
   const router = useRouter();
   const toast = useToast();
-  const [viewType, setViewType] = useState("list"); // 'grid' or 'list'
+  const [viewType, setViewType] = useState("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [isAscending, setIsAscending] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newSectionName, setNewSectionName] = useState("");
+  const [sections, setSections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [restaurantId, setRestaurantId] = useState(null);
 
-  // Sample sections data
-  const [sections] = useState([
-    {
-      id: "1",
-      name: "Family Section",
-      totalTables: 10,
-      engagedTables: 3,
-      color: "#4CAF50",
-    },
-    {
-      id: "2",
-      name: "Garden Section",
-      totalTables: 6,
-      engagedTables: 2,
-      color: "#2196F3",
-    },
-    {
-      id: 3,
-      name: "Private Dining",
-      totalTables: 4,
-      engagedTables: 2,
-      color: "#9C27B0",
-    },
-    {
-      id: 4,
-      name: "Bar Section",
-      totalTables: 6,
-      engagedTables: 4,
-      color: "#FF9800",
-    },
-  ]);
+  useEffect(() => {
+    getStoredData();
+  }, []);
+
+  // Update the useFocusEffect to use the same fetchSections function
+  useFocusEffect(
+    useCallback(() => {
+      const refreshSections = async () => {
+        try {
+          const storedRestaurantId = await AsyncStorage.getItem(
+            "restaurant_id"
+          );
+          if (!storedRestaurantId) {
+            toast.show({
+              description: "Please login again",
+              status: "error",
+            });
+            router.replace("/login");
+            return;
+          }
+
+          await fetchSections(parseInt(storedRestaurantId));
+        } catch (error) {
+          console.error("Refresh Sections Error:", error);
+          toast.show({
+            description: "Failed to refresh sections",
+            status: "error",
+          });
+        }
+      };
+
+      refreshSections();
+    }, [])
+  );
+
+  const getStoredData = async () => {
+    try {
+      setLoading(true);
+      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+      if (storedRestaurantId) {
+        setRestaurantId(parseInt(storedRestaurantId));
+        await fetchSections(parseInt(storedRestaurantId));
+      } else {
+        toast.show({
+          description: "Please login again",
+          status: "error",
+        });
+        router.replace("/login");
+      }
+    } catch (error) {
+      console.error("Error getting stored data:", error);
+      toast.show({
+        description: "Failed to load data",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSections = async (restId) => {
+    try {
+      setLoading(true);
+
+      // Get the detailed section list first
+      const sectionListResponse = await fetch(
+        `${API_BASE_URL}/captain_manage/section_listview`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: restId,
+          }),
+        }
+      );
+
+      const sectionListData = await sectionListResponse.json();
+      console.log("Section List View Response:", sectionListData);
+
+      // Get all tables in one call
+      const tablesResponse = await fetch(
+        `${API_BASE_URL}/captain_manage/get_table_list`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: restId,
+          }),
+        }
+      );
+
+      const tablesData = await tablesResponse.json();
+      console.log("Tables Response:", tablesData);
+
+      if (sectionListData.st === 1 && tablesData.st === 1) {
+        // Modified section to properly handle the table data
+        const formattedSections = sectionListData.data.map((section) => {
+          // Get tables for this section from tablesData
+          const sectionTables = tablesData.data.filter(
+            (table) => table.section_id === section.section_id
+          );
+
+          return {
+            id: section.section_id.toString(),
+            name: section.section_name,
+            totalTables: sectionTables.length,
+            engagedTables: sectionTables.filter(
+              (table) => table.is_occupied === 1
+            ).length,
+            color: getRandomColor(),
+          };
+        });
+
+        console.log("Formatted Sections:", formattedSections);
+        setSections(formattedSections);
+      } else {
+        throw new Error("Failed to fetch sections");
+      }
+    } catch (error) {
+      console.error("Fetch Error:", error);
+      toast.show({
+        description: error.message || "Failed to fetch sections",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper function to generate random colors for sections
+  const getRandomColor = () => {
+    const colors = [
+      "#4CAF50",
+      "#2196F3",
+      "#9C27B0",
+      "#FF9800",
+      "#F44336",
+      "#009688",
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
 
   // Memoized sorting and filtering logic
   const sortedSections = useMemo(() => {
@@ -95,10 +219,13 @@ export default function TableSectionsScreen() {
   }, [sections, searchQuery, sortBy, isAscending]);
 
   const handleSectionPress = (section) => {
-    router.push(`/tables/sections/${section.id}`);
+    router.push({
+      pathname: `/tables/sections/${section.id}`,
+      params: { sectionName: section.name },
+    });
   };
 
-  const handleAddSection = () => {
+  const handleAddSection = async () => {
     if (!newSectionName.trim()) {
       toast.show({
         description: "Section name is required",
@@ -108,17 +235,51 @@ export default function TableSectionsScreen() {
       return;
     }
 
-    // Add your API call here
-    console.log("Creating new section:", newSectionName);
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/section_create`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: restaurantId,
+            section_name: newSectionName.trim(),
+          }),
+        }
+      );
 
-    toast.show({
-      description: "Section added successfully",
-      placement: "top",
-      status: "success",
-    });
+      const data = await response.json();
+      console.log("Create Section Response:", data);
 
-    setNewSectionName("");
-    setShowAddModal(false);
+      if (data.st === 1) {
+        toast.show({
+          description: data.msg || "Section added successfully",
+          placement: "top",
+          status: "success",
+        });
+
+        // Clear form and close modal
+        setNewSectionName("");
+        setShowAddModal(false);
+
+        // Refresh sections list
+        await fetchSections(restaurantId);
+      } else {
+        throw new Error(data.msg || "Failed to create section");
+      }
+    } catch (error) {
+      console.error("Create Section Error:", error);
+      toast.show({
+        description: error.message || "Failed to create section",
+        placement: "top",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderGridView = (sections) => (
@@ -312,21 +473,29 @@ export default function TableSectionsScreen() {
         </HStack>
 
         {/* Content */}
-        {viewType === "grid"
-          ? renderGridView(sortedSections)
-          : renderListView(sortedSections)}
-
-        {/* Floating Action Button */}
-        <Pressable
-          onPress={() => setShowAddModal(true)}
-          position="absolute"
-          bottom={8}
-          right={8}
-        >
-          <Box bg="green.500" rounded="full" p={3}>
-            <MaterialIcons name="add" size={28} color="white" />
+        {loading ? (
+          <Box flex={1} justifyContent="center" alignItems="center">
+            <Spinner size="lg" />
           </Box>
-        </Pressable>
+        ) : (
+          <>
+            {viewType === "grid"
+              ? renderGridView(sortedSections)
+              : renderListView(sortedSections)}
+
+            {/* Floating Action Button */}
+            <Pressable
+              onPress={() => setShowAddModal(true)}
+              position="absolute"
+              bottom={8}
+              right={8}
+            >
+              <Box bg="green.500" rounded="full" p={3}>
+                <MaterialIcons name="add" size={28} color="white" />
+              </Box>
+            </Pressable>
+          </>
+        )}
       </Box>
 
       {/* Add Section Modal */}
@@ -370,7 +539,13 @@ export default function TableSectionsScreen() {
               >
                 Cancel
               </Button>
-              <Button onPress={handleAddSection}>Add Section</Button>
+              <Button
+                onPress={handleAddSection}
+                isLoading={loading}
+                isLoadingText="Adding..."
+              >
+                Add Section
+              </Button>
             </HStack>
           </Modal.Footer>
         </Modal.Content>

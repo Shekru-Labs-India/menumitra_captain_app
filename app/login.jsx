@@ -114,7 +114,7 @@ export default function LoginScreen() {
         console.log("Success condition met, proceeding to OTP screen");
         await AsyncStorage.setItem("tempMobile", mobileNumber);
 
-        // Extract OTP from message if present (assuming it's always 1234 in this case)
+        // Extract OTP from message if present
         const otpMatch = data.msg.match(/\d{4}/);
         if (otpMatch) {
           await AsyncStorage.setItem("currentOtp", otpMatch[0]);
@@ -132,6 +132,21 @@ export default function LoginScreen() {
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleLogin = async (response) => {
+    try {
+      await AsyncStorage.setItem("captain_id", response.captain_id.toString());
+      await AsyncStorage.setItem(
+        "restaurant_id",
+        response.restaurant_id.toString()
+      );
+      await AsyncStorage.setItem("captain_name", response.captain_name);
+      await AsyncStorage.setItem("role", response.role);
+      // ... rest of login logic
+    } catch (error) {
+      console.error("Error storing login data:", error);
     }
   };
 
