@@ -12,6 +12,8 @@ import {
   Select,
   TextArea,
   HStack,
+  Spinner,
+  Text,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -25,7 +27,6 @@ export default function EditInventoryScreen() {
   const toast = useToast();
   const { id } = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
-  const [suppliers, setSuppliers] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
 
   const [formData, setFormData] = useState({
@@ -44,35 +45,10 @@ export default function EditInventoryScreen() {
   });
 
   useEffect(() => {
-    Promise.all([fetchInventoryDetails(), fetchSuppliers()]).finally(() => {
+    fetchInventoryDetails().finally(() => {
       setInitialLoading(false);
     });
   }, [id]);
-
-  const fetchSuppliers = async () => {
-    try {
-      const restaurantId = await AsyncStorage.getItem("restaurant_id");
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/supplier/listview`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            restaurant_id: parseInt(restaurantId),
-          }),
-        }
-      );
-
-      const data = await response.json();
-      if (data.st === 1 && Array.isArray(data.data)) {
-        setSuppliers(data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching suppliers:", error);
-    }
-  };
 
   const fetchInventoryDetails = async () => {
     try {
@@ -120,6 +96,24 @@ export default function EditInventoryScreen() {
         throw new Error("Restaurant ID not found");
       }
 
+      const requiredFields = [
+        "name",
+        "category",
+        "price",
+        "quantity",
+        "sr_no",
+        "brand_name",
+        "tax",
+        "supplier_id",
+      ];
+
+      const missingFields = requiredFields.filter((field) => !formData[field]);
+      if (missingFields.length > 0) {
+        throw new Error(
+          `Please fill in all required fields: ${missingFields.join(", ")}`
+        );
+      }
+
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/supplier_inventory/update`,
         {
@@ -132,6 +126,8 @@ export default function EditInventoryScreen() {
             supplier_inventory_id: parseInt(id),
             restaurant_id: parseInt(restaurantId),
             supplier_id: parseInt(formData.supplier_id),
+            price: formData.price.toString(),
+            quantity: formData.quantity.toString(),
           }),
         }
       );
@@ -141,10 +137,12 @@ export default function EditInventoryScreen() {
 
       if (data.st === 1) {
         toast.show({
-          description: "Inventory updated successfully",
+          description: data.msg || "Inventory updated successfully",
           status: "success",
         });
-        router.back();
+        router.back({
+          params: { shouldRefresh: true },
+        });
       } else {
         throw new Error(data.msg || "Failed to update inventory");
       }
@@ -161,8 +159,11 @@ export default function EditInventoryScreen() {
 
   if (initialLoading) {
     return (
-      <Box flex={1} justifyContent="center" alignItems="center">
-        <Spinner size="lg" />
+      <Box flex={1} justifyContent="center" alignItems="center" bg="white">
+        <Spinner size="lg" color="blue.500" />
+        <Text color="gray.500" mt={4}>
+          Loading inventory details...
+        </Text>
       </Box>
     );
   }
@@ -187,25 +188,6 @@ export default function EditInventoryScreen() {
 
       <ScrollView px={4} py={4}>
         <VStack space={4}>
-          {/* Supplier Selection */}
-          <FormControl isRequired>
-            <FormControl.Label>Select Supplier</FormControl.Label>
-            <Select
-              selectedValue={formData.supplier_id?.toString()}
-              onValueChange={(value) =>
-                setFormData({ ...formData, supplier_id: value })
-              }
-            >
-              {suppliers.map((supplier) => (
-                <Select.Item
-                  key={supplier.supplier_id}
-                  label={supplier.name}
-                  value={supplier.supplier_id.toString()}
-                />
-              ))}
-            </Select>
-          </FormControl>
-
           {/* Basic Information */}
           <FormControl isRequired>
             <FormControl.Label>Item Name</FormControl.Label>

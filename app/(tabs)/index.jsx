@@ -78,6 +78,18 @@ export default function HomeScreen() {
       route: "/(tabs)/staff/inventory",
       color: "#FF9800",
     },
+    {
+      title: "Suppliers",
+      icon: "local-shipping", // Changed icon to be more relevant
+      route: "/(tabs)/staff/suppliers",
+      color: "#E91E63", // Pink color
+    },
+    {
+      title: "Reports",
+      icon: "assessment", // Changed icon to be more relevant
+      route: "/(tabs)/reports",
+      color: "#607D8B", // Blue Grey color
+    },
   ];
 
   return (

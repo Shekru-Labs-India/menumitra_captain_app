@@ -22,6 +22,8 @@ import { Platform, StatusBar } from "react-native";
 import { SupplierContext } from "../../../../../context/SupplierContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const API_BASE_URL = "https://men4u.xyz/captain_api";
+
 export default function EditSupplierScreen() {
   const router = useRouter();
   const toast = useToast();
@@ -45,16 +47,54 @@ export default function EditSupplierScreen() {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    const supplier = suppliers.find((s) => s.id === id);
-    if (supplier) {
-      setFormData(supplier);
-    } else {
-      toast.show({
-        description: "Supplier not found",
-        status: "error",
-      });
-      router.back();
-    }
+    const fetchSupplierDetails = async () => {
+      try {
+        const restaurantId = await AsyncStorage.getItem("restaurant_id");
+
+        const response = await fetch(
+          `${API_BASE_URL}/captain_manage/supplier/view`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              supplier_id: parseInt(id),
+              restaurant_id: parseInt(restaurantId),
+            }),
+          }
+        );
+
+        const data = await response.json();
+
+        if (data.st === 1 && data.data) {
+          setFormData({
+            name: data.data.name,
+            status: data.data.supplier_status,
+            creditRating: data.data.credit_rating,
+            creditLimit: data.data.credit_limit?.toString(),
+            location: data.data.location,
+            ownerName: data.data.owner_name,
+            supplierCode: data.data.supplier_code,
+            website: data.data.website,
+            mobileNumber1: data.data.mobile_number1,
+            mobileNumber2: data.data.mobile_number2,
+            address: data.data.address,
+          });
+        } else {
+          throw new Error(data.msg || "Failed to fetch supplier details");
+        }
+      } catch (error) {
+        console.error("Fetch Error:", error);
+        toast.show({
+          description: "Failed to fetch supplier details",
+          status: "error",
+        });
+        router.back();
+      }
+    };
+
+    fetchSupplierDetails();
   }, [id]);
 
   const validateForm = () => {
@@ -96,7 +136,15 @@ export default function EditSupplierScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (values) => {
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      toast.show({
+        description: "Please fix the errors before submitting",
+        status: "error",
+      });
+      return;
+    }
+
     try {
       const restaurantId = await AsyncStorage.getItem("restaurant_id");
 
@@ -108,36 +156,66 @@ export default function EditSupplierScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            supplier_id: id,
+            supplier_id: parseInt(id),
             restaurant_id: parseInt(restaurantId),
-            name: values.name,
-            supplier_status: values.status,
-            credit_rating: values.creditRating,
-            credit_limit: parseInt(values.creditLimit),
-            location: values.location,
-            owner_name: values.ownerName,
-            website: values.website,
-            mobile_number1: values.mobileNumber1,
-            mobile_number2: values.mobileNumber2,
-            address: values.address,
+            name: formData.name,
+            supplier_status: formData.status || "active",
+            credit_rating: formData.creditRating || "not_rated",
+            credit_limit: formData.creditLimit
+              ? parseInt(formData.creditLimit)
+              : 0,
+            location: formData.location || "",
+            owner_name: formData.ownerName || "",
+            website: formData.website || "",
+            mobile_number1: formData.mobileNumber1,
+            mobile_number2: formData.mobileNumber2 || "",
+            address: formData.address || "",
           }),
         }
       );
 
       const data = await response.json();
+      console.log("Update Response:", data);
 
       if (data.st === 1) {
+        // After successful update, fetch updated details
+        const detailsResponse = await fetch(
+          `${API_BASE_URL}/captain_manage/supplier/view`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              supplier_id: parseInt(id),
+              restaurant_id: parseInt(restaurantId),
+            }),
+          }
+        );
+
+        const detailsData = await detailsResponse.json();
+
+        if (detailsData.st === 1) {
+          // Pass the updated data back to the details screen
+          router.back({
+            params: {
+              updatedSupplier: detailsData.data,
+              shouldRefresh: true,
+            },
+          });
+        }
+
         toast.show({
-          description: "Supplier updated successfully",
+          description: data.msg || "Supplier updated successfully",
           status: "success",
         });
-        router.back();
       } else {
         throw new Error(data.msg || "Failed to update supplier");
       }
     } catch (error) {
+      console.error("Update Error:", error);
       toast.show({
-        description: error.message,
+        description: error.message || "Failed to update supplier",
         status: "error",
       });
     }

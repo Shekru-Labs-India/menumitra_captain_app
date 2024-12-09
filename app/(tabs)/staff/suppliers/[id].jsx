@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Heading,
@@ -21,6 +21,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar, Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -36,23 +37,16 @@ export default function SupplierDetails() {
     fetchSupplierDetails();
   }, [id]);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchSupplierDetails();
+    }, [])
+  );
+
   const fetchSupplierDetails = async () => {
+    setLoading(true);
     try {
       const restaurantId = await AsyncStorage.getItem("restaurant_id");
-      console.log("Fetching details with ID/code:", id);
-
-      if (!restaurantId || !id) {
-        throw new Error("Missing required data");
-      }
-
-      // Try to parse the ID as a number first
-      const numericId = parseInt(id);
-      const isNumericId = !isNaN(numericId);
-
-      console.log("Request payload:", {
-        supplier_id: isNumericId ? numericId : id,
-        restaurant_id: parseInt(restaurantId),
-      });
 
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/supplier/view`,
@@ -62,17 +56,15 @@ export default function SupplierDetails() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            supplier_id: isNumericId ? numericId : id, // Send as number if possible
+            supplier_id: parseInt(id),
             restaurant_id: parseInt(restaurantId),
           }),
         }
       );
 
       const data = await response.json();
-      console.log("API Response:", data);
 
       if (data.st === 1 && data.data) {
-        // If first attempt fails, try with the original ID
         setSupplier({
           id: data.data.supplier_id,
           name: data.data.name,
@@ -87,44 +79,6 @@ export default function SupplierDetails() {
           location: data.data.location,
           address: data.data.address,
         });
-      } else if (!isNumericId) {
-        // If using the code failed, try fetching with the code directly
-        console.log("Retrying with supplier code...");
-        const retryResponse = await fetch(
-          `${API_BASE_URL}/captain_manage/supplier/view`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              supplier_code: id,
-              restaurant_id: parseInt(restaurantId),
-            }),
-          }
-        );
-
-        const retryData = await retryResponse.json();
-        console.log("Retry Response:", retryData);
-
-        if (retryData.st === 1 && retryData.data) {
-          setSupplier({
-            id: retryData.data.supplier_id,
-            name: retryData.data.name,
-            status: retryData.data.supplier_status,
-            supplierCode: retryData.data.supplier_code,
-            mobileNumber1: retryData.data.mobile_number1,
-            mobileNumber2: retryData.data.mobile_number2,
-            website: retryData.data.website,
-            creditRating: retryData.data.credit_rating,
-            creditLimit: retryData.data.credit_limit,
-            ownerName: retryData.data.owner_name,
-            location: retryData.data.location,
-            address: retryData.data.address,
-          });
-        } else {
-          throw new Error(retryData.msg || "Failed to fetch supplier details");
-        }
       } else {
         throw new Error(data.msg || "Failed to fetch supplier details");
       }
@@ -151,7 +105,7 @@ export default function SupplierDetails() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            supplier_id: id,
+            supplier_id: parseInt(id),
             restaurant_id: parseInt(restaurantId),
           }),
         }
@@ -162,20 +116,38 @@ export default function SupplierDetails() {
 
       if (data.st === 1) {
         toast.show({
-          description: "Supplier deleted successfully",
+          description: data.msg || "Supplier deleted successfully",
           status: "success",
         });
-        router.back();
+
+        // Close the delete dialog
+        setIsDeleteOpen(false);
+
+        // Navigate back with refresh parameter
+        router.back({
+          params: {
+            isDeleted: true,
+            deletedSupplierId: id,
+          },
+        });
       } else {
         throw new Error(data.msg || "Failed to delete supplier");
       }
     } catch (error) {
       console.error("Delete Error:", error);
       toast.show({
-        description: error.message,
+        description: error.message || "Failed to delete supplier",
         status: "error",
       });
+      setIsDeleteOpen(false);
     }
+  };
+
+  const handleInventoryPress = () => {
+    router.push({
+      pathname: "/staff/suppliers/suppliers-inventory",
+      params: { supplierId: id },
+    });
   };
 
   if (loading) {
@@ -278,15 +250,20 @@ export default function SupplierDetails() {
           onPress={() => router.back()}
         />
         <Heading textAlign="center">Supplier Details</Heading>
-        <IconButton
-          position="absolute"
-          right={2}
-          top={2}
-          icon={
-            <MaterialIcons name="delete-outline" size={24} color="red.500" />
-          }
-          onPress={() => setIsDeleteOpen(true)}
-        />
+        <HStack position="absolute" right={2} top={2} space={2}>
+          <IconButton
+            icon={
+              <MaterialIcons name="inventory" size={24} color="coolGray.600" />
+            }
+            onPress={handleInventoryPress}
+          />
+          <IconButton
+            icon={
+              <MaterialIcons name="delete-outline" size={24} color="red.500" />
+            }
+            onPress={() => setIsDeleteOpen(true)}
+          />
+        </HStack>
       </Box>
 
       <ScrollView>
@@ -474,7 +451,11 @@ export default function SupplierDetails() {
       />
 
       {/* Delete Alert Dialog */}
-      <AlertDialog isOpen={isDeleteOpen} onClose={() => setIsDeleteOpen(false)}>
+      <AlertDialog
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        closeOnOverlayClick={true}
+      >
         <AlertDialog.Content>
           <AlertDialog.CloseButton />
           <AlertDialog.Header>Delete Supplier</AlertDialog.Header>
@@ -483,18 +464,19 @@ export default function SupplierDetails() {
             undone.
           </AlertDialog.Body>
           <AlertDialog.Footer>
-            <Button.Group space={2}>
+            <HStack space={2} width="full" justifyContent="space-between">
               <Button
-                variant="unstyled"
+                variant="outline"
                 colorScheme="coolGray"
                 onPress={() => setIsDeleteOpen(false)}
+                flex={1}
               >
                 Cancel
               </Button>
-              <Button colorScheme="danger" onPress={handleDelete}>
+              <Button colorScheme="danger" onPress={handleDelete} flex={1}>
                 Delete
               </Button>
-            </Button.Group>
+            </HStack>
           </AlertDialog.Footer>
         </AlertDialog.Content>
       </AlertDialog>

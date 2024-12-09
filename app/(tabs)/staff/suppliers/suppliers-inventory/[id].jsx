@@ -9,14 +9,16 @@ import {
   HStack,
   useToast,
   Spinner,
-  Divider,
   Badge,
+  Divider,
+  AlertDialog,
+  Fab,
+  Button,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import moment from "moment";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -26,6 +28,7 @@ export default function InventoryDetailsScreen() {
   const router = useRouter();
   const toast = useToast();
   const { id } = useLocalSearchParams();
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   useEffect(() => {
     fetchInventoryDetails();
@@ -33,12 +36,7 @@ export default function InventoryDetailsScreen() {
 
   const fetchInventoryDetails = async () => {
     try {
-      setLoading(true);
       const restaurantId = await AsyncStorage.getItem("restaurant_id");
-
-      if (!restaurantId || !id) {
-        throw new Error("Required data missing");
-      }
 
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/supplier_inventory/view`,
@@ -65,7 +63,7 @@ export default function InventoryDetailsScreen() {
     } catch (error) {
       console.error("Fetch Error:", error);
       toast.show({
-        description: error.message,
+        description: error.message || "Failed to fetch inventory details",
         status: "error",
       });
     } finally {
@@ -73,22 +71,58 @@ export default function InventoryDetailsScreen() {
     }
   };
 
-  const InfoRow = ({ label, value, icon }) => (
-    <HStack space={2} alignItems="center">
-      {icon && <MaterialIcons name={icon} size={20} color="gray" />}
-      <Text color="gray.600" flex={1}>
-        {label}:
-      </Text>
-      <Text flex={2} fontWeight="medium">
-        {value || "Not specified"}
-      </Text>
-    </HStack>
-  );
+  const handleDelete = async () => {
+    try {
+      const restaurantId = await AsyncStorage.getItem("restaurant_id");
+
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/supplier_inventory/delete`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            supplier_inventory_id: parseInt(id),
+            restaurant_id: parseInt(restaurantId),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.st === 1) {
+        toast.show({
+          description: data.msg || "Inventory deleted successfully",
+          status: "success",
+        });
+        router.back({
+          params: { shouldRefresh: true },
+        });
+      } else {
+        throw new Error(data.msg || "Failed to delete inventory");
+      }
+    } catch (error) {
+      console.error("Delete Error:", error);
+      toast.show({
+        description: error.message || "Failed to delete inventory",
+        status: "error",
+      });
+    }
+  };
 
   if (loading) {
     return (
       <Box flex={1} justifyContent="center" alignItems="center">
         <Spinner size="lg" />
+      </Box>
+    );
+  }
+
+  if (!inventory) {
+    return (
+      <Box flex={1} justifyContent="center" alignItems="center">
+        <Text>Inventory item not found</Text>
       </Box>
     );
   }
@@ -109,128 +143,174 @@ export default function InventoryDetailsScreen() {
           />
           <Heading size="lg">Inventory Details</Heading>
         </HStack>
+        <IconButton
+          position="absolute"
+          right={2}
+          top={2}
+          icon={<MaterialIcons name="delete" size={24} color="red.500" />}
+          onPress={() => setIsDeleteOpen(true)}
+        />
       </Box>
 
       <ScrollView px={4} py={4}>
-        {inventory && (
-          <VStack space={6}>
-            {/* Basic Information */}
-            <VStack space={4}>
-              <HStack justifyContent="space-between" alignItems="center">
-                <Heading size="md">{inventory.name}</Heading>
-                <Badge colorScheme="info" rounded="md">
-                  {inventory.category}
-                </Badge>
-              </HStack>
-
-              <Text color="gray.600">{inventory.description}</Text>
-
-              <HStack space={4} mt={2}>
-                <Badge
-                  colorScheme="emerald"
-                  variant="subtle"
-                  rounded="md"
-                  px={3}
-                  py={1}
-                >
-                  <HStack space={1} alignItems="center">
-                    <MaterialIcons name="attach-money" size={16} color="green" />
-                    <Text color="emerald.800">₹{inventory.price}</Text>
-                  </HStack>
-                </Badge>
-                <Badge
-                  colorScheme="blue"
-                  variant="subtle"
-                  rounded="md"
-                  px={3}
-                  py={1}
-                >
-                  <HStack space={1} alignItems="center">
-                    <MaterialIcons name="inventory" size={16} color="blue" />
-                    <Text color="blue.800">{inventory.quantity} units</Text>
-                  </HStack>
-                </Badge>
-              </HStack>
-            </VStack>
-
-            <Divider />
-
-            {/* Details Section */}
-            <VStack space={3}>
-              <Heading size="sm" mb={2}>
-                Item Details
-              </Heading>
-              <InfoRow
-                label="SR Number"
-                value={inventory.sr_no}
-                icon="confirmation-number"
-              />
-              <InfoRow
-                label="Brand Name"
-                value={inventory.brand_name}
-                icon="branding-watermark"
-              />
-              <InfoRow label="Tax" value={inventory.tax} icon="receipt" />
-              <InfoRow
-                label="Payment Status"
-                value={inventory.paymen_status}
-                icon="payment"
-              />
-              <InfoRow
-                label="Order ID"
-                value={inventory.order_id}
-                icon="shopping-cart"
-              />
-            </VStack>
-
-            <Divider />
-
-            {/* Supplier Information */}
-            <VStack space={3}>
-              <Heading size="sm" mb={2}>
-                Supplier Information
-              </Heading>
-              <InfoRow
-                label="Supplier ID"
-                value={inventory.supplier_id}
-                icon="store"
-              />
-              <InfoRow
-                label="Stock Status"
-                value={inventory.in_or_out === "in" ? "In Stock" : "Out of Stock"}
-                icon="local-shipping"
-              />
-            </VStack>
-
-            <Divider />
-
-            {/* Timestamps */}
-            <VStack space={3}>
-              <Heading size="sm" mb={2}>
-                Timestamps
-              </Heading>
-              <InfoRow
-                label="In DateTime"
-                value={
-                  inventory.in_datetime
-                    ? moment(inventory.in_datetime).format("DD MMM YYYY, hh:mm A")
-                    : "Not available"
-                }
-                icon="schedule"
-              />
-              <InfoRow
-                label="Out DateTime"
-                value={
-                  inventory.out_datetime
-                    ? moment(inventory.out_datetime).format("DD MMM YYYY, hh:mm A")
-                    : "Not available"
-                }
-                icon="update"
-              />
-            </VStack>
+        <VStack space={4}>
+          {/* Basic Information */}
+          <VStack space={3}>
+            <Heading size="md">Basic Information</Heading>
+            <HStack justifyContent="space-between" alignItems="center">
+              <Text fontWeight="bold" fontSize="lg">
+                {inventory.name}
+              </Text>
+              <Badge colorScheme="info" rounded="md">
+                {inventory.category}
+              </Badge>
+            </HStack>
+            <Text color="coolGray.600">{inventory.description}</Text>
           </VStack>
-        )}
+
+          <Divider />
+
+          {/* Product Details */}
+          <VStack space={3}>
+            <Heading size="md">Product Details</Heading>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Serial Number</Text>
+              <Text fontWeight="semibold">{inventory.sr_no}</Text>
+            </HStack>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Brand</Text>
+              <Text fontWeight="semibold">{inventory.brand_name}</Text>
+            </HStack>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Tax</Text>
+              <Text fontWeight="semibold">{inventory.tax}</Text>
+            </HStack>
+          </VStack>
+
+          <Divider />
+
+          {/* Stock Information */}
+          <VStack space={3}>
+            <Heading size="md">Stock Information</Heading>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Quantity</Text>
+              <Text fontWeight="semibold">{inventory.quantity} units</Text>
+            </HStack>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Price</Text>
+              <Text fontWeight="semibold">₹{inventory.price}</Text>
+            </HStack>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Status</Text>
+              <Badge
+                colorScheme={
+                  inventory.in_or_out === "in" ? "success" : "warning"
+                }
+              >
+                {inventory.in_or_out.toUpperCase()}
+              </Badge>
+            </HStack>
+          </VStack>
+
+          <Divider />
+
+          {/* Order Information */}
+          <VStack space={3}>
+            <Heading size="md">Order Information</Heading>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Order ID</Text>
+              <Text fontWeight="semibold">{inventory.order_id}</Text>
+            </HStack>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Payment Status</Text>
+              <Badge
+                colorScheme={
+                  inventory.paymen_status === "Paid" ? "success" : "warning"
+                }
+              >
+                {inventory.paymen_status}
+              </Badge>
+            </HStack>
+          </VStack>
+
+          <Divider />
+
+          {/* Timestamps */}
+          <VStack space={3}>
+            <Heading size="md">Timestamps</Heading>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">In DateTime</Text>
+              <Text fontWeight="semibold">{inventory.in_datetime}</Text>
+            </HStack>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Out DateTime</Text>
+              <Text fontWeight="semibold">{inventory.out_datetime}</Text>
+            </HStack>
+          </VStack>
+
+          <Divider />
+
+          {/* IDs */}
+          <VStack space={3}>
+            <Heading size="md">Reference Information</Heading>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Inventory ID</Text>
+              <Text fontWeight="semibold">
+                {inventory.supplier_inventory_id}
+              </Text>
+            </HStack>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Supplier ID</Text>
+              <Text fontWeight="semibold">{inventory.supplier_id}</Text>
+            </HStack>
+          </VStack>
+        </VStack>
       </ScrollView>
+
+      {/* Add Delete Alert Dialog */}
+      <AlertDialog
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        closeOnOverlayClick={true}
+      >
+        <AlertDialog.Content>
+          <AlertDialog.CloseButton />
+          <AlertDialog.Header>Delete Inventory</AlertDialog.Header>
+          <AlertDialog.Body>
+            Are you sure you want to delete this inventory item? This action
+            cannot be undone.
+          </AlertDialog.Body>
+          <AlertDialog.Footer>
+            <HStack space={2} width="full" justifyContent="space-between">
+              <Button
+                variant="outline"
+                colorScheme="coolGray"
+                onPress={() => setIsDeleteOpen(false)}
+                flex={1}
+              >
+                Cancel
+              </Button>
+              <Button colorScheme="danger" onPress={handleDelete} flex={1}>
+                Delete
+              </Button>
+            </HStack>
+          </AlertDialog.Footer>
+        </AlertDialog.Content>
+      </AlertDialog>
+
+      {/* Add Edit FAB */}
+      <Fab
+        renderInPortal={false}
+        shadow={2}
+        size="sm"
+        icon={<MaterialIcons name="edit" size={24} color="white" />}
+        onPress={() =>
+          router.push(`/staff/suppliers/suppliers-inventory/edit/${id}`)
+        }
+        position="absolute"
+        bottom={4}
+        right={4}
+      />
     </Box>
   );
-} 
+}

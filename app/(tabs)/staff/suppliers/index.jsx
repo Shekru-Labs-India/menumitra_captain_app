@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Heading,
@@ -19,6 +19,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -32,9 +33,25 @@ export default function SuppliersScreen() {
   const [sortOrder, setSortOrder] = useState("asc");
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    fetchSuppliers();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      const params = router.params;
+      if (params?.isDeleted && params?.deletedSupplierId) {
+        setSuppliers((prevSuppliers) =>
+          prevSuppliers.filter(
+            (supplier) => supplier.id !== params.deletedSupplierId
+          )
+        );
+
+        router.setParams({
+          isDeleted: undefined,
+          deletedSupplierId: undefined,
+        });
+      } else {
+        fetchSuppliers();
+      }
+    }, [router.params])
+  );
 
   const fetchSuppliers = async () => {
     try {
@@ -58,11 +75,12 @@ export default function SuppliersScreen() {
 
       if (data.st === 1 && data.data) {
         const formattedSuppliers = data.data.map((supplier) => ({
-          id: supplier.supplier_code,
+          id: supplier.supplier_id,
           name: supplier.name,
           mobileNumber1: supplier.mobile_number1,
           status: supplier.supplier_status,
           supplier_code: supplier.supplier_code,
+          supplier_id: supplier.supplier_id,
         }));
         console.log("Formatted Suppliers:", formattedSuppliers);
         setSuppliers(formattedSuppliers);
@@ -105,8 +123,8 @@ export default function SuppliersScreen() {
   const renderListItem = ({ item }) => (
     <Pressable
       onPress={() => {
-        console.log("Navigating to supplier:", item.supplier_code);
-        router.push(`/staff/suppliers/${item.supplier_code}`);
+        console.log("Navigating to supplier:", item.supplier_id);
+        router.push(`/staff/suppliers/${item.supplier_id}`);
       }}
     >
       <Box
@@ -153,7 +171,7 @@ export default function SuppliersScreen() {
 
   const renderGridItem = ({ item }) => (
     <Pressable
-      onPress={() => router.push(`/staff/suppliers/${item.id}`)}
+      onPress={() => router.push(`/staff/suppliers/${item.supplier_id}`)}
       flex={1}
       m={1}
     >
@@ -204,10 +222,6 @@ export default function SuppliersScreen() {
       <Box px={4} py={3} bg="white" shadow={2}>
         <HStack justifyContent="space-between" alignItems="center">
           <Heading size="lg">Suppliers</Heading>
-          <IconButton
-            icon={<MaterialIcons name="inventory" size={24} color="black" />}
-            onPress={() => router.push("/staff/suppliers/inventory")}
-          />
         </HStack>
       </Box>
 
