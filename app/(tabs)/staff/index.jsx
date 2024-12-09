@@ -20,12 +20,14 @@ import {
   Avatar,
   Spinner,
   SimpleGrid,
+  ScrollView,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar, Linking } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import Header from "../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -42,7 +44,7 @@ export default function StaffScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [sortBy, setSortBy] = useState("");
+  const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(true);
@@ -185,52 +187,56 @@ export default function StaffScreen() {
         borderColor="coolGray.200"
       >
         <HStack space={3} alignItems="center" justifyContent="space-between">
-          <HStack space={3} alignItems="center" flex={1}>
-            <Avatar
-              size="md"
-              bg="cyan.500"
-              source={item.photo ? { uri: item.photo } : null}
-            >
-              {!item.photo && item.name?.charAt(0).toUpperCase()}
-            </Avatar>
-            <VStack flex={1}>
-              <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
-                {item.name}
-              </Text>
-              <Text fontSize="md" color="coolGray.600">
-                {item.role}
-              </Text>
-              <Text fontSize="sm" color="coolGray.500">
-                {item.mobile}
-              </Text>
-            </VStack>
-            <VStack alignItems="flex-end" space={2}>
-              <Button.Group size="xs" space={1}>
-                <Button
-                  variant="outline"
-                  colorScheme="success"
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleStatusChange(item.staff_id, "present");
-                  }}
-                  size="xs"
-                >
-                  Present
-                </Button>
-                <Button
-                  variant="outline"
-                  colorScheme="danger"
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleStatusChange(item.staff_id, "absent");
-                  }}
-                  size="xs"
-                >
-                  Absent
-                </Button>
-              </Button.Group>
-            </VStack>
-          </HStack>
+          <Avatar
+            size="md"
+            bg="cyan.500"
+            source={item.photo ? { uri: item.photo } : null}
+          >
+            {!item.photo && item.name?.charAt(0).toUpperCase()}
+          </Avatar>
+          <VStack flex={1} ml={2}>
+            <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
+              {item.name}
+            </Text>
+            <Text fontSize="md" color="coolGray.600" mb={2}>
+              {item.role}
+            </Text>
+          </VStack>
+          <VStack alignItems="flex-end" space={1}>
+            <Button.Group size="xs" space={1}>
+              <Button
+                variant="outline"
+                colorScheme="success"
+                borderColor="success.500"
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleStatusChange(item.staff_id, "present");
+                }}
+                size="xs"
+              >
+                Present
+              </Button>
+              <Button
+                variant="outline"
+                colorScheme="danger"
+                borderColor="danger.500"
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleStatusChange(item.staff_id, "absent");
+                }}
+                size="xs"
+              >
+                Absent
+              </Button>
+            </Button.Group>
+            <IconButton
+              icon={<MaterialIcons name="phone" size={20} color="green" />}
+              onPress={() => handlePhonePress(item.phone)}
+              variant="ghost"
+              size="sm"
+              mt={1}
+            />
+          </VStack>
         </HStack>
       </Box>
     </Pressable>
@@ -270,9 +276,7 @@ export default function StaffScreen() {
             <Text fontSize="sm" color="coolGray.600" textAlign="center">
               {item.role}
             </Text>
-            <Text fontSize="xs" color="coolGray.500">
-              ID: #{item.staff_id}
-            </Text>
+
             <Button.Group size="sm" space={1}>
               <Button
                 variant={item.status === "present" ? "solid" : "outline"}
@@ -372,6 +376,7 @@ export default function StaffScreen() {
         const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
         if (storedRestaurantId) {
           setRestaurantId(parseInt(storedRestaurantId));
+          fetchStaffList();
         } else {
           toast.show({
             description: "Please login again",
@@ -394,150 +399,150 @@ export default function StaffScreen() {
       safeArea
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
     >
-      {/* Header with Back Button and Title */}
-      <HStack
-        px={4}
-        py={3}
-        alignItems="center"
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
-      >
-        <IconButton
-          icon={
-            <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
-          }
-          onPress={() => router.back()}
-        />
-        <Heading size="md" flex={1} textAlign="center">
-          Staff
-        </Heading>
-      </HStack>
-
-      {/* Controls Bar */}
-      <HStack
-        px={4}
-        py={2}
-        alignItems="center"
-        justifyContent="flex-end"
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
-        bg="coolGray.50"
-      >
-        <HStack space={2} alignItems="center">
-          <Input
-            w="40%"
-            placeholder="Search..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            InputLeftElement={
-              <MaterialIcons
-                name="search"
-                size={24}
-                color="gray.400"
-                style={{ marginLeft: 8 }}
-              />
-            }
-          />
-          <IconButton
-            icon={
-              <MaterialIcons
-                name={viewType === "list" ? "grid-view" : "view-list"}
-                size={24}
-                color="coolGray.600"
-              />
-            }
-            onPress={() => setViewType(viewType === "list" ? "grid" : "list")}
-          />
-          <Select
-            w="110"
-            selectedValue={sortBy}
-            onValueChange={setSortBy}
-            placeholder="Sort by"
-            _selectedItem={{
-              endIcon: <CheckIcon size={4} />,
-            }}
-            defaultValue=""
-            alignSelf="center"
-          >
-            <Select.Item label="Name" value="name" />
-            <Select.Item label="Role" value="role" />
-          </Select>
-          <IconButton
-            icon={
-              <MaterialIcons
-                name={sortOrder === "asc" ? "arrow-upward" : "arrow-downward"}
-                size={24}
-                color="coolGray.600"
-              />
-            }
-            onPress={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-          />
+      <Header title="Staff" />
+      <ScrollView>
+        {/* Controls Bar */}
+        <HStack
+          px={4}
+          py={2}
+          alignItems="center"
+          justifyContent="flex-end"
+          borderBottomWidth={1}
+          borderBottomColor="coolGray.200"
+          bg="coolGray.50"
+          pl={20} // Add left padding to move the section to the right
+        >
+          <HStack space={2} alignItems="center">
+            <Input
+              w="40%"
+              placeholder="Search..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              InputLeftElement={
+                <MaterialIcons
+                  name="search"
+                  size={24}
+                  color="gray.400"
+                  style={{ marginLeft: 15 }}
+                />
+              }
+            />
+            <IconButton
+              icon={
+                <MaterialIcons
+                  name={viewType === "list" ? "grid-view" : "view-list"}
+                  size={24}
+                  color="coolGray.600"
+                />
+              }
+              onPress={() => setViewType(viewType === "list" ? "grid" : "list")}
+            />
+            <Select
+              w="110"
+              selectedValue={sortBy}
+              onValueChange={setSortBy}
+              placeholder="Sort by"
+              _selectedItem={{
+                endIcon: <CheckIcon size={4} />,
+              }}
+              defaultValue="name"
+              alignSelf="center"
+            >
+              <Select.Item label="Name" value="name" />
+              <Select.Item label="Role" value="role" />
+            </Select>
+            <IconButton
+              icon={
+                <MaterialIcons
+                  name={sortOrder === "asc" ? "arrow-upward" : "arrow-downward"}
+                  size={24}
+                  color="coolGray.600"
+                />
+              }
+              onPress={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            />
+          </HStack>
         </HStack>
-      </HStack>
 
-      {/* Search and Filters */}
-      <VStack px={4} space={2}>
-        <HStack space={2}>
-          <Select
-            flex={1}
-            selectedValue={filterRole}
-            onValueChange={setFilterRole}
-            placeholder="Filter by role"
-            _selectedItem={{
-              endIcon: <CheckIcon size={4} />,
+        {/* Search and Filters */}
+        <VStack px={3} space={4} mt={2}>
+          {" "}
+          {/* Adjusted top space and reduced vertical space */}
+          <HStack space={1}>
+            {" "}
+            {/* Reduced horizontal space */}
+            <Select
+              flex={1}
+              selectedValue={filterRole}
+              onValueChange={setFilterRole}
+              placeholder="Filter by role"
+              _selectedItem={{
+                endIcon: <CheckIcon size={4} />,
+              }}
+              fontSize="sm" // Reduced font size
+              py={1} // Reduced padding
+            >
+              <Select.Item label="All Roles" value="" />
+              {uniqueRoles.map((role) => (
+                <Select.Item key={role} label={role} value={role} />
+              ))}
+            </Select>
+            <Select
+              flex={1}
+              selectedValue={filterStatus}
+              onValueChange={setFilterStatus}
+              placeholder="Filter by status"
+              _selectedItem={{
+                endIcon: <CheckIcon size={4} />,
+              }}
+              fontSize="sm" // Reduced font size
+              py={1} // Reduced padding
+            >
+              <Select.Item label="All Status" value="" />
+              <Select.Item label="Present" value="present" />
+              <Select.Item label="Absent" value="absent" />
+              <Select.Item label="On Leave" value="on leave" />
+            </Select>
+          </HStack>
+        </VStack>
+
+        {/* Staff List */}
+        {isLoading ? (
+          <Box flex={1} justifyContent="center" alignItems="center">
+            <Spinner size="lg" />
+            <Text mt={2}>Loading staff list...</Text>
+          </Box>
+        ) : (
+          <FlatList
+            data={filteredStaff}
+            renderItem={viewType === "list" ? renderStaffItem : renderGridItem}
+            keyExtractor={(item) => item.staff_id?.toString()}
+            numColumns={viewType === "grid" ? 2 : 1}
+            key={viewType}
+            contentContainerStyle={{
+              paddingHorizontal: 4,
+              paddingVertical: 20,
             }}
-          >
-            <Select.Item label="All Roles" value="" />
-            {uniqueRoles.map((role) => (
-              <Select.Item key={role} label={role} value={role} />
-            ))}
-          </Select>
-          <Select
-            flex={1}
-            selectedValue={filterStatus}
-            onValueChange={setFilterStatus}
-            placeholder="Filter by status"
-            _selectedItem={{
-              endIcon: <CheckIcon size={4} />,
-            }}
-          >
-            <Select.Item label="All Status" value="" />
-            <Select.Item label="Present" value="present" />
-            <Select.Item label="Absent" value="absent" />
-            <Select.Item label="On Leave" value="on leave" />
-          </Select>
-        </HStack>
-      </VStack>
+            ListEmptyComponent={
+              <Box flex={1} justifyContent="center" alignItems="center" py={10}>
+                <Text color="gray.500">No staff members found</Text>
+              </Box>
+            }
+          />
+        )}
 
-      {/* Staff List */}
-      {isLoading ? (
-        <Box flex={1} justifyContent="center" alignItems="center">
-          <Spinner size="lg" />
-          <Text mt={2}>Loading staff list...</Text>
-        </Box>
-      ) : (
-        <FlatList
-          data={filteredStaff}
-          renderItem={viewType === "list" ? renderStaffItem : renderGridItem}
-          keyExtractor={(item) => item.staff_id?.toString()}
-          numColumns={viewType === "grid" ? 2 : 1}
-          key={viewType}
-          contentContainerStyle={{ paddingHorizontal: 4, paddingVertical: 20 }}
-          ListEmptyComponent={
-            <Box flex={1} justifyContent="center" alignItems="center" py={10}>
-              <Text color="gray.500">No staff members found</Text>
-            </Box>
-          }
-        />
-      )}
-
-      {/* Add Staff FAB */}
+        {/* Add Staff FAB */}
+      </ScrollView>
       <Fab
         renderInPortal={false}
         shadow={2}
         size="sm"
+        colorScheme="green"
         icon={<MaterialIcons name="add" size={24} color="white" />}
         onPress={() => router.push("/staff/add")}
+        position="absolute"
+        bottom={4}
+        right={4}
       />
     </Box>
   );

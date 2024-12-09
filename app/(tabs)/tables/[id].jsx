@@ -20,6 +20,9 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Header from "../../components/Header";
+import * as FileSystem from "expo-file-system";
+import * as MediaLibrary from "expo-media-library";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -131,6 +134,46 @@ export default function TableDetailsScreen() {
     }
   };
 
+  const downloadQRCode = async () => {
+    try {
+      // Request permissions first
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        toast.show({
+          description: "Permission to access media library was denied",
+          status: "error",
+        });
+        return;
+      }
+
+      // Download the image
+      const fileUri =
+        FileSystem.documentDirectory +
+        `table_${tableDetails.table_number}_qr.png`;
+      const downloadResult = await FileSystem.downloadAsync(
+        tableDetails.qr_code_url,
+        fileUri
+      );
+
+      if (downloadResult.status === 200) {
+        // Save to device
+        const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
+        await MediaLibrary.createAlbumAsync("MenuMitra QR Codes", asset, false);
+
+        toast.show({
+          description: "QR Code saved to gallery",
+          status: "success",
+        });
+      }
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.show({
+        description: "Failed to download QR Code",
+        status: "error",
+      });
+    }
+  };
+
   return (
     <Box
       flex={1}
@@ -138,22 +181,8 @@ export default function TableDetailsScreen() {
       safeArea
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
     >
-      {/* Header */}
-      <Box px={4} py={3} borderBottomWidth={1} borderBottomColor="coolGray.200">
-        <HStack alignItems="center" justifyContent="space-between">
-          <IconButton
-            icon={
-              <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
-            }
-            onPress={() => router.back()}
-          />
-          <Heading size="md">Table Details</Heading>
-          <IconButton
-            icon={<MaterialIcons name="delete" size={24} color="red.500" />}
-            onPress={() => setShowDeleteModal(true)}
-          />
-        </HStack>
-      </Box>
+      {/* New Header */}
+      <Header title="Table Details" />
 
       {loading ? (
         <Box flex={1} justifyContent="center" alignItems="center">
@@ -190,7 +219,26 @@ export default function TableDetailsScreen() {
                   </Text>
                 </HStack>
 
-                {/* QR Code Section */}
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="md" color="coolGray.600">
+                    Status:
+                  </Text>
+                  <Badge
+                    colorScheme={
+                      tableDetails?.is_occupied === 1 ? "red" : "green"
+                    }
+                    rounded="md"
+                    variant="solid"
+                  >
+                    <Text color="white" fontSize="sm" fontWeight="medium">
+                      {tableDetails?.is_occupied === 1
+                        ? "Occupied"
+                        : "Available"}
+                    </Text>
+                  </Badge>
+                </HStack>
+
+                {/* QR Code Section with Download Button */}
                 {tableDetails?.qr_code_url && (
                   <VStack space={2} alignItems="center" mt={4}>
                     <Text fontSize="md" color="coolGray.600">
@@ -210,6 +258,20 @@ export default function TableDetailsScreen() {
                         resizeMode="contain"
                       />
                     </Box>
+                    <Button
+                      mt={4}
+                      leftIcon={
+                        <MaterialIcons
+                          name="file-download"
+                          size={20}
+                          color="white"
+                        />
+                      }
+                      onPress={downloadQRCode}
+                      colorScheme="primary"
+                    >
+                      Download QR Code
+                    </Button>
                   </VStack>
                 )}
               </VStack>

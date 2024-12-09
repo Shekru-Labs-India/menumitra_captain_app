@@ -4,7 +4,6 @@ import {
   Heading,
   VStack,
   IconButton,
-  Icon,
   Text,
   HStack,
   Avatar,
@@ -16,6 +15,7 @@ import {
   Badge,
   Divider,
   Spinner,
+  Pressable,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -226,223 +226,201 @@ export default function SupplierDetails() {
   };
 
   return (
-    <Box
-      flex={1}
-      bg="white"
-      safeArea
-      pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
-    >
+    <Box flex={1} bg="white" safeArea>
       {/* Header */}
       <Box
         px={4}
-        py={3}
+        py={4}
+        bg="white"
         borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
-        bg="coolGray.50"
+        borderBottomColor="gray.200"
       >
-        <IconButton
-          position="absolute"
-          left={2}
-          top={2}
-          icon={
-            <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
-          }
-          onPress={() => router.back()}
-        />
-        <Heading textAlign="center">Supplier Details</Heading>
-        <HStack position="absolute" right={2} top={2} space={2}>
-          <IconButton
-            icon={
-              <MaterialIcons name="inventory" size={24} color="coolGray.600" />
-            }
-            onPress={handleInventoryPress}
-          />
-          <IconButton
-            icon={
-              <MaterialIcons name="delete-outline" size={24} color="red.500" />
-            }
+        <HStack alignItems="center" justifyContent="space-between">
+          <Pressable
+            onPress={() => router.back()}
+            p={2}
+            rounded="full"
+            _pressed={{ bg: "coolGray.100" }}
+          >
+            <MaterialIcons
+              name="arrow-back"
+              size={24}
+              style={{ color: "#6b7280" }}
+            />
+          </Pressable>
+          <Heading size="md">Supplier Details</Heading>
+          <Pressable
             onPress={() => setIsDeleteOpen(true)}
-          />
+            p={2}
+            rounded="full"
+            _pressed={{ bg: "coolGray.100" }}
+          >
+            <MaterialIcons
+              name="delete-outline"
+              size={24}
+              style={{ color: "#ef4444" }}
+            />
+          </Pressable>
         </HStack>
       </Box>
 
       <ScrollView>
-        {/* Profile Section */}
-        <Box p={4} bg="white">
-          <HStack space={4} alignItems="center">
+        <VStack space={6} p={4}>
+          {/* Profile Section */}
+          <VStack space={4} alignItems="center">
             <Avatar size="2xl" bg="cyan.500">
-              {supplier.name.charAt(0)}
+              {supplier.name?.charAt(0)}
             </Avatar>
-            <VStack flex={1} space={2}>
-              <Text fontSize="2xl" fontWeight="bold">
-                {supplier.name}
-              </Text>
+            <VStack space={2} alignItems="center">
+              <Heading size="xl">{supplier.name}</Heading>
               <Badge
                 colorScheme={getStatusColor(supplier.status)}
-                variant="subtle"
                 rounded="full"
-                _text={{ fontSize: "sm" }}
+                px={3}
+                py={1}
               >
-                {supplier.status || "Not Specified"}
+                {supplier.status?.charAt(0).toUpperCase() +
+                  supplier.status?.slice(1) || "Not Specified"}
               </Badge>
               <Text fontSize="md" color="coolGray.600">
                 Code: {supplier.supplierCode}
               </Text>
             </VStack>
-          </HStack>
-        </Box>
+          </VStack>
 
-        <Divider />
+          <Divider />
 
-        {/* Contact Information */}
-        <Box p={3} bg="white">
-          <VStack space={3}>
-            <Heading size="md">Contact Information</Heading>
-
-            <HStack justifyContent="space-between" alignItems="center">
-              <HStack space={1} alignItems="center">
+          {/* Contact Information */}
+          <VStack space={2}>
+            <Heading size="md">Contact Details</Heading>
+            <VStack space={4} bg="coolGray.50" p={3} rounded="lg">
+              {/* Primary Contact */}
+              <HStack space={3} alignItems="center">
+                <Box p={2} bg="blue.100" rounded="full">
+                  <MaterialIcons name="phone" size={20} color="blue.500" />
+                </Box>
+                <VStack flex={1}>
+                  <Text color="coolGray.500" fontSize="sm">
+                    Primary Contact
+                  </Text>
+                  <Text fontSize="md">{supplier.mobileNumber1}</Text>
+                </VStack>
                 <IconButton
-                  size="sm"
                   icon={
-                    <MaterialIcons
-                      name="phone"
-                      size={20}
-                      color="coolGray.500"
-                    />
+                    <MaterialIcons name="call" size={20} color="green.500" />
                   }
                   onPress={() => handleCall(supplier.mobileNumber1)}
+                  bg="green.100"
+                  rounded="full"
                 />
-                <Text fontWeight="medium">Primary Contact:</Text>
               </HStack>
-              <Text onPress={() => handleCall(supplier.mobileNumber1)}>
-                {supplier.mobileNumber1}
-              </Text>
-            </HStack>
 
-            <HStack justifyContent="space-between" alignItems="center">
-              <HStack space={1} alignItems="center">
-                <IconButton
-                  size="sm"
-                  icon={
-                    <MaterialIcons
-                      name="phone"
-                      size={20}
-                      color="coolGray.500"
-                    />
-                  }
-                  onPress={() => handleCall(supplier.mobileNumber2)}
-                />
-                <Text fontWeight="medium">Secondary Contact:</Text>
-              </HStack>
-              <Text onPress={() => handleCall(supplier.mobileNumber2)}>
-                {supplier.mobileNumber2}
-              </Text>
-            </HStack>
+              {/* Secondary Contact */}
+              {supplier.mobileNumber2 && (
+                <HStack space={3} alignItems="center">
+                  <Box p={2} bg="blue.100" rounded="full">
+                    <MaterialIcons name="phone" size={20} color="blue.500" />
+                  </Box>
+                  <VStack flex={1}>
+                    <Text color="coolGray.500" fontSize="sm">
+                      Secondary Contact
+                    </Text>
+                    <Text fontSize="md">{supplier.mobileNumber2}</Text>
+                  </VStack>
+                  <IconButton
+                    icon={
+                      <MaterialIcons name="call" size={20} color="green.500" />
+                    }
+                    onPress={() => handleCall(supplier.mobileNumber2)}
+                    bg="green.100"
+                    rounded="full"
+                  />
+                </HStack>
+              )}
 
-            <HStack justifyContent="space-between" alignItems="center">
-              <HStack space={1} alignItems="center">
-                <IconButton
-                  size="sm"
-                  icon={
-                    <MaterialIcons
-                      name="language"
-                      size={20}
-                      color="coolGray.500"
-                    />
-                  }
-                  onPress={() => handleWebsite(supplier.website)}
-                />
-                <Text fontWeight="medium">Website:</Text>
+              {/* Website */}
+              {supplier.website && (
+                <HStack space={3} alignItems="center">
+                  <Box p={2} bg="blue.100" rounded="full">
+                    <MaterialIcons name="language" size={20} color="blue.500" />
+                  </Box>
+                  <VStack flex={1}>
+                    <Text color="coolGray.500" fontSize="sm">
+                      Website
+                    </Text>
+                    <Text
+                      fontSize="md"
+                      color="blue.500"
+                      onPress={() => handleWebsite(supplier.website)}
+                    >
+                      {supplier.website}
+                    </Text>
+                  </VStack>
+                </HStack>
+              )}
+
+              {/* Address */}
+              <HStack space={3} alignItems="center">
+                <Box p={2} bg="blue.100" rounded="full">
+                  <MaterialIcons
+                    name="location-on"
+                    size={20}
+                    color="blue.500"
+                  />
+                </Box>
+                <VStack flex={1}>
+                  <Text color="coolGray.500" fontSize="sm">
+                    Address
+                  </Text>
+                  <Text fontSize="md">
+                    {supplier.address || "Address not provided"}
+                  </Text>
+                </VStack>
               </HStack>
-              <Text
-                color="blue.500"
-                underline
-                onPress={() => handleWebsite(supplier.website)}
-              >
-                {supplier.website || "Not specified"}
-              </Text>
-            </HStack>
+            </VStack>
           </VStack>
-        </Box>
 
-        <Divider />
+          <Divider />
 
-        {/* Business Information */}
-        <Box p={4} bg="white">
+          {/* Business Information */}
           <VStack space={4}>
-            <Heading size="md" mb={2}>
-              Business Information
-            </Heading>
-
-            <HStack justifyContent="space-between" alignItems="center">
-              <HStack space={2} alignItems="center">
-                <MaterialIcons name="star" size={20} color="coolGray.500" />
-                <Text fontWeight="medium">Credit Rating:</Text>
-              </HStack>
-              <Badge
-                colorScheme={getCreditRatingColor(supplier.creditRating)}
-                variant="subtle"
-                rounded="full"
-              >
-                {supplier.creditRating || "Not Rated"}
-              </Badge>
-            </HStack>
-
-            <HStack justifyContent="space-between" alignItems="center">
-              <HStack space={2} alignItems="center">
-                <MaterialIcons
-                  name="account-balance-wallet"
-                  size={20}
-                  color="coolGray.500"
-                />
-                <Text fontWeight="medium">Credit Limit:</Text>
-              </HStack>
-              <Text>{supplier.creditLimit || "Not specified"}</Text>
-            </HStack>
-
-            <HStack justifyContent="space-between" alignItems="center">
-              <HStack space={2} alignItems="center">
-                <MaterialIcons name="person" size={20} color="coolGray.500" />
-                <Text fontWeight="medium">Owner Name:</Text>
-              </HStack>
-              <Text>{supplier.ownerName || "Not specified"}</Text>
-            </HStack>
-
-            <HStack justifyContent="space-between" alignItems="center">
-              <HStack space={2} alignItems="center">
-                <MaterialIcons
-                  name="location-on"
-                  size={20}
-                  color="coolGray.500"
-                />
-                <Text fontWeight="medium">Location:</Text>
-              </HStack>
-              <Text>{supplier.location || "Not specified"}</Text>
-            </HStack>
+            <Heading size="md">Business Details</Heading>
+            <VStack space={4} bg="coolGray.50" p={4} rounded="lg">
+              <VStack space={3}>
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.500">Owner Name</Text>
+                  <Text>{supplier.ownerName || "Not specified"}</Text>
+                </HStack>
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.500">Location</Text>
+                  <Text>{supplier.location || "Not specified"}</Text>
+                </HStack>
+                <Divider />
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.500">Credit Rating</Text>
+                  <Badge
+                    colorScheme={getCreditRatingColor(supplier.creditRating)}
+                    variant="subtle"
+                    rounded="full"
+                  >
+                    {supplier.creditRating || "Not Rated"}
+                  </Badge>
+                </HStack>
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.500">Credit Limit</Text>
+                  <Text>{supplier.creditLimit || "Not specified"}</Text>
+                </HStack>
+              </VStack>
+            </VStack>
           </VStack>
-        </Box>
-
-        <Divider />
-
-        {/* Address */}
-        <Box p={4} bg="white">
-          <VStack space={2}>
-            <HStack space={2} alignItems="center">
-              <MaterialIcons name="home" size={20} color="coolGray.600" />
-              <Heading size="md">Address</Heading>
-            </HStack>
-            <Text color="coolGray.600">
-              {supplier.address || "Address not specified"}
-            </Text>
-          </VStack>
-        </Box>
+        </VStack>
       </ScrollView>
 
       {/* Edit FAB */}
       <Fab
         renderInPortal={false}
         shadow={3}
-        size="md"
+        size="sm"
         icon={<MaterialIcons name="edit" size={24} color="white" />}
         onPress={() => router.push(`/staff/suppliers/edit/${id}`)}
         position="absolute"

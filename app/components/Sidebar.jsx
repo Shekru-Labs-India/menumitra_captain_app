@@ -1,46 +1,28 @@
 import {
   StyleSheet,
   View,
-  Text,
   TouchableOpacity,
   Platform,
   StatusBar,
+  Linking,
 } from "react-native";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useVersion } from "../../context/VersionContext";
 import { useAuth } from "../../context/AuthContext";
+import { Box, VStack, HStack, Text, Pressable, Image, Icon } from "native-base";
 
 export default function Sidebar({ isOpen, onClose }) {
   const { version, appName } = useVersion();
   const { logout } = useAuth();
 
   const menuItems = [
-    {
-      title: "Home",
-      icon: "home",
-      route: "/(tabs)",
-    },
-    {
-      title: "Staff",
-      icon: "people",
-      route: "/(tabs)/staff",
-    },
-    {
-      title: "Orders",
-      icon: "receipt",
-      route: "/(tabs)/orders",
-    },
-    {
-      title: "Profile",
-      icon: "account-circle",
-      route: "/(tabs)/profile",
-    },
-    {
-      title: "Inventory",
-      icon: "inventory",
-      route: "/(tabs)/staff/inventory",
-    },
+    { title: "Home", icon: "home", route: "/(tabs)" },
+    { title: "Staff", icon: "people", route: "/(tabs)/staff" },
+    { title: "Orders", icon: "receipt", route: "/(tabs)/orders" },
+    { title: "Profile", icon: "account-circle", route: "/(tabs)/profile" },
+    { title: "Inventory", icon: "inventory", route: "/(tabs)/staff/inventory" },
     {
       title: "Inventory Report",
       icon: "assessment",
@@ -72,17 +54,17 @@ export default function Sidebar({ isOpen, onClose }) {
   return (
     <View style={styles.overlay}>
       <TouchableOpacity style={styles.overlayBg} onPress={onClose} />
-      <View style={styles.sidebar}>
-        <View style={styles.sidebarHeader}>
+      <Box style={styles.sidebar}>
+        <Box style={styles.sidebarHeader}>
           <Text style={styles.headerTitle}>Menu</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <MaterialIcons name="close" size={24} color="#333" />
           </TouchableOpacity>
-        </View>
+        </Box>
 
-        <View style={styles.menuContainer}>
+        <VStack space={1} style={styles.menuContainer}>
           {menuItems.map((item, index) => (
-            <TouchableOpacity
+            <Pressable
               key={index}
               style={styles.sidebarItem}
               onPress={() => handleNavigation(item.route)}
@@ -92,24 +74,114 @@ export default function Sidebar({ isOpen, onClose }) {
                 {item.title}
               </Text>
               <MaterialIcons name="chevron-right" size={24} color="#ccc" />
-            </TouchableOpacity>
+            </Pressable>
           ))}
-        </View>
+        </VStack>
 
-        <TouchableOpacity
+        <Pressable
           style={[styles.sidebarItem, styles.logoutItem]}
           onPress={handleLogout}
         >
           <MaterialIcons name="logout" size={24} color="#FF3B30" />
           <Text style={[styles.sidebarText, styles.logoutText]}>Logout</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <View style={styles.footer}>
-          <Text style={styles.version}>
-            {appName} v{version}
-          </Text>
-        </View>
-      </View>
+        <Box borderTopWidth={1} borderTopColor="coolGray.200" p={4}>
+          <VStack space={3} alignItems="center">
+            <HStack space={2} alignItems="center">
+              <Image
+                source={require("../../assets/images/mm-logo.png")}
+                alt="MenuMitra Logo"
+                style={{ width: 35, height: 35 }}
+                resizeMode="contain"
+              />
+              <Text fontSize="md" fontWeight="semibold" color="coolGray.700">
+                MenuMitra
+              </Text>
+            </HStack>
+
+            <HStack space={8} justifyContent="center" mt={2}>
+              <Pressable
+                onPress={() =>
+                  Linking.openURL(
+                    "https://www.facebook.com/people/Menu-Mitra/61565082412478/"
+                  )
+                }
+              >
+                <Icon
+                  as={MaterialCommunityIcons}
+                  name="facebook"
+                  size={7}
+                  color="#1877F2"
+                />
+              </Pressable>
+              <Pressable
+                onPress={() =>
+                  Linking.openURL("https://www.instagram.com/menumitra/")
+                }
+              >
+                <Icon
+                  as={MaterialCommunityIcons}
+                  name="instagram"
+                  size={7}
+                  color="#E4405F"
+                />
+              </Pressable>
+              <Pressable
+                onPress={() =>
+                  Linking.openURL("https://www.youtube.com/@menumitra")
+                }
+              >
+                <Icon
+                  as={MaterialCommunityIcons}
+                  name="youtube"
+                  size={7}
+                  color="#FF0000"
+                />
+              </Pressable>
+              <Pressable
+                onPress={() => Linking.openURL("https://x.com/MenuMitra")}
+              >
+                <Icon
+                  as={MaterialCommunityIcons}
+                  name="twitter"
+                  size={7}
+                  color="#000000"
+                />
+              </Pressable>
+            </HStack>
+
+            <VStack space={1} alignItems="center" mt={2} mb={2}>
+              <HStack space={1} alignItems="center">
+                <Icon
+                  as={MaterialCommunityIcons}
+                  name="flash"
+                  size={3}
+                  color="gray.500"
+                />
+                <Text fontSize="xs" color="gray.500">
+                  Powered by
+                </Text>
+              </HStack>
+              <Pressable
+                onPress={() => Linking.openURL("https://www.shekruweb.com")}
+              >
+                <Text
+                  fontSize="xs"
+                  color="#4CAF50"
+                  fontWeight="medium"
+                  textAlign="center"
+                >
+                  Shekru Labs India Pvt. Ltd.
+                </Text>
+              </Pressable>
+              <Text fontSize="2xs" color="gray.500" mt={1} textAlign="center">
+                version {version || "1.0.0"}
+              </Text>
+            </VStack>
+          </VStack>
+        </Box>
+      </Box>
     </View>
   );
 }
@@ -188,15 +260,5 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: "#FF3B30",
-  },
-  footer: {
-    padding: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-    alignItems: "center",
-  },
-  version: {
-    fontSize: 12,
-    color: "#666",
   },
 });

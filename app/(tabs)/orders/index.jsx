@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
+import Header from "../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -195,29 +196,20 @@ export default function OrdersScreen() {
 
   return (
     <Box flex={1} bg="gray.50" safeArea>
-      <VStack space={4} flex={1}>
-        {/* Header */}
-        <Box px={4} py={3} bg="white" shadow={2} mb={1}>
-          <HStack alignItems="center" justifyContent="space-between">
-            <IconButton
-              icon={
-                <MaterialIcons name="arrow-back" size={24} color="#333333" />
-              }
-              onPress={() => router.back()}
-              variant="ghost"
-              _pressed={{ bg: "gray.100" }}
-              position="absolute"
-              left={0}
-              zIndex={1}
-            />
-            <Heading size="md" flex={1} textAlign="center">
-              Orders
-            </Heading>
-          </HStack>
-        </Box>
-
+      <Header title="Orders" />
+      <VStack flex={1}>
         {/* Filters */}
-        <HStack px={4} py={2} space={2} alignItems="center">
+        <HStack
+          px={4}
+          py={2}
+          pl={6}
+          pr={0}
+          space={2}
+          alignItems="center"
+          borderBottomWidth={1}
+          borderBottomColor="coolGray.200"
+          bg="coolGray.50"
+        >
           <Input
             flex={1}
             placeholder="Search orders..."
@@ -227,7 +219,7 @@ export default function OrdersScreen() {
               <MaterialIcons
                 name="search"
                 size={20}
-                color="gray"
+                color="coolGray.400"
                 style={{ marginLeft: 8 }}
               />
             }
@@ -247,6 +239,11 @@ export default function OrdersScreen() {
             selectedValue={sortBy}
             onValueChange={setSortBy}
             placeholder="Sort by"
+            _selectedItem={{
+              endIcon: (
+                <MaterialIcons name="check" size={16} color="coolGray.600" />
+              ),
+            }}
           >
             <Select.Item label="Date" value="date" />
             <Select.Item label="Amount" value="amount" />

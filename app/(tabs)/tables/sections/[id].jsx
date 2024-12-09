@@ -670,6 +670,7 @@ export default function SectionTablesScreen() {
   // Update DeleteConfirmationModal to handle loading state
   const DeleteConfirmationModal = () => {
     const [isDeleting, setIsDeleting] = useState(false);
+    const hasOccupiedTables = tables.some((table) => table.is_occupied === 1);
 
     const handleDelete = async () => {
       setIsDeleting(true);
@@ -677,6 +678,42 @@ export default function SectionTablesScreen() {
       setIsDeleting(false);
     };
 
+    // If there are occupied tables, don't show delete option
+    if (hasOccupiedTables) {
+      return (
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+        >
+          <Modal.Content maxWidth="400px">
+            <Modal.CloseButton />
+            <Modal.Header>Cannot Delete Section</Modal.Header>
+            <Modal.Body>
+              <VStack space={3}>
+                <Box bg="orange.100" p={3} rounded="md">
+                  <Text color="orange.800">
+                    This section has occupied tables and cannot be deleted.
+                    Please ensure all tables are available before deleting the
+                    section.
+                  </Text>
+                </Box>
+              </VStack>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button
+                variant="outline"
+                onPress={() => setShowDeleteModal(false)}
+                width="100%"
+              >
+                Close
+              </Button>
+            </Modal.Footer>
+          </Modal.Content>
+        </Modal>
+      );
+    }
+
+    // Original delete confirmation dialog for sections without occupied tables
     return (
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
         <Modal.Content maxWidth="400px">
@@ -688,14 +725,6 @@ export default function SectionTablesScreen() {
                 Are you sure you want to delete "{currentSection?.name || ""}"?
                 This action cannot be undone.
               </Text>
-              {currentSection?.engagedTables > 0 && (
-                <Box bg="orange.100" p={3} rounded="md">
-                  <Text color="orange.800">
-                    Warning: This section has {currentSection.engagedTables}{" "}
-                    occupied tables.
-                  </Text>
-                </Box>
-              )}
             </VStack>
           </Modal.Body>
           <Modal.Footer>
@@ -731,10 +760,6 @@ export default function SectionTablesScreen() {
   };
 
   // Add getRandomColor function that was missing
-  const getRandomColor = () => {
-    const colors = ["#4CAF50", "#2196F3", "#9C27B0", "#FF9800", "#E91E63"];
-    return colors[Math.floor(Math.random() * colors.length)];
-  };
 
   // Update the handleAddTable function
   const handleAddTable = async () => {

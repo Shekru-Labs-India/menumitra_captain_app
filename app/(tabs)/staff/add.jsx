@@ -22,6 +22,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Platform, StatusBar } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import Header from "../../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
@@ -59,7 +60,7 @@ export default function AddStaffScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaType.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
@@ -318,28 +319,13 @@ export default function AddStaffScreen() {
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
     >
       <Box
-        px={4}
-        py={3}
+        px={0}
+        py={0}
         borderBottomWidth={1}
         borderBottomColor="coolGray.200"
         bg="coolGray.50"
       >
-        <HStack alignItems="center" justifyContent="space-between">
-          <IconButton
-            icon={
-              <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
-            }
-            onPress={() => router.back()}
-            variant="ghost"
-            _pressed={{ bg: "gray.100" }}
-            position="absolute"
-            left={0}
-            zIndex={1}
-          />
-          <Heading size="md" flex={1} textAlign="center">
-            Add New Staff
-          </Heading>
-        </HStack>
+        <Header title="Add New Staff" />
       </Box>
 
       <ScrollView px={4} py={4}>
@@ -375,7 +361,7 @@ export default function AddStaffScreen() {
             <Input
               value={formData.name}
               onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder="Enter staff member's full name"
+              placeholder="Enter Full Name"
               autoCapitalize="words"
             />
           </FormControl>
@@ -402,9 +388,6 @@ export default function AddStaffScreen() {
                 />
               ))}
             </Select>
-            {isLoadingRoles && (
-              <FormControl.HelperText>Loading roles...</FormControl.HelperText>
-            )}
           </FormControl>
 
           <FormControl isRequired>
@@ -412,13 +395,10 @@ export default function AddStaffScreen() {
             <Input
               value={formData.phone}
               onChangeText={(text) => setFormData({ ...formData, phone: text })}
-              placeholder="Enter 10-digit mobile number"
+              placeholder="Enter  Mobile Number"
               keyboardType="numeric"
               maxLength={10}
             />
-            <FormControl.HelperText>
-              Must start with 6, 7, 8, or 9
-            </FormControl.HelperText>
           </FormControl>
 
           <FormControl isRequired>
@@ -429,9 +409,6 @@ export default function AddStaffScreen() {
               placeholder="YYYY-MM-DD"
               keyboardType="numeric"
             />
-            <FormControl.HelperText>
-              Format: YYYY-MM-DD (e.g., 1990-12-31)
-            </FormControl.HelperText>
           </FormControl>
 
           <FormControl isRequired>
@@ -458,9 +435,6 @@ export default function AddStaffScreen() {
               autoCompleteType={undefined}
               h={20}
             />
-            <FormControl.HelperText>
-              Minimum 10 characters required
-            </FormControl.HelperText>
           </FormControl>
 
           <Button

@@ -15,6 +15,7 @@ import {
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import Header from "../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -41,9 +42,17 @@ export default function OrderDetailsScreen() {
       discount_percent: 0.0,
       discount_amount: 0.0,
       grand_total: 81.6,
-      datetime: "06-Dec-2024 08:27:09 PM",
+      datetime: "06-Dec-2024 08:27 PM",
     },
     menu_details: [
+      {
+        menu_id: 116,
+        menu_name: "Medu Vada",
+        price: 80,
+        quantity: 1,
+        offer: 0,
+        menu_sub_total: 80.0,
+      },
       {
         menu_id: 116,
         menu_name: "Medu Vada",
@@ -118,24 +127,7 @@ export default function OrderDetailsScreen() {
 
   return (
     <Box flex={1} bg="gray.50" safeArea position="relative">
-      <Box px={4} py={3} bg="white" shadow={2} mb={1}>
-        <HStack alignItems="center" justifyContent="space-between">
-          <IconButton
-            icon={
-              <MaterialIcons name="arrow-back" size={24} color="gray.800" />
-            }
-            onPress={() => router.back()}
-            variant="ghost"
-            _pressed={{ bg: "gray.100" }}
-            position="absolute"
-            left={0}
-            zIndex={1}
-          />
-          <Heading size="md" flex={1} textAlign="center">
-            Order Details
-          </Heading>
-        </HStack>
-      </Box>
+      <Header title="Order Details" />
 
       <ScrollView flex={1} px={4}>
         {/* Order Status and Date */}
@@ -191,50 +183,43 @@ export default function OrderDetailsScreen() {
           </HStack>
         </Box>
         {/* Menu Items */}
-        {menu_details.map((item) => (
-          <Box
-            key={item.menu_id}
-            bg="white"
-            rounded="lg"
-            shadow={1}
-            mb={4}
-            p={4}
-          >
-            <VStack space={2}>
-              <HStack justifyContent="space-between" alignItems="center">
-                <Text fontSize="md" fontWeight="semibold">
-                  {item.menu_name}
-                </Text>
-                {/* Always show offer badge, 0% if no offer */}
-                <Box
-                  bg={item.offer > 0 ? "red.500" : "gray.200"}
-                  px={2}
-                  py={1}
-                  rounded="full"
-                >
-                  <Text
-                    fontSize="xs"
-                    color={item.offer > 0 ? "white" : "gray.600"}
-                  >
-                    {item.offer}% Off
+        {menu_details.map((item, index) => (
+          <Box key={item.menu_id}>
+            <Box bg="white" rounded="lg" shadow={1} mb={2} p={4}>
+              <VStack space={2}>
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="md" fontWeight="semibold">
+                    {item.menu_name}
                   </Text>
-                </Box>
-              </HStack>
+                  {/* Only show offer badge if offer > 0 */}
+                  {item.offer > 0 && (
+                    <Box bg="red.500" px={2} py={1} rounded="full">
+                      <Text fontSize="xs" color="white">
+                        {item.offer}% Off
+                      </Text>
+                    </Box>
+                  )}
+                </HStack>
 
-              <HStack justifyContent="space-between" alignItems="center">
-                <HStack space={2} alignItems="center">
-                  <Text fontSize="md" fontWeight="semibold" color="blue.500">
-                    ₹{item.price.toFixed(2)}
-                  </Text>
-                  <Text fontSize="sm" color="gray.500">
-                    x{item.quantity}
+                <HStack justifyContent="space-between" alignItems="center">
+                  <HStack space={2} alignItems="center">
+                    <Text fontSize="md" fontWeight="semibold" color="blue.500">
+                      ₹{item.price.toFixed(2)}
+                    </Text>
+                    <Text fontSize="sm" color="gray.500">
+                      x{item.quantity}
+                    </Text>
+                  </HStack>
+                  <Text fontSize="md" color="gray.600">
+                    ₹{item.menu_sub_total.toFixed(2)}
                   </Text>
                 </HStack>
-                <Text fontSize="md" color="gray.600">
-                  ₹{item.menu_sub_total.toFixed(2)}
-                </Text>
-              </HStack>
-            </VStack>
+              </VStack>
+            </Box>
+            {/* Add divider if not the last item */}
+            {index < menu_details.length - 1 && (
+              <Box h={0.5} bg="gray.200" my={2} />
+            )}
           </Box>
         ))}
 
@@ -248,39 +233,41 @@ export default function OrderDetailsScreen() {
               <Text fontSize="sm">₹{order_details.total_bill.toFixed(2)}</Text>
             </HStack>
 
-            {/* Always show service charges */}
-            <HStack justifyContent="space-between">
-              <Text fontSize="sm" color="gray.500">
-                Service Charges ({order_details.service_charges_percent}%)
-              </Text>
-              <Text fontSize="sm">
-                ₹{order_details.service_charges_amount.toFixed(2)}
-              </Text>
-            </HStack>
+            {/* Show service charges only if percentage > 0 */}
+            {order_details.service_charges_percent > 0 && (
+              <HStack justifyContent="space-between">
+                <Text fontSize="sm" color="gray.500">
+                  Service Charges ({order_details.service_charges_percent}%)
+                </Text>
+                <Text fontSize="sm">
+                  ₹{order_details.service_charges_amount.toFixed(2)}
+                </Text>
+              </HStack>
+            )}
 
-            {/* Always show GST */}
-            <HStack justifyContent="space-between">
-              <Text fontSize="sm" color="gray.500">
-                GST ({order_details.gst_percent}%)
-              </Text>
-              <Text fontSize="sm">₹{order_details.gst_amount.toFixed(2)}</Text>
-            </HStack>
+            {/* Show GST only if percentage > 0 */}
+            {order_details.gst_percent > 0 && (
+              <HStack justifyContent="space-between">
+                <Text fontSize="sm" color="gray.500">
+                  GST ({order_details.gst_percent}%)
+                </Text>
+                <Text fontSize="sm">
+                  ₹{order_details.gst_amount.toFixed(2)}
+                </Text>
+              </HStack>
+            )}
 
-            {/* Always show discount */}
-            <HStack justifyContent="space-between">
-              <Text fontSize="sm" color="gray.500">
-                Discount ({order_details.discount_percent}%)
-              </Text>
-              <Text
-                fontSize="sm"
-                color={
-                  order_details.discount_amount > 0 ? "red.500" : "gray.500"
-                }
-              >
-                {order_details.discount_amount > 0 ? "-" : ""}₹
-                {order_details.discount_amount.toFixed(2)}
-              </Text>
-            </HStack>
+            {/* Show discount only if amount > 0 */}
+            {order_details.discount_amount > 0 && (
+              <HStack justifyContent="space-between">
+                <Text fontSize="sm" color="gray.500">
+                  Discount ({order_details.discount_percent}%)
+                </Text>
+                <Text fontSize="sm" color="red.500">
+                  -₹{order_details.discount_amount.toFixed(2)}
+                </Text>
+              </HStack>
+            )}
 
             <HStack
               justifyContent="space-between"
@@ -299,32 +286,24 @@ export default function OrderDetailsScreen() {
           </VStack>
         </Box>
 
-        {/* Invoice Button */}
-        <HStack justifyContent="flex-end" px={4} py={2} mb={4}>
-          <Pressable
-            flexDirection="row"
-            alignItems="center"
-            bg={invoice_url ? "blue.500" : "gray.200"}
-            px={4}
-            py={2}
-            rounded="full"
-            opacity={invoice_url ? 1 : 0.6}
-            disabled={!invoice_url}
-          >
-            <MaterialIcons
-              name="file-download"
-              size={16}
-              color={invoice_url ? "white" : "gray.500"}
-            />
-            <Text
-              fontSize="sm"
-              color={invoice_url ? "white" : "gray.500"}
-              ml={2}
+        {/* Invoice Button - Only show if invoice_url exists */}
+        {invoice_url && (
+          <HStack justifyContent="flex-end" px={4} py={2} mb={4}>
+            <Pressable
+              flexDirection="row"
+              alignItems="center"
+              bg="blue.500"
+              px={4}
+              py={2}
+              rounded="full"
             >
-              {invoice_url ? "Download Invoice" : "No Invoice Available"}
-            </Text>
-          </Pressable>
-        </HStack>
+              <MaterialIcons name="file-download" size={16} color="white" />
+              <Text fontSize="sm" color="white" ml={2}>
+                Download Invoice
+              </Text>
+            </Pressable>
+          </HStack>
+        )}
       </ScrollView>
     </Box>
   );

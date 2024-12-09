@@ -12,13 +12,14 @@ import {
   useToast,
   Input,
   Select,
-  SimpleGrid,
   Pressable,
+  Fab,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Header from "../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -32,6 +33,7 @@ export default function InventoryItemsScreen() {
   // Search, Sort, and View states
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
+  const [sortOrder, setSortOrder] = useState("asc");
   const [viewType, setViewType] = useState("list"); // 'list' or 'grid'
 
   const { refresh } = useLocalSearchParams();
@@ -77,24 +79,12 @@ export default function InventoryItemsScreen() {
       console.log("Inventory Response:", data);
 
       if (data.st === 1) {
-        // Map API data to include all fields
         const mappedItems = data.lists.map((item) => ({
           id: item.inventory_id,
           name: item.name,
-          supplierId: "", // Keeping existing fields with empty values
-          description: "",
-          category: item.type,
-          price: "",
+          category: item.type, // Ensure this matches your data structure
           quantity: item.quantity,
-          serialNo: "",
-          status: "in",
-          brandName: "",
-          tax: "",
-          paymentStatus: "pending",
-          orderId: "",
-          restaurant_id: item.restaurant_id,
           inventory_id: item.inventory_id,
-          type: item.type,
         }));
         setInventoryItems(mappedItems);
       } else {
@@ -118,21 +108,26 @@ export default function InventoryItemsScreen() {
   const filteredItems = inventoryItems.filter(
     (item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.type.toLowerCase().includes(searchQuery.toLowerCase())
+      item.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Sort function
   const sortedItems = [...filteredItems].sort((a, b) => {
+    let comparison = 0;
     switch (sortBy) {
       case "name":
-        return a.name.localeCompare(b.name);
+        comparison = a.name.localeCompare(b.name);
+        break;
       case "quantity":
-        return b.quantity - a.quantity;
+        comparison = b.quantity - a.quantity;
+        break;
       case "type":
-        return a.type.localeCompare(b.type);
+        comparison = a.category.localeCompare(b.category);
+        break;
       default:
-        return 0;
+        break;
     }
+    return sortOrder === "asc" ? comparison : -comparison;
   });
 
   const handleItemPress = (item) => {
@@ -161,17 +156,11 @@ export default function InventoryItemsScreen() {
                 {item.name}
               </Text>
               <Badge colorScheme="blue" rounded="full" variant="subtle">
-                {item.type}
+                {item.category}
               </Badge>
             </HStack>
 
             <HStack space={4} alignItems="center">
-              <HStack space={1} alignItems="center">
-                <MaterialIcons name="inventory" size={16} color="gray.500" />
-                <Text fontSize="sm" color="gray.500">
-                  ID: #{item.inventory_id}
-                </Text>
-              </HStack>
               <HStack space={1} alignItems="center">
                 <MaterialIcons name="layers" size={16} color="gray.500" />
                 <Text fontSize="sm" color="gray.500">
@@ -181,37 +170,6 @@ export default function InventoryItemsScreen() {
             </HStack>
           </VStack>
         </HStack>
-      </Box>
-    </Pressable>
-  );
-
-  const renderGridItem = ({ item }) => (
-    <Pressable flex={1} m={1} onPress={() => handleItemPress(item)}>
-      <Box
-        bg="white"
-        rounded="lg"
-        shadow={1}
-        p={4}
-        borderWidth={1}
-        borderColor="coolGray.200"
-      >
-        <VStack space={2} alignItems="center">
-          <Box bg="blue.100" p={2} rounded="full" mb={2}>
-            <MaterialIcons name="inventory" size={24} color="blue.500" />
-          </Box>
-          <Text fontSize="md" fontWeight="bold" textAlign="center">
-            {item.name}
-          </Text>
-          <Badge colorScheme="blue" rounded="full">
-            {item.type}
-          </Badge>
-          <Text fontSize="sm" color="gray.500">
-            Qty: {item.quantity}
-          </Text>
-          <Text fontSize="xs" color="gray.400">
-            ID: #{item.inventory_id}
-          </Text>
-        </VStack>
       </Box>
     </Pressable>
   );
@@ -233,66 +191,32 @@ export default function InventoryItemsScreen() {
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
     >
       {/* Header */}
-      <Box px={4} py={3} bg="white" shadow={2}>
-        <HStack alignItems="center" justifyContent="space-between">
-          <IconButton
-            icon={
-              <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
-            }
-            onPress={() => router.back()}
-            variant="ghost"
-          />
-          <Heading size="md" flex={1} textAlign="center">
-            Inventory Items
-          </Heading>
-          <IconButton
-            icon={<MaterialIcons name="add" size={24} color="coolGray.600" />}
-            onPress={() => router.push("/(tabs)/staff/add-inventory-item")}
-            variant="ghost"
-          />
-        </HStack>
-      </Box>
-
+      <Header title="Inventory Items" />
       {/* Search and View Toggle Bar */}
       <HStack
         px={4}
-        py={3}
-        bg="white"
+        py={2}
         alignItems="center"
-        justifyContent="space-between"
+        justifyContent="flex-end"
         borderBottomWidth={1}
         borderBottomColor="coolGray.200"
+        bg="coolGray.50"
       >
-        <Input
-          placeholder="Search inventory items..."
-          flex={1}
-          size="sm"
-          mr={3}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          InputLeftElement={
-            <MaterialIcons
-              name="search"
-              size={20}
-              color="gray"
-              style={{ marginLeft: 8 }}
-            />
-          }
-        />
         <HStack space={2} alignItems="center">
-          <Select
-            selectedValue={sortBy}
-            minWidth={115}
-            size="sm"
-            onValueChange={setSortBy}
-            _selectedItem={{
-              bg: "coolGray.100",
-            }}
-          >
-            <Select.Item label="Sort by Name" value="name" />
-            <Select.Item label="Sort by Quantity" value="quantity" />
-            <Select.Item label="Sort by Type" value="type" />
-          </Select>
+          <Input
+            w="40%"
+            placeholder="Search..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            InputLeftElement={
+              <MaterialIcons
+                name="search"
+                size={24}
+                color="gray.400"
+                style={{ marginLeft: 8 }}
+              />
+            }
+          />
           <IconButton
             icon={
               <MaterialIcons
@@ -301,41 +225,56 @@ export default function InventoryItemsScreen() {
                 color="coolGray.600"
               />
             }
-            variant="ghost"
             onPress={() => setViewType(viewType === "list" ? "grid" : "list")}
+          />
+          <Select
+            w="110"
+            selectedValue={sortBy}
+            onValueChange={setSortBy}
+            placeholder="Sort by"
+            _selectedItem={{
+              endIcon: <MaterialIcons name="check" size={4} />,
+            }}
+            defaultValue=""
+            alignSelf="center"
+          >
+            <Select.Item label="Name" value="name" />
+            <Select.Item label="Quantity" value="quantity" />
+            <Select.Item label="Type" value="type" />
+          </Select>
+          <IconButton
+            icon={
+              <MaterialIcons
+                name={sortOrder === "asc" ? "arrow-upward" : "arrow-downward"}
+                size={24}
+                color="coolGray.600"
+              />
+            }
+            onPress={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
           />
         </HStack>
       </HStack>
 
-      {viewType === "list" ? (
-        <FlatList
-          key="list"
-          data={sortedItems}
-          renderItem={renderListItem}
-          keyExtractor={(item) => item.inventory_id.toString()}
-          contentContainerStyle={{ paddingVertical: 16 }}
-          ListEmptyComponent={
-            <Box flex={1} justifyContent="center" alignItems="center" mt={10}>
-              <Text color="gray.500">No inventory items found</Text>
-            </Box>
-          }
-        />
-      ) : (
-        <FlatList
-          key="grid"
-          data={sortedItems}
-          renderItem={renderGridItem}
-          keyExtractor={(item) => item.inventory_id.toString()}
-          numColumns={2}
-          contentContainerStyle={{ padding: 8 }}
-          ListEmptyComponent={
-            <Box flex={1} justifyContent="center" alignItems="center" mt={10}>
-              <Text color="gray.500">No inventory items found</Text>
-            </Box>
-          }
-          columnWrapperStyle={{ justifyContent: "space-between" }}
-        />
-      )}
+      <FlatList
+        data={sortedItems}
+        renderItem={renderListItem}
+        keyExtractor={(item) => item.inventory_id.toString()}
+        contentContainerStyle={{ paddingVertical: 16 }}
+        ListEmptyComponent={
+          <Box flex={1} justifyContent="center" alignItems="center" mt={10}>
+            <Text color="gray.500">No inventory items found</Text>
+          </Box>
+        }
+      />
+
+      {/* Floating Action Button */}
+      <Fab
+        renderInPortal={false}
+        colorScheme="green"
+        icon={<MaterialIcons name="add" size={24} color="white" />}
+        onPress={() => router.push("/(tabs)/staff/add-inventory-item")}
+        placement="bottom-right"
+      />
     </Box>
   );
 }

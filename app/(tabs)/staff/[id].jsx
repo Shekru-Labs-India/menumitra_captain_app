@@ -1,3 +1,4 @@
+import React from "react";
 import { useState, useEffect } from "react";
 import {
   Box,
@@ -20,6 +21,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar, Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Header from "../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -30,8 +32,9 @@ export default function StaffDetailsScreen() {
 
   const [staff, setStaff] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [deleteAlert, setDeleteAlert] = useState(false);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [restaurantId, setRestaurantId] = useState(null);
+  const cancelRef = React.useRef(null);
 
   const fetchStaffDetails = async () => {
     setIsLoading(true);
@@ -121,9 +124,7 @@ export default function StaffDetailsScreen() {
           description: "Staff member deleted successfully",
           status: "success",
         });
-        // Close the alert dialog
-        setDeleteAlert(false);
-        // Navigate back to staff list with refresh parameter
+        setIsAlertOpen(false); // Close the alert dialog
         router.replace({
           pathname: "/(tabs)/staff",
           params: { refresh: Date.now() },
@@ -133,7 +134,7 @@ export default function StaffDetailsScreen() {
           description: data.msg || "Failed to delete staff member",
           status: "error",
         });
-        setDeleteAlert(false);
+        setIsAlertOpen(false);
       }
     } catch (error) {
       console.error("Delete Staff Error:", error);
@@ -141,7 +142,7 @@ export default function StaffDetailsScreen() {
         description: "Failed to delete staff member",
         status: "error",
       });
-      setDeleteAlert(false);
+      setIsAlertOpen(false);
     }
   };
 
@@ -177,7 +178,6 @@ export default function StaffDetailsScreen() {
 
   return (
     <Box flex={1} bg="white" safeArea>
-      {/* Header */}
       <HStack
         px={4}
         py={3}
@@ -188,7 +188,7 @@ export default function StaffDetailsScreen() {
       >
         <IconButton
           icon={
-            <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
+            <MaterialIcons name="arrow-back" size={24} color="gray" /> // Changed color to gray
           }
           onPress={() => router.back()}
         />
@@ -197,7 +197,7 @@ export default function StaffDetailsScreen() {
         </Heading>
         <IconButton
           icon={<MaterialIcons name="delete" size={24} color="red.500" />}
-          onPress={() => setDeleteAlert(true)}
+          onPress={() => setIsAlertOpen(true)}
         />
       </HStack>
 
@@ -224,7 +224,7 @@ export default function StaffDetailsScreen() {
 
           {/* Contact Information */}
           <VStack space={4}>
-            <Heading size="md">Contact Information</Heading>
+            <Heading size="md">Contact Details</Heading>
             <VStack space={4} bg="coolGray.50" p={4} rounded="lg">
               <HStack space={3} alignItems="center">
                 <Box p={2} bg="blue.100" rounded="full">
@@ -272,23 +272,6 @@ export default function StaffDetailsScreen() {
           <VStack space={4}>
             <Heading size="md">Employment Details</Heading>
             <VStack space={4} bg="coolGray.50" p={4} rounded="lg">
-              <HStack justifyContent="space-between" alignItems="center">
-                <VStack>
-                  <Text color="coolGray.500" fontSize="sm">
-                    Staff ID
-                  </Text>
-                  <Text fontSize="md" fontWeight="semibold">
-                    #{staff.staff_id}
-                  </Text>
-                </VStack>
-                <VStack alignItems="flex-end">
-                  <Text color="coolGray.500" fontSize="sm">
-                    Restaurant ID
-                  </Text>
-                  <Text fontSize="md">#{staff.restaurant_id}</Text>
-                </VStack>
-              </HStack>
-
               <VStack space={3}>
                 <HStack justifyContent="space-between">
                   <Text color="coolGray.500">Date of Birth</Text>
@@ -307,14 +290,6 @@ export default function StaffDetailsScreen() {
                   <Text color="coolGray.500">Created On</Text>
                   <Text>{new Date(staff.created_on).toLocaleDateString()}</Text>
                 </HStack>
-                <HStack justifyContent="space-between">
-                  <Text color="coolGray.500">Updated By</Text>
-                  <Text>{staff.updated_by}</Text>
-                </HStack>
-                <HStack justifyContent="space-between">
-                  <Text color="coolGray.500">Updated On</Text>
-                  <Text>{new Date(staff.updated_on).toLocaleDateString()}</Text>
-                </HStack>
               </VStack>
             </VStack>
           </VStack>
@@ -323,9 +298,9 @@ export default function StaffDetailsScreen() {
 
       {/* Delete Confirmation */}
       <AlertDialog
-        isOpen={deleteAlert}
-        onClose={() => setDeleteAlert(false)}
-        leastDestructiveRef={undefined}
+        leastDestructiveRef={cancelRef}
+        isOpen={isAlertOpen}
+        onClose={() => setIsAlertOpen(false)}
         closeOnOverlayClick={true}
       >
         <AlertDialog.Content>
@@ -336,10 +311,10 @@ export default function StaffDetailsScreen() {
             cannot be undone.
           </AlertDialog.Body>
           <AlertDialog.Footer justifyContent="space-between">
-            <Button variant="ghost" onPress={() => setDeleteAlert(false)}>
-              Close
+            <Button ref={cancelRef} onPress={() => setIsAlertOpen(false)}>
+              Cancel
             </Button>
-            <Button colorScheme="danger" onPress={handleDelete}>
+            <Button colorScheme="red" onPress={handleDelete}>
               Delete
             </Button>
           </AlertDialog.Footer>

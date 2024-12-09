@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Platform, StatusBar, Linking } from "react-native";
 import {
-  Platform,
-  StatusBar,
-  Linking,
-} from "react-native";
-import { 
-  Box, 
-  HStack, 
-  VStack, 
-  Text, 
-  Image, 
-  Icon, 
-  Pressable, 
-  ScrollView, 
+  Box,
+  HStack,
+  VStack,
+  Text,
+  Image,
+  Icon,
+  Pressable,
+  ScrollView,
   StatusBar as NativeBaseStatusBar,
   useToast,
 } from "native-base";
@@ -41,11 +37,11 @@ export default function HomeScreen() {
       try {
         // Fetch restaurant ID from AsyncStorage
         const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-        
+
         if (!storedRestaurantId) {
           toast.show({
             description: "Restaurant ID not found. Please log in again.",
-            status: "error"
+            status: "error",
           });
           return;
         }
@@ -65,7 +61,7 @@ export default function HomeScreen() {
         );
 
         const staffData = await staffResponse.json();
-        
+
         // Fetch table list from API
         const tableResponse = await fetch(
           "https://men4u.xyz/captain_api/captain_manage/get_table_list",
@@ -81,7 +77,7 @@ export default function HomeScreen() {
         );
 
         const tableData = await tableResponse.json();
-        
+
         if (staffData.st === 1) {
           const staffList = staffData.lists || [];
           setStaffCount(staffList.length);
@@ -91,7 +87,7 @@ export default function HomeScreen() {
           const tableList = tableData.data || [];
           setTableCount(tableList.length);
         }
-        
+
         // TODO: Replace with actual API call for sales data
         setTodaysSales({
           sales: 45,
@@ -101,7 +97,7 @@ export default function HomeScreen() {
         console.error("Error fetching data:", error);
         toast.show({
           description: "Failed to fetch data",
-          status: "error"
+          status: "error",
         });
       }
     };
@@ -176,25 +172,22 @@ export default function HomeScreen() {
     {
       title: "Reports",
       icon: "assessment",
-      route: "/(tabs)/reports",
+      route: "/(tabs)",
       color: "blueGray.500",
     },
   ];
 
   return (
     <Box flex={1} bg="white" safeArea>
-      <NativeBaseStatusBar 
-        backgroundColor="white" 
-        barStyle="dark-content" 
-      />
-      
+      <NativeBaseStatusBar backgroundColor="white" barStyle="dark-content" />
+
       {/* Header */}
-      <HStack 
-        px={4} 
-        py={2} 
-        alignItems="center" 
-        justifyContent="space-between" 
-        borderBottomWidth={1} 
+      <HStack
+        px={4}
+        py={2}
+        alignItems="center"
+        justifyContent="space-between"
+        borderBottomWidth={1}
         borderBottomColor="coolGray.200"
       >
         <HStack alignItems="center" space={2}>
@@ -208,9 +201,9 @@ export default function HomeScreen() {
             MenuMitra Captain
           </Text>
         </HStack>
-        
+
         <HStack space={2}>
-          <Pressable 
+          <Pressable
             onPress={() => {
               playSound();
             }}
@@ -218,25 +211,25 @@ export default function HomeScreen() {
             rounded="full"
             _pressed={{ bg: "coolGray.100" }}
           >
-            <Icon 
-              as={MaterialIcons} 
-              name="notifications" 
-              size={6} 
-              color="coolGray.600" 
+            <Icon
+              as={MaterialIcons}
+              name="notifications"
+              size={6}
+              color="coolGray.600"
             />
           </Pressable>
-          
-          <Pressable 
+
+          <Pressable
             onPress={toggleSidebar}
             p={2}
             rounded="full"
             _pressed={{ bg: "coolGray.100" }}
           >
-            <Icon 
-              as={MaterialIcons} 
-              name="menu" 
-              size={6} 
-              color="coolGray.600" 
+            <Icon
+              as={MaterialIcons}
+              name="menu"
+              size={6}
+              color="coolGray.600"
             />
           </Pressable>
         </HStack>
@@ -244,47 +237,41 @@ export default function HomeScreen() {
 
       <ScrollView>
         {/* Sales Card */}
-        <HStack 
-          mx={4} 
-          my={4} 
-          bg="white" 
-          rounded="lg" 
-          shadow={2} 
-          p={4} 
+        <HStack
+          mx={4}
+          my={4}
+          bg="white"
+          rounded="lg"
+          shadow={2}
+          p={3}
           justifyContent="space-between"
         >
           <VStack alignItems="center" flex={1}>
-            <Icon 
-              as={MaterialIcons} 
-              name="shopping-cart" 
-              size={6} 
-              color="coolGray.600" 
-            />
-            <Text mt={2} color="coolGray.500">Today's Sales</Text>
-            <Text fontSize="lg" fontWeight="bold">{todaysSales.sales}</Text>
+            <Text fontSize="lg" fontWeight="bold">
+              {todaysSales.sales}
+            </Text>
+            <Text mt={2} color="coolGray.500">
+              Today's Sales
+            </Text>
           </VStack>
-          
+
           <Box width={1} bg="coolGray.200" />
-          
+
           <VStack alignItems="center" flex={1}>
-            <Icon 
-              as={MaterialIcons} 
-              name="payments" 
-              size={6} 
-              color="coolGray.600" 
-            />
-            <Text mt={2} color="coolGray.500">Today's Revenue</Text>
             <Text fontSize="lg" fontWeight="bold">
               ₹{todaysSales.revenue.toLocaleString()}
+            </Text>
+            <Text mt={2} color="coolGray.500">
+              Today's Revenue
             </Text>
           </VStack>
         </HStack>
 
         {/* Management Cards */}
-        <Box 
-          flexDirection="row" 
-          flexWrap="wrap" 
-          justifyContent="space-between" 
+        <Box
+          flexDirection="row"
+          flexWrap="wrap"
+          justifyContent="space-between"
           px={4}
         >
           {managementCards.map((card, index) => (
@@ -299,36 +286,36 @@ export default function HomeScreen() {
               justifyContent="center"
               onPress={() => router.push(card.route)}
               position="relative"
+              shadow={2}
+              borderWidth={1}
+              borderColor="coolGray.300"
             >
               {card.count !== undefined && (
-                <Box 
-                  position="absolute" 
-                  top={2} 
-                  right={2} 
-                  bg="white" 
-                  rounded="full" 
+                <Box
+                  position="absolute"
+                  top={2}
+                  right={2}
+                  bg="white"
+                  rounded="full"
                   px={2}
                 >
-                  <Text 
-                    fontSize="xs" 
-                    fontWeight="bold" 
-                    color="coolGray.700"
-                  >
+                  <Text fontSize="sm" fontWeight="bold" color="coolGray.700">
                     {card.count}
                   </Text>
                 </Box>
               )}
-              <Icon 
-                as={MaterialIcons} 
-                name={card.icon} 
-                size={8} 
-                color="white" 
-                mb={2} 
+              <Icon
+                as={MaterialIcons}
+                name={card.icon}
+                size={10}
+                color="white"
+                mb={2}
               />
-              <Text 
-                color="white" 
-                fontWeight="bold" 
+              <Text
+                color="white"
+                fontWeight="bold"
                 textAlign="center"
+                fontSize="lg"
               >
                 {card.title}
               </Text>
@@ -338,10 +325,7 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Sidebar Component */}
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setIsSidebarOpen(false)} 
-      />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
     </Box>
   );
 }

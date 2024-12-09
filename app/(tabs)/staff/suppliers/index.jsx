@@ -16,12 +16,21 @@ import {
   Spinner,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Platform, StatusBar } from "react-native";
+import { Platform, StatusBar, Linking } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import Header from "../../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
+
+const toTitleCase = (str) => {
+  return str
+    .toLowerCase()
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
 
 export default function SuppliersScreen() {
   const router = useRouter();
@@ -29,7 +38,7 @@ export default function SuppliersScreen() {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewType, setViewType] = useState("list");
-  const [sortBy, setSortBy] = useState("");
+  const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -120,6 +129,10 @@ export default function SuppliersScreen() {
         .sort(handleSort)
     : [];
 
+  const handleCall = (phoneNumber) => {
+    Linking.openURL(`tel:${phoneNumber}`);
+  };
+
   const renderListItem = ({ item }) => (
     <Pressable
       onPress={() => {
@@ -139,20 +152,13 @@ export default function SuppliersScreen() {
       >
         <HStack space={3} alignItems="center">
           <Avatar size="md" bg="cyan.500">
-            {item.name.charAt(0)}
+            {item.name.charAt(0).toUpperCase()}
           </Avatar>
           <VStack flex={1}>
             <Text fontSize="lg" fontWeight="bold">
-              {item.name}
+              {toTitleCase(item.name)}
             </Text>
-            <HStack space={2} mt={1}>
-              <MaterialIcons name="phone" size={16} color="coolGray.500" />
-              <Text fontSize="sm" color="coolGray.500">
-                {item.mobileNumber1}
-              </Text>
-              <Text fontSize="sm" color="coolGray.500">
-                •
-              </Text>
+            <HStack space={2} mt={1} alignItems="center">
               <Text
                 fontSize="sm"
                 color={item.status === "active" ? "green.500" : "red.500"}
@@ -163,7 +169,20 @@ export default function SuppliersScreen() {
               </Text>
             </HStack>
           </VStack>
-          <MaterialIcons name="chevron-right" size={24} color="coolGray.400" />
+          <HStack space={2} alignItems="center">
+            <IconButton
+              icon={<MaterialIcons name="phone" size={24} color="green.500" />}
+              onPress={() => handleCall(item.mobileNumber1)}
+              variant="ghost"
+              _pressed={{ bg: "coolGray.100" }}
+              rounded="full"
+            />
+            <MaterialIcons
+              name="chevron-right"
+              size={24}
+              color="coolGray.400"
+            />
+          </HStack>
         </HStack>
       </Box>
     </Pressable>
@@ -185,27 +204,32 @@ export default function SuppliersScreen() {
       >
         <VStack space={2} alignItems="center">
           <Avatar size="lg" bg="cyan.500">
-            {item.name.charAt(0)}
+            {item.name.charAt(0).toUpperCase()}
           </Avatar>
           <VStack space={1} alignItems="center">
             <Text fontSize="md" fontWeight="bold" textAlign="center">
-              {item.name}
+              {toTitleCase(item.name)}
             </Text>
-            <Text fontSize="sm" color="coolGray.600" textAlign="center">
-              {item.type || "Not specified"}
-            </Text>
-            <Text fontSize="sm" color="coolGray.500" textAlign="center">
-              {item.mobileNumber1}
-            </Text>
+            {item.type && (
+              <Text fontSize="sm" color="coolGray.600" textAlign="center">
+                {item.type}
+              </Text>
+            )}
             <Text
               fontSize="sm"
               color={item.status === "active" ? "green.500" : "red.500"}
               textAlign="center"
             >
-              {item.status
-                ? item.status.charAt(0).toUpperCase() + item.status.slice(1)
-                : "Not specified"}
+              {item.status &&
+                item.status.charAt(0).toUpperCase() + item.status.slice(1)}
             </Text>
+            <IconButton
+              icon={<MaterialIcons name="phone" size={24} color="green.500" />}
+              onPress={() => handleCall(item.mobileNumber1)}
+              variant="ghost"
+              _pressed={{ bg: "coolGray.100" }}
+              rounded="full"
+            />
           </VStack>
         </VStack>
       </Box>
@@ -219,11 +243,7 @@ export default function SuppliersScreen() {
       safeArea
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
     >
-      <Box px={4} py={3} bg="white" shadow={2}>
-        <HStack justifyContent="space-between" alignItems="center">
-          <Heading size="lg">Suppliers</Heading>
-        </HStack>
-      </Box>
+      <Header title="Suppliers" onBackPress={() => router.back()} />
 
       <HStack
         px={4}
@@ -308,11 +328,10 @@ export default function SuppliersScreen() {
         renderInPortal={false}
         shadow={2}
         size="sm"
+        colorScheme="green"
         icon={<MaterialIcons name="add" size={24} color="white" />}
         onPress={() => router.push("/staff/suppliers/add")}
-        position="absolute"
-        bottom={4}
-        right={4}
+        placement="bottom-right"
       />
     </Box>
   );

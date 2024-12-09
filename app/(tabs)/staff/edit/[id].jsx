@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Header from "../../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -185,30 +186,7 @@ export default function EditStaffScreen() {
       safeArea
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
     >
-      <Box
-        px={4}
-        py={3}
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
-        bg="coolGray.50"
-      >
-        <HStack alignItems="center" justifyContent="space-between">
-          <IconButton
-            icon={
-              <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
-            }
-            onPress={() => router.back()}
-            variant="ghost"
-            _pressed={{ bg: "gray.100" }}
-            position="absolute"
-            left={0}
-            zIndex={1}
-          />
-          <Heading size="md" flex={1} textAlign="center">
-            Edit Staff Details
-          </Heading>
-        </HStack>
-      </Box>
+      <Header title="Edit Staff Details" />
 
       <ScrollView px={4} py={4}>
         <VStack space={4}>

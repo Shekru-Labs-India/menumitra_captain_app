@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   Box,
-  Heading,
   VStack,
   IconButton,
   Text,
@@ -19,6 +18,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Header from "../../components/Header"; // Adjust the import path as necessary
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -76,29 +76,15 @@ export default function AddInventoryItemScreen() {
     if (!formData.category) newErrors.category = "Category is required";
     if (!formData.serialNo) newErrors.serialNo = "Serial No. is required";
     if (!formData.type) newErrors.type = "Type is required";
-
-    // Price validation
+    if (!formData.quantity) {
+      newErrors.quantity = "Quantity is required";
+    } else if (isNaN(formData.quantity) || Number(formData.quantity) <= 0) {
+      newErrors.quantity = "Please enter a valid quantity";
+    }
     if (!formData.price) {
       newErrors.price = "Price is required";
     } else if (isNaN(formData.price) || Number(formData.price) <= 0) {
       newErrors.price = "Please enter a valid price";
-    }
-
-    // Quantity validation
-    if (!formData.quantity) {
-      newErrors.quantity = "Quantity is required";
-    } else if (isNaN(formData.quantity) || Number(formData.quantity) < 0) {
-      newErrors.quantity = "Please enter a valid quantity";
-    }
-
-    // Tax validation
-    if (
-      formData.tax &&
-      (isNaN(formData.tax) ||
-        Number(formData.tax) < 0 ||
-        Number(formData.tax) > 100)
-    ) {
-      newErrors.tax = "Please enter a valid tax percentage (0-100)";
     }
 
     setErrors(newErrors);
@@ -120,7 +106,7 @@ export default function AddInventoryItemScreen() {
               restaurant_id: restaurantId,
               name: formData.name,
               quantity: parseInt(formData.quantity),
-              type: formData.type || formData.category,
+              type: "Furniture", // Hardcoded value for testing
             }),
           }
         );
@@ -178,24 +164,7 @@ export default function AddInventoryItemScreen() {
       safeArea
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
     >
-      <Box px={4} py={3} borderBottomWidth={1} borderBottomColor="coolGray.200">
-        <HStack alignItems="center" justifyContent="space-between">
-          <IconButton
-            icon={
-              <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
-            }
-            onPress={() => router.back()}
-            variant="ghost"
-            _pressed={{ bg: "gray.100" }}
-            position="absolute"
-            left={0}
-            zIndex={1}
-          />
-          <Heading size="md" flex={1} textAlign="center">
-            Add Inventory Item
-          </Heading>
-        </HStack>
-      </Box>
+      <Header title="Add Inventory Item" onBackPress={() => router.back()} />
 
       <ScrollView px={4} showsVerticalScrollIndicator={false}>
         <VStack space={4} mt={4} mb={6}>
