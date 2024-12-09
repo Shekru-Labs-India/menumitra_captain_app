@@ -406,7 +406,7 @@ export default function TableSectionsScreen() {
               rounded="full"
             />
             <Heading size="md" textAlign="center">
-              Restaurant Sections
+              Sections
             </Heading>
           </HStack>
         </Box>

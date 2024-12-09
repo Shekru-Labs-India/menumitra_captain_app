@@ -409,7 +409,7 @@ export default function StaffScreen() {
           onPress={() => router.back()}
         />
         <Heading size="md" flex={1} textAlign="center">
-          Staff Management
+          Staff
         </Heading>
       </HStack>
 

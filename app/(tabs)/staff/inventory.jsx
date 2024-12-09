@@ -62,7 +62,7 @@ export default function InventoryScreen() {
             zIndex={1}
           />
           <Heading size="md" flex={1} textAlign="center">
-            Inventory Management
+            Inventory
           </Heading>
         </HStack>
       </Box>
