@@ -13,6 +13,8 @@ import {
   TextArea,
   useToast,
   Spinner,
+  CheckIcon,
+  Modal,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
@@ -27,7 +29,6 @@ export default function AddInventoryItemScreen() {
   const toast = useToast();
   const [restaurantId, setRestaurantId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-
   const [formData, setFormData] = useState({
     name: "",
     supplierId: "",
@@ -41,13 +42,24 @@ export default function AddInventoryItemScreen() {
     tax: "",
     paymentStatus: "pending",
     orderId: "",
-    type: "",
+    unitOfMeasure: "",
+    reorderLevel: "",
+    expirationDate: "",
+    inDate: "",
   });
-
   const [errors, setErrors] = useState({});
+  const [categories, setCategories] = useState([]);
+  const [isAddCategoryModalOpen, setAddCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [statusOptions, setStatusOptions] = useState([]);
+  const [filteredCategories, setFilteredCategories] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
 
   useEffect(() => {
     getStoredData();
+    fetchStatusOptions(); // Fetch status options when the component mounts
+    fetchCategories(); // Fetch categories when the component mounts
+    fetchSuppliers(); // Fetch suppliers when the component mounts
   }, []);
 
   const getStoredData = async () => {
@@ -67,25 +79,147 @@ export default function AddInventoryItemScreen() {
     }
   };
 
+  // Fetch categories from the API
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/get_inventory_category_list`
+      );
+      const data = await response.json();
+
+      if (data.st === 1) {
+        const categoriesArray = Object.entries(
+          data.inventory_categorys_list
+        ).map(([name, id]) => ({ name, id }));
+        setCategories(categoriesArray);
+      } else {
+        toast.show({
+          description: "Failed to fetch categories",
+          status: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      toast.show({
+        description: "Error fetching categories",
+        status: "error",
+      });
+    }
+  };
+
+  const fetchStatusOptions = async () => {
+    try {
+      const response = await fetch(
+        "https://men4u.xyz/captain_api/get_in_or_out_list"
+      );
+      const data = await response.json();
+
+      if (data.st === 1) {
+        setStatusOptions(
+          Object.entries(data.in_out_list).map(([key, value]) => ({
+            key,
+            value,
+          }))
+        );
+      } else {
+        toast.show({
+          description: "Failed to fetch status options",
+          status: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching status options:", error);
+      toast.show({
+        description: "Error fetching status options",
+        status: "error",
+      });
+    }
+  };
+
+  const fetchSuppliers = async () => {
+    try {
+      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+
+      const response = await fetch(`${API_BASE_URL}/get_supplier_list`, {
+        method: "POST", // Use POST method as per the API requirement
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          restaurant_id: storedRestaurantId, // Include restaurant_id in the request body
+        }),
+      });
+
+      const data = await response.json();
+      console.log("Suppliers Response:", data);
+
+      if (data.st === 1) {
+        // Convert suppliers_dict to an array of objects
+        const suppliersArray = Object.entries(data.suppliers_dict).map(
+          ([name, id]) => ({
+            name,
+            id,
+          })
+        );
+        setSuppliers(suppliersArray); // Set the suppliers state
+      } else {
+        throw new Error(data.msg || "Failed to fetch suppliers");
+      }
+    } catch (error) {
+      console.error("Error fetching suppliers:", error);
+      toast.show({
+        description: "Error fetching suppliers",
+        status: "error",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchSuppliers(); // Call the function to fetch suppliers
+  }, []);
+
   const validateForm = () => {
     const newErrors = {};
 
     // Required field validations
     if (!formData.name) newErrors.name = "Name is required";
-    if (!formData.supplierId) newErrors.supplierId = "Supplier ID is required";
+    if (!formData.supplierId) newErrors.supplierId = "Supplier is required";
     if (!formData.category) newErrors.category = "Category is required";
-    if (!formData.serialNo) newErrors.serialNo = "Serial No. is required";
-    if (!formData.type) newErrors.type = "Type is required";
+
     if (!formData.quantity) {
       newErrors.quantity = "Quantity is required";
     } else if (isNaN(formData.quantity) || Number(formData.quantity) <= 0) {
       newErrors.quantity = "Please enter a valid quantity";
     }
+
     if (!formData.price) {
       newErrors.price = "Price is required";
     } else if (isNaN(formData.price) || Number(formData.price) <= 0) {
       newErrors.price = "Please enter a valid price";
     }
+
+    if (!formData.unitOfMeasure)
+      newErrors.unitOfMeasure = "Unit of measure is required";
+    if (!formData.reorderLevel) {
+      newErrors.reorderLevel = "Reorder level is required";
+    } else if (
+      isNaN(formData.reorderLevel) ||
+      Number(formData.reorderLevel) < 0
+    ) {
+      newErrors.reorderLevel = "Please enter a valid reorder level";
+    }
+
+    if (!formData.brandName) newErrors.brandName = "Brand name is required";
+
+    if (!formData.tax) {
+      newErrors.tax = "Tax rate is required";
+    } else if (isNaN(formData.tax) || Number(formData.tax) < 0) {
+      newErrors.tax = "Please enter a valid tax rate";
+    }
+
+    if (!formData.inDate) newErrors.inDate = "In date is required";
+    if (!formData.expirationDate)
+      newErrors.expirationDate = "Expiration date is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -95,19 +229,33 @@ export default function AddInventoryItemScreen() {
     if (validateForm()) {
       try {
         setIsLoading(true);
+        const requestBody = {
+          supplier_id: formData.supplierId, // Use supplierId from formData
+          restaurant_id: restaurantId, // Use the stored restaurantId
+          category_id: formData.category, // Use category from formData
+          name: formData.name, // Use name from formData
+          description: formData.description, // Use description from formData
+          unit_price: formData.price, // Use price from formData
+          quantity: formData.quantity, // Use quantity from formData
+          unit_of_measure: formData.unitOfMeasure, // Use unitOfMeasure from formData
+          reorder_level: formData.reorderLevel, // Use reorderLevel from formData
+          brand_name: formData.brandName, // Use brandName from formData
+          tax_rate: formData.tax, // Use tax from formData
+          in_or_out: formData.status, // Use status from formData
+          in_date: formData.inDate, // Use inDate from formData
+          expiration_date: formData.expirationDate, // Use expirationDate from formData
+        };
+
+        console.log("Request Body:", requestBody);
+
         const response = await fetch(
-          `${API_BASE_URL}/captain_manage/inventory_create`,
+          `${API_BASE_URL}/captain_manage/inventory_create`, // Ensure this is the correct endpoint
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              restaurant_id: restaurantId,
-              name: formData.name,
-              quantity: parseInt(formData.quantity),
-              type: "Furniture", // Hardcoded value for testing
-            }),
+            body: JSON.stringify(requestBody),
           }
         );
 
@@ -138,24 +286,52 @@ export default function AddInventoryItemScreen() {
       } finally {
         setIsLoading(false);
       }
+    } else {
+      console.log("Form validation failed.");
     }
   };
 
-  const typeField = (
-    <FormControl isRequired isInvalid={"type" in errors}>
-      <FormControl.Label>Type</FormControl.Label>
-      <Select
-        selectedValue={formData.type}
-        onValueChange={(value) => setFormData({ ...formData, type: value })}
-        placeholder="Select type"
-      >
-        <Select.Item label="Furniture" value="furniture" />
-        <Select.Item label="Crockery" value="crockery" />
-        <Select.Item label="Cutlery" value="cutlery" />
-      </Select>
-      <FormControl.ErrorMessage>{errors.type}</FormControl.ErrorMessage>
-    </FormControl>
-  );
+  const handleAddCategory = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/inventory_category_create`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: newCategoryName }),
+        }
+      );
+
+      const data = await response.json();
+      if (data.st === 1) {
+        toast.show({
+          description: "Inventory Category Created Successfully",
+          status: "success",
+        });
+
+        // Update categories state
+        setCategories((prevCategories) => [
+          ...prevCategories,
+          { name: newCategoryName, inventory_category_id: data.newCategoryId }, // Assuming newCategoryId is returned
+        ]);
+        setNewCategoryName(""); // Clear the input
+        setAddCategoryModalOpen(false); // Close the modal
+      } else {
+        toast.show({
+          description: data.msg || "Failed to add category",
+          status: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error adding category:", error);
+      toast.show({
+        description: "Failed to add category",
+        status: "error",
+      });
+    }
+  };
 
   return (
     <Box
@@ -168,7 +344,7 @@ export default function AddInventoryItemScreen() {
 
       <ScrollView px={4} showsVerticalScrollIndicator={false}>
         <VStack space={4} mt={4} mb={6}>
-          {/* Basic Information */}
+          {/* Item Name */}
           <FormControl isRequired isInvalid={"name" in errors}>
             <FormControl.Label>Item Name</FormControl.Label>
             <Input
@@ -181,20 +357,30 @@ export default function AddInventoryItemScreen() {
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
           </FormControl>
 
+          {/* Supplier Name */}
           <FormControl isRequired isInvalid={"supplierId" in errors}>
-            <FormControl.Label>Supplier ID</FormControl.Label>
-            <Input
-              placeholder="Enter supplier ID"
-              value={formData.supplierId}
-              onChangeText={(value) =>
+            <FormControl.Label>Supplier Name</FormControl.Label>
+            <Select
+              placeholder="Select supplier"
+              selectedValue={formData.supplierId}
+              onValueChange={(value) =>
                 setFormData({ ...formData, supplierId: value })
               }
-            />
+            >
+              {suppliers.map((supplier) => (
+                <Select.Item
+                  key={supplier.id}
+                  label={supplier.name}
+                  value={supplier.id.toString()}
+                />
+              ))}
+            </Select>
             <FormControl.ErrorMessage>
               {errors.supplierId}
             </FormControl.ErrorMessage>
           </FormControl>
 
+          {/* Description */}
           <FormControl>
             <FormControl.Label>Description</FormControl.Label>
             <TextArea
@@ -207,139 +393,237 @@ export default function AddInventoryItemScreen() {
             />
           </FormControl>
 
+          {/* Category */}
           <FormControl isRequired isInvalid={"category" in errors}>
-            <FormControl.Label>Category</FormControl.Label>
+            <HStack justifyContent="space-between" alignItems="center">
+              <FormControl.Label>Category</FormControl.Label>
+              <IconButton
+                icon={<MaterialIcons name="add" size={24} color="black" />}
+                onPress={() => setAddCategoryModalOpen(true)}
+              />
+            </HStack>
             <Input
-              placeholder="Enter category"
+              placeholder="Search category"
               value={formData.category}
-              onChangeText={(value) =>
-                setFormData({ ...formData, category: value })
-              }
+              onFocus={fetchCategories}
+              onChangeText={(value) => {
+                setFormData({ ...formData, category: value });
+                const filteredCategories = categories.filter((category) =>
+                  category.name.toLowerCase().includes(value.toLowerCase())
+                );
+                setFilteredCategories(filteredCategories);
+              }}
             />
             <FormControl.ErrorMessage>
               {errors.category}
             </FormControl.ErrorMessage>
+
+            {/* Autocomplete List */}
+            {formData.category && filteredCategories.length > 0 && (
+              <VStack
+                mt={2}
+                borderWidth={1}
+                borderColor="gray.300"
+                borderRadius="md"
+                bg="white"
+              >
+                {filteredCategories.map((category) => (
+                  <Button
+                    key={category.id}
+                    variant="ghost"
+                    onPress={() => {
+                      setFormData({ ...formData, category: category.id });
+                      setFilteredCategories([]);
+                    }}
+                  >
+                    {category.name}
+                  </Button>
+                ))}
+              </VStack>
+            )}
           </FormControl>
 
-          {typeField}
+          {/* Price */}
+          <FormControl isRequired isInvalid={"price" in errors}>
+            <FormControl.Label>Price</FormControl.Label>
+            <Input
+              keyboardType="numeric"
+              placeholder="Enter price"
+              value={formData.price}
+              onChangeText={(value) =>
+                setFormData({ ...formData, price: value })
+              }
+            />
+            <FormControl.ErrorMessage>{errors.price}</FormControl.ErrorMessage>
+          </FormControl>
 
-          {/* Price and Quantity */}
-          <HStack space={4}>
-            <FormControl flex={1} isRequired isInvalid={"price" in errors}>
-              <FormControl.Label>Price</FormControl.Label>
-              <Input
-                keyboardType="numeric"
-                placeholder="Enter price"
-                value={formData.price}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, price: value })
-                }
-              />
-              <FormControl.ErrorMessage>
-                {errors.price}
-              </FormControl.ErrorMessage>
-            </FormControl>
+          {/* Quantity */}
+          <FormControl isRequired isInvalid={"quantity" in errors}>
+            <FormControl.Label>Quantity</FormControl.Label>
+            <Input
+              keyboardType="numeric"
+              placeholder="Enter quantity"
+              value={formData.quantity}
+              onChangeText={(value) =>
+                setFormData({ ...formData, quantity: value })
+              }
+            />
+            <FormControl.ErrorMessage>
+              {errors.quantity}
+            </FormControl.ErrorMessage>
+          </FormControl>
 
-            <FormControl flex={1} isRequired isInvalid={"quantity" in errors}>
-              <FormControl.Label>Quantity</FormControl.Label>
-              <Input
-                keyboardType="numeric"
-                placeholder="Enter quantity"
-                value={formData.quantity}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, quantity: value })
-                }
-              />
-              <FormControl.ErrorMessage>
-                {errors.quantity}
-              </FormControl.ErrorMessage>
-            </FormControl>
-          </HStack>
+          {/* Brand Name */}
+          <FormControl isRequired isInvalid={"brandName" in errors}>
+            <FormControl.Label>Brand Name</FormControl.Label>
+            <Input
+              placeholder="Enter brand name"
+              value={formData.brandName}
+              onChangeText={(value) =>
+                setFormData({ ...formData, brandName: value })
+              }
+            />
+            <FormControl.ErrorMessage>
+              {errors.brandName}
+            </FormControl.ErrorMessage>
+          </FormControl>
 
-          {/* Serial Number and Brand */}
-          <HStack space={4}>
-            <FormControl flex={1} isRequired isInvalid={"serialNo" in errors}>
-              <FormControl.Label>Serial No.</FormControl.Label>
-              <Input
-                placeholder="Enter serial number"
-                value={formData.serialNo}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, serialNo: value })
-                }
-              />
-              <FormControl.ErrorMessage>
-                {errors.serialNo}
-              </FormControl.ErrorMessage>
-            </FormControl>
+          {/* Unit of Measure */}
+          <FormControl isRequired isInvalid={"unitOfMeasure" in errors}>
+            <FormControl.Label>Unit of Measure</FormControl.Label>
+            <Input
+              placeholder="Enter unit of measure"
+              value={formData.unitOfMeasure}
+              onChangeText={(value) =>
+                setFormData({ ...formData, unitOfMeasure: value })
+              }
+            />
+            <FormControl.ErrorMessage>
+              {errors.unitOfMeasure}
+            </FormControl.ErrorMessage>
+          </FormControl>
 
-            <FormControl flex={1}>
-              <FormControl.Label>Brand Name</FormControl.Label>
-              <Input
-                placeholder="Enter brand name"
-                value={formData.brandName}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, brandName: value })
-                }
-              />
-            </FormControl>
-          </HStack>
+          {/* Reorder Level */}
+          <FormControl isRequired isInvalid={"reorderLevel" in errors}>
+            <FormControl.Label>Reorder Level</FormControl.Label>
+            <Input
+              keyboardType="numeric"
+              placeholder="Enter reorder level"
+              value={formData.reorderLevel}
+              onChangeText={(value) =>
+                setFormData({ ...formData, reorderLevel: value })
+              }
+            />
+            <FormControl.ErrorMessage>
+              {errors.reorderLevel}
+            </FormControl.ErrorMessage>
+          </FormControl>
 
-          {/* Status and Payment Status */}
-          <HStack space={4}>
-            <FormControl flex={1}>
-              <FormControl.Label>Status</FormControl.Label>
-              <Select
-                selectedValue={formData.status}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, status: value })
-                }
-              >
-                <Select.Item label="In" value="in" />
-                <Select.Item label="Out" value="out" />
-              </Select>
-            </FormControl>
+          {/* Expiration Date */}
+          <FormControl isRequired isInvalid={"expirationDate" in errors}>
+            <FormControl.Label>Expiration Date</FormControl.Label>
+            <Input
+              placeholder="Enter expiration date"
+              value={formData.expirationDate}
+              onChangeText={(value) =>
+                setFormData({ ...formData, expirationDate: value })
+              }
+            />
+            <FormControl.ErrorMessage>
+              {errors.expirationDate}
+            </FormControl.ErrorMessage>
+          </FormControl>
 
-            <FormControl flex={1}>
-              <FormControl.Label>Payment Status</FormControl.Label>
-              <Select
-                selectedValue={formData.paymentStatus}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, paymentStatus: value })
-                }
-              >
-                <Select.Item label="Pending" value="pending" />
-                <Select.Item label="Paid" value="paid" />
-              </Select>
-            </FormControl>
-          </HStack>
+          {/* In Date */}
+          <FormControl isRequired isInvalid={"inDate" in errors}>
+            <FormControl.Label>In Date</FormControl.Label>
+            <Input
+              placeholder="Enter in date"
+              value={formData.inDate}
+              onChangeText={(value) =>
+                setFormData({ ...formData, inDate: value })
+              }
+            />
+            <FormControl.ErrorMessage>{errors.inDate}</FormControl.ErrorMessage>
+          </FormControl>
 
-          {/* Tax and Order ID */}
-          <HStack space={4}>
-            <FormControl flex={1} isInvalid={"tax" in errors}>
-              <FormControl.Label>Tax (%)</FormControl.Label>
-              <Input
-                keyboardType="numeric"
-                placeholder="Enter tax percentage"
-                value={formData.tax}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, tax: value })
-                }
-              />
-              <FormControl.ErrorMessage>{errors.tax}</FormControl.ErrorMessage>
-            </FormControl>
+          {/* Status */}
+          <FormControl flex={1}>
+            <FormControl.Label>Status</FormControl.Label>
+            <Select
+              selectedValue={formData.status}
+              onValueChange={(value) =>
+                setFormData({ ...formData, status: value })
+              }
+            >
+              {statusOptions.map((option) => (
+                <Select.Item
+                  key={option.key}
+                  label={option.value}
+                  value={option.key}
+                />
+              ))}
+            </Select>
+          </FormControl>
 
-            <FormControl flex={1}>
-              <FormControl.Label>Order ID</FormControl.Label>
-              <Input
-                placeholder="Enter order ID"
-                value={formData.orderId}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, orderId: value })
-                }
-              />
-            </FormControl>
-          </HStack>
+          {/* Payment Status */}
+          <FormControl flex={1}>
+            <FormControl.Label>Payment Status</FormControl.Label>
+            <Select
+              selectedValue={formData.paymentStatus}
+              onValueChange={(value) =>
+                setFormData({ ...formData, paymentStatus: value })
+              }
+            >
+              <Select.Item label="Pending" value="pending" />
+              <Select.Item label="Paid" value="paid" />
+            </Select>
+          </FormControl>
 
+          {/* Tax Rate */}
+          <FormControl isRequired isInvalid={"tax" in errors}>
+            <FormControl.Label>Tax (%)</FormControl.Label>
+            <Input
+              keyboardType="numeric"
+              placeholder="Enter tax percentage"
+              value={formData.tax}
+              onChangeText={(value) => setFormData({ ...formData, tax: value })}
+            />
+            <FormControl.ErrorMessage>{errors.tax}</FormControl.ErrorMessage>
+          </FormControl>
+
+          {/* Modal for adding new category */}
+          <Modal
+            isOpen={isAddCategoryModalOpen}
+            onClose={() => setAddCategoryModalOpen(false)}
+          >
+            <Modal.Content>
+              <Modal.CloseButton />
+              <Modal.Header>Add New Category</Modal.Header>
+              <Modal.Body>
+                <FormControl isRequired>
+                  <FormControl.Label>Category Name</FormControl.Label>
+                  <Input
+                    placeholder="Enter category name"
+                    value={newCategoryName}
+                    onChangeText={setNewCategoryName}
+                  />
+                </FormControl>
+              </Modal.Body>
+              <Modal.Footer>
+                <HStack flex={1} justifyContent="space-between">
+                  <Button onPress={() => setAddCategoryModalOpen(false)} px={6}>
+                    Cancel
+                  </Button>
+                  <Button onPress={handleAddCategory} px={6}>
+                    Add
+                  </Button>
+                </HStack>
+              </Modal.Footer>
+            </Modal.Content>
+          </Modal>
+
+          {/* Add Item Button */}
           <Button
             mt={4}
             colorScheme="blue"

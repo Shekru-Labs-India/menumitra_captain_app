@@ -76,24 +76,23 @@ export default function InventoryItemDetailsScreen() {
       console.log("Inventory Details Response:", data);
 
       if (data.st === 1 && data.data) {
-        // Merge API data with existing fields
         setItem({
-          id: data.data.inventory_id.toString(),
-          supplierId: "", // Keeping existing fields
+          id: data.data.inventory_id,
           name: data.data.name,
-          description: "",
-          category: data.data.type,
-          price: "",
+          description: data.data.description || "No description available",
+          category: data.data.category_name,
+          category_id: data.data.category_id,
           quantity: data.data.quantity,
-          serialNo: "",
-          status: "in",
-          brandName: "",
-          tax: "",
-          paymentStatus: "pending",
-          orderId: "",
-          inDateTime: new Date().toLocaleString(),
-          outDateTime: "",
-          type: data.data.type,
+          unit_price: data.data.unit_price,
+          unit_of_measure: data.data.unit_of_measure,
+          reorder_level: data.data.reorder_level,
+          brand_name: data.data.brand_name,
+          tax_rate: data.data.tax_rate,
+          in_or_out: data.data.in_or_out,
+          in_date: data.data.in_date,
+          expiration_date: data.data.expiration_date,
+          supplier_name: data.data.supplier_name,
+          supplier_id: data.data.supplier_id,
           restaurant_id: data.data.restaurant_id,
         });
       } else {
@@ -291,17 +290,17 @@ export default function InventoryItemDetailsScreen() {
                   </Text>
                 </VStack>
                 <Badge
-                  colorScheme={item?.status === "in" ? "success" : "danger"}
+                  colorScheme={item?.in_or_out === "in" ? "success" : "danger"}
                   variant="subtle"
                   rounded="md"
                   px={3}
                   py={1}
                 >
-                  {item?.status?.toUpperCase()}
+                  {item?.in_or_out?.toUpperCase()}
                 </Badge>
               </HStack>
               <Text fontSize="sm" color="coolGray.600">
-                {item?.description || "No description available"}
+                {item?.description}
               </Text>
             </VStack>
           </Box>
@@ -309,35 +308,55 @@ export default function InventoryItemDetailsScreen() {
           {/* Product Details */}
           <DetailSection title="Product Information">
             <DetailRow label="Category" value={item?.category} />
-            <DetailRow label="Brand Name" value={item?.brandName} />
-            <DetailRow label="Serial Number" value={item?.serialNo} />
+            <DetailRow label="Brand Name" value={item?.brand_name || "N/A"} />
             <DetailRow label="Quantity" value={item?.quantity?.toString()} />
+            <DetailRow
+              label="Unit of Measure"
+              value={item?.unit_of_measure || "N/A"}
+            />
+            <DetailRow
+              label="Reorder Level"
+              value={item?.reorder_level?.toString() || "N/A"}
+            />
           </DetailSection>
 
           {/* Financial Details */}
           <DetailSection title="Financial Information">
-            <DetailRow label="Price" value={`₹${item?.price}`} />
-            <DetailRow label="Tax" value={`${item?.tax}%`} />
+            <DetailRow label="Unit Price" value={`₹${item?.unit_price || 0}`} />
+            <DetailRow label="Tax Rate" value={`${item?.tax_rate || 0}%`} />
+          </DetailSection>
+
+          {/* Supplier Information */}
+          <DetailSection title="Supplier Information">
             <DetailRow
-              label="Payment Status"
-              value={item?.paymentStatus?.toUpperCase()}
-              badge
-              badgeColor={
-                item?.paymentStatus === "paid" ? "success" : "warning"
-              }
+              label="Supplier Name"
+              value={item?.supplier_name || "N/A"}
+            />
+            <DetailRow
+              label="Supplier ID"
+              value={item?.supplier_id?.toString() || "N/A"}
             />
           </DetailSection>
 
-          {/* Order Information */}
-          <DetailSection title="Order Information">
-            <DetailRow label="Order ID" value={item?.orderId} />
-            <DetailRow label="Supplier ID" value={item?.supplierId} />
+          {/* Dates Information */}
+          <DetailSection title="Time Information">
+            <DetailRow label="In Date" value={item?.in_date || "N/A"} />
+            <DetailRow
+              label="Expiration Date"
+              value={item?.expiration_date || "N/A"}
+            />
           </DetailSection>
 
-          {/* Timestamps */}
-          <DetailSection title="Time Information">
-            <DetailRow label="In Date & Time" value={item?.inDateTime} />
-            <DetailRow label="Out Date & Time" value={item?.outDateTime} />
+          {/* Additional Information */}
+          <DetailSection title="Additional Information">
+            <DetailRow
+              label="Restaurant ID"
+              value={item?.restaurant_id?.toString() || "N/A"}
+            />
+            <DetailRow
+              label="Category ID"
+              value={item?.category_id?.toString() || "N/A"}
+            />
           </DetailSection>
         </VStack>
       </ScrollView>

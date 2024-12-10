@@ -466,11 +466,7 @@ export default function StaffScreen() {
 
         {/* Search and Filters */}
         <VStack px={3} space={4} mt={2}>
-          {" "}
-          {/* Adjusted top space and reduced vertical space */}
           <HStack space={1}>
-            {" "}
-            {/* Reduced horizontal space */}
             <Select
               flex={1}
               selectedValue={filterRole}

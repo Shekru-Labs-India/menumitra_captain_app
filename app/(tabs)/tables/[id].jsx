@@ -179,10 +179,30 @@ export default function TableDetailsScreen() {
       flex={1}
       bg="white"
       safeArea
-      pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
+      pt={Platform.OS === "android" ? StatusBar.currentHeight : 1}
     >
       {/* New Header */}
-      <Header title="Table Details" />
+      <Box
+        flexDirection="row"
+        justifyContent="space-between"
+        alignItems="center"
+        p={1}
+        bg="white"
+        borderBottomWidth={1}
+        borderColor="coolGray.200"
+      >
+        <IconButton
+          icon={<MaterialIcons name="arrow-back" size={24} color="gray" />} // Grey back button
+          onPress={() => router.back()}
+        />
+        <Text fontSize="20" fontWeight="bold">
+          Table Details
+        </Text>
+        <IconButton
+          icon={<MaterialIcons name="delete" size={24} color="black" />}
+          onPress={() => setShowDeleteModal(true)} // Show delete modal on press
+        />
+      </Box>
 
       {loading ? (
         <Box flex={1} justifyContent="center" alignItems="center">
@@ -260,17 +280,10 @@ export default function TableDetailsScreen() {
                     </Box>
                     <Button
                       mt={4}
-                      leftIcon={
-                        <MaterialIcons
-                          name="file-download"
-                          size={20}
-                          color="white"
-                        />
-                      }
                       onPress={downloadQRCode}
                       colorScheme="primary"
                     >
-                      Download QR Code
+                      Download
                     </Button>
                   </VStack>
                 )}
@@ -278,14 +291,6 @@ export default function TableDetailsScreen() {
             </Box>
 
             {/* Delete Button */}
-            <Button
-              colorScheme="red"
-              size="lg"
-              onPress={() => setShowDeleteModal(true)}
-              leftIcon={<MaterialIcons name="delete" size={20} color="white" />}
-            >
-              Delete Table
-            </Button>
           </VStack>
         </ScrollView>
       )}
