@@ -18,6 +18,7 @@ import {
   Modal,
   Button,
   Spinner,
+  Fab,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
@@ -25,6 +26,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
+import Header from "../../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -283,49 +285,94 @@ export default function TableSectionsScreen() {
   };
 
   const renderGridView = (sections) => (
-    <ScrollView px={4} py={2}>
+    <ScrollView px={2} py={2}>
       <HStack flexWrap="wrap" justifyContent="space-between">
         {sections.map((section) => (
           <Pressable
             key={section.id}
             onPress={() => handleSectionPress(section)}
-            width="48%"
-            mb={4}
+            width="49%" // Slightly less than 50% to ensure spacing
+            mb={2} // Reduced margin bottom
           >
             <Box
               bg="white"
-              p={4}
+              p={3} // Reduced padding
               rounded="lg"
               borderWidth={1}
               borderColor="coolGray.200"
-              shadow={2}
+              shadow={1}
             >
-              <VStack space={3}>
-                <Heading size="sm" color={section.color} fontWeight="bold">
-                  {section.name}
-                </Heading>
-                <HStack justifyContent="space-between">
-                  <VStack alignItems="center" flex={1}>
-                    <Text fontSize="xs" color="coolGray.500">
+              <VStack space={3} alignItems="center">
+                {" "}
+                {/* Reduced space */}
+                {/* Centered Title */}
+                <Box w="full" alignItems="center">
+                  <Heading
+                    size="xs" // Smaller heading
+                    color={section.color}
+                    fontWeight="bold"
+                    textAlign="center"
+                  >
+                    {section.name}
+                  </Heading>
+                </Box>
+                {/* Stats Row */}
+                <HStack
+                  w="full"
+                  justifyContent="space-between"
+                  space={1} // Reduced space between stats
+                  px={1} // Reduced padding
+                >
+                  {/* Total */}
+                  <VStack
+                    alignItems="center"
+                    flex={1}
+                    bg="coolGray.50"
+                    p={1.5} // Reduced padding
+                    rounded="md"
+                  >
+                    <Text
+                      fontSize="2xs" // Smaller font
+                      color="coolGray.500"
+                      fontWeight="medium"
+                    >
                       Total
                     </Text>
-                    <Text fontSize="lg" fontWeight="bold">
+                    <Text fontSize="md" fontWeight="bold">
+                      {" "}
+                      {/* Smaller font */}
                       {section.totalTables}
                     </Text>
                   </VStack>
-                  <VStack alignItems="center" flex={1}>
-                    <Text fontSize="xs" color="red.500">
-                      Occupied
+
+                  {/* Occupied */}
+                  <VStack
+                    alignItems="center"
+                    flex={1}
+                    bg="red.50"
+                    p={1.5}
+                    rounded="md"
+                  >
+                    <Text fontSize="2xs" color="red.500" fontWeight="medium">
+                      Occ
                     </Text>
-                    <Text fontSize="lg" fontWeight="bold" color="red.500">
+                    <Text fontSize="md" fontWeight="bold" color="red.500">
                       {section.engagedTables}
                     </Text>
                   </VStack>
-                  <VStack alignItems="center" flex={1}>
-                    <Text fontSize="xs" color="green.500">
+
+                  {/* Free */}
+                  <VStack
+                    alignItems="center"
+                    flex={1}
+                    bg="green.50"
+                    p={1.5}
+                    rounded="md"
+                  >
+                    <Text fontSize="2xs" color="green.500" fontWeight="medium">
                       Free
                     </Text>
-                    <Text fontSize="lg" fontWeight="bold" color="green.500">
+                    <Text fontSize="md" fontWeight="bold" color="green.500">
                       {section.totalTables - section.engagedTables}
                     </Text>
                   </VStack>
@@ -376,63 +423,25 @@ export default function TableSectionsScreen() {
     </ScrollView>
   );
   return (
-    <>
-      <Box
-        flex={1}
-        bg="white"
-        safeArea
-        pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
-      >
-        {/* Header with back button and centered title */}
-        <Box
-          px={4}
-          py={4}
-          bg="gray.50"
-          borderBottomWidth={1}
-          borderBottomColor="gray.200"
-        >
-          <HStack
-            alignItems="center"
-            justifyContent="center"
-            position="relative"
-          >
-            <IconButton
-              position="absolute"
-              left={0}
-              icon={<MaterialIcons name="arrow-back" size={22} />}
-              onPress={() => router.back()}
-              variant="ghost"
-              _pressed={{ bg: "gray.200" }}
-              rounded="full"
-            />
-            <Heading size="md" textAlign="center">
-              Sections
-            </Heading>
-          </HStack>
-        </Box>
+    <Box flex={1} bg="coolGray.100" safeAreaTop>
+      {/* Header Component */}
+      <Header title="Sections" onBackPress={() => router.back()} />
 
-        {/* Search and Filters with suppliers design */}
-        <HStack
-          px={4}
-          py={2}
-          space={2}
-          alignItems="center"
-          borderBottomWidth={1}
-          borderBottomColor="coolGray.200"
-          bg="coolGray.50"
-        >
+      {/* Search and Filters */}
+      <Box bg="white" px={4} py={2} shadow={1}>
+        <HStack space={2} alignItems="center">
           <Input
             flex={1}
             placeholder="Search..."
             value={searchQuery}
             onChangeText={setSearchQuery}
+            bg="coolGray.50"
+            borderRadius="lg"
+            py={2}
             InputLeftElement={
-              <MaterialIcons
-                name="search"
-                size={20}
-                color="coolGray.400"
-                style={{ marginLeft: 8 }}
-              />
+              <Box pl={2}>
+                <MaterialIcons name="search" size={20} color="coolGray.400" />
+              </Box>
             }
           />
           <IconButton
@@ -444,13 +453,16 @@ export default function TableSectionsScreen() {
               />
             }
             onPress={() => setViewType(viewType === "grid" ? "list" : "grid")}
+            variant="ghost"
           />
           <Select
             w="110"
             selectedValue={sortBy}
             onValueChange={setSortBy}
-            placeholder="Sort by"
+            bg="coolGray.50"
+            borderRadius="lg"
             _selectedItem={{
+              bg: "coolGray.100",
               endIcon: (
                 <MaterialIcons name="check" size={16} color="coolGray.600" />
               ),
@@ -469,10 +481,13 @@ export default function TableSectionsScreen() {
               />
             }
             onPress={() => setIsAscending(!isAscending)}
+            variant="ghost"
           />
         </HStack>
+      </Box>
 
-        {/* Content */}
+      {/* Content */}
+      <Box flex={1} bg="coolGray.100">
         {loading ? (
           <Box flex={1} justifyContent="center" alignItems="center">
             <Spinner size="lg" />
@@ -483,17 +498,18 @@ export default function TableSectionsScreen() {
               ? renderGridView(sortedSections)
               : renderListView(sortedSections)}
 
-            {/* Floating Action Button */}
-            <Pressable
+            {/* FAB */}
+            <Fab
+              renderInPortal={false}
+              shadow={2}
+              size="sm"
+              colorScheme="green"
+              icon={<MaterialIcons name="add" size={24} color="white" />}
               onPress={() => setShowAddModal(true)}
               position="absolute"
-              bottom={8}
-              right={8}
-            >
-              <Box bg="green.500" rounded="full" p={3}>
-                <MaterialIcons name="add" size={28} color="white" />
-              </Box>
-            </Pressable>
+              bottom={4}
+              right={4}
+            />
           </>
         )}
       </Box>
@@ -550,6 +566,6 @@ export default function TableSectionsScreen() {
           </Modal.Footer>
         </Modal.Content>
       </Modal>
-    </>
+    </Box>
   );
 }

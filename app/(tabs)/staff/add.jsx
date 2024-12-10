@@ -46,7 +46,7 @@ export default function AddStaffScreen() {
 
   const pickImage = async () => {
     try {
-      // Request permission
+      // Request permission first
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -60,21 +60,22 @@ export default function AddStaffScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
       });
 
       if (!result.canceled) {
+        // Updated to handle the new result format
         setImage(result.assets[0].uri);
       }
     } catch (error) {
+      console.error("Image picker error:", error);
       toast.show({
         description: "Error picking image",
         status: "error",
       });
-      console.log(error);
     }
   };
 
@@ -312,26 +313,13 @@ export default function AddStaffScreen() {
   }, []);
 
   return (
-    <Box
-      flex={1}
-      bg="white"
-      safeArea
-      pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
-    >
-      <Box
-        px={0}
-        py={0}
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
-        bg="coolGray.50"
-      >
-        <Header title="Add New Staff" />
-      </Box>
+    <Box flex={1} bg="white" safeArea>
+      <Header title="Add New Staff" />
 
       <ScrollView px={4} py={4}>
         <VStack space={4}>
           <Center>
-            <Pressable onPress={pickImage}>
+            <Pressable onPress={pickImage} _pressed={{ opacity: 0.7 }}>
               <Avatar
                 size="2xl"
                 bg="cyan.500"
@@ -439,6 +427,7 @@ export default function AddStaffScreen() {
 
           <Button
             mt={4}
+            mb={6}
             onPress={handleSave}
             leftIcon={<MaterialIcons name="save" size={20} color="white" />}
             isLoadingText="Saving..."

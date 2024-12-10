@@ -12,6 +12,9 @@ import {
   Select,
   Spinner,
   useToast,
+  Center,
+  FlatList,
+  Badge,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -31,51 +34,8 @@ export default function OrdersScreen() {
   const [viewType, setViewType] = useState("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date");
-  const [isAscending, setIsAscending] = useState(true);
-  const [orderStatus, setOrderStatus] = useState("ongoing");
-
-  // Add sample data when API returns empty
-  const sampleOrders = [
-    {
-      order_id: 1978,
-      order_number: "902061",
-      table_number: "1",
-      order_type: "Parcel",
-      order_status: "ongoing",
-      restaurant_name: "AK BIRYANI",
-      total_bill: 80.0,
-      date_time: "08:27 PM",
-      menu_details: [
-        {
-          menu_name: "Medu vada",
-          price: 80,
-          quantity: 1,
-        },
-      ],
-    },
-    {
-      order_id: 1973,
-      order_number: "806183",
-      table_number: "1",
-      order_type: "Dine In",
-      order_status: "completed",
-      restaurant_name: "AK BIRYANI",
-      total_bill: 1430.0,
-      date_time: "05:05 PM",
-      menu_details: [
-        {
-          menu_name: "Jalebi",
-          price: 200,
-          quantity: 2,
-        },
-        {
-          menu_name: "Idali",
-          price: 40,
-          quantity: 2,
-        },
-      ],
-    },
-  ];
+  const [orderStatus, setOrderStatus] = useState("all");
+  const [isAscending, setIsAscending] = useState(false);
 
   // Get current date in required format (DD MMM YYYY)
   const getCurrentDate = () => {
@@ -94,39 +54,65 @@ export default function OrdersScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/captain_order/listview`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          restaurant_id: parseInt(restaurantId),
-          order_status: orderStatus,
-          date: getCurrentDate(),
-        }),
-      });
+      // Make multiple API calls when status is "all"
+      if (orderStatus === "all") {
+        const statuses = ["ongoing", "completed", "cancelled"];
+        const allOrdersPromises = statuses.map((status) =>
+          fetch(`${API_BASE_URL}/captain_order/listview`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              restaurant_id: parseInt(restaurantId),
+              order_status: status,
+              date: getCurrentDate(),
+            }),
+          }).then((res) => res.json())
+        );
 
-      const data = await response.json();
-      console.log("Orders Response:", data);
+        const responses = await Promise.all(allOrdersPromises);
+        const allOrders = responses.reduce((acc, data) => {
+          if (data.st === 1 && data.lists) {
+            return [...acc, ...data.lists];
+          }
+          return acc;
+        }, []);
 
-      if (data.st === 1) {
-        // Use sample data if API returns empty list
-        setOrders(data.lists?.length > 0 ? data.lists : sampleOrders);
+        setOrders(allOrders);
       } else {
-        // Use sample data for testing
-        setOrders(sampleOrders);
-        toast.show({
-          description: "Using sample data for testing",
-          status: "info",
+        // Single API call for specific status
+        const response = await fetch(`${API_BASE_URL}/captain_order/listview`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: parseInt(restaurantId),
+            order_status: orderStatus,
+            date: getCurrentDate(),
+          }),
         });
+
+        const data = await response.json();
+        console.log("Orders Response:", data);
+
+        if (data.st === 1) {
+          setOrders(data.lists || []);
+        } else {
+          setOrders([]);
+          toast.show({
+            description: data.msg || "Failed to fetch orders",
+            status: "error",
+          });
+        }
       }
     } catch (error) {
       console.error("Fetch Orders Error:", error);
-      // Use sample data on error
-      setOrders(sampleOrders);
+      setOrders([]);
       toast.show({
-        description: "Using sample data for testing",
-        status: "info",
+        description: "Error fetching orders",
+        status: "error",
       });
     } finally {
       setIsLoading(false);
@@ -161,28 +147,36 @@ export default function OrdersScreen() {
   // Filter and sort orders
   const filteredOrders = orders
     .filter((order) => {
+      if (orderStatus !== "all") {
+        return order.order_status === orderStatus;
+      }
+      return true;
+    })
+    .filter((order) => {
+      const searchLower = searchQuery.toLowerCase();
       return (
-        order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.restaurant_name
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        order.order_type.toLowerCase().includes(searchQuery.toLowerCase())
+        order.order_number.toLowerCase().includes(searchLower) ||
+        order.restaurant_name.toLowerCase().includes(searchLower) ||
+        order.order_type.toLowerCase().includes(searchLower)
       );
     })
     .sort((a, b) => {
       let comparison = 0;
       switch (sortBy) {
         case "date":
-          comparison = new Date(b.date_time) - new Date(a.date_time);
+          const timeA = new Date(`${getCurrentDate()} ${a.date_time}`);
+          const timeB = new Date(`${getCurrentDate()} ${b.date_time}`);
+          comparison = timeB - timeA;
           break;
         case "amount":
-          comparison = a.total_bill - b.total_bill;
+          comparison = b.total_bill - a.total_bill;
           break;
-        case "status":
-          comparison = a.order_status.localeCompare(b.order_status);
-          break;
+        default:
+          const defaultTimeA = new Date(`${getCurrentDate()} ${a.date_time}`);
+          const defaultTimeB = new Date(`${getCurrentDate()} ${b.date_time}`);
+          comparison = defaultTimeB - defaultTimeA;
       }
-      return isAscending ? comparison : -comparison;
+      return isAscending ? -comparison : comparison;
     });
 
   if (isLoading) {
@@ -195,261 +189,232 @@ export default function OrdersScreen() {
   }
 
   return (
-    <Box flex={1} bg="gray.50" safeArea>
+    <Box flex={1} bg="white" safeArea>
       <Header title="Orders" />
-      <VStack flex={1}>
-        {/* Filters */}
-        <HStack
-          px={4}
-          py={2}
-          pl={6}
-          pr={0}
-          space={2}
-          alignItems="center"
-          borderBottomWidth={1}
-          borderBottomColor="coolGray.200"
-          bg="coolGray.50"
-        >
-          <Input
-            flex={1}
-            placeholder="Search orders..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            InputLeftElement={
-              <MaterialIcons
-                name="search"
-                size={20}
-                color="coolGray.400"
-                style={{ marginLeft: 8 }}
-              />
-            }
-          />
-          <IconButton
-            icon={
-              <MaterialIcons
-                name={viewType === "grid" ? "view-list" : "grid-view"}
-                size={24}
-                color="coolGray.600"
-              />
-            }
-            onPress={() => setViewType(viewType === "grid" ? "list" : "grid")}
-          />
-          <Select
-            w="110"
-            selectedValue={sortBy}
-            onValueChange={setSortBy}
-            placeholder="Sort by"
-            _selectedItem={{
-              endIcon: (
-                <MaterialIcons name="check" size={16} color="coolGray.600" />
-              ),
-            }}
-          >
-            <Select.Item label="Date" value="date" />
-            <Select.Item label="Amount" value="amount" />
-            <Select.Item label="Status" value="status" />
-          </Select>
-          <IconButton
-            icon={
-              <MaterialIcons
-                name={isAscending ? "arrow-upward" : "arrow-downward"}
-                size={24}
-                color="coolGray.600"
-              />
-            }
-            onPress={() => setIsAscending(!isAscending)}
-          />
-        </HStack>
 
-        {/* Orders List/Grid */}
-        <ScrollView flex={1}>
-          {viewType === "list" ? (
-            <VStack space={3} px={4}>
-              {filteredOrders.length > 0 ? (
-                filteredOrders.map((order) => (
-                  <Pressable
-                    key={order.order_id}
-                    onPress={() => {
-                      router.push({
-                        pathname: "/orders/order-details",
-                        params: { id: order.order_id },
-                      });
-                    }}
-                  >
-                    <Box bg="white" rounded="lg" shadow={2} p={4}>
-                      <VStack space={2}>
-                        <HStack
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <Text fontSize="lg" fontWeight="bold">
-                            #{order.order_number}
-                          </Text>
-                          <Text color="gray.500">{order.date_time}</Text>
-                        </HStack>
-
-                        <HStack
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <Text fontSize="md" color="gray.700">
-                            {order.restaurant_name}
-                          </Text>
-                          <Text
-                            fontSize="md"
-                            fontWeight="bold"
-                            color="blue.500"
-                          >
-                            ₹{order.total_bill}
-                          </Text>
-                        </HStack>
-
-                        <HStack
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <HStack space={2} alignItems="center">
-                            <MaterialIcons
-                              name={
-                                order.order_type.toLowerCase() === "dine in"
-                                  ? "restaurant"
-                                  : "local-shipping"
-                              }
-                              size={16}
-                              color="gray"
-                            />
-                            <Text color="gray.600">{order.order_type}</Text>
-                          </HStack>
-                          <Text
-                            fontSize="sm"
-                            color={
-                              order.order_status === "completed"
-                                ? "green.500"
-                                : "orange.500"
-                            }
-                          >
-                            {order.order_status}
-                          </Text>
-                        </HStack>
-
-                        {/* Menu Items Summary */}
-                        <Text fontSize="sm" color="gray.500">
-                          {order.menu_details.length} items
-                        </Text>
-                      </VStack>
-                    </Box>
-                  </Pressable>
-                ))
-              ) : (
-                <Box
-                  flex={1}
-                  justifyContent="center"
-                  alignItems="center"
-                  py={10}
-                >
-                  <Text color="gray.500">No orders found</Text>
-                </Box>
-              )}
-            </VStack>
-          ) : (
-            <Box px={4} py={2}>
-              <HStack flexWrap="wrap" justifyContent="space-between">
-                {filteredOrders.length > 0 ? (
-                  filteredOrders.map((order) => (
-                    <Pressable
-                      key={order.order_id}
-                      width="48%"
-                      mb={4}
-                      onPress={() => {
-                        router.push({
-                          pathname: "/orders/order-details",
-                          params: { id: order.order_id },
-                        });
-                      }}
-                    >
-                      <Box
-                        bg="white"
-                        shadow={1}
-                        rounded="xl"
-                        p={3}
-                        borderWidth={1}
-                        borderColor="gray.100"
-                      >
-                        <VStack space={2}>
-                          <HStack
-                            justifyContent="space-between"
-                            alignItems="center"
-                          >
-                            <Text fontSize="sm" fontWeight="bold">
-                              #{order.order_number}
-                            </Text>
-                            <Text fontSize="xs" color="gray.400">
-                              {order.date_time}
-                            </Text>
-                          </HStack>
-
-                          <Text
-                            fontSize="sm"
-                            fontWeight="medium"
-                            color="gray.700"
-                          >
-                            {order.restaurant_name}
-                          </Text>
-
-                          <HStack
-                            justifyContent="space-between"
-                            alignItems="center"
-                          >
-                            <Text fontSize="sm" color="gray.500">
-                              {order.order_type}
-                            </Text>
-                            <Text
-                              fontSize="sm"
-                              fontWeight="bold"
-                              color="blue.500"
-                            >
-                              ₹{order.total_bill}
-                            </Text>
-                          </HStack>
-
-                          <HStack
-                            justifyContent="space-between"
-                            alignItems="center"
-                          >
-                            <Text
-                              fontSize="xs"
-                              fontWeight="medium"
-                              color={
-                                order.order_status === "completed"
-                                  ? "green.500"
-                                  : "orange.500"
-                              }
-                            >
-                              {order.order_status}
-                            </Text>
-                            <Text fontSize="xs" color="gray.500">
-                              {order.menu_details.length} items
-                            </Text>
-                          </HStack>
-                        </VStack>
-                      </Box>
-                    </Pressable>
-                  ))
-                ) : (
-                  <Box
-                    flex={1}
-                    justifyContent="center"
-                    alignItems="center"
-                    py={10}
-                  >
-                    <Text color="gray.500">No orders found</Text>
-                  </Box>
-                )}
-              </HStack>
+      {/* Search and Filters Row */}
+      <HStack
+        px={4}
+        py={3}
+        space={3}
+        alignItems="center"
+        borderBottomWidth={1}
+        borderBottomColor="coolGray.200"
+      >
+        {/* Search Bar */}
+        <Input
+          flex={1}
+          h="36px"
+          w="80%"
+          placeholder="Search..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          borderRadius="md"
+          fontSize="sm"
+          InputLeftElement={
+            <Box pl={3}>
+              <MaterialIcons name="search" size={20} color="coolGray.400" />
             </Box>
+          }
+        />
+
+        {/* Grid/List View Toggle */}
+        <IconButton
+          variant="outline"
+          borderColor="coolGray.300"
+          icon={
+            <MaterialIcons
+              name={viewType === "grid" ? "view-list" : "grid-view"}
+              size={22}
+              color="coolGray.500"
+            />
+          }
+          onPress={() => setViewType(viewType === "grid" ? "list" : "grid")}
+        />
+
+        {/* Sort Direction Toggle */}
+        <IconButton
+          variant="outline"
+          borderColor="coolGray.300"
+          icon={
+            <MaterialIcons
+              name={isAscending ? "arrow-upward" : "arrow-downward"}
+              size={22}
+              color="coolGray.500"
+            />
+          }
+          onPress={() => setIsAscending(!isAscending)}
+        />
+      </HStack>
+
+      {/* Filters Row */}
+      <HStack px={4} py={2} space={3}>
+        {/* Status Filter */}
+        <Select
+          flex={1}
+          h="36px"
+          borderRadius="md"
+          selectedValue={orderStatus}
+          onValueChange={(value) => setOrderStatus(value)}
+          _selectedItem={{
+            bg: "coolGray.100",
+            endIcon: (
+              <MaterialIcons name="check" size={20} color="coolGray.600" />
+            ),
+          }}
+        >
+          <Select.Item label="All Status" value="all" />
+          <Select.Item label="Ongoing" value="ongoing" />
+          <Select.Item label="Completed" value="completed" />
+          <Select.Item label="Cancelled" value="cancelled" />
+        </Select>
+
+        {/* Sort By Filter */}
+        <Select
+          flex={1}
+          h="36px"
+          borderRadius="md"
+          selectedValue={sortBy}
+          onValueChange={(value) => setSortBy(value)}
+          _selectedItem={{
+            bg: "coolGray.100",
+            endIcon: (
+              <MaterialIcons name="check" size={20} color="coolGray.600" />
+            ),
+          }}
+        >
+          <Select.Item label="Date" value="date" />
+          <Select.Item label="Amount" value="amount" />
+        </Select>
+      </HStack>
+
+      {/* Orders List/Grid */}
+      {isLoading ? (
+        <Center flex={1}>
+          <Spinner size="lg" />
+          <Text mt={2}>Loading orders...</Text>
+        </Center>
+      ) : filteredOrders.length === 0 ? (
+        <Center flex={1}>
+          <MaterialIcons name="receipt-long" size={48} color="coolGray.300" />
+          <Text mt={2} color="coolGray.600">
+            No orders found
+          </Text>
+        </Center>
+      ) : (
+        <FlatList
+          data={filteredOrders}
+          key={viewType} // Force re-render when view type changes
+          numColumns={viewType === "grid" ? 2 : 1}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => {
+                router.push({
+                  pathname: "/orders/order-details",
+                  params: { id: item.order_number },
+                });
+              }}
+              flex={viewType === "grid" ? 1 : undefined}
+            >
+              <Box bg="white" rounded="lg" shadow={1} m={2} p={3} flex={1}>
+                <VStack space={2}>
+                  {/* Order Header */}
+                  <HStack justifyContent="space-between" alignItems="center">
+                    <VStack>
+                      <Text
+                        fontSize={viewType === "grid" ? "md" : "lg"}
+                        fontWeight="bold"
+                      >
+                        #{item.order_number}
+                      </Text>
+                      <Text fontSize="xs" color="coolGray.600">
+                        {item.restaurant_name}
+                      </Text>
+                    </VStack>
+                    <Badge
+                      colorScheme={
+                        item.order_status === "ongoing"
+                          ? "orange"
+                          : item.order_status === "completed"
+                          ? "green"
+                          : "red"
+                      }
+                      rounded="sm"
+                    >
+                      {item.order_status.toUpperCase()}
+                    </Badge>
+                  </HStack>
+
+                  {/* Order Info */}
+                  <HStack justifyContent="space-between" alignItems="center">
+                    <HStack space={1} alignItems="center">
+                      <MaterialIcons
+                        name={
+                          item.order_type === "Dine In"
+                            ? "restaurant"
+                            : "delivery-dining"
+                        }
+                        size={14}
+                        color="coolGray.500"
+                      />
+                      <Text fontSize="xs" color="coolGray.600">
+                        {item.order_type}{" "}
+                        {item.table_number && `• Table ${item.table_number}`}
+                      </Text>
+                    </HStack>
+                    <Text fontSize="xs" color="coolGray.500">
+                      {item.date_time}
+                    </Text>
+                  </HStack>
+
+                  {/* Menu Items - Condensed in grid view */}
+                  <VStack space={1}>
+                    <Text fontSize="xs" color="coolGray.600">
+                      {item.menu_details.length} items
+                    </Text>
+                    {viewType === "list" &&
+                      item.menu_details.map((menu, index) => (
+                        <HStack key={index} justifyContent="space-between">
+                          <Text fontSize="xs">
+                            {menu.quantity}x {menu.menu_name}
+                          </Text>
+                          <Text fontSize="xs">
+                            ₹{menu.price * menu.quantity}
+                          </Text>
+                        </HStack>
+                      ))}
+                  </VStack>
+
+                  {/* Total */}
+                  <HStack
+                    justifyContent="space-between"
+                    pt={2}
+                    borderTopWidth={1}
+                    borderTopColor="coolGray.100"
+                  >
+                    <Text
+                      fontSize={viewType === "grid" ? "xs" : "sm"}
+                      fontWeight="bold"
+                    >
+                      Total
+                    </Text>
+                    <Text
+                      fontSize={viewType === "grid" ? "xs" : "sm"}
+                      fontWeight="bold"
+                      color="blue.500"
+                    >
+                      ₹{item.total_bill}
+                    </Text>
+                  </HStack>
+                </VStack>
+              </Box>
+            </Pressable>
           )}
-        </ScrollView>
-      </VStack>
+          keyExtractor={(item) => item.order_id.toString()}
+          contentContainerStyle={{ padding: 2 }}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </Box>
   );
 }

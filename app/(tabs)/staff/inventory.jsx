@@ -62,13 +62,8 @@ export default function InventoryScreen() {
   };
 
   return (
-    <Box
-      flex={1}
-      bg="white"
-      safeArea
-      pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
-    >
-      <Header title="Inventory" onBackPress={() => router.back()} />
+    <Box flex={1} bg="white" safeArea>
+      <Header title="Inventory" />
 
       <FlatList
         data={categories}
@@ -112,13 +107,13 @@ export default function InventoryScreen() {
       {/* Add Category FAB */}
       <Fab
         renderInPortal={false}
-        shadow={3}
+        shadow={2}
         size="sm"
+        colorScheme="green"
         icon={<MaterialIcons name="add" size={24} color="white" />}
         onPress={() => setIsDialogOpen(true)}
-        bg="green.500"
         position="absolute"
-        bottom={10}
+        bottom={4}
         right={4}
       />
 
@@ -154,25 +149,19 @@ export default function InventoryScreen() {
             </VStack>
           </AlertDialog.Body>
           <AlertDialog.Footer>
-            <Button
-              variant="outline"
-              colorScheme="coolGray"
-              onPress={() => setIsDialogOpen(false)}
-              flex={1}
-              size="xs" // Make the Cancel button smaller
-              _text={{ fontSize: "xs" }} // Adjust text size for the button
-            >
-              Cancel
-            </Button>
-            <Button
-              colorScheme="green"
-              onPress={handleAddCategory}
-              flex={1}
-              size="xs"
-              _text={{ fontSize: "xs" }}
-            >
-              Add Category
-            </Button>
+            <Button.Group space={2}>
+              <Button
+                variant="outline"
+                colorScheme="coolGray"
+                onPress={() => setIsDialogOpen(false)}
+                size="sm"
+              >
+                Cancel
+              </Button>
+              <Button colorScheme="green" onPress={handleAddCategory} size="sm">
+                Add Category
+              </Button>
+            </Button.Group>
           </AlertDialog.Footer>
         </AlertDialog.Content>
       </AlertDialog>

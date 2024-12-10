@@ -8,6 +8,7 @@ import {
   Input,
   Button,
   Icon,
+  Spinner,
 } from "native-base";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useVersion } from "../context/VersionContext";
@@ -170,75 +171,92 @@ export default function LoginScreen() {
             </Text>
           </VStack>
 
-          <VStack space={2} w="100%">
-            <HStack
-              space={2}
-              alignItems="center"
-              w="100%"
-              borderWidth={1}
-              borderColor={
-                errorMessage || apiError ? "red.500" : "coolGray.500"
-              }
-              borderRadius="lg"
-              p={2}
-              zIndex={1}
-            >
-              <Text
-                px={3}
-                py={2}
-                fontSize="md"
-                color="coolGray.600"
-                borderRightWidth={1}
-                borderRightColor="coolGray.500"
+          <VStack space={4} w="100%">
+            <VStack space={2} w="100%">
+              <HStack
+                space={2}
+                alignItems="center"
+                w="100%"
+                borderWidth={1.5}
+                borderColor={
+                  errorMessage || apiError ? "red.500" : "coolGray.300"
+                }
+                borderRadius="xl"
+                overflow="hidden"
+                bg="white"
               >
-                +91
-              </Text>
-              <Input
-                ref={mobileInputRef}
-                flex={1}
-                h={12}
-                px={3}
-                fontSize="md"
-                placeholder="Enter Mobile Number"
-                placeholderTextColor="coolGray.400"
-                keyboardType="numeric"
-                value={mobileNumber}
-                onChangeText={handleMobileNumberChange}
-                maxLength={10}
-                borderWidth={0}
-                _focus={{
-                  bg: "transparent",
-                }}
-              />
-            </HStack>
-            {errorMessage ? (
-              <Text color="red.500" fontSize="xs" pl={2}>
-                {errorMessage}
-              </Text>
-            ) : null}
-            {apiError ? (
-              <Text color="red.500" fontSize="xs" pl={2}>
-                {apiError}
-              </Text>
-            ) : null}
-          </VStack>
+                <Box
+                  px={4}
+                  py={3}
+                  borderRightWidth={1.5}
+                  borderRightColor="coolGray.300"
+                >
+                  <Text fontSize="md" fontWeight="medium" color="coolGray.600">
+                    +91
+                  </Text>
+                </Box>
+                <Input
+                  ref={mobileInputRef}
+                  flex={1}
+                  h={12}
+                  px={3}
+                  fontSize="md"
+                  placeholder="Enter Mobile Number"
+                  placeholderTextColor="coolGray.400"
+                  keyboardType="numeric"
+                  value={mobileNumber}
+                  onChangeText={handleMobileNumberChange}
+                  maxLength={10}
+                  borderWidth={0}
+                  _focus={{
+                    bg: "transparent",
+                  }}
+                />
+              </HStack>
 
-          <Button
-            w="100%"
-            h={12}
-            bg="#007AFF"
-            _pressed={{ bg: "#0056b3" }}
-            borderRadius="lg"
-            isDisabled={isLoading || mobileNumber.length !== 10}
-            onPress={handleSendOtp}
-            _text={{ fontSize: "md", fontWeight: "bold" }}
-            _disabled={{
-              bg: "coolGray.300",
-              _text: { color: "gray.500" },
-            }}
-          >
-            {isLoading ? "Please wait..." : "Send OTP"}
-          </Button>
+              {errorMessage ? (
+                <Text color="red.500" fontSize="xs" pl={2}>
+                  {errorMessage}
+                </Text>
+              ) : null}
+              {apiError ? (
+                <Text color="red.500" fontSize="xs" pl={2}>
+                  {apiError}
+                </Text>
+              ) : null}
+            </VStack>
+
+            <Button
+              w="100%"
+              h={12}
+              bg="#007AFF"
+              _pressed={{ bg: "#0056b3" }}
+              borderRadius="xl"
+              isDisabled={isLoading || mobileNumber.length !== 10}
+              onPress={handleSendOtp}
+              _text={{
+                fontSize: "md",
+                fontWeight: "semibold",
+                color: "white",
+              }}
+              _disabled={{
+                bg: "coolGray.300",
+                _text: { color: "white" },
+                opacity: 0.6,
+              }}
+            >
+              {isLoading ? (
+                <HStack space={2} alignItems="center">
+                  <Spinner color="white" size="sm" />
+                  <Text color="white" fontSize="md" fontWeight="semibold">
+                    Please wait...
+                  </Text>
+                </HStack>
+              ) : (
+                "Send OTP"
+              )}
+            </Button>
+          </VStack>
         </VStack>
       </Box>
 

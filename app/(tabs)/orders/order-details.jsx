@@ -12,12 +12,20 @@ import {
   IconButton,
   Spinner,
   useToast,
+  Badge,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
+
+const formatTime = (dateTimeString) => {
+  const timePart = dateTimeString.split(" ")[1];
+  const amPm = dateTimeString.split(" ")[2];
+  const timeWithoutSeconds = timePart.split(":").slice(0, 2).join(":");
+  return `${timeWithoutSeconds} ${amPm}`;
+};
 
 export default function OrderDetailsScreen() {
   const router = useRouter();
@@ -26,47 +34,10 @@ export default function OrderDetailsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [orderDetails, setOrderDetails] = useState(null);
 
-  // Update sample order details to match API structure exactly
-  const sampleOrderDetails = {
-    order_details: {
-      order_id: 1978,
-      order_number: "902061",
-      table_number: "1",
-      order_status: "ongoing",
-      menu_count: 1,
-      total_bill: 80.0,
-      service_charges_percent: 1.0,
-      service_charges_amount: 0.8,
-      gst_percent: 1.0,
-      gst_amount: 0.8,
-      discount_percent: 0.0,
-      discount_amount: 0.0,
-      grand_total: 81.6,
-      datetime: "06-Dec-2024 08:27 PM",
-    },
-    menu_details: [
-      {
-        menu_id: 116,
-        menu_name: "Medu Vada",
-        price: 80,
-        quantity: 1,
-        offer: 0,
-        menu_sub_total: 80.0,
-      },
-      {
-        menu_id: 116,
-        menu_name: "Medu Vada",
-        price: 80,
-        quantity: 1,
-        offer: 0,
-        menu_sub_total: 80.0,
-      },
-    ],
-    invoice_url: null,
-  };
-
   const fetchOrderDetails = async () => {
     try {
+      console.log("Fetching order details for order number:", id);
+
       const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
         method: "POST",
         headers: {
@@ -83,20 +54,17 @@ export default function OrderDetailsScreen() {
       if (data.st === 1 && data.lists) {
         setOrderDetails(data.lists);
       } else {
-        // Use sample data for testing
-        setOrderDetails(sampleOrderDetails);
+        console.error("Failed to fetch order details:", data);
         toast.show({
-          description: "Using sample data for testing",
-          status: "info",
+          description: data.msg || "Failed to fetch order details",
+          status: "error",
         });
       }
     } catch (error) {
       console.error("Fetch Order Details Error:", error);
-      // Use sample data on error
-      setOrderDetails(sampleOrderDetails);
       toast.show({
-        description: "Using sample data for testing",
-        status: "info",
+        description: "Error fetching order details",
+        status: "error",
       });
     } finally {
       setIsLoading(false);
@@ -126,7 +94,7 @@ export default function OrderDetailsScreen() {
   const { order_details, menu_details, invoice_url } = orderDetails;
 
   return (
-    <Box flex={1} bg="gray.50" safeArea position="relative">
+    <Box flex={1} bg="white" safeArea>
       <Header title="Order Details" />
 
       <ScrollView flex={1} px={4}>
@@ -149,8 +117,7 @@ export default function OrderDetailsScreen() {
               #{order_details.order_number}
             </Text>
             <Text fontSize="sm" color="gray.500">
-              {order_details.datetime.split(" ")[1]}{" "}
-              {order_details.datetime.split(" ")[2]}
+              {formatTime(order_details.datetime)}
             </Text>
           </HStack>
 
@@ -182,44 +149,43 @@ export default function OrderDetailsScreen() {
             </Text>
           </HStack>
         </Box>
-        {/* Menu Items */}
-        {menu_details.map((item, index) => (
-          <Box key={item.menu_id}>
-            <Box bg="white" rounded="lg" shadow={1} mb={2} p={4}>
-              <VStack space={2}>
-                <HStack justifyContent="space-between" alignItems="center">
-                  <Text fontSize="md" fontWeight="semibold">
-                    {item.menu_name}
-                  </Text>
-                  {/* Only show offer badge if offer > 0 */}
-                  {item.offer > 0 && (
-                    <Box bg="red.500" px={2} py={1} rounded="full">
-                      <Text fontSize="xs" color="white">
-                        {item.offer}% Off
-                      </Text>
-                    </Box>
-                  )}
-                </HStack>
 
-                <HStack justifyContent="space-between" alignItems="center">
-                  <HStack space={2} alignItems="center">
-                    <Text fontSize="md" fontWeight="semibold" color="blue.500">
-                      ₹{item.price.toFixed(2)}
-                    </Text>
-                    <Text fontSize="sm" color="gray.500">
-                      x{item.quantity}
-                    </Text>
-                  </HStack>
-                  <Text fontSize="md" color="gray.600">
-                    ₹{item.menu_sub_total.toFixed(2)}
+        {/* Menu Items */}
+        {menu_details.map((item) => (
+          <Box
+            key={item.menu_id}
+            bg="white"
+            rounded="lg"
+            shadow={1}
+            mb={2}
+            p={4}
+          >
+            <VStack space={3}>
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text fontSize="md" fontWeight="semibold">
+                  {item.menu_name}
+                </Text>
+                {item.offer > 0 && (
+                  <Badge colorScheme="red" rounded="sm">
+                    {item.offer}% Off
+                  </Badge>
+                )}
+              </HStack>
+              <Box h={0.5} bg="gray.200" />
+              <HStack justifyContent="space-between" alignItems="center">
+                <HStack space={2} alignItems="center">
+                  <Text fontSize="md" fontWeight="semibold" color="blue.500">
+                    ₹{item.price.toFixed(2)}
+                  </Text>
+                  <Text fontSize="sm" color="gray.500">
+                    x{item.quantity}
                   </Text>
                 </HStack>
-              </VStack>
-            </Box>
-            {/* Add divider if not the last item */}
-            {index < menu_details.length - 1 && (
-              <Box h={0.5} bg="gray.200" my={2} />
-            )}
+                <Text fontSize="md" color="gray.600">
+                  ₹{item.menu_sub_total.toFixed(2)}
+                </Text>
+              </HStack>
+            </VStack>
           </Box>
         ))}
 
@@ -233,7 +199,6 @@ export default function OrderDetailsScreen() {
               <Text fontSize="sm">₹{order_details.total_bill.toFixed(2)}</Text>
             </HStack>
 
-            {/* Show service charges only if percentage > 0 */}
             {order_details.service_charges_percent > 0 && (
               <HStack justifyContent="space-between">
                 <Text fontSize="sm" color="gray.500">
@@ -245,7 +210,6 @@ export default function OrderDetailsScreen() {
               </HStack>
             )}
 
-            {/* Show GST only if percentage > 0 */}
             {order_details.gst_percent > 0 && (
               <HStack justifyContent="space-between">
                 <Text fontSize="sm" color="gray.500">
@@ -257,7 +221,6 @@ export default function OrderDetailsScreen() {
               </HStack>
             )}
 
-            {/* Show discount only if amount > 0 */}
             {order_details.discount_amount > 0 && (
               <HStack justifyContent="space-between">
                 <Text fontSize="sm" color="gray.500">

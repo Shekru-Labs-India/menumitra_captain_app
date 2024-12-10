@@ -169,34 +169,6 @@ export default function InventoryItemDetailsScreen() {
     }
   };
 
-  const DetailRow = ({ label, value, badge, badgeColor }) => (
-    <HStack space={2} justifyContent="space-between" alignItems="center">
-      <Text fontSize="sm" color="coolGray.500" flex={1}>
-        {label}
-      </Text>
-      {badge ? (
-        <Badge colorScheme={badgeColor} rounded="md" variant="subtle">
-          {value}
-        </Badge>
-      ) : (
-        <Text fontSize="sm" fontWeight="medium" flex={1} textAlign="right">
-          {value}
-        </Text>
-      )}
-    </HStack>
-  );
-
-  const DetailSection = ({ title, children }) => (
-    <VStack space={3}>
-      <Text fontSize="md" fontWeight="bold" color="coolGray.700">
-        {title}
-      </Text>
-      <VStack space={3} bg="white" p={4} rounded="lg" shadow={1}>
-        {children}
-      </VStack>
-    </VStack>
-  );
-
   if (loading) {
     return (
       <Box flex={1} justifyContent="center" alignItems="center">
@@ -207,47 +179,157 @@ export default function InventoryItemDetailsScreen() {
   }
 
   return (
-    <Box
-      flex={1}
-      bg="coolGray.50"
-      safeArea
-      pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
-    >
-      {/* Header */}
-      <Box
+    <Box flex={1} bg="white" safeArea>
+      {/* Header with consistent styling */}
+      <HStack
         px={4}
         py={3}
+        alignItems="center"
+        justifyContent="space-between"
         bg="white"
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
+        shadow={2}
       >
-        <HStack alignItems="center" justifyContent="space-between">
-          <IconButton
-            icon={
-              <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
-            }
-            onPress={() => router.back()}
-            variant="ghost"
-            _pressed={{ bg: "coolGray.100" }}
-          />
-          <Heading size="md" flex={1} textAlign="center">
-            Item Details
-          </Heading>
-          <IconButton
-            icon={<MaterialIcons name="delete" size={24} color="red.600" />}
-            onPress={() => setIsDeleteOpen(true)}
-            variant="ghost"
-            _pressed={{ bg: "coolGray.100" }}
-          />
-        </HStack>
-      </Box>
+        <IconButton
+          icon={<MaterialIcons name="arrow-back" size={24} color="gray" />}
+          onPress={() => router.back()}
+          variant="ghost"
+          _pressed={{ bg: "coolGray.100" }}
+        />
+        <Heading size="md">Item Details</Heading>
+        <IconButton
+          icon={<MaterialIcons name="delete" size={24} color="red.500" />}
+          onPress={() => setIsDeleteOpen(true)}
+          variant="ghost"
+          _pressed={{ bg: "coolGray.100" }}
+        />
+      </HStack>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Content */}
+      <ScrollView flex={1} showsVerticalScrollIndicator={false}>
+        <VStack space={4} p={4}>
+          {/* Basic Information Card */}
+          <Box bg="white" p={4} rounded="lg" shadow={1}>
+            <VStack space={2}>
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text fontSize="xl" fontWeight="bold">
+                  {item?.name}
+                </Text>
+                <Badge
+                  colorScheme={item?.in_or_out === "in" ? "success" : "danger"}
+                  rounded="md"
+                >
+                  {item?.in_or_out?.toUpperCase()}
+                </Badge>
+              </HStack>
+              <Text color="coolGray.600">{item?.description}</Text>
+            </VStack>
+          </Box>
+
+          {/* Product Information */}
+          <Box bg="white" p={4} rounded="lg" shadow={1}>
+            <Text fontSize="lg" fontWeight="semibold" mb={3}>
+              Product Information
+            </Text>
+            <VStack space={3}>
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Category</Text>
+                <Text>{item?.category}</Text>
+              </HStack>
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Brand Name</Text>
+                <Text>{item?.brand_name || "N/A"}</Text>
+              </HStack>
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Quantity</Text>
+                <Text>
+                  {item?.quantity} {item?.unit_of_measure}
+                </Text>
+              </HStack>
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Reorder Level</Text>
+                <Text>{item?.reorder_level}</Text>
+              </HStack>
+            </VStack>
+          </Box>
+
+          {/* Financial Information */}
+          <Box bg="white" p={4} rounded="lg" shadow={1}>
+            <Text fontSize="lg" fontWeight="semibold" mb={3}>
+              Financial Information
+            </Text>
+            <VStack space={3}>
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Unit Price</Text>
+                <Text>₹{item?.unit_price || "0"}</Text>
+              </HStack>
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Tax Rate</Text>
+                <Text>{item?.tax_rate || "0"}%</Text>
+              </HStack>
+            </VStack>
+          </Box>
+
+          {/* Supplier Information */}
+          <Box bg="white" p={4} rounded="lg" shadow={1}>
+            <Text fontSize="lg" fontWeight="semibold" mb={3}>
+              Supplier Information
+            </Text>
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Supplier Name</Text>
+              <Text>{item?.supplier_name || "N/A"}</Text>
+            </HStack>
+          </Box>
+
+          {/* Time Information */}
+          <Box bg="white" p={4} rounded="lg" mb={20} shadow={1}>
+            <Text fontSize="lg" fontWeight="semibold" mb={3}>
+              Time Information
+            </Text>
+            <VStack space={3}>
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">In Date</Text>
+                <Text>{item?.in_date || "N/A"}</Text>
+              </HStack>
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Expiration Date</Text>
+                <Text>{item?.expiration_date || "N/A"}</Text>
+              </HStack>
+            </VStack>
+          </Box>
+        </VStack>
+      </ScrollView>
+
+      {/* FAB */}
+      <Fab
+        renderInPortal={false}
+        shadow={2}
+        size="sm"
+        colorScheme="blue"
+        icon={<MaterialIcons name="edit" size={24} color="white" />}
+        onPress={() => {
+          const inventoryId = item?.id || item?.inventory_id;
+          if (!inventoryId) {
+            toast.show({
+              description: "Invalid item ID",
+              status: "error",
+            });
+            return;
+          }
+          router.push({
+            pathname: "/(tabs)/staff/edit-inventory-item",
+            params: { itemId: inventoryId.toString() },
+          });
+        }}
+        position="absolute"
+        bottom={4}
+        right={4}
+      />
+
+      {/* Delete Dialog */}
       <AlertDialog
         leastDestructiveRef={cancelRef}
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
-        closeOnOverlayClick={true} // Close when clicking outside
       >
         <AlertDialog.Content>
           <AlertDialog.CloseButton />
@@ -257,9 +339,8 @@ export default function InventoryItemDetailsScreen() {
             undone.
           </AlertDialog.Body>
           <AlertDialog.Footer>
-            <Button.Group space={2} justifyContent="flex-end" width="full">
+            <Button.Group space={2}>
               <Button
-                flex={1}
                 variant="outline"
                 colorScheme="coolGray"
                 onPress={() => setIsDeleteOpen(false)}
@@ -267,132 +348,13 @@ export default function InventoryItemDetailsScreen() {
               >
                 Cancel
               </Button>
-              <Button flex={1} colorScheme="danger" onPress={handleDelete}>
+              <Button colorScheme="danger" onPress={handleDelete}>
                 Delete
               </Button>
             </Button.Group>
           </AlertDialog.Footer>
         </AlertDialog.Content>
       </AlertDialog>
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <VStack space={6} p={4}>
-          {/* Basic Information */}
-          <Box bg="white" p={4} rounded="lg" shadow={1}>
-            <VStack space={3}>
-              <HStack justifyContent="space-between" alignItems="center">
-                <VStack>
-                  <Text fontSize="xl" fontWeight="bold" color="coolGray.800">
-                    {item?.name}
-                  </Text>
-                  <Text fontSize="sm" color="coolGray.500">
-                    ID: #{item?.id}
-                  </Text>
-                </VStack>
-                <Badge
-                  colorScheme={item?.in_or_out === "in" ? "success" : "danger"}
-                  variant="subtle"
-                  rounded="md"
-                  px={3}
-                  py={1}
-                >
-                  {item?.in_or_out?.toUpperCase()}
-                </Badge>
-              </HStack>
-              <Text fontSize="sm" color="coolGray.600">
-                {item?.description}
-              </Text>
-            </VStack>
-          </Box>
-
-          {/* Product Details */}
-          <DetailSection title="Product Information">
-            <DetailRow label="Category" value={item?.category} />
-            <DetailRow label="Brand Name" value={item?.brand_name || "N/A"} />
-            <DetailRow label="Quantity" value={item?.quantity?.toString()} />
-            <DetailRow
-              label="Unit of Measure"
-              value={item?.unit_of_measure || "N/A"}
-            />
-            <DetailRow
-              label="Reorder Level"
-              value={item?.reorder_level?.toString() || "N/A"}
-            />
-          </DetailSection>
-
-          {/* Financial Details */}
-          <DetailSection title="Financial Information">
-            <DetailRow label="Unit Price" value={`₹${item?.unit_price || 0}`} />
-            <DetailRow label="Tax Rate" value={`${item?.tax_rate || 0}%`} />
-          </DetailSection>
-
-          {/* Supplier Information */}
-          <DetailSection title="Supplier Information">
-            <DetailRow
-              label="Supplier Name"
-              value={item?.supplier_name || "N/A"}
-            />
-            <DetailRow
-              label="Supplier ID"
-              value={item?.supplier_id?.toString() || "N/A"}
-            />
-          </DetailSection>
-
-          {/* Dates Information */}
-          <DetailSection title="Time Information">
-            <DetailRow label="In Date" value={item?.in_date || "N/A"} />
-            <DetailRow
-              label="Expiration Date"
-              value={item?.expiration_date || "N/A"}
-            />
-          </DetailSection>
-
-          {/* Additional Information */}
-          <DetailSection title="Additional Information">
-            <DetailRow
-              label="Restaurant ID"
-              value={item?.restaurant_id?.toString() || "N/A"}
-            />
-            <DetailRow
-              label="Category ID"
-              value={item?.category_id?.toString() || "N/A"}
-            />
-          </DetailSection>
-        </VStack>
-      </ScrollView>
-
-      <Fab
-        renderInPortal={false}
-        shadow={2}
-        size="sm"
-        icon={<MaterialIcons name="edit" size={24} color="white" />}
-        onPress={() => {
-          console.log("Current item:", item);
-          const inventoryId = item?.id || item?.inventory_id;
-
-          if (!inventoryId) {
-            toast.show({
-              description: "Invalid item ID",
-              status: "error",
-            });
-            return;
-          }
-
-          console.log("Navigating to edit with ID:", inventoryId);
-          router.push({
-            pathname: "/(tabs)/staff/edit-inventory-item",
-            params: {
-              itemId: inventoryId.toString(),
-            },
-          });
-        }}
-        bg="#007AFF"
-        _pressed={{
-          bg: "#0056b3",
-        }}
-        bottom={85}
-        right={6}
-      />
     </Box>
   );
 }

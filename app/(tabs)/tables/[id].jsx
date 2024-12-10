@@ -181,7 +181,7 @@ export default function TableDetailsScreen() {
       safeArea
       pt={Platform.OS === "android" ? StatusBar.currentHeight : 1}
     >
-      {/* New Header */}
+      {/* Header */}
       <Box
         flexDirection="row"
         justifyContent="space-between"
@@ -192,16 +192,21 @@ export default function TableDetailsScreen() {
         borderColor="coolGray.200"
       >
         <IconButton
-          icon={<MaterialIcons name="arrow-back" size={24} color="gray" />} // Grey back button
+          icon={<MaterialIcons name="arrow-back" size={24} color="gray" />}
           onPress={() => router.back()}
         />
         <Text fontSize="20" fontWeight="bold">
           Table Details
         </Text>
-        <IconButton
-          icon={<MaterialIcons name="delete" size={24} color="black" />}
-          onPress={() => setShowDeleteModal(true)} // Show delete modal on press
-        />
+        {/* Show delete icon only when table is available (not occupied) */}
+        {!loading && tableDetails?.is_occupied === 0 ? (
+          <IconButton
+            icon={<MaterialIcons name="delete" size={24} color="black" />}
+            onPress={() => setShowDeleteModal(true)}
+          />
+        ) : (
+          <Box width={10} height={10} />
+        )}
       </Box>
 
       {loading ? (

@@ -180,12 +180,7 @@ export default function EditStaffScreen() {
   };
 
   return (
-    <Box
-      flex={1}
-      bg="white"
-      safeArea
-      pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
-    >
+    <Box flex={1} bg="white" safeArea>
       <Header title="Edit Staff Details" />
 
       <ScrollView px={4} py={4}>
@@ -257,6 +252,7 @@ export default function EditStaffScreen() {
 
           <Button
             mt={4}
+            mb={6}
             onPress={handleSave}
             leftIcon={<MaterialIcons name="save" size={20} color="white" />}
             isLoading={isLoading}

@@ -1,75 +1,64 @@
 import { useState, useEffect } from "react";
 import {
   Box,
-  Heading,
   VStack,
-  IconButton,
   ScrollView,
-  HStack,
   FormControl,
   Input,
-  Select,
   TextArea,
   Button,
+  Select,
   useToast,
+  Spinner,
 } from "native-base";
-import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Header from "../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
 export default function EditInventoryItemScreen() {
   const router = useRouter();
   const toast = useToast();
-  const params = useLocalSearchParams();
-  const itemId = params?.itemId;
-  const [loading, setLoading] = useState(true);
+  const { itemId } = useLocalSearchParams();
+  const [isLoading, setIsLoading] = useState(false);
   const [restaurantId, setRestaurantId] = useState(null);
-
-  const [formData, setFormData] = useState({
-    name: "",
-    supplierId: "",
-    description: "",
-    category: "",
-    price: "",
-    quantity: "",
-    serialNo: "",
-    status: "in",
-    brandName: "",
-    tax: "",
-    paymentStatus: "pending",
-    orderId: "",
-    type: "",
-  });
-
+  const [suppliers, setSuppliers] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [errors, setErrors] = useState({});
 
+  const [formData, setFormData] = useState({
+    inventory_id: "",
+    restaurant_id: "",
+    supplier_id: "",
+    category_id: "",
+    name: "",
+    description: "",
+    unit_price: "",
+    quantity: "",
+    unit_of_measure: "",
+    reorder_level: "",
+    brand_name: "",
+    tax_rate: "",
+    in_or_out: "in",
+    in_date: "",
+    out_date: "",
+    expiration_date: "",
+  });
+
   useEffect(() => {
-    console.log("Received params:", params); // Debug log
-    console.log("Received itemId:", itemId); // Debug log
-    if (!itemId) {
-      toast.show({
-        description: "No item ID provided",
-        status: "error",
-      });
-      router.back();
-      return;
-    }
     getStoredData();
-  }, [itemId]);
+    fetchSuppliers();
+    fetchCategories();
+  }, []);
 
   const getStoredData = async () => {
     try {
       const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
       if (storedRestaurantId) {
-        console.log("Restaurant ID:", storedRestaurantId); // Debug log
-        setRestaurantId(parseInt(storedRestaurantId));
-        await fetchInventoryDetails(
-          parseInt(storedRestaurantId),
-          parseInt(itemId)
-        );
+        setRestaurantId(storedRestaurantId);
+        fetchInventoryDetails(storedRestaurantId, itemId);
       } else {
         toast.show({
           description: "Please login again",
@@ -79,17 +68,11 @@ export default function EditInventoryItemScreen() {
       }
     } catch (error) {
       console.error("Error getting stored data:", error);
-      setLoading(false);
     }
   };
 
   const fetchInventoryDetails = async (restId, invId) => {
     try {
-      console.log("Fetching with params:", {
-        restaurant_id: restId.toString(),
-        inventory_id: parseInt(invId),
-      });
-
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/inventory_view`,
         {
@@ -98,56 +81,141 @@ export default function EditInventoryItemScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restId.toString(),
-            inventory_id: parseInt(invId),
+            restaurant_id: restId,
+            inventory_id: invId,
           }),
         }
       );
 
       const data = await response.json();
-      console.log("API Response:", data);
-
       if (data.st === 1 && data.data) {
-        setFormData((prevData) => ({
-          ...prevData,
-          name: data.data.name || "",
-          category: data.data.type || "",
-          quantity: data.data.quantity?.toString() || "0",
-          type: data.data.type || "",
-          // Keep other fields with their default values
-          supplierId: prevData.supplierId,
-          description: prevData.description,
-          price: prevData.price,
-          serialNo: prevData.serialNo,
-          status: prevData.status,
-          brandName: prevData.brandName,
-          tax: prevData.tax,
-          paymentStatus: prevData.paymentStatus,
-          orderId: prevData.orderId,
-        }));
-
-        toast.show({
-          description: "Item details loaded successfully",
-          status: "success",
+        setFormData({
+          inventory_id: data.data.inventory_id,
+          restaurant_id: data.data.restaurant_id,
+          supplier_id: data.data.supplier_id,
+          category_id: data.data.category_id,
+          name: data.data.name,
+          description: data.data.description,
+          unit_price: data.data.unit_price,
+          quantity: data.data.quantity,
+          unit_of_measure: data.data.unit_of_measure,
+          reorder_level: data.data.reorder_level,
+          brand_name: data.data.brand_name,
+          tax_rate: data.data.tax_rate,
+          in_or_out: data.data.in_or_out,
+          in_date: data.data.in_date,
+          out_date: data.data.out_date,
+          expiration_date: data.data.expiration_date,
         });
-      } else {
-        throw new Error(data.msg || "Failed to fetch item details");
       }
     } catch (error) {
-      console.error("Fetch Error:", error);
+      console.error("Error fetching inventory details:", error);
       toast.show({
-        description: error.message || "Failed to fetch item details",
+        description: "Error fetching inventory details",
         status: "error",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleUpdate = async () => {
+  const fetchSuppliers = async () => {
+    try {
+      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+
+      const response = await fetch(`${API_BASE_URL}/get_supplier_list`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          restaurant_id: storedRestaurantId,
+        }),
+      });
+
+      const data = await response.json();
+      console.log("Suppliers Response:", data);
+
+      if (data.st === 1) {
+        // Convert suppliers_dict to an array of objects
+        const suppliersArray = Object.entries(data.suppliers_dict).map(
+          ([name, id]) => ({
+            name,
+            id,
+          })
+        );
+        setSuppliers(suppliersArray);
+      } else {
+        throw new Error(data.msg || "Failed to fetch suppliers");
+      }
+    } catch (error) {
+      console.error("Error fetching suppliers:", error);
+      toast.show({
+        description: "Error fetching suppliers",
+        status: "error",
+      });
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/get_inventory_category_list`
+      );
+      const data = await response.json();
+
+      if (data.st === 1) {
+        // Convert the category list from object to array format
+        const categoriesArray = Object.entries(
+          data.inventory_categorys_list
+        ).map(([name, id]) => ({
+          name,
+          id: id.toString(),
+        }));
+        setCategories(categoriesArray);
+      } else {
+        toast.show({
+          description: data.msg || "Failed to fetch categories",
+          status: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      toast.show({
+        description: "Error fetching categories",
+        status: "error",
+      });
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.name) newErrors.name = "Name is required";
+    if (!formData.supplier_id) newErrors.supplier_id = "Supplier is required";
+    if (!formData.category_id) newErrors.category_id = "Category is required";
+    if (!formData.unit_price || Number(formData.unit_price) <= 0) {
+      newErrors.unit_price = "Valid price is required";
+    }
+    if (!formData.quantity || Number(formData.quantity) <= 0) {
+      newErrors.quantity = "Valid quantity is required";
+    }
+    if (!formData.unit_of_measure) {
+      newErrors.unit_of_measure = "Unit of measure is required";
+    }
+    if (!formData.reorder_level || Number(formData.reorder_level) < 0) {
+      newErrors.reorder_level = "Valid reorder level is required";
+    }
+    if (!formData.brand_name) newErrors.brand_name = "Brand name is required";
+    if (!formData.tax_rate || Number(formData.tax_rate) < 0) {
+      newErrors.tax_rate = "Valid tax rate is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
     if (validateForm()) {
       try {
-        setLoading(true);
+        setIsLoading(true);
         const response = await fetch(
           `${API_BASE_URL}/captain_manage/inventory_update`,
           {
@@ -155,20 +223,14 @@ export default function EditInventoryItemScreen() {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              inventory_id: parseInt(itemId),
-              restaurant_id: restaurantId.toString(),
-              name: formData.name,
-              quantity: parseInt(formData.quantity),
-              type: formData.type || formData.category,
-            }),
+            body: JSON.stringify(formData),
           }
         );
 
         const data = await response.json();
         if (data.st === 1) {
           toast.show({
-            description: "Item updated successfully",
+            description: "Inventory updated successfully",
             status: "success",
           });
           router.push({
@@ -176,88 +238,35 @@ export default function EditInventoryItemScreen() {
             params: { refresh: Date.now() },
           });
         } else {
-          toast.show({
-            description: data.msg || "Failed to update item",
-            status: "error",
-          });
+          throw new Error(data.msg || "Failed to update inventory");
         }
       } catch (error) {
         console.error("Update Error:", error);
         toast.show({
-          description: "Failed to update item",
+          description: error.message || "Failed to update inventory",
           status: "error",
         });
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.name) newErrors.name = "Name is required";
-    if (!formData.supplierId) newErrors.supplierId = "Supplier ID is required";
-    if (!formData.category) newErrors.category = "Category is required";
-    if (!formData.serialNo) newErrors.serialNo = "Serial No. is required";
-
-    if (!formData.price) {
-      newErrors.price = "Price is required";
-    } else if (isNaN(formData.price) || Number(formData.price) <= 0) {
-      newErrors.price = "Please enter a valid price";
-    }
-
-    if (!formData.quantity) {
-      newErrors.quantity = "Quantity is required";
-    } else if (isNaN(formData.quantity) || Number(formData.quantity) < 0) {
-      newErrors.quantity = "Please enter a valid quantity";
-    }
-
-    if (
-      formData.tax &&
-      (isNaN(formData.tax) ||
-        Number(formData.tax) < 0 ||
-        Number(formData.tax) > 100)
-    ) {
-      newErrors.tax = "Please enter a valid tax percentage (0-100)";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  if (isLoading) {
+    return (
+      <Box flex={1} justifyContent="center" alignItems="center">
+        <Spinner size="lg" />
+      </Box>
+    );
+  }
 
   return (
-    <Box
-      flex={1}
-      bg="white"
-      safeArea
-      pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
-    >
-      <Box px={4} py={3} borderBottomWidth={1} borderBottomColor="coolGray.200">
-        <HStack alignItems="center" justifyContent="space-between">
-          <IconButton
-            icon={
-              <MaterialIcons name="arrow-back" size={24} color="coolGray.600" />
-            }
-            onPress={() => router.back()}
-            variant="ghost"
-            _pressed={{ bg: "coolGray.100" }}
-          />
-          <Heading size="md" flex={1} textAlign="center">
-            Edit Item
-          </Heading>
-          <IconButton
-            icon={<MaterialIcons name="check" size={24} color="coolGray.600" />}
-            onPress={handleUpdate}
-            variant="ghost"
-            _pressed={{ bg: "coolGray.100" }}
-          />
-        </HStack>
-      </Box>
+    <Box flex={1} bg="white" safeArea>
+      <Header title="Edit Inventory Item" />
 
       <ScrollView px={4} showsVerticalScrollIndicator={false}>
-        <VStack space={4} mt={4} mb={6}>
-          {/* Basic Information */}
+        <VStack space={4} py={4}>
+          {/* Name */}
           <FormControl isRequired isInvalid={"name" in errors}>
             <FormControl.Label>Item Name</FormControl.Label>
             <Input
@@ -266,194 +275,180 @@ export default function EditInventoryItemScreen() {
                 setFormData({ ...formData, name: value })
               }
               placeholder="Enter item name"
-              isReadOnly={loading}
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl isRequired isInvalid={"category" in errors}>
-            <FormControl.Label>Category/Type</FormControl.Label>
+          {/* Description */}
+          <FormControl>
+            <FormControl.Label>Description</FormControl.Label>
+            <TextArea
+              value={formData.description}
+              onChangeText={(value) =>
+                setFormData({ ...formData, description: value })
+              }
+              placeholder="Enter description"
+              h={20}
+            />
+          </FormControl>
+
+          {/* Unit Price */}
+          <FormControl isRequired isInvalid={"unit_price" in errors}>
+            <FormControl.Label>Unit Price</FormControl.Label>
             <Input
-              value={formData.category}
-              onChangeText={(value) => {
-                setFormData({
-                  ...formData,
-                  category: value,
-                  type: value, // Update both category and type
-                });
-              }}
-              placeholder="Enter category"
-              isReadOnly={loading}
+              value={formData.unit_price}
+              onChangeText={(value) =>
+                setFormData({ ...formData, unit_price: value })
+              }
+              keyboardType="numeric"
+              placeholder="Enter unit price"
             />
             <FormControl.ErrorMessage>
-              {errors.category}
+              {errors.unit_price}
             </FormControl.ErrorMessage>
           </FormControl>
 
+          {/* Quantity */}
           <FormControl isRequired isInvalid={"quantity" in errors}>
             <FormControl.Label>Quantity</FormControl.Label>
             <Input
-              keyboardType="numeric"
               value={formData.quantity}
               onChangeText={(value) =>
                 setFormData({ ...formData, quantity: value })
               }
+              keyboardType="numeric"
               placeholder="Enter quantity"
-              isReadOnly={loading}
             />
             <FormControl.ErrorMessage>
               {errors.quantity}
             </FormControl.ErrorMessage>
           </FormControl>
 
-          {/* Keep other form fields but mark them as optional */}
-          <FormControl>
-            <FormControl.Label>Description (Optional)</FormControl.Label>
-            <TextArea
-              h={20}
-              value={formData.description}
-              onChangeText={(value) =>
-                setFormData({ ...formData, description: value })
-              }
-              placeholder="Enter item description"
-              isReadOnly={loading}
-            />
-          </FormControl>
-
-          <FormControl isRequired isInvalid={"supplierId" in errors}>
-            <FormControl.Label>Supplier ID</FormControl.Label>
+          {/* Unit of Measure */}
+          <FormControl isRequired isInvalid={"unit_of_measure" in errors}>
+            <FormControl.Label>Unit of Measure</FormControl.Label>
             <Input
-              value={formData.supplierId}
+              value={formData.unit_of_measure}
               onChangeText={(value) =>
-                setFormData({ ...formData, supplierId: value })
+                setFormData({ ...formData, unit_of_measure: value })
               }
-              placeholder="Enter supplier ID"
+              placeholder="Enter unit of measure"
             />
             <FormControl.ErrorMessage>
-              {errors.supplierId}
+              {errors.unit_of_measure}
             </FormControl.ErrorMessage>
           </FormControl>
 
-          <HStack space={4}>
-            <FormControl flex={1} isRequired isInvalid={"price" in errors}>
-              <FormControl.Label>Price</FormControl.Label>
-              <Input
-                keyboardType="numeric"
-                value={formData.price}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, price: value })
-                }
-                placeholder="Enter price"
-              />
-              <FormControl.ErrorMessage>
-                {errors.price}
-              </FormControl.ErrorMessage>
-            </FormControl>
+          {/* Reorder Level */}
+          <FormControl isRequired isInvalid={"reorder_level" in errors}>
+            <FormControl.Label>Reorder Level</FormControl.Label>
+            <Input
+              value={formData.reorder_level}
+              onChangeText={(value) =>
+                setFormData({ ...formData, reorder_level: value })
+              }
+              keyboardType="numeric"
+              placeholder="Enter reorder level"
+            />
+            <FormControl.ErrorMessage>
+              {errors.reorder_level}
+            </FormControl.ErrorMessage>
+          </FormControl>
 
-            <FormControl flex={1} isRequired isInvalid={"quantity" in errors}>
-              <FormControl.Label>Quantity</FormControl.Label>
-              <Input
-                keyboardType="numeric"
-                value={formData.quantity}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, quantity: value })
-                }
-                placeholder="Enter quantity"
-              />
-              <FormControl.ErrorMessage>
-                {errors.quantity}
-              </FormControl.ErrorMessage>
-            </FormControl>
-          </HStack>
+          {/* Brand Name */}
+          <FormControl isRequired isInvalid={"brand_name" in errors}>
+            <FormControl.Label>Brand Name</FormControl.Label>
+            <Input
+              value={formData.brand_name}
+              onChangeText={(value) =>
+                setFormData({ ...formData, brand_name: value })
+              }
+              placeholder="Enter brand name"
+            />
+            <FormControl.ErrorMessage>
+              {errors.brand_name}
+            </FormControl.ErrorMessage>
+          </FormControl>
 
-          <HStack space={4}>
-            <FormControl flex={1} isRequired isInvalid={"serialNo" in errors}>
-              <FormControl.Label>Serial No.</FormControl.Label>
-              <Input
-                value={formData.serialNo}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, serialNo: value })
-                }
-                placeholder="Enter serial number"
-              />
-              <FormControl.ErrorMessage>
-                {errors.serialNo}
-              </FormControl.ErrorMessage>
-            </FormControl>
+          {/* Tax Rate */}
+          <FormControl isRequired isInvalid={"tax_rate" in errors}>
+            <FormControl.Label>Tax Rate (%)</FormControl.Label>
+            <Input
+              value={formData.tax_rate}
+              onChangeText={(value) =>
+                setFormData({ ...formData, tax_rate: value })
+              }
+              keyboardType="numeric"
+              placeholder="Enter tax rate"
+            />
+            <FormControl.ErrorMessage>
+              {errors.tax_rate}
+            </FormControl.ErrorMessage>
+          </FormControl>
 
-            <FormControl flex={1}>
-              <FormControl.Label>Brand Name</FormControl.Label>
-              <Input
-                value={formData.brandName}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, brandName: value })
-                }
-                placeholder="Enter brand name"
-              />
-            </FormControl>
-          </HStack>
+          {/* Dates */}
+          <FormControl>
+            <FormControl.Label>In Date</FormControl.Label>
+            <Input
+              value={formData.in_date}
+              onChangeText={(value) =>
+                setFormData({ ...formData, in_date: value })
+              }
+              placeholder="Enter in date"
+            />
+          </FormControl>
 
-          <HStack space={4}>
-            <FormControl flex={1}>
-              <FormControl.Label>Status</FormControl.Label>
-              <Select
-                selectedValue={formData.status}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, status: value })
-                }
-              >
-                <Select.Item label="In" value="in" />
-                <Select.Item label="Out" value="out" />
-              </Select>
-            </FormControl>
+          <FormControl>
+            <FormControl.Label>Out Date</FormControl.Label>
+            <Input
+              value={formData.out_date}
+              onChangeText={(value) =>
+                setFormData({ ...formData, out_date: value })
+              }
+              placeholder="Enter out date"
+            />
+          </FormControl>
 
-            <FormControl flex={1}>
-              <FormControl.Label>Payment Status</FormControl.Label>
-              <Select
-                selectedValue={formData.paymentStatus}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, paymentStatus: value })
-                }
-              >
-                <Select.Item label="Pending" value="pending" />
-                <Select.Item label="Paid" value="paid" />
-              </Select>
-            </FormControl>
-          </HStack>
+          <FormControl>
+            <FormControl.Label>Expiration Date</FormControl.Label>
+            <Input
+              value={formData.expiration_date}
+              onChangeText={(value) =>
+                setFormData({ ...formData, expiration_date: value })
+              }
+              placeholder="Enter expiration date"
+            />
+          </FormControl>
 
-          <HStack space={4}>
-            <FormControl flex={1} isInvalid={"tax" in errors}>
-              <FormControl.Label>Tax (%)</FormControl.Label>
-              <Input
-                keyboardType="numeric"
-                value={formData.tax}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, tax: value })
-                }
-                placeholder="Enter tax percentage"
-              />
-              <FormControl.ErrorMessage>{errors.tax}</FormControl.ErrorMessage>
-            </FormControl>
-
-            <FormControl flex={1}>
-              <FormControl.Label>Order ID</FormControl.Label>
-              <Input
-                value={formData.orderId}
-                onChangeText={(value) =>
-                  setFormData({ ...formData, orderId: value })
-                }
-                placeholder="Enter order ID"
-              />
-            </FormControl>
-          </HStack>
+          {/* Category Selection */}
+          <FormControl isRequired isInvalid={"category_id" in errors}>
+            <FormControl.Label>Category</FormControl.Label>
+            <Select
+              selectedValue={formData.category_id}
+              placeholder="Select category"
+              onValueChange={(value) =>
+                setFormData({ ...formData, category_id: value })
+              }
+            >
+              {categories.map((category) => (
+                <Select.Item
+                  key={category.id}
+                  label={category.name}
+                  value={category.id}
+                />
+              ))}
+            </Select>
+            <FormControl.ErrorMessage>
+              {errors.category_id}
+            </FormControl.ErrorMessage>
+          </FormControl>
 
           <Button
-            mt={4}
             colorScheme="blue"
-            onPress={handleUpdate}
-            isLoading={loading}
+            onPress={handleSubmit}
+            isLoading={isLoading}
             isLoadingText="Updating..."
-            _text={{ fontSize: "md", fontWeight: "semibold" }}
+            mb={4}
           >
             Update Item
           </Button>

@@ -186,7 +186,7 @@ export default function StaffScreen() {
         borderWidth={1}
         borderColor="coolGray.200"
       >
-        <HStack space={3} alignItems="center" justifyContent="space-between">
+        <HStack space={3} alignItems="center">
           <Avatar
             size="md"
             bg="cyan.500"
@@ -198,7 +198,7 @@ export default function StaffScreen() {
             <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
               {item.name}
             </Text>
-            <Text fontSize="md" color="coolGray.600" mb={2}>
+            <Text fontSize="md" color="coolGray.600">
               {item.role}
             </Text>
           </VStack>
@@ -230,9 +230,11 @@ export default function StaffScreen() {
               </Button>
             </Button.Group>
             <IconButton
-              icon={<MaterialIcons name="phone" size={20} color="green" />}
+              icon={<MaterialIcons name="phone" size={20} color="white" />}
               onPress={() => handlePhonePress(item.phone)}
-              variant="ghost"
+              bg="green.500"
+              _pressed={{ bg: "green.600" }}
+              rounded="full"
               size="sm"
               mt={1}
             />
@@ -393,24 +395,18 @@ export default function StaffScreen() {
   }, []);
 
   return (
-    <Box
-      flex={1}
-      bg="white"
-      safeArea
-      pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
-    >
+    <Box flex={1} bg="white" safeArea>
       <Header title="Staff" />
+
       <ScrollView>
-        {/* Controls Bar */}
         <HStack
           px={4}
-          py={2}
+          py={3}
           alignItems="center"
           justifyContent="flex-end"
           borderBottomWidth={1}
           borderBottomColor="coolGray.200"
           bg="coolGray.50"
-          pl={20} // Add left padding to move the section to the right
         >
           <HStack space={2} alignItems="center">
             <Input
@@ -464,7 +460,6 @@ export default function StaffScreen() {
           </HStack>
         </HStack>
 
-        {/* Search and Filters */}
         <VStack px={3} space={4} mt={2}>
           <HStack space={1}>
             <Select
@@ -475,8 +470,8 @@ export default function StaffScreen() {
               _selectedItem={{
                 endIcon: <CheckIcon size={4} />,
               }}
-              fontSize="sm" // Reduced font size
-              py={1} // Reduced padding
+              fontSize="sm"
+              py={1}
             >
               <Select.Item label="All Roles" value="" />
               {uniqueRoles.map((role) => (
@@ -491,8 +486,8 @@ export default function StaffScreen() {
               _selectedItem={{
                 endIcon: <CheckIcon size={4} />,
               }}
-              fontSize="sm" // Reduced font size
-              py={1} // Reduced padding
+              fontSize="sm"
+              py={1}
             >
               <Select.Item label="All Status" value="" />
               <Select.Item label="Present" value="present" />
@@ -502,7 +497,6 @@ export default function StaffScreen() {
           </HStack>
         </VStack>
 
-        {/* Staff List */}
         {isLoading ? (
           <Box flex={1} justifyContent="center" alignItems="center">
             <Spinner size="lg" />
@@ -526,8 +520,6 @@ export default function StaffScreen() {
             }
           />
         )}
-
-        {/* Add Staff FAB */}
       </ScrollView>
       <Fab
         renderInPortal={false}

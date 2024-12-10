@@ -15,12 +15,14 @@ import {
   Spinner,
   CheckIcon,
   Modal,
+  Pressable,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header"; // Adjust the import path as necessary
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -54,6 +56,9 @@ export default function AddInventoryItemScreen() {
   const [statusOptions, setStatusOptions] = useState([]);
   const [filteredCategories, setFilteredCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [showInDatePicker, setShowInDatePicker] = useState(false);
+  const [showExpirationDatePicker, setShowExpirationDatePicker] =
+    useState(false);
 
   useEffect(() => {
     getStoredData();
@@ -333,6 +338,41 @@ export default function AddInventoryItemScreen() {
     }
   };
 
+  const formatDate = (date) => {
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
+
+  const handleInDateChange = (event, selectedDate) => {
+    setShowInDatePicker(false);
+    if (selectedDate && event.type !== "dismissed") {
+      setFormData({ ...formData, inDate: formatDate(selectedDate) });
+    }
+  };
+
+  const handleExpirationDateChange = (event, selectedDate) => {
+    setShowExpirationDatePicker(false);
+    if (selectedDate && event.type !== "dismissed") {
+      setFormData({ ...formData, expirationDate: formatDate(selectedDate) });
+    }
+  };
+
   return (
     <Box
       flex={1}
@@ -443,30 +483,34 @@ export default function AddInventoryItemScreen() {
             )}
           </FormControl>
 
-          {/* Price */}
+          {/* Price Input */}
           <FormControl isRequired isInvalid={"price" in errors}>
-            <FormControl.Label>Price</FormControl.Label>
+            <FormControl.Label>Unit Price (₹)</FormControl.Label>
             <Input
-              keyboardType="numeric"
-              placeholder="Enter price"
+              keyboardType="decimal-pad"
+              placeholder="0.00"
               value={formData.price}
-              onChangeText={(value) =>
-                setFormData({ ...formData, price: value })
-              }
+              onChangeText={(value) => {
+                // Allow only numbers and decimal point
+                const formattedValue = value.replace(/[^0-9.]/g, "");
+                setFormData({ ...formData, price: formattedValue });
+              }}
             />
             <FormControl.ErrorMessage>{errors.price}</FormControl.ErrorMessage>
           </FormControl>
 
-          {/* Quantity */}
+          {/* Quantity Input */}
           <FormControl isRequired isInvalid={"quantity" in errors}>
             <FormControl.Label>Quantity</FormControl.Label>
             <Input
-              keyboardType="numeric"
-              placeholder="Enter quantity"
+              keyboardType="number-pad"
+              placeholder="0"
               value={formData.quantity}
-              onChangeText={(value) =>
-                setFormData({ ...formData, quantity: value })
-              }
+              onChangeText={(value) => {
+                // Allow only numbers
+                const formattedValue = value.replace(/[^0-9]/g, "");
+                setFormData({ ...formData, quantity: formattedValue });
+              }}
             />
             <FormControl.ErrorMessage>
               {errors.quantity}
@@ -522,13 +566,25 @@ export default function AddInventoryItemScreen() {
           {/* Expiration Date */}
           <FormControl isRequired isInvalid={"expirationDate" in errors}>
             <FormControl.Label>Expiration Date</FormControl.Label>
-            <Input
-              placeholder="Enter expiration date"
-              value={formData.expirationDate}
-              onChangeText={(value) =>
-                setFormData({ ...formData, expirationDate: value })
-              }
-            />
+            <Pressable onPress={() => setShowExpirationDatePicker(true)}>
+              <Input
+                value={formData.expirationDate}
+                placeholder="Select expiration date"
+                isReadOnly
+                rightElement={
+                  <IconButton
+                    icon={
+                      <MaterialIcons
+                        name="calendar-today"
+                        size={24}
+                        color="gray"
+                      />
+                    }
+                    onPress={() => setShowExpirationDatePicker(true)}
+                  />
+                }
+              />
+            </Pressable>
             <FormControl.ErrorMessage>
               {errors.expirationDate}
             </FormControl.ErrorMessage>
@@ -537,15 +593,53 @@ export default function AddInventoryItemScreen() {
           {/* In Date */}
           <FormControl isRequired isInvalid={"inDate" in errors}>
             <FormControl.Label>In Date</FormControl.Label>
-            <Input
-              placeholder="Enter in date"
-              value={formData.inDate}
-              onChangeText={(value) =>
-                setFormData({ ...formData, inDate: value })
-              }
-            />
+            <Pressable onPress={() => setShowInDatePicker(true)}>
+              <Input
+                value={formData.inDate}
+                placeholder="Select in date"
+                isReadOnly
+                rightElement={
+                  <IconButton
+                    icon={
+                      <MaterialIcons
+                        name="calendar-today"
+                        size={24}
+                        color="gray"
+                      />
+                    }
+                    onPress={() => setShowInDatePicker(true)}
+                  />
+                }
+              />
+            </Pressable>
             <FormControl.ErrorMessage>{errors.inDate}</FormControl.ErrorMessage>
           </FormControl>
+
+          {/* Date Pickers */}
+          {showInDatePicker && (
+            <DateTimePicker
+              value={formData.inDate ? new Date(formData.inDate) : new Date()}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleInDateChange}
+            />
+          )}
+
+          {showExpirationDatePicker && (
+            <DateTimePicker
+              value={
+                formData.expirationDate
+                  ? new Date(formData.expirationDate)
+                  : new Date()
+              }
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleExpirationDateChange}
+              minimumDate={
+                formData.inDate ? new Date(formData.inDate) : new Date()
+              }
+            />
+          )}
 
           {/* Status */}
           <FormControl flex={1}>
@@ -580,14 +674,18 @@ export default function AddInventoryItemScreen() {
             </Select>
           </FormControl>
 
-          {/* Tax Rate */}
+          {/* Tax Rate Input */}
           <FormControl isRequired isInvalid={"tax" in errors}>
-            <FormControl.Label>Tax (%)</FormControl.Label>
+            <FormControl.Label>Tax Rate (%)</FormControl.Label>
             <Input
-              keyboardType="numeric"
-              placeholder="Enter tax percentage"
+              keyboardType="decimal-pad"
+              placeholder="0.00"
               value={formData.tax}
-              onChangeText={(value) => setFormData({ ...formData, tax: value })}
+              onChangeText={(value) => {
+                // Allow only numbers and decimal point
+                const formattedValue = value.replace(/[^0-9.]/g, "");
+                setFormData({ ...formData, tax: formattedValue });
+              }}
             />
             <FormControl.ErrorMessage>{errors.tax}</FormControl.ErrorMessage>
           </FormControl>

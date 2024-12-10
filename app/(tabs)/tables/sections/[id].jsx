@@ -18,11 +18,13 @@ import {
   FormControl,
   Input,
   Spinner,
+  Fab,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Header from "../../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -352,51 +354,58 @@ export default function SectionTablesScreen() {
     });
   };
 
-  // Update renderTable function to include the edit icon
-  const renderTable = (table) => {
-    if (!table) return null;
-
-    return (
-      <Pressable
-        key={table.table_id} // Change from table.id to table.table_id
-        onPress={() => handleTablePress(table)}
-        opacity={1}
-        _pressed={{
-          opacity: 0.7,
-        }}
+  // Update renderTable function to match the exact design
+  const renderTable = (table) => (
+    <Pressable onPress={() => handleTablePress(table)}>
+      <Box
+        p={3}
+        rounded="lg"
+        width={20}
+        height={20}
+        bg={table.is_occupied === 1 ? "red.100" : "green.100"}
+        borderWidth={1}
+        borderColor={table.is_occupied === 1 ? "red.200" : "green.200"}
+        position="relative"
       >
-        <Box {...getTableStyle(table.status)} position="relative">
-          <VStack alignItems="center" space={0.5}>
-            <Text
-              color={getTextColor(table.status)}
-              fontSize="10px"
-              fontWeight="bold"
-            >
-              {table.table_number}{" "}
-              {/* Change from table.number to table.table_number */}
+        {/* Price Overlay for Occupied Tables */}
+        {table.is_occupied === 1 && (
+          <Box
+            position="absolute"
+            top={-2}
+            left={-2} // Changed from right to left
+            right={-2} // Added right to stretch horizontally
+            bg="red.500"
+            py={1}
+            rounded="md"
+            shadow={1}
+            zIndex={1}
+            alignItems="center" // Center the price text
+          >
+            <Text color="white" fontSize="xs" fontWeight="bold">
+              ₹{table.grandTotal || 0}
             </Text>
+          </Box>
+        )}
 
-            {table.status === "ENGAGED" && (
-              <Text
-                fontSize="12px"
-                bottom={-4}
-                color={getTextColor(table.status)}
-                numberOfLines={1}
-                style={{ letterSpacing: -0.3 }}
-              >
-                {new Date(table.engaged_time).toLocaleTimeString("en-US", {
-                  // Change from engagedTime to engaged_time
-                  hour: "numeric",
-                  minute: "numeric",
-                  hour12: true,
-                })}
-              </Text>
-            )}
-          </VStack>
-        </Box>
-      </Pressable>
-    );
-  };
+        {/* Table Content */}
+        <VStack space={3} alignItems="center" mt={0}>
+          {" "}
+          {/* Increased space and added top margin */}
+          <Text
+            fontSize="md"
+            fontWeight="bold"
+            color={table.is_occupied === 1 ? "red.500" : "green.500"}
+          >
+            {table.table_number}
+          </Text>
+          {/* Time Display */}
+          <Text fontSize="2xs" color="coolGray.600">
+            {table.is_occupied === 1 ? table.occupiedTime || "00:00" : "--:--"}
+          </Text>
+        </VStack>
+      </Box>
+    </Pressable>
+  );
 
   // Updated Modal Component with only engaged functionality
   const TableActionModal = () => {
@@ -763,24 +772,13 @@ export default function SectionTablesScreen() {
 
   // Update the handleAddTable function
   const handleAddTable = async () => {
-    if (!newTableNumber.trim()) {
-      toast.show({
-        description: "Table number is required",
-        placement: "top",
-        status: "warning",
-      });
-      return;
-    }
-
     setIsAddingTable(true);
     try {
       const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
 
-      // Simplified request body with just the essential fields
       const requestBody = {
         restaurant_id: parseInt(storedRestaurantId),
         section_id: parseInt(id),
-        table_number: newTableNumber.trim(), // Send as string as per API requirement
       };
 
       console.log("Creating table with data:", requestBody);
@@ -801,17 +799,16 @@ export default function SectionTablesScreen() {
 
       if (data.st === 1) {
         toast.show({
-          description: `Table ${newTableNumber} added successfully`,
+          description: "Table created successfully",
           status: "success",
           placement: "top",
         });
         setShowAddTableModal(false);
-        setNewTableNumber("");
 
         // Refresh tables list
         await fetchTables(currentSection.name);
       } else {
-        throw new Error(data.msg || "Failed to add table");
+        throw new Error(data.msg || "Failed to create table");
       }
     } catch (error) {
       console.error("Add Table Error:", error);
@@ -829,55 +826,34 @@ export default function SectionTablesScreen() {
   const AddTableModal = () => (
     <Modal
       isOpen={showAddTableModal}
-      onClose={() => {
-        setNewTableNumber("");
-        setShowAddTableModal(false);
-      }}
+      onClose={() => setShowAddTableModal(false)}
     >
       <Modal.Content maxWidth="400px">
         <Modal.CloseButton />
-        <Modal.Header>Add Table to {currentSection.name}</Modal.Header>
+        <Modal.Header>Create New Table</Modal.Header>
         <Modal.Body>
-          <FormControl isRequired>
-            <FormControl.Label>Table Number</FormControl.Label>
-            <Input
-              value={newTableNumber}
-              onChangeText={(value) => {
-                // Only allow numbers
-                if (/^\d*$/.test(value)) {
-                  setNewTableNumber(value);
-                }
-              }}
-              placeholder="Enter table number"
-              keyboardType="numeric"
-              returnKeyType="done"
-            />
-            <FormControl.HelperText>
-              Enter any table number - duplicate numbers are allowed across
-              different sections
-            </FormControl.HelperText>
-          </FormControl>
+          <Text>
+            Do you want to create a new table in {currentSection.name}?
+          </Text>
         </Modal.Body>
         <Modal.Footer>
-          <HStack space={2} width="100%" justifyContent="space-between">
+          <HStack space={3} width="100%" justifyContent="space-between">
             <Button
-              variant="ghost"
-              colorScheme="blueGray"
-              onPress={() => {
-                setNewTableNumber("");
-                setShowAddTableModal(false);
-              }}
+              variant="outline"
+              flex={1}
+              onPress={() => setShowAddTableModal(false)}
               isDisabled={isAddingTable}
             >
-              Cancel
+              No
             </Button>
             <Button
+              flex={1}
+              colorScheme="primary"
               onPress={handleAddTable}
               isLoading={isAddingTable}
-              isLoadingText="Adding..."
-              isDisabled={!newTableNumber.trim()}
+              isLoadingText="Creating..."
             >
-              Add Table
+              Yes
             </Button>
           </HStack>
         </Modal.Footer>
@@ -892,6 +868,7 @@ export default function SectionTablesScreen() {
         <Box
           bg="primary.500"
           p={3}
+          y
           rounded="full"
           shadow={3}
           _pressed={{
@@ -1052,81 +1029,38 @@ export default function SectionTablesScreen() {
   };
 
   return (
-    <Box
-      flex={1}
-      bg="white"
-      safeArea
-      pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
-    >
-      {/* Modified Header */}
-      <Box px={4} py={3} borderBottomWidth={1} borderBottomColor="coolGray.200">
-        <HStack alignItems="center" justifyContent="center" position="relative">
-          <IconButton
-            position="absolute"
-            left={-9}
-            icon={<MaterialIcons name="arrow-back" size={24} color="#64748B" />}
-            onPress={() => router.back()}
-            variant="ghost"
-            _pressed={{ bg: "coolGray.100" }}
-            rounded="full"
-          />
-          <Heading size="md" textAlign="center">
-            {currentSection?.name || "Loading..."}
-          </Heading>
-          <IconButton
-            position="absolute"
-            right={-9}
-            icon={<MaterialIcons name="delete" size={24} color="red.500" />}
-            onPress={() => setShowDeleteModal(true)}
-            variant="ghost"
-            _pressed={{ bg: "coolGray.100" }}
-            rounded="full"
-          />
-        </HStack>
-      </Box>
+    <Box flex={1} bg="white" safeArea>
+      <HStack
+        px={4}
+        py={3}
+        alignItems="center"
+        justifyContent="space-between"
+        bg="white"
+        shadow={2}
+      >
+        <IconButton
+          icon={<MaterialIcons name="arrow-back" size={24} color="gray" />}
+          onPress={() => router.back()}
+          variant="ghost"
+          _pressed={{ bg: "coolGray.100" }}
+        />
+        <Heading size="md">{currentSection?.name || "Loading..."}</Heading>
+        <IconButton
+          icon={<MaterialIcons name="delete" size={24} color="red.500" />}
+          onPress={() => setShowDeleteModal(true)}
+          variant="ghost"
+          _pressed={{ bg: "coolGray.100" }}
+        />
+      </HStack>
 
-      <Box py={8} borderBottomWidth={1} borderBottomColor="coolGray.200">
+      {/* Section Tabs */}
+      <Box py={4} borderBottomWidth={1} borderBottomColor="coolGray.200">
         {loading ? (
           <Center>
             <Spinner size="lg" />
           </Center>
         ) : (
-          <ScrollView
-            ref={scrollViewRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{
-              paddingHorizontal: 16,
-            }}
-          >
-            <HStack space={3} alignItems="center">
-              {sections.map((section) => (
-                <Pressable
-                  key={section.id}
-                  onPress={() => router.push(`/tables/sections/${section.id}`)}
-                >
-                  <Box
-                    px={4}
-                    py={1.5}
-                    bg={section.id === id ? "primary.500" : "white"}
-                    borderWidth={1}
-                    borderColor="primary.500"
-                    rounded="md"
-                    minW="120px"
-                    alignItems="center"
-                  >
-                    <Text
-                      color={section.id === id ? "white" : "primary.500"}
-                      fontSize="sm"
-                      fontWeight="medium"
-                    >
-                      {section.name}
-                    </Text>
-                  </Box>
-                </Pressable>
-              ))}
-            </HStack>
-          </ScrollView>
+          renderSections()
         )}
       </Box>
 
@@ -1214,55 +1148,22 @@ export default function SectionTablesScreen() {
         </Box>
       </ScrollView>
 
-      <TableActionModal />
-      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)}>
-        <Modal.Content maxWidth="400px">
-          <HStack
-            alignItems="center"
-            justifyContent="space-between"
-            px={1}
-            py={2}
-          >
-            <Modal.Header flex={1} textAlign="center">
-              <Text numberOfLines={1} ellipsizeMode="tail">
-                Edit {currentSection.name}
-              </Text>
-            </Modal.Header>
-            <Modal.CloseButton position="absolute" right={2} />
-          </HStack>
-          <Modal.Body>
-            <FormControl isRequired>
-              <FormControl.Label>
-                <HStack space={1} alignItems="center">
-                  <Text>Section Name </Text>
-                </HStack>
-              </FormControl.Label>
-              <Input
-                value={editSection.name}
-                onChangeText={(value) =>
-                  setEditSection((prev) => ({ ...prev, name: value }))
-                }
-                placeholder="Enter section name"
-              />
-            </FormControl>
-          </Modal.Body>
-          <Modal.Footer>
-            <HStack space={2} width="100%" justifyContent="space-between">
-              <Button
-                variant="ghost"
-                colorScheme="blueGray"
-                onPress={() => setShowEditModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button onPress={handleEditSection}>Save Changes</Button>
-            </HStack>
-          </Modal.Footer>
-        </Modal.Content>
-      </Modal>
+      {/* Floating Action Button with consistent styling */}
+      <Fab
+        renderInPortal={false}
+        shadow={2}
+        size="sm"
+        colorScheme="green"
+        icon={<MaterialIcons name="add" size={24} color="white" />}
+        onPress={() => setShowAddTableModal(true)}
+        position="absolute"
+        bottom={4}
+        right={4}
+      />
 
+      {/* Modals */}
+      <TableActionModal />
       <AddTableModal />
-      <FloatingButtons />
       <DeleteConfirmationModal />
     </Box>
   );
