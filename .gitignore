@@ -36,3 +36,8 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# Keystore files
+*.keystore
+*.jks
+android/app/credentials/keystore.properties

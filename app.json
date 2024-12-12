@@ -2,7 +2,7 @@
   "expo": {
     "name": "MenuMitra Captain App",
     "slug": "menumitra-captain-app",
-    "version": "1.0.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -26,7 +26,8 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -56,7 +57,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "e479e606-1f3d-4b2d-94f9-0d5b68bd2be8"
+        "projectId": "c58bd2bc-2b46-4518-a238-6e981d88470a"
       }
     },
     "platforms": [
@@ -64,6 +65,33 @@
       "android",
       "web"
     ],
-    "owner": "santosh_mhetre1"
+    "owner": "menumitra"
+  },
+  "cli": {
+    "version": ">= 5.9.1"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle",
+        "credentialsSource": "local",
+        "keystore": {
+          "keystorePath": "./android/app/credentials/upload-key.keystore",
+          "keystorePassword": "menumitra123",
+          "keyAlias": "upload-key",
+          "keyPassword": "menumitra123"
+        }
+      }
+    }
   }
 }

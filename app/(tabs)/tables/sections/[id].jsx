@@ -128,8 +128,6 @@ export default function SectionTablesScreen() {
     try {
       const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
 
-      console.log("Fetching tables for section:", sectionName);
-
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/table_listview`,
         {
@@ -146,11 +144,18 @@ export default function SectionTablesScreen() {
       const data = await response.json();
       console.log("Tables Response:", data);
 
-      if (data.st === 1 && data.data && data.data[sectionName]) {
-        const sectionTables = data.data[sectionName];
-        console.log("Section Tables for", sectionName, ":", sectionTables);
+      if (data.st === 1 && data.data) {
+        // Find the correct section's tables
+        let sectionTables = [];
 
-        if (Array.isArray(sectionTables) && sectionTables.length > 0) {
+        // Check if the section exists in data.data
+        Object.entries(data.data).forEach(([key, tables]) => {
+          if (key.toLowerCase() === sectionName.toLowerCase()) {
+            sectionTables = tables;
+          }
+        });
+
+        if (sectionTables.length > 0) {
           const formattedTables = sectionTables.map((table, index) => ({
             table_id: table.table_id,
             table_number: table.table_number,
@@ -178,9 +183,6 @@ export default function SectionTablesScreen() {
             engagedTables: 0,
           }));
         }
-      } else {
-        console.log("No data found for section:", sectionName);
-        setTables([]);
       }
     } catch (error) {
       console.error("Fetch Tables Error:", error);
@@ -1052,7 +1054,6 @@ export default function SectionTablesScreen() {
           _pressed={{ bg: "coolGray.100" }}
         />
       </HStack>
-
       {/* Section Tabs */}
       <Box py={4} borderBottomWidth={1} borderBottomColor="coolGray.200">
         {loading ? (
@@ -1063,11 +1064,8 @@ export default function SectionTablesScreen() {
           renderSections()
         )}
       </Box>
-
       {/* Filter Buttons */}
-      <FilterButtons />
-
-      {/* Main Content */}
+      <FilterButtons />l{/* Main Content */}
       <ScrollView>
         <Box px={4} py={2}>
           <Center>
@@ -1147,7 +1145,6 @@ export default function SectionTablesScreen() {
           </Center>
         </Box>
       </ScrollView>
-
       {/* Floating Action Button with consistent styling */}
       <Fab
         renderInPortal={false}
@@ -1160,7 +1157,6 @@ export default function SectionTablesScreen() {
         bottom={4}
         right={4}
       />
-
       {/* Modals */}
       <TableActionModal />
       <AddTableModal />
