@@ -304,7 +304,7 @@ export default function OrdersScreen() {
       ) : (
         <FlatList
           data={filteredOrders}
-          key={viewType} // Force re-render when view type changes
+          key={viewType}
           numColumns={viewType === "grid" ? 2 : 1}
           renderItem={({ item }) => (
             <Pressable
@@ -319,35 +319,44 @@ export default function OrdersScreen() {
               <Box bg="white" rounded="lg" shadow={1} m={2} p={3} flex={1}>
                 <VStack space={2}>
                   {/* Order Header */}
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <VStack>
+                  <VStack space={2}>
+                    {/* Order Number and Badge in same row */}
+                    <HStack justifyContent="space-between" alignItems="center">
                       <Text
-                        fontSize={viewType === "grid" ? "md" : "lg"}
+                        fontSize={viewType === "grid" ? "sm" : "lg"}
                         fontWeight="bold"
+                        numberOfLines={1}
+                        flex={1}
                       >
                         #{item.order_number}
                       </Text>
-                      <Text fontSize="xs" color="coolGray.600">
-                        {item.restaurant_name}
-                      </Text>
-                    </VStack>
-                    <Badge
-                      colorScheme={
-                        item.order_status === "ongoing"
-                          ? "orange"
-                          : item.order_status === "completed"
-                          ? "green"
-                          : "red"
-                      }
-                      rounded="sm"
-                    >
-                      {item.order_status.toUpperCase()}
-                    </Badge>
-                  </HStack>
+                      <Badge
+                        colorScheme={
+                          item.order_status === "ongoing"
+                            ? "orange"
+                            : item.order_status === "completed"
+                            ? "green"
+                            : "red"
+                        }
+                        rounded="sm"
+                      >
+                        {item.order_status.toUpperCase()}
+                      </Badge>
+                    </HStack>
 
-                  {/* Order Info */}
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <HStack space={1} alignItems="center">
+                    {/* Restaurant Name */}
+                    <Text fontSize="xs" color="coolGray.600" numberOfLines={1}>
+                      {item.restaurant_name}
+                    </Text>
+                  </VStack>
+
+                  {/* Rest of the code remains the same */}
+                  <HStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    flexWrap="wrap"
+                  >
+                    <HStack space={1} alignItems="center" flex={1}>
                       <MaterialIcons
                         name={
                           item.order_type === "Dine In"
@@ -357,25 +366,30 @@ export default function OrdersScreen() {
                         size={14}
                         color="coolGray.500"
                       />
-                      <Text fontSize="xs" color="coolGray.600">
+                      <Text
+                        fontSize="xs"
+                        color="coolGray.600"
+                        numberOfLines={1}
+                        flex={1}
+                      >
                         {item.order_type}{" "}
                         {item.table_number && `• Table ${item.table_number}`}
                       </Text>
                     </HStack>
-                    <Text fontSize="xs" color="coolGray.500">
+                    <Text fontSize="xs" color="coolGray.500" numberOfLines={1}>
                       {item.date_time}
                     </Text>
                   </HStack>
 
-                  {/* Menu Items - Condensed in grid view */}
+                  {/* Menu Items section remains the same */}
                   <VStack space={1}>
-                    <Text fontSize="xs" color="coolGray.600">
+                    <Text fontSize="xs" color="coolGray.600" numberOfLines={1}>
                       {item.menu_details.length} items
                     </Text>
                     {viewType === "list" &&
                       item.menu_details.map((menu, index) => (
                         <HStack key={index} justifyContent="space-between">
-                          <Text fontSize="xs">
+                          <Text fontSize="xs" flex={1} numberOfLines={1}>
                             {menu.quantity}x {menu.menu_name}
                           </Text>
                           <Text fontSize="xs">
@@ -385,7 +399,7 @@ export default function OrdersScreen() {
                       ))}
                   </VStack>
 
-                  {/* Total */}
+                  {/* Total section remains the same */}
                   <HStack
                     justifyContent="space-between"
                     pt={2}

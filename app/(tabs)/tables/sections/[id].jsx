@@ -145,10 +145,8 @@ export default function SectionTablesScreen() {
       console.log("Tables Response:", data);
 
       if (data.st === 1 && data.data) {
-        // Find the correct section's tables
         let sectionTables = [];
 
-        // Check if the section exists in data.data
         Object.entries(data.data).forEach(([key, tables]) => {
           if (key.toLowerCase() === sectionName.toLowerCase()) {
             sectionTables = tables;
@@ -163,12 +161,13 @@ export default function SectionTablesScreen() {
             row: Math.floor(index / 3),
             col: index % 3,
             is_occupied: table.is_occupied,
+            order_number: table.order_number,
+            grandTotal: table.grand_total || 0,
           }));
 
           console.log("Formatted Tables:", formattedTables);
           setTables(formattedTables);
 
-          // Update section statistics
           setCurrentSection((prev) => ({
             ...prev,
             totalTables: formattedTables.length,
@@ -344,16 +343,92 @@ export default function SectionTablesScreen() {
   );
 
   // Add handleTablePress function
-  const handleTablePress = (table) => {
-    console.log("Pressed table:", table); // Debug log
-    router.push({
-      pathname: `/tables/${table.table_id}`, // Change from table.id to table.table_id
-      params: {
-        sectionId: id,
-        tableNumber: table.table_number, // Change from table.number to table.table_number
-        status: table.status,
-      },
-    });
+  const handleTablePress = async (table) => {
+    console.log("Pressed table:", table);
+
+    // If table is available, navigate to create order screen
+    if (table.is_occupied === 0) {
+      router.push({
+        pathname: "/(tabs)/orders/create-order",
+        params: {
+          tableId: table.table_id,
+          tableNumber: table.table_number,
+          sectionId: id,
+          sectionName: currentSection.name,
+        },
+      });
+    }
+    // If table is occupied, fetch order details first
+    else {
+      try {
+        const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+
+        // First get the ongoing orders list to find the correct order number
+        const listResponse = await fetch(
+          `${API_BASE_URL}/captain_order/listview`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              restaurant_id: parseInt(storedRestaurantId),
+              order_status: "ongoing",
+              date: getCurrentDate(),
+            }),
+          }
+        );
+
+        const listData = await listResponse.json();
+
+        if (listData.st === 1 && listData.lists) {
+          // Find the order for this table
+          const tableOrder = listData.lists.find(
+            (order) => order.table_number === table.table_number
+          );
+
+          if (tableOrder) {
+            // Now fetch specific order details
+            const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                restaurant_id: parseInt(storedRestaurantId),
+                order_number: tableOrder.order_number,
+              }),
+            });
+
+            const data = await response.json();
+            console.log("Order Details Response:", data);
+
+            if (data.st === 1 && data.lists) {
+              // Navigate to order details with the order number
+              router.push({
+                pathname: "/(tabs)/orders/order-details",
+                params: {
+                  id: tableOrder.order_number,
+                },
+              });
+            } else {
+              throw new Error(data.msg || "Failed to fetch order details");
+            }
+          } else {
+            throw new Error("No active order found for this table");
+          }
+        } else {
+          throw new Error(listData.msg || "Failed to fetch orders list");
+        }
+      } catch (error) {
+        console.error("Fetch Order Details Error:", error);
+        toast.show({
+          description: error.message || "Failed to fetch order details",
+          status: "error",
+          placement: "top",
+        });
+      }
+    }
   };
 
   // Update renderTable function to match the exact design
@@ -1028,6 +1103,18 @@ export default function SectionTablesScreen() {
         status: "error",
       });
     }
+  };
+
+  // Add this function at the top of your component
+  const getCurrentDate = () => {
+    const date = new Date();
+    return date
+      .toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+      .replace(/ /g, " ");
   };
 
   return (

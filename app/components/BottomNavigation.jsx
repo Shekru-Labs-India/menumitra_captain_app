@@ -46,6 +46,14 @@ const BottomNavigation = () => {
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="receipt" size={size} color={color} />
           ),
+          href: "/orders",
+          unmountOnBlur: true,
+          listeners: ({ navigation }) => ({
+            tabPress: (e) => {
+              e.preventDefault();
+              navigation.navigate("orders", { screen: "index" });
+            },
+          }),
         }}
       />
       <Tabs.Screen
