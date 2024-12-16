@@ -19,6 +19,8 @@ import {
   Button,
   Spinner,
   Fab,
+  Center,
+  Icon,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
@@ -42,10 +44,71 @@ export default function TableSectionsScreen() {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [restaurantId, setRestaurantId] = useState(null);
+  const [activeSection, setActiveSection] = useState(null);
+  const [showTableActionModal, setShowTableActionModal] = useState(false);
+  const [selectedTable, setSelectedTable] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddTableModal, setShowAddTableModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editSection, setEditSection] = useState(null);
+  const [tables, setTables] = useState([]);
+  const [activeFilter, setActiveFilter] = useState("ALL");
+  const [showEditIcons, setShowEditIcons] = useState(false);
 
   useEffect(() => {
-    getStoredData();
-  }, []);
+    const initializeData = async () => {
+      await getStoredData();
+      if (sections.length > 0) {
+        setActiveSection(sections[0]);
+      }
+    };
+
+    initializeData();
+  }, [sections.length]);
+
+  useEffect(() => {
+    if (activeSection) {
+      const fetchTablesForSection = async () => {
+        try {
+          const storedRestaurantId = await AsyncStorage.getItem(
+            "restaurant_id"
+          );
+          const response = await fetch(
+            `${API_BASE_URL}/captain_manage/table_listview`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                restaurant_id: parseInt(storedRestaurantId),
+              }),
+            }
+          );
+
+          const data = await response.json();
+          if (data.st === 1 && data.data) {
+            let sectionTables = [];
+            Object.entries(data.data).forEach(([key, tables]) => {
+              if (key.toLowerCase() === activeSection.name.toLowerCase()) {
+                sectionTables = tables;
+              }
+            });
+
+            setTables(sectionTables);
+          }
+        } catch (error) {
+          console.error("Fetch Tables Error:", error);
+          toast.show({
+            description: "Failed to fetch tables",
+            status: "error",
+          });
+        }
+      };
+
+      fetchTablesForSection();
+    }
+  }, [activeSection]);
 
   // Update the useFocusEffect to use the same fetchSections function
   useFocusEffect(
@@ -107,7 +170,7 @@ export default function TableSectionsScreen() {
     try {
       setLoading(true);
 
-      // Get the detailed section list first
+      // Get sections
       const sectionListResponse = await fetch(
         `${API_BASE_URL}/captain_manage/section_listview`,
         {
@@ -122,11 +185,10 @@ export default function TableSectionsScreen() {
       );
 
       const sectionListData = await sectionListResponse.json();
-      console.log("Section List View Response:", sectionListData);
 
-      // Get all tables in one call
+      // Get tables for each section
       const tablesResponse = await fetch(
-        `${API_BASE_URL}/captain_manage/get_table_list`,
+        `${API_BASE_URL}/captain_manage/table_listview`,
         {
           method: "POST",
           headers: {
@@ -139,31 +201,43 @@ export default function TableSectionsScreen() {
       );
 
       const tablesData = await tablesResponse.json();
-      console.log("Tables Response:", tablesData);
+      console.log("Tables Data:", tablesData);
 
-      if (sectionListData.st === 1 && tablesData.st === 1) {
-        // Modified section to properly handle the table data
-        const formattedSections = sectionListData.data.map((section) => {
-          // Get tables for this section from tablesData
-          const sectionTables = tablesData.data.filter(
-            (table) => table.section_id === section.section_id
-          );
+      if (sectionListData.st === 1) {
+        const formattedSections = await Promise.all(
+          sectionListData.data.map(async (section) => {
+            // Get tables for this section
+            let sectionTables = [];
+            if (tablesData.st === 1 && tablesData.data) {
+              Object.entries(tablesData.data).forEach(([key, tables]) => {
+                if (key.toLowerCase() === section.section_name.toLowerCase()) {
+                  sectionTables = tables;
+                }
+              });
+            }
 
-          return {
-            id: section.section_id.toString(),
-            name: section.section_name,
-            totalTables: sectionTables.length,
-            engagedTables: sectionTables.filter(
-              (table) => table.is_occupied === 1
-            ).length,
-            color: getRandomColor(),
-          };
-        });
+            return {
+              id: section.section_id.toString(),
+              name: section.section_name,
+              totalTables: sectionTables.length,
+              engagedTables: sectionTables.filter(
+                (table) => table.is_occupied === 1
+              ).length,
+              color: getRandomColor(),
+              tables: sectionTables.map((table) => ({
+                table_id: table.table_id,
+                table_number: table.table_number,
+                is_occupied: table.is_occupied,
+                order_number: table.order_number || null,
+                grandTotal: table.grand_total || 0,
+                occupiedTime: table.occupied_time || "00:00",
+              })),
+            };
+          })
+        );
 
         console.log("Formatted Sections:", formattedSections);
         setSections(formattedSections);
-      } else {
-        throw new Error("Failed to fetch sections");
       }
     } catch (error) {
       console.error("Fetch Error:", error);
@@ -284,104 +358,341 @@ export default function TableSectionsScreen() {
     }
   };
 
+  const handleTablePress = async (table, section) => {
+    if (table.is_occupied === 0) {
+      router.push({
+        pathname: "/(tabs)/orders/create-order",
+        params: {
+          tableId: table.table_id,
+          tableNumber: table.table_number,
+          sectionId: section.id,
+          sectionName: section.name,
+          isOccupied: "0",
+        },
+      });
+    } else {
+      try {
+        const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+
+        // First get the ongoing orders list
+        const listResponse = await fetch(
+          `${API_BASE_URL}/captain_order/listview`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              restaurant_id: parseInt(storedRestaurantId),
+              order_status: "ongoing",
+              date: getCurrentDate(),
+            }),
+          }
+        );
+
+        const listData = await listResponse.json();
+        console.log("List Response:", listData);
+
+        if (listData.st === 1 && listData.lists && listData.lists.length > 0) {
+          // Find the order for this table
+          const tableOrder = listData.lists.find(
+            (order) =>
+              order.table_number === table.table_number.toString() &&
+              order.section_id === section.id.toString()
+          );
+
+          console.log("Found Table Order:", tableOrder);
+
+          if (tableOrder) {
+            // Get detailed order info
+            const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                restaurant_id: parseInt(storedRestaurantId),
+                order_number: tableOrder.order_number,
+              }),
+            });
+
+            const data = await response.json();
+            console.log("Order Details:", data);
+
+            if (data.st === 1 && data.lists) {
+              const { order_details, menu_details } = data.lists;
+
+              router.push({
+                pathname: "/(tabs)/orders/create-order",
+                params: {
+                  tableId: table.table_id.toString(),
+                  tableNumber: table.table_number.toString(),
+                  sectionId: section.id.toString(),
+                  sectionName: section.name,
+                  orderNumber: tableOrder.order_number.toString(),
+                  customerName: order_details.customer_name || "",
+                  customerPhone: order_details.customer_phone || "",
+                  orderType: order_details.order_type || "Dine In",
+                  existingItems: JSON.stringify(menu_details),
+                  isOccupied: "1",
+                  grandTotal: order_details.total_bill?.toString() || "0",
+                  serviceCharges:
+                    order_details.service_charges_amount?.toString() || "0",
+                  gstAmount: order_details.gst_amount?.toString() || "0",
+                  discountAmount:
+                    order_details.discount_amount?.toString() || "0",
+                },
+              });
+            }
+          } else {
+            throw new Error("No active order found for this table");
+          }
+        } else {
+          throw new Error("No ongoing orders found");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        toast.show({
+          description: error.message || "Failed to fetch order details",
+          status: "error",
+        });
+      }
+    }
+  };
+
+  const getCurrentDate = () => {
+    const date = new Date();
+    return date
+      .toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+      .replace(/ /g, " ");
+  };
+
+  const chunk = (array, size) => {
+    if (!Array.isArray(array)) return [];
+    const chunked = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunked.push(array.slice(i, i + size));
+    }
+    return chunked;
+  };
+
+  const getFilteredTables = (sectionTables) => {
+    if (!sectionTables || sectionTables.length === 0) return [];
+
+    switch (activeFilter) {
+      case "AVAILABLE":
+        return sectionTables.filter((table) => table.is_occupied === 0);
+      case "ENGAGED":
+        return sectionTables.filter((table) => table.is_occupied === 1);
+      default:
+        return sectionTables;
+    }
+  };
+
+  // Add tablesByRow calculation
+  const getTablesByRow = (sectionTables) => {
+    const filteredTables = getFilteredTables(sectionTables);
+    const grouped = {};
+
+    filteredTables.forEach((table, index) => {
+      const row = Math.floor(index / 4);
+      const col = index % 4;
+
+      if (!grouped[row]) {
+        grouped[row] = {};
+      }
+      grouped[row][col] = table;
+    });
+
+    return grouped;
+  };
+
   const renderGridView = (sections) => (
     <ScrollView px={2} py={2}>
-      <HStack flexWrap="wrap" justifyContent="space-between">
-        {sections.map((section) => (
-          <Pressable
-            key={section.id}
-            onPress={() => handleSectionPress(section)}
-            width="49%" // Slightly less than 50% to ensure spacing
-            mb={2} // Reduced margin bottom
-          >
-            <Box
-              bg="white"
-              p={3} // Reduced padding
-              rounded="lg"
-              borderWidth={1}
-              borderColor="coolGray.200"
-              shadow={1}
-            >
-              <VStack space={3} alignItems="center">
-                {" "}
-                {/* Reduced space */}
-                {/* Centered Title */}
-                <Box w="full" alignItems="center">
-                  <Heading
-                    size="xs" // Smaller heading
-                    color={section.color}
-                    fontWeight="bold"
-                    textAlign="center"
-                  >
-                    {section.name}
-                  </Heading>
-                </Box>
-                {/* Stats Row */}
-                <HStack
-                  w="full"
-                  justifyContent="space-between"
-                  space={1} // Reduced space between stats
-                  px={1} // Reduced padding
-                >
-                  {/* Total */}
-                  <VStack
-                    alignItems="center"
-                    flex={1}
-                    bg="coolGray.50"
-                    p={1.5} // Reduced padding
-                    rounded="md"
-                  >
-                    <Text
-                      fontSize="2xs" // Smaller font
-                      color="coolGray.500"
-                      fontWeight="medium"
-                    >
-                      Total
-                    </Text>
-                    <Text fontSize="md" fontWeight="bold">
-                      {" "}
-                      {/* Smaller font */}
-                      {section.totalTables}
-                    </Text>
+      {sections.map((section, index) => {
+        const tablesByRow = getTablesByRow(section.tables);
+
+        return (
+          <Box key={section.id}>
+            <Box mb={2}>
+              <Box bg="white" p={4} rounded="lg" shadow={1}>
+                <VStack space={4}>
+                  {/* Section Header */}
+                  <VStack space={1}>
+                    {/* Section Name and Actions */}
+                    <HStack justifyContent="space-between" alignItems="center">
+                      <Heading size="md" color={section.color}>
+                        {section.name}
+                      </Heading>
+                      {showEditIcons && (
+                        <HStack space={2}>
+                          <IconButton
+                            icon={
+                              <MaterialIcons
+                                name="edit"
+                                size={18}
+                                color="gray"
+                              />
+                            }
+                            bg="coolGray.100"
+                            rounded="full"
+                            _pressed={{ bg: "coolGray.200" }}
+                            onPress={() => {
+                              setEditSection({
+                                id: section.id,
+                                name: section.name,
+                              });
+                              setShowEditModal(true);
+                            }}
+                          />
+                          <IconButton
+                            icon={
+                              <MaterialIcons
+                                name="delete"
+                                size={18}
+                                color="gray"
+                              />
+                            }
+                            bg="coolGray.100"
+                            rounded="full"
+                            _pressed={{ bg: "coolGray.200" }}
+                            onPress={() => {
+                              setActiveSection(section);
+                              setShowDeleteModal(true);
+                            }}
+                          />
+                        </HStack>
+                      )}
+                    </HStack>
+
+                    {/* Stats Row */}
+                    <HStack space={20} mt={1}>
+                      <Text fontSize="sm" color="coolGray.500">
+                        Total: {section.totalTables}
+                      </Text>
+                      <Text fontSize="sm" color="red.500">
+                        Occupied: {section.engagedTables}
+                      </Text>
+                      <Text fontSize="sm" color="green.500">
+                        Free: {section.totalTables - section.engagedTables}
+                      </Text>
+                    </HStack>
                   </VStack>
 
-                  {/* Occupied */}
-                  <VStack
-                    alignItems="center"
-                    flex={1}
-                    bg="red.50"
-                    p={1.5}
-                    rounded="md"
-                  >
-                    <Text fontSize="2xs" color="red.500" fontWeight="medium">
-                      Occ
-                    </Text>
-                    <Text fontSize="md" fontWeight="bold" color="red.500">
-                      {section.engagedTables}
-                    </Text>
-                  </VStack>
+                  {/* Divider */}
+                  <Box height={0.5} bg="coolGray.200" />
 
-                  {/* Free */}
-                  <VStack
-                    alignItems="center"
-                    flex={1}
-                    bg="green.50"
-                    p={1.5}
-                    rounded="md"
-                  >
-                    <Text fontSize="2xs" color="green.500" fontWeight="medium">
-                      Free
-                    </Text>
-                    <Text fontSize="md" fontWeight="bold" color="green.500">
-                      {section.totalTables - section.engagedTables}
-                    </Text>
+                  {/* Tables Grid */}
+                  <VStack space={0}>
+                    {Object.entries(tablesByRow).map(([rowIndex, row]) => (
+                      <HStack
+                        key={rowIndex}
+                        px={0}
+                        py={2}
+                        alignItems="center"
+                        justifyContent="space-between"
+                      >
+                        {Array.from({ length: 4 }).map((_, colIndex) => (
+                          <Box key={`${rowIndex}-${colIndex}`}>
+                            {row[colIndex] ? (
+                              <Pressable
+                                onPress={() =>
+                                  handleTablePress(row[colIndex], section)
+                                }
+                              >
+                                <Box
+                                  p={2}
+                                  rounded="lg"
+                                  width={20}
+                                  height={20}
+                                  bg={
+                                    row[colIndex].is_occupied === 1
+                                      ? "red.100"
+                                      : "green.100"
+                                  }
+                                  borderWidth={1}
+                                  borderStyle="dashed"
+                                  borderColor={
+                                    row[colIndex].is_occupied === 1
+                                      ? "red.600"
+                                      : "green.600"
+                                  }
+                                  position="relative"
+                                >
+                                  {row[colIndex].is_occupied === 1 && (
+                                    <Box
+                                      position="absolute"
+                                      top={-2}
+                                      left={-2}
+                                      right={-2}
+                                      bg="red.500"
+                                      py={1}
+                                      rounded="md"
+                                      shadow={1}
+                                      zIndex={1}
+                                      alignItems="center"
+                                    >
+                                      <Text
+                                        color="white"
+                                        fontSize="2xs"
+                                        fontWeight="bold"
+                                      >
+                                        ₹{row[colIndex].grandTotal || 0}
+                                      </Text>
+                                    </Box>
+                                  )}
+                                  <VStack space={2} alignItems="center" mt={5}>
+                                    <Text
+                                      fontSize={18}
+                                      fontWeight="bold"
+                                      color={
+                                        row[colIndex].is_occupied === 1
+                                          ? "red.500"
+                                          : "green.500"
+                                      }
+                                    >
+                                      {row[colIndex].table_number}
+                                    </Text>
+                                    <Text fontSize={12} color="coolGray.600">
+                                      <Text fontSize={12} color="coolGray.600">
+                                        {row[colIndex].is_occupied === 1 &&
+                                          (row[colIndex].occupiedTime ||
+                                            "00:00")}
+                                      </Text>
+                                    </Text>
+                                  </VStack>
+                                </Box>
+                              </Pressable>
+                            ) : (
+                              <Box
+                                p={2}
+                                rounded="lg"
+                                width={16}
+                                height={16}
+                                borderWidth={1}
+                                borderStyle="dashed"
+                                borderColor="gray.200"
+                                opacity={0.5}
+                              />
+                            )}
+                          </Box>
+                        ))}
+                      </HStack>
+                    ))}
                   </VStack>
-                </HStack>
-              </VStack>
+                </VStack>
+              </Box>
             </Box>
-          </Pressable>
-        ))}
-      </HStack>
+
+            {/* Horizontal Line after each section except the last one */}
+            {index < sections.length - 1 && (
+              <Box height={0.5} bg="coolGray.200" mx={-2} mb={2} />
+            )}
+          </Box>
+        );
+      })}
     </ScrollView>
   );
 
@@ -422,11 +733,309 @@ export default function TableSectionsScreen() {
       ))}
     </ScrollView>
   );
+
+  const FilterButtons = () => (
+    <Box py={4} borderBottomWidth={1} borderBottomColor="coolGray.200">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+        }}
+      >
+        <HStack space={3} alignItems="center">
+          <Pressable onPress={() => setActiveFilter("ALL")}>
+            <Box
+              px={4}
+              py={1.5}
+              bg={activeFilter === "ALL" ? "primary.500" : "white"}
+              borderWidth={1}
+              borderColor="primary.500"
+              rounded="md"
+            >
+              <Text
+                color={activeFilter === "ALL" ? "white" : "primary.500"}
+                fontSize="sm"
+                fontWeight="medium"
+              >
+                All
+              </Text>
+            </Box>
+          </Pressable>
+          <Pressable onPress={() => setActiveFilter("AVAILABLE")}>
+            <Box
+              px={4}
+              py={1.5}
+              bg={activeFilter === "AVAILABLE" ? "green.500" : "white"}
+              borderWidth={1}
+              borderColor="green.500"
+              rounded="md"
+            >
+              <Text
+                color={activeFilter === "AVAILABLE" ? "white" : "green.500"}
+                fontSize="sm"
+                fontWeight="medium"
+              >
+                Available
+              </Text>
+            </Box>
+          </Pressable>
+          <Pressable onPress={() => setActiveFilter("ENGAGED")}>
+            <Box
+              px={4}
+              py={1.5}
+              bg={activeFilter === "ENGAGED" ? "red.500" : "white"}
+              borderWidth={1}
+              borderColor="red.500"
+              rounded="md"
+            >
+              <Text
+                color={activeFilter === "ENGAGED" ? "white" : "red.500"}
+                fontSize="sm"
+                fontWeight="medium"
+              >
+                Occupied
+              </Text>
+            </Box>
+          </Pressable>
+        </HStack>
+      </ScrollView>
+    </Box>
+  );
+
+  // Add EditModal component
+  const EditModal = () => (
+    <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)}>
+      <Modal.Content maxWidth="400px">
+        <Modal.Header>Edit Section</Modal.Header>
+        <Modal.CloseButton />
+        <Modal.Body>
+          <FormControl isRequired>
+            <FormControl.Label>Section Name</FormControl.Label>
+            <Input
+              value={editSection?.name || ""}
+              onChangeText={(text) =>
+                setEditSection((prev) => ({ ...prev, name: text }))
+              }
+              placeholder="Enter section name"
+            />
+          </FormControl>
+        </Modal.Body>
+        <Modal.Footer>
+          <HStack space={2} width="100%" justifyContent="space-between">
+            <Button
+              variant="ghost"
+              onPress={() => {
+                setEditSection(null);
+                setShowEditModal(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onPress={handleEditSection} isLoading={loading}>
+              Save Changes
+            </Button>
+          </HStack>
+        </Modal.Footer>
+      </Modal.Content>
+    </Modal>
+  );
+
+  // Add DeleteConfirmationModal component
+  const DeleteConfirmationModal = () => {
+    const hasOccupiedTables =
+      activeSection?.tables?.some((table) => table.is_occupied === 1) || false;
+
+    return (
+      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
+        <Modal.Content maxWidth="400px">
+          <Modal.CloseButton />
+          <Modal.Header>
+            {hasOccupiedTables ? "Cannot Delete Section" : "Delete Section"}
+          </Modal.Header>
+          <Modal.Body>
+            {hasOccupiedTables ? (
+              <VStack space={3}>
+                <Box bg="orange.100" p={3} rounded="md">
+                  <Text color="orange.800">
+                    This section has occupied tables and cannot be deleted.
+                    Please ensure all tables are available before deleting the
+                    section.
+                  </Text>
+                </Box>
+              </VStack>
+            ) : (
+              <Text>
+                Are you sure you want to delete "{activeSection?.name}"? This
+                action cannot be undone.
+              </Text>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            {hasOccupiedTables ? (
+              <Button
+                variant="outline"
+                onPress={() => setShowDeleteModal(false)}
+                width="100%"
+              >
+                Close
+              </Button>
+            ) : (
+              <HStack space={2} width="100%" justifyContent="space-between">
+                <Button
+                  variant="outline"
+                  colorScheme="coolGray"
+                  onPress={() => setShowDeleteModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button colorScheme="red" onPress={handleDeleteSection}>
+                  Delete
+                </Button>
+              </HStack>
+            )}
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
+    );
+  };
+
+  const handleEditSection = async () => {
+    if (!editSection?.name?.trim()) {
+      toast.show({
+        description: "Section name is required",
+        status: "warning",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/section_update`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: restaurantId,
+            section_id: parseInt(editSection.id),
+            section_name: editSection.name.trim(),
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (data.st === 1) {
+        toast.show({
+          description: "Section updated successfully",
+          status: "success",
+        });
+        setShowEditModal(false);
+        setEditSection(null);
+        await fetchSections(restaurantId);
+      } else {
+        throw new Error(data.msg || "Failed to update section");
+      }
+    } catch (error) {
+      console.error("Update Section Error:", error);
+      toast.show({
+        description: error.message || "Failed to update section",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSection = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/section_delete`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: restaurantId,
+            section_id: parseInt(activeSection.id),
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (data.st === 1) {
+        toast.show({
+          description: "Section deleted successfully",
+          status: "success",
+        });
+        setShowDeleteModal(false);
+        setActiveSection(null);
+        await fetchSections(restaurantId);
+      } else {
+        throw new Error(data.msg || "Failed to delete section");
+      }
+    } catch (error) {
+      console.error("Delete Section Error:", error);
+      toast.show({
+        description: error.message || "Failed to delete section",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Box flex={1} bg="coolGray.100" safeAreaTop>
       {/* Header Component */}
-      <Header title="Sections" onBackPress={() => router.back()} />
+      {/* Custom Header */}
+      <Box
+        bg="white"
+        px={4}
+        py={3}
+        flexDirection="row"
+        alignItems="center"
+        justifyContent="space-between"
+        safeAreaTop
+        shadow={1}
+      >
+        <IconButton
+          icon={
+            <MaterialIcons name="arrow-back" size={24} color="coolGray.500" />
+          }
+          onPress={() => router.back()}
+        />
 
+        <Heading
+          size="lg"
+          position="absolute"
+          left={0}
+          right={0}
+          textAlign="center"
+        >
+          Sections
+        </Heading>
+
+        <IconButton
+          icon={
+            <MaterialIcons
+              name="settings"
+              size={24}
+              color={showEditIcons ? "white" : "coolGray.600"}
+            />
+          }
+          onPress={() => setShowEditIcons(!showEditIcons)}
+          bg={showEditIcons ? "primary.500" : "transparent"}
+          _pressed={{
+            bg: showEditIcons ? "primary.600" : "coolGray.100",
+          }}
+          rounded="full"
+        />
+      </Box>
       {/* Search and Filters */}
       <Box bg="white" px={4} py={2} shadow={1}>
         <HStack space={2} alignItems="center">
@@ -485,6 +1094,9 @@ export default function TableSectionsScreen() {
           />
         </HStack>
       </Box>
+
+      {/* Filter Buttons */}
+      <FilterButtons />
 
       {/* Content */}
       <Box flex={1} bg="coolGray.100">
@@ -566,6 +1178,12 @@ export default function TableSectionsScreen() {
           </Modal.Footer>
         </Modal.Content>
       </Modal>
+
+      {/* Edit Section Modal */}
+      <EditModal />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal />
     </Box>
   );
 }

@@ -380,7 +380,6 @@ export default function SectionTablesScreen() {
         );
 
         const listData = await listResponse.json();
-
         if (listData.st === 1 && listData.lists) {
           // Find the order for this table
           const tableOrder = listData.lists.find(
@@ -945,7 +944,6 @@ export default function SectionTablesScreen() {
         <Box
           bg="primary.500"
           p={3}
-          y
           rounded="full"
           shadow={3}
           _pressed={{
