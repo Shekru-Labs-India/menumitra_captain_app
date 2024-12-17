@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { TouchableWithoutFeedback, Keyboard } from "react-native";
+import { TouchableWithoutFeedback, Keyboard, BackHandler } from "react-native";
 import {
   Box,
   VStack,
@@ -26,6 +26,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
+import { useFocusEffect } from "@react-navigation/native";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -38,6 +39,26 @@ const getCurrentDate = () => {
       year: "numeric",
     })
     .replace(/ /g, " ");
+};
+
+const formatTime = (dateTimeStr) => {
+  if (!dateTimeStr) return "";
+
+  // Split the datetime string to get date, time and meridiem
+  const parts = dateTimeStr.split(" ");
+  if (parts.length < 3) return "";
+
+  // Get date, time part and meridiem
+  const date = parts[0]; // "17-Dec-2024"
+  const time = parts[1]; // "11:04:43"
+  const meridiem = parts[2]; // "AM"
+
+  // Split time to get hours and minutes
+  const timeParts = time.split(":");
+  if (timeParts.length < 2) return "";
+
+  // Return formatted date and time (DD-MMM-YYYY HH:MM AM/PM)
+  return `${date} ${timeParts[0]}:${timeParts[1]} ${meridiem}`;
 };
 
 export default function CreateOrderScreen() {
@@ -464,7 +485,7 @@ export default function CreateOrderScreen() {
         <HStack justifyContent="space-between" alignItems="center">
           <Heading size="sm">Order #{orderDetails.order_number}</Heading>
           <Text fontSize="xs" color="gray.500">
-            {orderDetails.datetime}
+            {formatTime(orderDetails.datetime)}
           </Text>
         </HStack>
 
@@ -579,9 +600,42 @@ export default function CreateOrderScreen() {
     }
   };
 
+  // Handle device back button
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        router.replace("/(tabs)/tables/sections");
+        return true; // Prevents default behavior
+      };
+
+      BackHandler.addEventListener("hardwareBackPress", onBackPress);
+
+      return () => {
+        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+      };
+    }, [])
+  );
+
   return (
     <Box flex={1} bg="white" safeArea>
-      <Header title="Create Order" />
+      <Header
+        title={isOccupied === "1" ? "Order Details" : "Create Order"}
+        onBackPress={() => {
+          router.replace("/(tabs)/tables/sections");
+        }}
+        rightComponent={
+          <Badge colorScheme="blue" rounded="lg" px={3} py={1}>
+            <HStack space={1} alignItems="center">
+              <Text color="blue.800" fontSize="sm" fontWeight="medium">
+                Table
+              </Text>
+              <Text color="blue.800" fontSize="sm" fontWeight="medium">
+                {tableNumber}
+              </Text>
+            </HStack>
+          </Badge>
+        }
+      />
 
       <Box flex={1} bg="coolGray.100" px={4}>
         {isOccupied === "1" && orderNumber && <OrderSummary />}
@@ -590,6 +644,7 @@ export default function CreateOrderScreen() {
           placeholder="Search menu items..."
           value={searchQuery}
           mt={2}
+          rounded="lg"
           borderWidth={1}
           borderColor="coolGray.400"
           bg="white"
@@ -811,6 +866,8 @@ export default function CreateOrderScreen() {
                 py={10}
                 bg="white"
                 rounded="lg"
+                borderWidth={1}
+                borderColor="coolGray.200"
               >
                 <MaterialIcons name="restaurant" size={48} color="gray" />
                 <Text color="coolGray.400" mt={2}>
@@ -854,7 +911,7 @@ export default function CreateOrderScreen() {
                       bg="white"
                       p={2}
                       mb={1}
-                      rounded="sm"
+                      rounded="lg"
                       borderWidth={1}
                       borderColor="coolGray.200"
                     >
@@ -986,125 +1043,130 @@ export default function CreateOrderScreen() {
           px={4}
         >
           {selectedItems.length > 0 && (
-            <HStack
-              space={2}
-              mb={2}
-              alignItems="center"
-              justifyContent="space-between"
+            <Box
               bg="white"
-              p={1}
               rounded="lg"
+              mb={4}
+              borderWidth={1}
+              borderColor="coolGray.200"
             >
-              {/* Subtotal */}
-              <VStack alignItems="center">
-                <Text fontWeight="bold" fontSize="sm">
-                  ₹
-                  {selectedItems
-                    .reduce((sum, item) => {
-                      const itemPrice =
-                        item.portionSize === "Half"
-                          ? item.price * 0.6
-                          : item.price;
-                      return sum + itemPrice * item.quantity;
-                    }, 0)
-                    .toFixed(2)}
-                </Text>
-                <Text fontSize="xs" color="gray.500">
-                  Subtotal
-                </Text>
-              </VStack>
-
-              {/* Service Charges */}
-              <VStack alignItems="center">
-                <Text fontWeight="bold" fontSize="sm">
-                  ₹{serviceCharges.toFixed(2)}
-                </Text>
-                <Text fontSize="xs" color="gray.500">
-                  Service
-                </Text>
-              </VStack>
-
-              {/* GST */}
-              <VStack alignItems="center">
-                <Text fontWeight="bold" fontSize="sm">
-                  ₹{gstAmount.toFixed(2)}
-                </Text>
-                <Text fontSize="xs" color="gray.500">
-                  GST
-                </Text>
-              </VStack>
-
-              {/* Discount - Only shown if greater than 0 */}
-              {discountAmount > 0 && (
+              {/* Price Summary Section */}
+              <HStack
+                alignItems="center"
+                justifyContent="space-between"
+                p={1}
+                borderBottomWidth={1}
+                borderBottomColor="coolGray.200"
+              >
+                {/* Subtotal */}
                 <VStack alignItems="center">
-                  <Text fontSize="xs" color="gray.500">
-                    Discount
+                  <Text fontWeight="bold" fontSize="sm">
+                    ₹
+                    {selectedItems
+                      .reduce((sum, item) => {
+                        const itemPrice =
+                          item.portionSize === "Half"
+                            ? item.price * 0.6
+                            : item.price;
+                        return sum + itemPrice * item.quantity;
+                      }, 0)
+                      .toFixed(2)}
                   </Text>
-                  <Text fontWeight="bold" fontSize="sm" color="red.500">
-                    -₹{discountAmount.toFixed(2)}
+                  <Text fontSize="xs" color="gray.500">
+                    Total
                   </Text>
                 </VStack>
-              )}
 
-              {/* Divider */}
-              <Box h="70%" w={0.5} bg="gray.200" />
+                {/* Service Charges */}
+                <VStack alignItems="center">
+                  <Text fontWeight="bold" fontSize="sm">
+                    ₹{serviceCharges.toFixed(2)}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500">
+                    Service
+                  </Text>
+                </VStack>
 
-              {/* Grand Total */}
-              <VStack alignItems="center">
-                <Text fontWeight="bold" fontSize="lg" color="green.600">
-                  ₹{calculateTotal(selectedItems)}
-                </Text>
-                <Text fontSize="xs" color="gray.500" fontWeight={600}>
-                  Total
-                </Text>
-              </VStack>
-            </HStack>
-          )}
+                {/* GST */}
+                <VStack alignItems="center">
+                  <Text fontWeight="bold" fontSize="sm">
+                    ₹{gstAmount.toFixed(2)}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500">
+                    GST
+                  </Text>
+                </VStack>
 
-          {selectedItems.length > 0 && (
-            <HStack space={4} justifyContent="space-between" mb={4}>
-              <Button
-                bg="gray.400"
-                rounded="lg"
-                onPress={() => {
-                  // Add your hold functionality here
-                  toast.show({
-                    description: "Order placed on hold",
-                    status: "info",
-                    duration: 2000,
-                  });
-                }}
-                isDisabled={loading}
-                _pressed={{ bg: "gray.600" }}
-              >
-                Hold
-              </Button>
-              <Button
-                flex={1}
-                variant="outline"
-                bg="black"
-                leftIcon={
-                  <MaterialIcons name="receipt" size={20} color="white" />
-                }
-                onPress={() => handleKOT()}
-                isDisabled={loading}
-                _text={{ color: "white" }}
-              >
-                KOT
-              </Button>
-              <Button
-                flex={1}
-                bg="blue.500"
-                leftIcon={
-                  <MaterialIcons name="payment" size={20} color="white" />
-                }
-                onPress={handleSettle}
-                isLoading={loading}
-                _pressed={{ bg: "blue.600" }}
-              >
-                {loading ? "Creating Order..." : "Settle"}
-              </Button>
-            </HStack>
+                {/* Discount - Only shown if greater than 0 */}
+                {discountAmount > 0 && (
+                  <VStack alignItems="center">
+                    <Text fontSize="xs" color="gray.500">
+                      Discount
+                    </Text>
+                    <Text fontWeight="bold" fontSize="sm" color="red.500">
+                      -₹{discountAmount.toFixed(2)}
+                    </Text>
+                  </VStack>
+                )}
+
+                {/* Divider */}
+                <Box h="70%" w={0.5} bg="gray.200" />
+
+                {/* Grand Total */}
+                <VStack alignItems="center">
+                  <Text fontWeight="bold" fontSize="lg" color="green.600">
+                    ₹{calculateTotal(selectedItems)}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500" fontWeight={600}>
+                    Total
+                  </Text>
+                </VStack>
+              </HStack>
+
+              {/* Action Buttons Section */}
+              <HStack space={4} justifyContent="space-between" p={3}>
+                <Button
+                  bg="gray.400"
+                  rounded="lg"
+                  onPress={() => {
+                    toast.show({
+                      description: "Order placed on hold",
+                      status: "info",
+                      duration: 2000,
+                    });
+                  }}
+                  isDisabled={loading}
+                  _pressed={{ bg: "gray.600" }}
+                >
+                  Hold
+                </Button>
+                <Button
+                  flex={1}
+                  variant="outline"
+                  bg="black"
+                  leftIcon={
+                    <MaterialIcons name="receipt" size={20} color="white" />
+                  }
+                  onPress={() => handleKOT()}
+                  isDisabled={loading}
+                  _text={{ color: "white" }}
+                >
+                  KOT
+                </Button>
+                <Button
+                  flex={1}
+                  bg="blue.500"
+                  leftIcon={
+                    <MaterialIcons name="payment" size={20} color="white" />
+                  }
+                  onPress={handleSettle}
+                  isLoading={loading}
+                  _pressed={{ bg: "blue.600" }}
+                >
+                  {loading ? "Creating Order..." : "Settle"}
+                </Button>
+              </HStack>
+            </Box>
           )}
         </Box>
       </Box>

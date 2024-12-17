@@ -54,6 +54,8 @@ export default function TableSectionsScreen() {
   const [tables, setTables] = useState([]);
   const [activeFilter, setActiveFilter] = useState("ALL");
   const [showEditIcons, setShowEditIcons] = useState(false);
+  const [showCreateTableModal, setShowCreateTableModal] = useState(false);
+  const [selectedSection, setSelectedSection] = useState(null);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -552,6 +554,11 @@ export default function TableSectionsScreen() {
     <ScrollView px={2} py={2}>
       {sections.map((section, index) => {
         const tablesByRow = getTablesByRow(section.tables);
+        const totalSlots = 4; // Tables per row
+        const lastRowIndex = Object.keys(tablesByRow).length - 1;
+        const lastRow = tablesByRow[lastRowIndex] || {};
+        const lastRowItemCount = Object.keys(lastRow).length;
+        const showCreateButton = lastRowItemCount < totalSlots;
 
         return (
           <Box key={section.id}>
@@ -562,7 +569,7 @@ export default function TableSectionsScreen() {
                   <VStack space={1}>
                     {/* Section Name and Actions */}
                     <HStack justifyContent="space-between" alignItems="center">
-                      <Heading size="md" color={section.color}>
+                      <Heading size="md" color="black">
                         {section.name}
                       </Heading>
                       {showEditIcons && (
@@ -704,12 +711,55 @@ export default function TableSectionsScreen() {
                                   </VStack>
                                 </Box>
                               </Pressable>
+                            ) : // Empty slot or Create Table button
+                            parseInt(rowIndex) === lastRowIndex &&
+                              colIndex === lastRowItemCount ? (
+                              showEditIcons ? (
+                                <Pressable
+                                  onPress={() => {
+                                    setSelectedSection(section.id);
+                                    setShowCreateTableModal(true);
+                                  }}
+                                >
+                                  <Box
+                                    p={2}
+                                    rounded="lg"
+                                    width={20}
+                                    height={20}
+                                    borderWidth={1}
+                                    borderStyle="dashed"
+                                    borderColor="green.500"
+                                    justifyContent="center"
+                                    alignItems="center"
+                                    opacity={0.8}
+                                  >
+                                    <MaterialIcons
+                                      name="add-circle-outline"
+                                      size={20}
+                                      color="green"
+                                    />
+                                  </Box>
+                                </Pressable>
+                              ) : (
+                                // Empty slot placeholder when not in edit mode
+                                <Box
+                                  p={2}
+                                  rounded="lg"
+                                  width={20}
+                                  height={20}
+                                  borderWidth={1}
+                                  borderStyle="dashed"
+                                  borderColor="gray.200"
+                                  opacity={0.5}
+                                />
+                              )
                             ) : (
+                              // Empty slot placeholder for other positions
                               <Box
                                 p={2}
                                 rounded="lg"
-                                width={16}
-                                height={16}
+                                width={20}
+                                height={20}
                                 borderWidth={1}
                                 borderStyle="dashed"
                                 borderColor="gray.200"
@@ -732,44 +782,6 @@ export default function TableSectionsScreen() {
           </Box>
         );
       })}
-    </ScrollView>
-  );
-
-  const renderListView = (sections) => (
-    <ScrollView>
-      {sections.map((section) => (
-        <Pressable
-          key={section.id}
-          onPress={() => handleSectionPress(section)}
-          p={4}
-          borderBottomWidth={1}
-          borderBottomColor="coolGray.200"
-        >
-          <HStack justifyContent="space-between" alignItems="center">
-            <VStack>
-              <Text fontSize="sm" fontWeight="bold">
-                {section.name}
-              </Text>
-              <HStack space={4} mt={1}>
-                <Text fontSize="sm" color="coolGray.500">
-                  Total: {section.totalTables}
-                </Text>
-                <Text fontSize="sm" color="red.500">
-                  Occupied: {section.engagedTables}
-                </Text>
-                <Text fontSize="sm" color="green.500">
-                  Available: {section.totalTables - section.engagedTables}
-                </Text>
-              </HStack>
-            </VStack>
-            <IconButton
-              icon={
-                <MaterialIcons name="chevron-right" size={24} color="gray" />
-              }
-            />
-          </HStack>
-        </Pressable>
-      ))}
     </ScrollView>
   );
 
@@ -1028,6 +1040,80 @@ export default function TableSectionsScreen() {
     }
   };
 
+  const handleCreateTable = async (sectionId) => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/table_create`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: parseInt(restaurantId),
+            section_id: parseInt(sectionId),
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (data.st === 1) {
+        toast.show({
+          description: "Table created successfully",
+          status: "success",
+        });
+        // Refresh the sections data
+        await fetchSections(restaurantId);
+      } else {
+        throw new Error(data.msg || "Failed to create table");
+      }
+    } catch (error) {
+      console.error("Create Table Error:", error);
+      toast.show({
+        description: error.message || "Failed to create table",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+      setShowCreateTableModal(false);
+    }
+  };
+
+  const CreateTableModal = () => (
+    <Modal
+      isOpen={showCreateTableModal}
+      onClose={() => setShowCreateTableModal(false)}
+    >
+      <Modal.Content maxWidth="400px">
+        <Modal.Header>Create New Table</Modal.Header>
+        <Modal.CloseButton />
+        <Modal.Body>
+          <Text>
+            Are you sure you want to create a new table in this section?
+          </Text>
+        </Modal.Body>
+        <Modal.Footer>
+          <HStack space={2} width="100%" justifyContent="space-between">
+            <Button
+              variant="ghost"
+              colorScheme="coolGray"
+              onPress={() => setShowCreateTableModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onPress={() => handleCreateTable(selectedSection)}
+              isLoading={loading}
+            >
+              Create
+            </Button>
+          </HStack>
+        </Modal.Footer>
+      </Modal.Content>
+    </Modal>
+  );
+
   return (
     <Box flex={1} bg="coolGray.100" safeAreaTop>
       {/* Header Component */}
@@ -1092,17 +1178,7 @@ export default function TableSectionsScreen() {
               </Box>
             }
           />
-          <IconButton
-            icon={
-              <MaterialIcons
-                name={viewType === "grid" ? "view-list" : "grid-view"}
-                size={24}
-                color="coolGray.600"
-              />
-            }
-            onPress={() => setViewType(viewType === "grid" ? "list" : "grid")}
-            variant="ghost"
-          />
+
           <Select
             w="110"
             selectedValue={sortBy}
@@ -1147,7 +1223,7 @@ export default function TableSectionsScreen() {
           <>
             {viewType === "grid"
               ? renderGridView(sortedSections)
-              : renderListView(sortedSections)}
+              : renderGridView(sortedSections)}
 
             {/* FAB */}
             <Fab
@@ -1223,6 +1299,9 @@ export default function TableSectionsScreen() {
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal />
+
+      {/* Create Table Modal */}
+      <CreateTableModal />
     </Box>
   );
 }
