@@ -208,27 +208,32 @@ export default function TableSectionsScreen() {
       if (sectionListData.st === 1) {
         const formattedSections = await Promise.all(
           sectionListData.data.map(async (section) => {
-            // Get tables for this section
-            let sectionTables = [];
-            if (tablesData.st === 1 && tablesData.data) {
-              Object.entries(tablesData.data).forEach(([key, tables]) => {
-                if (key.toLowerCase() === section.section_name.toLowerCase()) {
-                  sectionTables = tables;
-                }
-              });
-            }
+            // Get tables for this section from the new response format
+            // Match section name case-insensitively
+            const sectionKey = Object.keys(tablesData.data).find(
+              (key) => key.toLowerCase() === section.section_name.toLowerCase()
+            );
+            const sectionTables =
+              tablesData.st === 1 && tablesData.data
+                ? tablesData.data[sectionKey] || []
+                : [];
+
+            // Sort tables by table number
+            const sortedTables = sectionTables.sort(
+              (a, b) => parseInt(a.table_number) - parseInt(b.table_number)
+            );
 
             return {
               id: section.section_id.toString(),
               name: section.section_name,
-              totalTables: sectionTables.length,
-              engagedTables: sectionTables.filter(
+              totalTables: sortedTables.length,
+              engagedTables: sortedTables.filter(
                 (table) => table.is_occupied === 1
               ).length,
               color: getRandomColor(),
-              tables: sectionTables.map((table) => ({
+              tables: sortedTables.map((table) => ({
                 table_id: table.table_id,
-                table_number: table.table_number,
+                table_number: table.table_number.toString(),
                 is_occupied: table.is_occupied,
                 order_number: table.order_number || null,
                 grandTotal: table.grand_total || 0,
@@ -375,12 +380,16 @@ export default function TableSectionsScreen() {
     } else {
       try {
         const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-        const formattedDate = new Date().toLocaleDateString("en-GB", {
+
+        // Format date as "DD MMM YYYY"
+        const today = new Date();
+        const formattedDate = today.toLocaleDateString("en-GB", {
           day: "2-digit",
           month: "short",
           year: "numeric",
         });
 
+        // First get the ongoing orders list
         const listResponse = await fetch(
           `${API_BASE_URL}/captain_order/listview`,
           {
@@ -400,6 +409,7 @@ export default function TableSectionsScreen() {
         console.log("List Response:", listData);
 
         if (listData.st === 1 && listData.lists && listData.lists.length > 0) {
+          // Find the order for this table
           const tableOrder = listData.lists.find(
             (order) => order.table_number === table.table_number.toString()
           );
@@ -407,6 +417,7 @@ export default function TableSectionsScreen() {
           console.log("Found Table Order:", tableOrder);
 
           if (tableOrder) {
+            // Get detailed order info
             const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -425,12 +436,12 @@ export default function TableSectionsScreen() {
               router.push({
                 pathname: "/(tabs)/orders/create-order",
                 params: {
-                  tableId: table.table_id.toString(),
-                  tableNumber: table.table_number.toString(),
-                  sectionId: section.id.toString(),
+                  tableId: table.table_id,
+                  tableNumber: table.table_number,
+                  sectionId: section.id,
                   sectionName: section.name,
-                  orderId: order_details.order_id.toString(),
-                  orderNumber: tableOrder.order_number.toString(),
+                  orderId: order_details.order_id,
+                  orderNumber: tableOrder.order_number,
                   customerName: order_details.customer_name || "",
                   customerPhone: order_details.customer_phone || "",
                   orderType: tableOrder.order_type || "Dine In",
@@ -445,7 +456,11 @@ export default function TableSectionsScreen() {
                 },
               });
             }
+          } else {
+            throw new Error("No active order found for this table");
           }
+        } else {
+          throw new Error("No ongoing orders found");
         }
       } catch (error) {
         console.error("Error:", error);
@@ -490,33 +505,32 @@ export default function TableSectionsScreen() {
     }
   };
 
-  // Add tablesByRow calculation
+  // Update the getTablesByRow function to handle all tables
   const getTablesByRow = (sectionTables) => {
+    if (!sectionTables || sectionTables.length === 0) return {};
+
     const filteredTables = getFilteredTables(sectionTables);
     const grouped = {};
 
     filteredTables.forEach((table, index) => {
       const row = Math.floor(index / 4);
-      const col = index % 4;
-
       if (!grouped[row]) {
         grouped[row] = {};
       }
-      grouped[row][col] = table;
+      grouped[row][index % 4] = table;
     });
 
     return grouped;
   };
 
+  // Update the renderGridView function to handle the last empty slot correctly
   const renderGridView = (sections) => (
     <ScrollView px={2} py={2}>
       {sections.map((section, index) => {
         const tablesByRow = getTablesByRow(section.tables);
-        const totalSlots = 4; // Tables per row
-        const lastRowIndex = Object.keys(tablesByRow).length - 1;
-        const lastRow = tablesByRow[lastRowIndex] || {};
-        const lastRowItemCount = Object.keys(lastRow).length;
-        const showCreateButton = lastRowItemCount < totalSlots;
+        const totalTables = section.tables.length;
+        const lastRowIndex = Math.floor(totalTables / 4);
+        const lastRowItemCount = totalTables % 4;
 
         return (
           <Box key={section.id}>
@@ -598,81 +612,91 @@ export default function TableSectionsScreen() {
                         alignItems="center"
                         justifyContent="space-between"
                       >
-                        {Array.from({ length: 4 }).map((_, colIndex) => (
-                          <Box key={`${rowIndex}-${colIndex}`}>
-                            {row[colIndex] ? (
-                              <Pressable
-                                onPress={() =>
-                                  handleTablePress(row[colIndex], section)
-                                }
-                              >
-                                <Box
-                                  p={2}
-                                  rounded="lg"
-                                  width={20}
-                                  height={20}
-                                  bg={
-                                    row[colIndex].is_occupied === 1
-                                      ? "red.100"
-                                      : "green.100"
+                        {Array.from({ length: 4 }).map((_, colIndex) => {
+                          const isLastEmptySlot =
+                            parseInt(rowIndex) === lastRowIndex &&
+                            colIndex === lastRowItemCount &&
+                            showEditIcons;
+
+                          return (
+                            <Box key={`${rowIndex}-${colIndex}`}>
+                              {row[colIndex] ? (
+                                <Pressable
+                                  onPress={() =>
+                                    handleTablePress(row[colIndex], section)
                                   }
-                                  borderWidth={1}
-                                  borderStyle="dashed"
-                                  borderColor={
-                                    row[colIndex].is_occupied === 1
-                                      ? "red.600"
-                                      : "green.600"
-                                  }
-                                  position="relative"
                                 >
-                                  {row[colIndex].is_occupied === 1 && (
-                                    <Box
-                                      position="absolute"
-                                      top={-2}
-                                      left={-2}
-                                      right={-2}
-                                      bg="red.500"
-                                      py={1}
-                                      rounded="md"
-                                      shadow={1}
-                                      zIndex={1}
+                                  <Box
+                                    p={2}
+                                    rounded="lg"
+                                    width={20}
+                                    height={20}
+                                    bg={
+                                      row[colIndex].is_occupied === 1
+                                        ? "red.100"
+                                        : "green.100"
+                                    }
+                                    borderWidth={1}
+                                    borderStyle="dashed"
+                                    borderColor={
+                                      row[colIndex].is_occupied === 1
+                                        ? "red.600"
+                                        : "green.600"
+                                    }
+                                    position="relative"
+                                  >
+                                    {row[colIndex].is_occupied === 1 && (
+                                      <Box
+                                        position="absolute"
+                                        top={-2}
+                                        left={-2}
+                                        right={-2}
+                                        bg="red.500"
+                                        py={1}
+                                        rounded="md"
+                                        shadow={1}
+                                        zIndex={1}
+                                        alignItems="center"
+                                      >
+                                        <Text
+                                          color="white"
+                                          fontSize="2xs"
+                                          fontWeight="bold"
+                                        >
+                                          ₹{row[colIndex].grandTotal || 0}
+                                        </Text>
+                                      </Box>
+                                    )}
+                                    <VStack
+                                      space={2}
                                       alignItems="center"
+                                      mt={5}
                                     >
                                       <Text
-                                        color="white"
-                                        fontSize="2xs"
+                                        fontSize={18}
                                         fontWeight="bold"
+                                        color={
+                                          row[colIndex].is_occupied === 1
+                                            ? "red.500"
+                                            : "green.500"
+                                        }
                                       >
-                                        ₹{row[colIndex].grandTotal || 0}
+                                        T{row[colIndex].table_number}
                                       </Text>
-                                    </Box>
-                                  )}
-                                  <VStack space={2} alignItems="center" mt={5}>
-                                    <Text
-                                      fontSize={18}
-                                      fontWeight="bold"
-                                      color={
-                                        row[colIndex].is_occupied === 1
-                                          ? "red.500"
-                                          : "green.500"
-                                      }
-                                    >
-                                      {row[colIndex].table_number}
-                                    </Text>
-                                    <Text fontSize={12} color="coolGray.600">
                                       <Text fontSize={12} color="coolGray.600">
-                                        {row[colIndex].is_occupied === 1 &&
-                                          (row[colIndex].occupiedTime ||
-                                            "00:00")}
+                                        <Text
+                                          fontSize={12}
+                                          color="coolGray.600"
+                                        >
+                                          {row[colIndex].is_occupied === 1 &&
+                                            (row[colIndex].occupiedTime ||
+                                              "00:00")}
+                                        </Text>
                                       </Text>
-                                    </Text>
-                                  </VStack>
-                                </Box>
-                              </Pressable>
-                            ) : // Empty slot or Create Table button
-                            parseInt(rowIndex) === lastRowIndex &&
-                              colIndex === lastRowItemCount ? (
-                              showEditIcons ? (
+                                    </VStack>
+                                  </Box>
+                                </Pressable>
+                              ) : isLastEmptySlot ? (
                                 <Pressable
                                   onPress={() => {
                                     setSelectedSection(section.id);
@@ -693,50 +717,29 @@ export default function TableSectionsScreen() {
                                   >
                                     <MaterialIcons
                                       name="add-circle-outline"
-                                      size={20}
+                                      size={24}
                                       color="green"
                                     />
                                   </Box>
                                 </Pressable>
                               ) : (
-                                // Empty slot placeholder when not in edit mode
                                 <Box
                                   p={2}
                                   rounded="lg"
                                   width={20}
                                   height={20}
-                                  borderWidth={1}
-                                  borderStyle="dashed"
-                                  borderColor="gray.200"
-                                  opacity={0.5}
+                                  opacity={0}
                                 />
-                              )
-                            ) : (
-                              // Empty slot placeholder for other positions
-                              <Box
-                                p={2}
-                                rounded="lg"
-                                width={20}
-                                height={20}
-                                borderWidth={1}
-                                borderStyle="dashed"
-                                borderColor="gray.200"
-                                opacity={0.5}
-                              />
-                            )}
-                          </Box>
-                        ))}
+                              )}
+                            </Box>
+                          );
+                        })}
                       </HStack>
                     ))}
                   </VStack>
                 </VStack>
               </Box>
             </Box>
-
-            {/* Horizontal Line after each section except the last one */}
-            {index < sections.length - 1 && (
-              <Box height={0.5} bg="coolGray.200" mx={-2} mb={2} />
-            )}
           </Box>
         );
       })}
@@ -1001,6 +1004,7 @@ export default function TableSectionsScreen() {
   const handleCreateTable = async (sectionId) => {
     try {
       setLoading(true);
+
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/table_create`,
         {
@@ -1016,11 +1020,15 @@ export default function TableSectionsScreen() {
       );
 
       const data = await response.json();
+      console.log("Create Table Response:", data);
+
       if (data.st === 1) {
         toast.show({
-          description: "Table created successfully",
+          description: data.msg || "Table created successfully",
           status: "success",
+          duration: 2000,
         });
+
         // Refresh the sections data
         await fetchSections(restaurantId);
       } else {
@@ -1047,9 +1055,14 @@ export default function TableSectionsScreen() {
         <Modal.Header>Create New Table</Modal.Header>
         <Modal.CloseButton />
         <Modal.Body>
-          <Text>
-            Are you sure you want to create a new table in this section?
-          </Text>
+          <VStack space={3}>
+            <Text>
+              Are you sure you want to create a new table in this section?
+            </Text>
+            <Text fontSize="sm" color="coolGray.500">
+              The table number will be automatically assigned.
+            </Text>
+          </VStack>
         </Modal.Body>
         <Modal.Footer>
           <HStack space={2} width="100%" justifyContent="space-between">
@@ -1057,12 +1070,15 @@ export default function TableSectionsScreen() {
               variant="ghost"
               colorScheme="coolGray"
               onPress={() => setShowCreateTableModal(false)}
+              isDisabled={loading}
             >
               Cancel
             </Button>
             <Button
               onPress={() => handleCreateTable(selectedSection)}
               isLoading={loading}
+              isLoadingText="Creating..."
+              colorScheme="primary"
             >
               Create
             </Button>

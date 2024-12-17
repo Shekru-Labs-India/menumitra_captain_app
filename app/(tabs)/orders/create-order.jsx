@@ -184,7 +184,7 @@ export default function CreateOrderScreen() {
     setLoading(true);
     try {
       const response = await fetch(
-        "https://men4u.xyz/waiter_api/get_all_menu_list_by_category",
+        "https://men4u.xyz/captain_api/get_all_menu_list_by_category",
         {
           method: "POST",
           headers: {
@@ -403,9 +403,9 @@ export default function CreateOrderScreen() {
         const requestBody = {
           order_id: orderId,
           customer_id: "367",
-          restaurant_id: storedRestaurantId,
-          table_number: tableNumber,
-          section_id: sectionId,
+          restaurant_id: parseInt(storedRestaurantId),
+          table_number: parseInt(tableNumber),
+          section_id: parseInt(sectionId),
           order_type: orderType,
           order_items: formattedOrderItems,
         };
@@ -437,9 +437,9 @@ export default function CreateOrderScreen() {
         // Handle new order creation
         const requestBody = {
           customer_id: "367",
-          restaurant_id: storedRestaurantId,
-          table_number: tableNumber,
-          section_id: sectionId,
+          restaurant_id: parseInt(storedRestaurantId),
+          table_number: parseInt(tableNumber),
+          section_id: parseInt(sectionId),
           order_type: orderType,
           order_items: formattedOrderItems,
         };
@@ -521,9 +521,9 @@ export default function CreateOrderScreen() {
         const requestBody = {
           order_id: orderId,
           customer_id: "367",
-          restaurant_id: storedRestaurantId,
-          table_number: tableNumber,
-          section_id: sectionId,
+          restaurant_id: parseInt(storedRestaurantId),
+          table_number: parseInt(tableNumber),
+          section_id: parseInt(sectionId),
           order_type: orderType,
           order_items: formattedOrderItems,
         };
@@ -555,9 +555,9 @@ export default function CreateOrderScreen() {
         // Handle new KOT creation
         const requestBody = {
           customer_id: "367",
-          restaurant_id: storedRestaurantId,
-          table_number: tableNumber,
-          section_id: sectionId,
+          restaurant_id: parseInt(storedRestaurantId),
+          table_number: parseInt(tableNumber),
+          section_id: parseInt(sectionId),
           order_type: orderType,
           order_items: formattedOrderItems,
         };
@@ -638,9 +638,9 @@ export default function CreateOrderScreen() {
         const updateRequestBody = {
           order_id: orderId,
           customer_id: "367",
-          restaurant_id: storedRestaurantId,
-          table_number: tableNumber,
-          section_id: sectionId,
+          restaurant_id: parseInt(storedRestaurantId),
+          table_number: parseInt(tableNumber),
+          section_id: parseInt(sectionId),
           order_type: orderType,
           order_items: formattedOrderItems,
         };
@@ -694,9 +694,9 @@ export default function CreateOrderScreen() {
         setLoadingMessage("Creating new order...");
         const createRequestBody = {
           customer_id: "367",
-          restaurant_id: storedRestaurantId,
-          table_number: tableNumber,
-          section_id: sectionId,
+          restaurant_id: parseInt(storedRestaurantId),
+          table_number: parseInt(tableNumber),
+          section_id: parseInt(sectionId),
           order_type: orderType,
           order_items: formattedOrderItems,
         };
@@ -777,13 +777,13 @@ export default function CreateOrderScreen() {
     <Box bg="white" p={2} rounded="lg" shadow={1} my={1}>
       <VStack space={1}>
         <HStack justifyContent="space-between" alignItems="center">
-          <Heading size="sm">Order #{orderDetails.order_number}</Heading>
+          <Heading size="sm">
+            Order #{orderDetails.order_number} - T{orderDetails.table_number}
+          </Heading>
           <Text fontSize="xs" color="gray.500">
             {formatTime(orderDetails.datetime)}
           </Text>
         </HStack>
-
-        {/* Order Type */}
       </VStack>
     </Box>
   );
@@ -793,8 +793,8 @@ export default function CreateOrderScreen() {
       router.push({
         pathname: "/(tabs)/orders/create-order",
         params: {
-          tableId: table.table_id,
-          tableNumber: table.table_number,
+          tableId: table.table_id.toString(),
+          tableNumber: table.table_number.toString(),
           sectionId: section.id,
           sectionName: section.name,
           isOccupied: "0",
@@ -863,7 +863,7 @@ export default function CreateOrderScreen() {
                   tableNumber: table.table_number.toString(),
                   sectionId: section.id.toString(),
                   sectionName: section.name,
-                  orderNumber: tableOrder.order_number.toString(),
+                  orderNumber: tableOrder.order_number,
                   customerName: order_details.customer_name || "",
                   customerPhone: order_details.customer_phone || "",
                   orderType: tableOrder.order_type || "Dine In", // Getting order_type from listData
@@ -924,7 +924,7 @@ export default function CreateOrderScreen() {
                 Table
               </Text>
               <Text color="blue.800" fontSize="sm" fontWeight="medium">
-                {tableNumber}
+                T{tableNumber}
               </Text>
             </HStack>
           </Badge>
