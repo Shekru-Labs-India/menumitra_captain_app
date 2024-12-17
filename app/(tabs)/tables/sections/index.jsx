@@ -374,7 +374,22 @@ export default function TableSectionsScreen() {
       try {
         const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
 
-        // First get the ongoing orders list
+        // Format date as "DD MMM YYYY"
+        const today = new Date();
+        const formattedDate = today.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+
+        console.log("Fetching orders for date:", formattedDate);
+        console.log("Restaurant ID:", storedRestaurantId);
+        console.log("Table Info:", {
+          tableNumber: table.table_number,
+          sectionId: section.id,
+          sectionName: section.name,
+        });
+
         const listResponse = await fetch(
           `${API_BASE_URL}/captain_order/listview`,
           {
@@ -385,7 +400,7 @@ export default function TableSectionsScreen() {
             body: JSON.stringify({
               restaurant_id: parseInt(storedRestaurantId),
               order_status: "ongoing",
-              date: getCurrentDate(),
+              date: formattedDate,
             }),
           }
         );
@@ -394,11 +409,23 @@ export default function TableSectionsScreen() {
         console.log("List Response:", listData);
 
         if (listData.st === 1 && listData.lists && listData.lists.length > 0) {
+          // Format table number to match API response format
+          // Check if table.table_number already starts with 'T'
+          const formattedTableNumber = table.table_number.startsWith("T")
+            ? table.table_number
+            : `T${table.table_number}`;
+
+          console.log("Looking for table:", formattedTableNumber);
+          console.log(
+            "Available tables in response:",
+            listData.lists.map((o) => o.table_number)
+          );
+
           // Find the order for this table
           const tableOrder = listData.lists.find(
             (order) =>
-              order.table_number === table.table_number.toString() &&
-              order.section_id === section.id.toString()
+              order.table_number.toLowerCase() ===
+              formattedTableNumber.toLowerCase()
           );
 
           console.log("Found Table Order:", tableOrder);
@@ -415,7 +442,7 @@ export default function TableSectionsScreen() {
             });
 
             const data = await response.json();
-            console.log("Order Details:", data);
+            console.log("Order Details Response:", data);
 
             if (data.st === 1 && data.lists) {
               const { order_details, menu_details } = data.lists;
@@ -427,22 +454,34 @@ export default function TableSectionsScreen() {
                   tableNumber: table.table_number.toString(),
                   sectionId: section.id.toString(),
                   sectionName: section.name,
-                  orderNumber: tableOrder.order_number.toString(),
-                  customerName: order_details.customer_name || "",
-                  customerPhone: order_details.customer_phone || "",
-                  orderType: order_details.order_type || "Dine In",
+                  orderNumber: order_details.order_number.toString(),
+                  orderType: tableOrder.order_type,
                   existingItems: JSON.stringify(menu_details),
                   isOccupied: "1",
-                  grandTotal: order_details.total_bill?.toString() || "0",
+                  grandTotal: order_details.total_bill.toString(),
                   serviceCharges:
-                    order_details.service_charges_amount?.toString() || "0",
-                  gstAmount: order_details.gst_amount?.toString() || "0",
-                  discountAmount:
-                    order_details.discount_amount?.toString() || "0",
+                    order_details.service_charges_amount.toString(),
+                  gstAmount: order_details.gst_amount.toString(),
+                  discountAmount: order_details.discount_amount.toString(),
+                  discountPercent: order_details.discount_percent.toString(),
+                  orderDateTime: order_details.datetime,
+                  // Pass both order details
+                  orderDetails: JSON.stringify(order_details),
+                  listOrderDetails: JSON.stringify(tableOrder),
                 },
               });
             }
           } else {
+            console.log(
+              "Table number comparison failed. Available tables:",
+              listData.lists.map((o) => ({
+                table: o.table_number,
+                matches: o.table_number === formattedTableNumber,
+                lowerMatches:
+                  o.table_number.toLowerCase() ===
+                  formattedTableNumber.toLowerCase(),
+              }))
+            );
             throw new Error("No active order found for this table");
           }
         } else {
@@ -576,7 +615,7 @@ export default function TableSectionsScreen() {
                         Occupied: {section.engagedTables}
                       </Text>
                       <Text fontSize="sm" color="green.500">
-                        Free: {section.totalTables - section.engagedTables}
+                        Available: {section.totalTables - section.engagedTables}
                       </Text>
                     </HStack>
                   </VStack>
@@ -719,7 +758,7 @@ export default function TableSectionsScreen() {
                   Occupied: {section.engagedTables}
                 </Text>
                 <Text fontSize="sm" color="green.500">
-                  Free: {section.totalTables - section.engagedTables}
+                  Available: {section.totalTables - section.engagedTables}
                 </Text>
               </HStack>
             </VStack>

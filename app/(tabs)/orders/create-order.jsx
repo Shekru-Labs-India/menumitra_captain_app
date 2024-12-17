@@ -29,9 +29,21 @@ import Header from "../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
+const getCurrentDate = () => {
+  const date = new Date();
+  return date
+    .toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
+    .replace(/ /g, " ");
+};
+
 export default function CreateOrderScreen() {
   const router = useRouter();
   const toast = useToast();
+  const params = useLocalSearchParams();
   const {
     tableId,
     tableNumber,
@@ -43,7 +55,7 @@ export default function CreateOrderScreen() {
     orderType: existingOrderType,
     existingItems,
     isOccupied,
-  } = useLocalSearchParams();
+  } = params;
 
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -70,6 +82,13 @@ export default function CreateOrderScreen() {
   const [gstAmount, setGstAmount] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [grandTotal, setGrandTotal] = useState(0);
+  const [orderDetails, setOrderDetails] = useState({
+    order_number: "",
+    table_number: "",
+    total_bill: 0,
+    datetime: "",
+    order_type: "",
+  });
 
   useEffect(() => {
     const getRestaurantId = async () => {
@@ -87,51 +106,28 @@ export default function CreateOrderScreen() {
     const loadOrderDetails = async () => {
       if (orderNumber && isOccupied === "1") {
         try {
-          const storedRestaurantId = await AsyncStorage.getItem(
-            "restaurant_id"
-          );
-          const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              restaurant_id: parseInt(storedRestaurantId),
-              order_number: orderNumber,
-            }),
-          });
-
-          const data = await response.json();
-          console.log("Order Details in Create Order:", data);
-
-          if (data.st === 1 && data.lists) {
-            const { order_details, menu_details } = data.lists;
-
-            // Format menu items with all necessary details
-            const formattedItems = menu_details.map((item) => ({
-              id: item.menu_id,
-              menu_id: item.menu_id,
+          // Parse existing items if available
+          if (existingItems) {
+            const menuItems = JSON.parse(existingItems);
+            const formattedItems = menuItems.map((item) => ({
               menu_name: item.menu_name,
               price: parseFloat(item.price),
               quantity: parseInt(item.quantity),
-              specialInstructions: item.comment || "",
-              portionSize: item.half_or_full || "Full",
-              total: parseFloat(item.menu_sub_total),
-              offer: item.offer || 0,
+              portionSize: "Full",
+              menu_sub_total: item.price * item.quantity,
             }));
 
-            // Set all order details
             setSelectedItems(formattedItems);
-            setCustomerName(order_details.customer_name || "");
-            setCustomerPhone(order_details.customer_phone || "");
-            setOrderType(order_details.order_type || "Dine In");
-            setServiceCharges(
-              parseFloat(order_details.service_charges_amount || 0)
-            );
-            setGstAmount(parseFloat(order_details.gst_amount || 0));
-            setDiscountAmount(parseFloat(order_details.discount_amount || 0));
-            setGrandTotal(parseFloat(order_details.total_bill || 0));
           }
+
+          // Set order details
+          setOrderDetails({
+            order_number: orderNumber,
+            table_number: tableNumber,
+            total_bill: params.grandTotal ? parseFloat(params.grandTotal) : 0,
+            datetime: params.orderDateTime || "",
+            order_type: existingOrderType || "Dine In",
+          });
         } catch (error) {
           console.error("Error loading order:", error);
           toast.show({
@@ -143,7 +139,15 @@ export default function CreateOrderScreen() {
     };
 
     loadOrderDetails();
-  }, [orderNumber, isOccupied]);
+  }, [
+    orderNumber,
+    isOccupied,
+    existingItems,
+    tableNumber,
+    params.grandTotal,
+    params.orderDateTime,
+    existingOrderType,
+  ]);
 
   const fetchMenuItems = async () => {
     if (!restaurantId) return;
@@ -345,53 +349,44 @@ export default function CreateOrderScreen() {
       setLoading(true);
       const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
 
-      // First check if table has an active order
-      const listResponse = await fetch(
-        `${API_BASE_URL}/captain_order/listview`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            restaurant_id: parseInt(storedRestaurantId),
-            order_status: "ongoing",
-            date: getCurrentDate(),
-          }),
+      console.log("Selected Items:", selectedItems);
+
+      const formattedOrderItems = selectedItems.map((item) => {
+        console.log("Processing item:", item);
+
+        // For items without menu_id, search in menuItems array
+        if (!item.menu_id && !item.id) {
+          const matchingMenuItem = menuItems.find(
+            (menuItem) => menuItem.menu_name === item.menu_name
+          );
+          if (matchingMenuItem) {
+            item.menu_id = matchingMenuItem.menu_id;
+          }
         }
-      );
 
-      const listData = await listResponse.json();
-      console.log("Active Orders:", listData);
+        return {
+          menu_id: (item.menu_id || item.id).toString(),
+          quantity: item.quantity || 1,
+          comment: item.specialInstructions || "",
+          half_or_full: (item.portionSize || "Full").toLowerCase(),
+        };
+      });
 
-      // Find if this table has an active order
-      const tableOrder = listData.lists?.find(
-        (order) =>
-          order.table_number === tableNumber &&
-          order.section_id === sectionId.toString()
-      );
-
-      const formattedOrderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id ? item.menu_id.toString() : item.id.toString(),
-        quantity: item.quantity,
-        comment: item.specialInstructions || "",
-        half_or_full: item.portionSize.toLowerCase(),
-      }));
-
-      const endpoint = tableOrder
-        ? `${API_BASE_URL}/captain_order/update`
+      // Use different endpoints for create and update
+      const endpoint = orderNumber
+        ? "https://men4u.xyz/waiter_api/update_order"
         : "https://men4u.xyz/waiter_api/create_order";
 
-      const requestBody = tableOrder
+      // Different request body structure for update vs create
+      const requestBody = orderNumber
         ? {
+            order_id: orderNumber,
+            customer_id: "367",
             restaurant_id: restaurantId.toString(),
             table_number: tableNumber.toString(),
             section_id: sectionId.toString(),
             order_type: orderType,
             order_items: formattedOrderItems,
-            customer_name: customerName,
-            customer_phone: customerPhone,
-            order_number: tableOrder.order_number,
           }
         : {
             customer_id: "367",
@@ -402,7 +397,10 @@ export default function CreateOrderScreen() {
             order_items: formattedOrderItems,
           };
 
-      console.log("Order Request:", { endpoint, body: requestBody });
+      console.log("Order Request:", {
+        endpoint,
+        body: requestBody,
+      });
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -418,7 +416,7 @@ export default function CreateOrderScreen() {
       if (data.st === 1) {
         toast.show({
           description: `Order ${
-            tableOrder ? "updated" : "created"
+            orderNumber ? "updated" : "created"
           } successfully`,
           status: "success",
           duration: 2000,
@@ -429,13 +427,15 @@ export default function CreateOrderScreen() {
         }, 1000);
       } else {
         throw new Error(
-          data.msg || `Failed to ${tableOrder ? "update" : "create"} order`
+          data.msg || `Failed to ${orderNumber ? "update" : "create"} order`
         );
       }
     } catch (error) {
       console.error("Order Error:", error);
       toast.show({
-        description: error.message,
+        description:
+          error.message ||
+          "Failed to process order. Please check the menu items.",
         status: "error",
         duration: 3000,
       });
@@ -458,11 +458,134 @@ export default function CreateOrderScreen() {
     };
   }, []);
 
+  const OrderSummary = () => (
+    <Box bg="white" p={2} rounded="lg" shadow={1} my={1}>
+      <VStack space={1}>
+        <HStack justifyContent="space-between" alignItems="center">
+          <Heading size="sm">Order #{orderDetails.order_number}</Heading>
+          <Text fontSize="xs" color="gray.500">
+            {orderDetails.datetime}
+          </Text>
+        </HStack>
+
+        {/* Order Type */}
+      </VStack>
+    </Box>
+  );
+
+  const handleTablePress = async (table, section) => {
+    if (table.is_occupied === 0) {
+      router.push({
+        pathname: "/(tabs)/orders/create-order",
+        params: {
+          tableId: table.table_id,
+          tableNumber: table.table_number,
+          sectionId: section.id,
+          sectionName: section.name,
+          isOccupied: "0",
+        },
+      });
+    } else {
+      try {
+        const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+
+        // Format date as "DD MMM YYYY"
+        const today = new Date();
+        const formattedDate = today.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+
+        // First get the ongoing orders list
+        const listResponse = await fetch(
+          `${API_BASE_URL}/captain_order/listview`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              restaurant_id: parseInt(storedRestaurantId),
+              order_status: "ongoing",
+              date: formattedDate, // Using the correctly formatted date
+            }),
+          }
+        );
+
+        const listData = await listResponse.json();
+        console.log("List Response:", listData);
+
+        if (listData.st === 1 && listData.lists && listData.lists.length > 0) {
+          // Find the order for this table
+          const tableOrder = listData.lists.find(
+            (order) => order.table_number === table.table_number.toString()
+          );
+
+          console.log("Found Table Order:", tableOrder);
+
+          if (tableOrder) {
+            // Get detailed order info
+            const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                restaurant_id: parseInt(storedRestaurantId),
+                order_number: tableOrder.order_number,
+              }),
+            });
+
+            const data = await response.json();
+            console.log("Order Details:", data);
+
+            if (data.st === 1 && data.lists) {
+              const { order_details, menu_details } = data.lists;
+
+              router.push({
+                pathname: "/(tabs)/orders/create-order",
+                params: {
+                  tableId: table.table_id.toString(),
+                  tableNumber: table.table_number.toString(),
+                  sectionId: section.id.toString(),
+                  sectionName: section.name,
+                  orderNumber: tableOrder.order_number.toString(),
+                  customerName: order_details.customer_name || "",
+                  customerPhone: order_details.customer_phone || "",
+                  orderType: tableOrder.order_type || "Dine In", // Getting order_type from listData
+                  existingItems: JSON.stringify(menu_details),
+                  isOccupied: "1",
+                  grandTotal: order_details.total_bill?.toString() || "0",
+                  serviceCharges:
+                    order_details.service_charges_amount?.toString() || "0",
+                  gstAmount: order_details.gst_amount?.toString() || "0",
+                  discountAmount:
+                    order_details.discount_amount?.toString() || "0",
+                },
+              });
+            }
+          } else {
+            throw new Error("No active order found for this table");
+          }
+        } else {
+          throw new Error("No ongoing orders found");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        toast.show({
+          description: error.message || "Failed to fetch order details",
+          status: "error",
+        });
+      }
+    }
+  };
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header title="Create Order" />
 
       <Box flex={1} bg="coolGray.100" px={4}>
+        {isOccupied === "1" && orderNumber && <OrderSummary />}
+
         <Input
           placeholder="Search menu items..."
           value={searchQuery}
@@ -667,9 +790,7 @@ export default function CreateOrderScreen() {
                   );
                 })
               ) : (
-                <Box p={4} alignItems="center">
-                  <Text color="gray.500">No menu items found</Text>
-                </Box>
+                <Box p={0} alignItems="center"></Box>
               )}
             </ScrollView>
           </Box>
@@ -865,67 +986,79 @@ export default function CreateOrderScreen() {
           px={4}
         >
           {selectedItems.length > 0 && (
-            <Box bg="white" p={3} rounded="lg" shadow={2} mb={2}>
-              <VStack space={2}>
-                <HStack justifyContent="space-between" alignItems="center">
-                  <Text fontSize="sm" color="gray.500">
-                    Subtotal:
-                  </Text>
-                  <Text fontWeight="bold" fontSize="sm">
-                    ₹
-                    {selectedItems
-                      .reduce((sum, item) => {
-                        const itemPrice =
-                          item.portionSize === "Half"
-                            ? item.price * 0.6
-                            : item.price;
-                        return sum + itemPrice * item.quantity;
-                      }, 0)
-                      .toFixed(2)}
-                  </Text>
-                </HStack>
-
-                <HStack justifyContent="space-between" alignItems="center">
-                  <Text fontSize="sm" color="gray.500">
-                    Service Charges:
-                  </Text>
-                  <Text fontWeight="bold" fontSize="sm">
-                    ₹{serviceCharges.toFixed(2)}
-                  </Text>
-                </HStack>
-
-                <HStack justifyContent="space-between" alignItems="center">
-                  <Text fontSize="sm" color="gray.500">
-                    GST:
-                  </Text>
-                  <Text fontWeight="bold" fontSize="sm">
-                    ₹{gstAmount.toFixed(2)}
-                  </Text>
-                </HStack>
-
-                {discountAmount > 0 && (
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text fontSize="sm" color="gray.500">
-                      Discount:
-                    </Text>
-                    <Text fontWeight="bold" fontSize="sm" color="red.500">
-                      -₹{discountAmount.toFixed(2)}
-                    </Text>
-                  </HStack>
-                )}
-
-                <Divider my={1} />
-
-                <HStack justifyContent="space-between" alignItems="center">
-                  <Text fontSize="sm" color="black.500" fontWeight={600}>
-                    Grand Total:
-                  </Text>
-                  <Text fontWeight="bold" fontSize={18} color="green.600">
-                    ₹{calculateTotal(selectedItems)}
-                  </Text>
-                </HStack>
+            <HStack
+              space={2}
+              mb={2}
+              alignItems="center"
+              justifyContent="space-between"
+              bg="white"
+              p={1}
+              rounded="lg"
+            >
+              {/* Subtotal */}
+              <VStack alignItems="center">
+                <Text fontWeight="bold" fontSize="sm">
+                  ₹
+                  {selectedItems
+                    .reduce((sum, item) => {
+                      const itemPrice =
+                        item.portionSize === "Half"
+                          ? item.price * 0.6
+                          : item.price;
+                      return sum + itemPrice * item.quantity;
+                    }, 0)
+                    .toFixed(2)}
+                </Text>
+                <Text fontSize="xs" color="gray.500">
+                  Subtotal
+                </Text>
               </VStack>
-            </Box>
+
+              {/* Service Charges */}
+              <VStack alignItems="center">
+                <Text fontWeight="bold" fontSize="sm">
+                  ₹{serviceCharges.toFixed(2)}
+                </Text>
+                <Text fontSize="xs" color="gray.500">
+                  Service
+                </Text>
+              </VStack>
+
+              {/* GST */}
+              <VStack alignItems="center">
+                <Text fontWeight="bold" fontSize="sm">
+                  ₹{gstAmount.toFixed(2)}
+                </Text>
+                <Text fontSize="xs" color="gray.500">
+                  GST
+                </Text>
+              </VStack>
+
+              {/* Discount - Only shown if greater than 0 */}
+              {discountAmount > 0 && (
+                <VStack alignItems="center">
+                  <Text fontSize="xs" color="gray.500">
+                    Discount
+                  </Text>
+                  <Text fontWeight="bold" fontSize="sm" color="red.500">
+                    -₹{discountAmount.toFixed(2)}
+                  </Text>
+                </VStack>
+              )}
+
+              {/* Divider */}
+              <Box h="70%" w={0.5} bg="gray.200" />
+
+              {/* Grand Total */}
+              <VStack alignItems="center">
+                <Text fontWeight="bold" fontSize="lg" color="green.600">
+                  ₹{calculateTotal(selectedItems)}
+                </Text>
+                <Text fontSize="xs" color="gray.500" fontWeight={600}>
+                  Total
+                </Text>
+              </VStack>
+            </HStack>
           )}
 
           {selectedItems.length > 0 && (
