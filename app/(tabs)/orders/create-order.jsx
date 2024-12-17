@@ -70,6 +70,7 @@ export default function CreateOrderScreen() {
     tableNumber,
     sectionId,
     sectionName,
+    orderId,
     orderNumber,
     customerName: existingCustomerName,
     customerPhone: existingCustomerPhone,
@@ -110,6 +111,8 @@ export default function CreateOrderScreen() {
     datetime: "",
     order_type: "",
   });
+  const [loadingMessage, setLoadingMessage] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const getRestaurantId = async () => {
@@ -169,6 +172,11 @@ export default function CreateOrderScreen() {
     params.orderDateTime,
     existingOrderType,
   ]);
+
+  useEffect(() => {
+    console.log("Received params:", params);
+    console.log("orderId:", orderId);
+  }, [params, orderId]);
 
   const fetchMenuItems = async () => {
     if (!restaurantId) return;
@@ -353,8 +361,240 @@ export default function CreateOrderScreen() {
     return total.toFixed(2);
   };
 
-  const handleKOT = () => {
-    // Implement KOT logic
+  const handleHold = async () => {
+    if (selectedItems.length === 0) {
+      toast.show({
+        description: "Please add items to the order",
+        status: "warning",
+      });
+      return;
+    }
+
+    const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+    if (!storedRestaurantId) {
+      toast.show({
+        description: "Restaurant ID not found. Please login again.",
+        status: "error",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log("Selected Items before formatting:", selectedItems);
+
+      const formattedOrderItems = selectedItems.map((item) => {
+        // Find the matching menu item from menuItems array
+        const menuItem = menuItems.find(
+          (menu) => menu.menu_name === item.menu_name
+        );
+
+        return {
+          menu_id: menuItem?.menu_id?.toString() || item.menu_id?.toString(),
+          quantity: item.quantity || 1,
+          comment: item.specialInstructions || "",
+          half_or_full: (item.portionSize || "Full").toLowerCase(),
+        };
+      });
+
+      console.log("Formatted Order Items:", formattedOrderItems);
+
+      if (orderId) {
+        const requestBody = {
+          order_id: orderId,
+          customer_id: "367",
+          restaurant_id: storedRestaurantId,
+          table_number: tableNumber,
+          section_id: sectionId,
+          order_type: orderType,
+          order_items: formattedOrderItems,
+        };
+
+        console.log("Update Order Request:", requestBody);
+
+        const response = await fetch(`${API_BASE_URL}/update_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        const data = await response.json();
+        console.log("Update Order Response:", data);
+
+        if (data.st === 1) {
+          toast.show({
+            description: "Order updated successfully",
+            status: "success",
+            duration: 2000,
+          });
+          router.replace("/(tabs)/orders");
+        } else {
+          throw new Error(data.msg || "Failed to update order");
+        }
+      } else {
+        // Handle new order creation
+        const requestBody = {
+          customer_id: "367",
+          restaurant_id: storedRestaurantId,
+          table_number: tableNumber,
+          section_id: sectionId,
+          order_type: orderType,
+          order_items: formattedOrderItems,
+        };
+
+        console.log("Hold Create Request:", requestBody);
+
+        const response = await fetch(`${API_BASE_URL}/create_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        const data = await response.json();
+        console.log("Hold Create Response:", data);
+
+        if (data.st === 1) {
+          toast.show({
+            description: "Order placed on hold successfully",
+            status: "success",
+            duration: 2000,
+          });
+          router.replace("/(tabs)/orders");
+        } else {
+          throw new Error(data.msg || "Failed to create order");
+        }
+      }
+    } catch (error) {
+      console.error("Hold Order Error:", error);
+      toast.show({
+        description: error.message || "Failed to process order",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKOT = async () => {
+    if (selectedItems.length === 0) {
+      toast.show({
+        description: "Please add items to the order",
+        status: "warning",
+      });
+      return;
+    }
+
+    const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+    if (!storedRestaurantId) {
+      toast.show({
+        description: "Restaurant ID not found. Please login again.",
+        status: "error",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log("Selected Items before formatting:", selectedItems);
+
+      const formattedOrderItems = selectedItems.map((item) => {
+        // Find the matching menu item from menuItems array
+        const menuItem = menuItems.find(
+          (menu) => menu.menu_name === item.menu_name
+        );
+
+        return {
+          menu_id: menuItem?.menu_id?.toString() || item.menu_id?.toString(),
+          quantity: item.quantity || 1,
+          comment: item.specialInstructions || "",
+          half_or_full: (item.portionSize || "Full").toLowerCase(),
+        };
+      });
+
+      console.log("Formatted Order Items:", formattedOrderItems);
+
+      if (orderId) {
+        const requestBody = {
+          order_id: orderId,
+          customer_id: "367",
+          restaurant_id: storedRestaurantId,
+          table_number: tableNumber,
+          section_id: sectionId,
+          order_type: orderType,
+          order_items: formattedOrderItems,
+        };
+
+        console.log("Update Order Request:", requestBody);
+
+        const response = await fetch(`${API_BASE_URL}/update_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        const data = await response.json();
+        console.log("Update Order Response:", data);
+
+        if (data.st === 1) {
+          toast.show({
+            description: "KOT updated successfully",
+            status: "success",
+            duration: 2000,
+          });
+          router.replace("/(tabs)/orders");
+        } else {
+          throw new Error(data.msg || "Failed to update KOT");
+        }
+      } else {
+        // Handle new KOT creation
+        const requestBody = {
+          customer_id: "367",
+          restaurant_id: storedRestaurantId,
+          table_number: tableNumber,
+          section_id: sectionId,
+          order_type: orderType,
+          order_items: formattedOrderItems,
+        };
+
+        console.log("KOT Create Request:", requestBody);
+
+        const response = await fetch(`${API_BASE_URL}/create_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        const data = await response.json();
+        console.log("KOT Create Response:", data);
+
+        if (data.st === 1) {
+          toast.show({
+            description: "KOT generated successfully",
+            status: "success",
+            duration: 2000,
+          });
+          router.replace("/(tabs)/orders");
+        } else {
+          throw new Error(data.msg || "Failed to create KOT");
+        }
+      }
+    } catch (error) {
+      console.error("KOT Error:", error);
+      toast.show({
+        description: error.message || "Failed to process KOT",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSettle = async () => {
@@ -366,102 +606,156 @@ export default function CreateOrderScreen() {
       return;
     }
 
-    try {
-      setLoading(true);
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+    const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+    if (!storedRestaurantId) {
+      toast.show({
+        description: "Restaurant ID not found. Please login again.",
+        status: "error",
+      });
+      return;
+    }
 
-      console.log("Selected Items:", selectedItems);
+    try {
+      setIsProcessing(true);
+      console.log("Selected Items before formatting:", selectedItems);
 
       const formattedOrderItems = selectedItems.map((item) => {
-        console.log("Processing item:", item);
-
-        // For items without menu_id, search in menuItems array
-        if (!item.menu_id && !item.id) {
-          const matchingMenuItem = menuItems.find(
-            (menuItem) => menuItem.menu_name === item.menu_name
-          );
-          if (matchingMenuItem) {
-            item.menu_id = matchingMenuItem.menu_id;
-          }
-        }
+        const menuItem = menuItems.find(
+          (menu) => menu.menu_name === item.menu_name
+        );
 
         return {
-          menu_id: (item.menu_id || item.id).toString(),
+          menu_id: menuItem?.menu_id?.toString() || item.menu_id?.toString(),
           quantity: item.quantity || 1,
           comment: item.specialInstructions || "",
           half_or_full: (item.portionSize || "Full").toLowerCase(),
         };
       });
 
-      // Use different endpoints for create and update
-      const endpoint = orderNumber
-        ? "https://men4u.xyz/waiter_api/update_order"
-        : "https://men4u.xyz/waiter_api/create_order";
+      if (orderId) {
+        // For existing orders
+        setLoadingMessage("Updating order...");
+        const updateRequestBody = {
+          order_id: orderId,
+          customer_id: "367",
+          restaurant_id: storedRestaurantId,
+          table_number: tableNumber,
+          section_id: sectionId,
+          order_type: orderType,
+          order_items: formattedOrderItems,
+        };
 
-      // Different request body structure for update vs create
-      const requestBody = orderNumber
-        ? {
-            order_id: orderNumber,
-            customer_id: "367",
-            restaurant_id: restaurantId.toString(),
-            table_number: tableNumber.toString(),
-            section_id: sectionId.toString(),
-            order_type: orderType,
-            order_items: formattedOrderItems,
-          }
-        : {
-            customer_id: "367",
-            restaurant_id: restaurantId.toString(),
-            table_number: tableNumber.toString(),
-            section_id: sectionId.toString(),
-            order_type: orderType,
-            order_items: formattedOrderItems,
-          };
-
-      console.log("Order Request:", {
-        endpoint,
-        body: requestBody,
-      });
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-      console.log("Order Response:", data);
-
-      if (data.st === 1) {
-        toast.show({
-          description: `Order ${
-            orderNumber ? "updated" : "created"
-          } successfully`,
-          status: "success",
-          duration: 2000,
+        const updateResponse = await fetch(`${API_BASE_URL}/update_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updateRequestBody),
         });
 
-        setTimeout(() => {
-          router.replace("/(tabs)/orders");
-        }, 1000);
+        const updateData = await updateResponse.json();
+
+        if (updateData.st === 1) {
+          setLoadingMessage("Completing order...");
+          const completeRequestBody = {
+            restaurant_id: parseInt(storedRestaurantId),
+            order_status: "completed",
+            order_id: parseInt(orderId),
+          };
+
+          const completeResponse = await fetch(
+            `${API_BASE_URL}/captain_manage/update_order_status`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(completeRequestBody),
+            }
+          );
+
+          const completeData = await completeResponse.json();
+
+          if (completeData.st === 1) {
+            toast.show({
+              description: "Order updated and completed successfully",
+              status: "success",
+              duration: 3000,
+            });
+            router.replace("/(tabs)/orders");
+          } else {
+            throw new Error(completeData.msg || "Failed to complete order");
+          }
+        } else {
+          throw new Error(updateData.msg || "Failed to update order");
+        }
       } else {
-        throw new Error(
-          data.msg || `Failed to ${orderNumber ? "update" : "create"} order`
-        );
+        // For new orders
+        setLoadingMessage("Creating new order...");
+        const createRequestBody = {
+          customer_id: "367",
+          restaurant_id: storedRestaurantId,
+          table_number: tableNumber,
+          section_id: sectionId,
+          order_type: orderType,
+          order_items: formattedOrderItems,
+        };
+
+        const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(createRequestBody),
+        });
+
+        const createData = await createResponse.json();
+
+        if (createData.st === 1) {
+          setLoadingMessage("Completing new order...");
+          const completeRequestBody = {
+            restaurant_id: parseInt(storedRestaurantId),
+            order_status: "completed",
+            order_id: parseInt(createData.order_id),
+          };
+
+          const completeResponse = await fetch(
+            `${API_BASE_URL}/captain_manage/update_order_status`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(completeRequestBody),
+            }
+          );
+
+          const completeData = await completeResponse.json();
+
+          if (completeData.st === 1) {
+            toast.show({
+              description: "New order created and completed successfully",
+              status: "success",
+              duration: 3000,
+            });
+            router.replace("/(tabs)/orders");
+          } else {
+            throw new Error(completeData.msg || "Failed to complete new order");
+          }
+        } else {
+          throw new Error(createData.msg || "Failed to create new order");
+        }
       }
     } catch (error) {
-      console.error("Order Error:", error);
+      console.error("Settle Order Error:", error);
       toast.show({
-        description:
-          error.message ||
-          "Failed to process order. Please check the menu items.",
+        description: error.message,
         status: "error",
         duration: 3000,
       });
     } finally {
-      setLoading(false);
+      setLoadingMessage("");
+      setIsProcessing(false);
     }
   };
 
@@ -1128,13 +1422,7 @@ export default function CreateOrderScreen() {
                 <Button
                   bg="gray.400"
                   rounded="lg"
-                  onPress={() => {
-                    toast.show({
-                      description: "Order placed on hold",
-                      status: "info",
-                      duration: 2000,
-                    });
-                  }}
+                  onPress={handleHold}
                   isDisabled={loading}
                   _pressed={{ bg: "gray.600" }}
                 >
@@ -1147,7 +1435,7 @@ export default function CreateOrderScreen() {
                   leftIcon={
                     <MaterialIcons name="receipt" size={20} color="white" />
                   }
-                  onPress={() => handleKOT()}
+                  onPress={handleKOT}
                   isDisabled={loading}
                   _text={{ color: "white" }}
                 >
@@ -1160,10 +1448,10 @@ export default function CreateOrderScreen() {
                     <MaterialIcons name="payment" size={20} color="white" />
                   }
                   onPress={handleSettle}
-                  isLoading={loading}
+                  isDisabled={isProcessing}
                   _pressed={{ bg: "blue.600" }}
                 >
-                  {loading ? "Creating Order..." : "Settle"}
+                  {isProcessing ? "Processing..." : "Settle"}
                 </Button>
               </HStack>
             </Box>
@@ -1171,7 +1459,7 @@ export default function CreateOrderScreen() {
         </Box>
       </Box>
 
-      {loading && (
+      {isProcessing && (
         <Box
           position="absolute"
           top={0}
@@ -1183,9 +1471,11 @@ export default function CreateOrderScreen() {
           justifyContent="center"
           alignItems="center"
         >
-          <Box bg="white" p={4} rounded="lg">
-            <Spinner size="lg" color="green.500" />
-            <Text mt={2}>Creating Order...</Text>
+          <Box bg="white" p={4} rounded="lg" minW="200">
+            <VStack space={3} alignItems="center">
+              <Spinner size="lg" color="blue.500" />
+              <Text fontWeight="medium">{loadingMessage}</Text>
+            </VStack>
           </Box>
         </Box>
       )}
