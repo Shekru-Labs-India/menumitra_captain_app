@@ -26,7 +26,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -44,21 +44,26 @@ const getCurrentDate = () => {
 const formatTime = (dateTimeStr) => {
   if (!dateTimeStr) return "";
 
-  // Split the datetime string to get date, time and meridiem
-  const parts = dateTimeStr.split(" ");
-  if (parts.length < 3) return "";
+  try {
+    // Split the datetime string to get date, time and meridiem
+    const parts = dateTimeStr.split(" ");
+    if (parts.length < 3) return dateTimeStr;
 
-  // Get date, time part and meridiem
-  const date = parts[0]; // "17-Dec-2024"
-  const time = parts[1]; // "11:04:43"
-  const meridiem = parts[2]; // "AM"
+    // Get date, time part and meridiem
+    const date = parts[0]; // "18-Dec-2024"
+    const time = parts[1]; // "03:51:28"
+    const meridiem = parts[2]; // "PM"
 
-  // Split time to get hours and minutes
-  const timeParts = time.split(":");
-  if (timeParts.length < 2) return "";
+    // Split time to get hours and minutes
+    const timeParts = time.split(":");
+    if (timeParts.length < 2) return dateTimeStr;
 
-  // Return formatted date and time (DD-MMM-YYYY HH:MM AM/PM)
-  return `${date} ${timeParts[0]}:${timeParts[1]} ${meridiem}`;
+    // Return formatted date and time
+    return `${date} ${timeParts[0]}:${timeParts[1]} ${meridiem}`;
+  } catch (error) {
+    console.error("Date formatting error:", error);
+    return dateTimeStr; // Return original string if formatting fails
+  }
 };
 
 export default function CreateOrderScreen() {
@@ -72,15 +77,11 @@ export default function CreateOrderScreen() {
     sectionName,
     orderId,
     orderNumber,
-    customerName: existingCustomerName,
-    customerPhone: existingCustomerPhone,
     orderType: existingOrderType,
     existingItems,
     isOccupied,
   } = params;
 
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [restaurantId, setRestaurantId] = useState(null);
   const [orderType, setOrderType] = useState("Dine In");
@@ -113,6 +114,7 @@ export default function CreateOrderScreen() {
   });
   const [loadingMessage, setLoadingMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const isFocused = useIsFocused();
 
   useEffect(() => {
     const getRestaurantId = async () => {
@@ -130,30 +132,42 @@ export default function CreateOrderScreen() {
     const loadOrderDetails = async () => {
       if (orderNumber && isOccupied === "1") {
         try {
-          // Parse existing items if available
-          if (existingItems) {
-            const menuItems = JSON.parse(existingItems);
-            const formattedItems = menuItems.map((item) => ({
-              menu_name: item.menu_name,
-              price: parseFloat(item.price),
-              quantity: parseInt(item.quantity),
-              portionSize: "Full",
-              menu_sub_total: item.price * item.quantity,
-            }));
+          const storedRestaurantId = await AsyncStorage.getItem(
+            "restaurant_id"
+          );
 
-            setSelectedItems(formattedItems);
-          }
-
-          // Set order details
-          setOrderDetails({
-            order_number: orderNumber,
-            table_number: tableNumber,
-            total_bill: params.grandTotal ? parseFloat(params.grandTotal) : 0,
-            datetime: params.orderDateTime || "",
-            order_type: existingOrderType || "Dine In",
+          // Fetch order details from API
+          const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              restaurant_id: parseInt(storedRestaurantId),
+              order_number: orderNumber,
+            }),
           });
+
+          const data = await response.json();
+          console.log("Order Details Response:", data);
+
+          if (data.st === 1 && data.lists?.order_details) {
+            setOrderDetails(data.lists.order_details);
+
+            if (data.lists.menu_details) {
+              const formattedItems = data.lists.menu_details.map((item) => ({
+                menu_id: item.menu_id,
+                menu_name: item.menu_name,
+                price: parseFloat(item.price),
+                quantity: parseInt(item.quantity),
+                portionSize: "Full",
+                menu_sub_total: parseFloat(item.menu_sub_total),
+              }));
+              setSelectedItems(formattedItems);
+            }
+          }
         } catch (error) {
-          console.error("Error loading order:", error);
+          console.error("Error loading order details:", error);
           toast.show({
             description: "Failed to load order details",
             status: "error",
@@ -163,15 +177,7 @@ export default function CreateOrderScreen() {
     };
 
     loadOrderDetails();
-  }, [
-    orderNumber,
-    isOccupied,
-    existingItems,
-    tableNumber,
-    params.grandTotal,
-    params.orderDateTime,
-    existingOrderType,
-  ]);
+  }, [orderNumber, isOccupied]);
 
   useEffect(() => {
     console.log("Received params:", params);
@@ -305,41 +311,35 @@ export default function CreateOrderScreen() {
   };
 
   const handleSelectMenuItem = (menuItem, portionSize = "Full") => {
-    console.log("Selected menu item:", menuItem);
-
-    const exists = selectedItems.find(
-      (item) => item.menu_id === menuItem.menu_id
-    );
-
-    if (exists) {
-      // Update quantity if item exists
-      const updatedItems = selectedItems.map((item) =>
-        item.menu_id === menuItem.menu_id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
+    setSelectedItems((prevItems) => {
+      const existingItem = prevItems.find(
+        (item) => item.menu_id === menuItem.menu_id
       );
-      setSelectedItems(updatedItems);
-    } else {
-      // Add new item
-      const newItem = {
-        ...menuItem,
-        quantity: 1,
-        specialInstructions: "",
-        portionSize: portionSize,
-      };
-      setSelectedItems((prevItems) => [...prevItems, newItem]);
-    }
 
-    // Clear search and close dropdown after adding item
+      if (existingItem) {
+        return prevItems.map((item) =>
+          item.menu_id === menuItem.menu_id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+
+      return [
+        ...prevItems,
+        {
+          menu_id: menuItem.menu_id,
+          menu_name: menuItem.menu_name,
+          price: parseFloat(menuItem.price),
+          quantity: 1,
+          portionSize,
+          menu_sub_total: parseFloat(menuItem.price),
+        },
+      ];
+    });
+
     setSearchQuery("");
     setSearchResults([]);
     setIsSearchOpen(false);
-
-    toast.show({
-      description: exists ? "Item quantity updated" : "Item added to order",
-      status: "success",
-      duration: 1000,
-    });
   };
 
   const calculateTax = (items) => {
@@ -370,103 +370,54 @@ export default function CreateOrderScreen() {
       return;
     }
 
-    const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-    if (!storedRestaurantId) {
-      toast.show({
-        description: "Restaurant ID not found. Please login again.",
-        status: "error",
-      });
-      return;
-    }
-
     try {
       setLoading(true);
-      console.log("Selected Items before formatting:", selectedItems);
 
-      const formattedOrderItems = selectedItems.map((item) => {
-        // Find the matching menu item from menuItems array
-        const menuItem = menuItems.find(
-          (menu) => menu.menu_name === item.menu_name
-        );
+      const formattedOrderItems = selectedItems.map((item) => ({
+        menu_id: item.menu_id.toString(),
+        quantity: item.quantity,
+        comment: item.specialInstructions || "",
+        half_or_full: item.portionSize.toLowerCase(),
+      }));
 
-        return {
-          menu_id: menuItem?.menu_id?.toString() || item.menu_id?.toString(),
-          quantity: item.quantity || 1,
-          comment: item.specialInstructions || "",
-          half_or_full: (item.portionSize || "Full").toLowerCase(),
-        };
-      });
-
-      console.log("Formatted Order Items:", formattedOrderItems);
+      const requestBody = {
+        customer_id: "367",
+        restaurant_id: parseInt(restaurantId),
+        table_number: parseInt(tableNumber),
+        section_id: parseInt(sectionId),
+        order_type: orderType,
+        order_items: formattedOrderItems,
+      };
 
       if (orderId) {
-        const requestBody = {
-          order_id: orderId,
-          customer_id: "367",
-          restaurant_id: parseInt(storedRestaurantId),
-          table_number: parseInt(tableNumber),
-          section_id: parseInt(sectionId),
-          order_type: orderType,
-          order_items: formattedOrderItems,
-        };
+        requestBody.order_id = orderId;
+      }
 
-        console.log("Update Order Request:", requestBody);
+      const endpoint = orderId
+        ? `${API_BASE_URL}/update_order`
+        : `${API_BASE_URL}/create_order`;
 
-        const response = await fetch(`${API_BASE_URL}/update_order`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+
+      if (data.st === 1) {
+        toast.show({
+          description: orderId
+            ? "Order updated successfully"
+            : "Order created successfully",
+          status: "success",
+          duration: 2000,
         });
-
-        const data = await response.json();
-        console.log("Update Order Response:", data);
-
-        if (data.st === 1) {
-          toast.show({
-            description: "Order updated successfully",
-            status: "success",
-            duration: 2000,
-          });
-          router.replace("/(tabs)/orders");
-        } else {
-          throw new Error(data.msg || "Failed to update order");
-        }
+        router.replace("/(tabs)/orders");
       } else {
-        // Handle new order creation
-        const requestBody = {
-          customer_id: "367",
-          restaurant_id: parseInt(storedRestaurantId),
-          table_number: parseInt(tableNumber),
-          section_id: parseInt(sectionId),
-          order_type: orderType,
-          order_items: formattedOrderItems,
-        };
-
-        console.log("Hold Create Request:", requestBody);
-
-        const response = await fetch(`${API_BASE_URL}/create_order`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        const data = await response.json();
-        console.log("Hold Create Response:", data);
-
-        if (data.st === 1) {
-          toast.show({
-            description: "Order placed on hold successfully",
-            status: "success",
-            duration: 2000,
-          });
-          router.replace("/(tabs)/orders");
-        } else {
-          throw new Error(data.msg || "Failed to create order");
-        }
+        throw new Error(data.msg || "Failed to process order");
       }
     } catch (error) {
       console.error("Hold Order Error:", error);
@@ -606,156 +557,143 @@ export default function CreateOrderScreen() {
       return;
     }
 
-    const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-    if (!storedRestaurantId) {
-      toast.show({
-        description: "Restaurant ID not found. Please login again.",
-        status: "error",
-      });
-      return;
-    }
-
     try {
       setIsProcessing(true);
-      console.log("Selected Items before formatting:", selectedItems);
+      setLoadingMessage("Processing order...");
 
-      const formattedOrderItems = selectedItems.map((item) => {
-        const menuItem = menuItems.find(
-          (menu) => menu.menu_name === item.menu_name
-        );
+      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+      if (!storedRestaurantId) {
+        throw new Error("Restaurant ID not found");
+      }
 
-        return {
-          menu_id: menuItem?.menu_id?.toString() || item.menu_id?.toString(),
-          quantity: item.quantity || 1,
-          comment: item.specialInstructions || "",
-          half_or_full: (item.portionSize || "Full").toLowerCase(),
-        };
-      });
-
+      // First update the order
       if (orderId) {
-        // For existing orders
-        setLoadingMessage("Updating order...");
-        const updateRequestBody = {
-          order_id: orderId,
+        const updatePayload = {
+          order_id: parseInt(orderId),
           customer_id: "367",
           restaurant_id: parseInt(storedRestaurantId),
           table_number: parseInt(tableNumber),
           section_id: parseInt(sectionId),
-          order_type: orderType,
-          order_items: formattedOrderItems,
+          order_type: orderType || "Dine-in",
+          order_items: selectedItems.map((item) => ({
+            menu_id: item.menu_id.toString(),
+            quantity: parseInt(item.quantity),
+            comment: "",
+            half_or_full: (item.portionSize || "Full").toLowerCase(),
+          })),
         };
+
+        console.log("Update Order Payload:", updatePayload);
 
         const updateResponse = await fetch(`${API_BASE_URL}/update_order`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(updateRequestBody),
+          body: JSON.stringify(updatePayload),
         });
 
         const updateData = await updateResponse.json();
+        console.log("Update Order Response:", updateData);
 
-        if (updateData.st === 1) {
-          setLoadingMessage("Completing order...");
-          const completeRequestBody = {
-            restaurant_id: parseInt(storedRestaurantId),
-            order_status: "completed",
-            order_id: parseInt(orderId),
-          };
-
-          const completeResponse = await fetch(
-            `${API_BASE_URL}/captain_manage/update_order_status`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(completeRequestBody),
-            }
-          );
-
-          const completeData = await completeResponse.json();
-
-          if (completeData.st === 1) {
-            toast.show({
-              description: "Order updated and completed successfully",
-              status: "success",
-              duration: 3000,
-            });
-            router.replace("/(tabs)/orders");
-          } else {
-            throw new Error(completeData.msg || "Failed to complete order");
-          }
-        } else {
+        if (updateData.st !== 1) {
           throw new Error(updateData.msg || "Failed to update order");
         }
-      } else {
-        // For new orders
-        setLoadingMessage("Creating new order...");
-        const createRequestBody = {
-          customer_id: "367",
-          restaurant_id: parseInt(storedRestaurantId),
-          table_number: parseInt(tableNumber),
-          section_id: parseInt(sectionId),
-          order_type: orderType,
-          order_items: formattedOrderItems,
-        };
+      }
 
-        const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
+      // Then update the order status
+      setLoadingMessage("Completing order...");
+
+      const statusPayload = {
+        restaurant_id: parseInt(storedRestaurantId),
+        order_id: parseInt(orderId),
+        order_status: "completed",
+        table_number: parseInt(tableNumber),
+        section_id: parseInt(sectionId),
+      };
+
+      console.log("Status Update Payload:", statusPayload);
+
+      const statusResponse = await fetch(
+        `${API_BASE_URL}/captain_manage/update_order_status`,
+        {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(createRequestBody),
+          body: JSON.stringify(statusPayload),
+        }
+      );
+
+      const statusText = await statusResponse.text();
+      console.log("Raw Status Response:", statusText);
+
+      let statusData;
+      try {
+        statusData = JSON.parse(statusText);
+      } catch (e) {
+        console.error("Failed to parse status response:", e);
+        throw new Error("Invalid response from server");
+      }
+
+      console.log("Parsed Status Response:", statusData);
+
+      if (statusData.st === 1) {
+        // Clear all states
+        setSelectedItems([]);
+        setSearchQuery("");
+        setOrderDetails({});
+        setServiceCharges(0);
+        setGstAmount(0);
+        setDiscountAmount(0);
+
+        toast.show({
+          description: "Order completed successfully",
+          status: "success",
+          duration: 2000,
         });
 
-        const createData = await createResponse.json();
-
-        if (createData.st === 1) {
-          setLoadingMessage("Completing new order...");
-          const completeRequestBody = {
-            restaurant_id: parseInt(storedRestaurantId),
-            order_status: "completed",
-            order_id: parseInt(createData.order_id),
-          };
-
-          const completeResponse = await fetch(
-            `${API_BASE_URL}/captain_manage/update_order_status`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(completeRequestBody),
-            }
-          );
-
-          const completeData = await completeResponse.json();
-
-          if (completeData.st === 1) {
-            toast.show({
-              description: "New order created and completed successfully",
-              status: "success",
-              duration: 3000,
-            });
-            router.replace("/(tabs)/orders");
-          } else {
-            throw new Error(completeData.msg || "Failed to complete new order");
-          }
-        } else {
-          throw new Error(createData.msg || "Failed to create new order");
-        }
+        // Navigate with refresh params
+        router.replace({
+          pathname: "/(tabs)/orders",
+          params: {
+            refresh: Date.now().toString(),
+            status: "completed",
+            fromSettle: true,
+          },
+        });
+      } else {
+        throw new Error(statusData.msg || "Failed to complete order");
       }
     } catch (error) {
-      console.error("Settle Order Error:", error);
+      console.error("Settle Error:", error);
+
+      let errorMessage = "Failed to settle order";
+      if (error.message.includes("Failed to parse")) {
+        errorMessage = "Server returned invalid response. Please try again.";
+      } else if (error.message.includes("HTTP error")) {
+        errorMessage = "Server error. Please try again later.";
+      } else {
+        errorMessage = error.message;
+      }
+
       toast.show({
-        description: error.message,
+        description: errorMessage,
         status: "error",
         duration: 3000,
       });
     } finally {
-      setLoadingMessage("");
       setIsProcessing(false);
+      setLoadingMessage("");
+    }
+  };
+
+  // Add this function to validate the response
+  const isValidResponse = (response) => {
+    try {
+      return response && typeof response === "object" && "st" in response;
+    } catch {
+      return false;
     }
   };
 
@@ -773,20 +711,24 @@ export default function CreateOrderScreen() {
     };
   }, []);
 
-  const OrderSummary = () => (
-    <Box bg="white" p={2} rounded="lg" shadow={1} my={1}>
-      <VStack space={1}>
-        <HStack justifyContent="space-between" alignItems="center">
-          <Heading size="sm">
-            Order #{orderDetails.order_number} - T{orderDetails.table_number}
-          </Heading>
-          <Text fontSize="xs" color="gray.500">
-            {formatTime(orderDetails.datetime)}
-          </Text>
-        </HStack>
-      </VStack>
-    </Box>
-  );
+  const OrderSummary = () => {
+    console.log("Order Details:", orderDetails); // Add this for debugging
+
+    return (
+      <Box bg="white" p={2} rounded="lg" shadow={1} my={1}>
+        <VStack space={1}>
+          <HStack justifyContent="space-between" alignItems="center">
+            <Heading size="sm">
+              Order #{orderDetails?.order_number} - {orderDetails?.table_number}
+            </Heading>
+            <Text fontSize="xs" color="gray.500">
+              {orderDetails?.datetime ? formatTime(orderDetails.datetime) : ""}
+            </Text>
+          </HStack>
+        </VStack>
+      </Box>
+    );
+  };
 
   const handleTablePress = async (table, section) => {
     if (table.is_occupied === 0) {
@@ -910,21 +852,48 @@ export default function CreateOrderScreen() {
     }, [])
   );
 
+  // Add cleanup effect
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        // Cleanup when screen is unfocused
+        if (!isFocused) {
+          setSelectedItems([]);
+          setOrderDetails({});
+          setServiceCharges(0);
+          setGstAmount(0);
+          setDiscountAmount(0);
+          setSearchQuery("");
+          setSearchResults([]);
+        }
+      };
+    }, [isFocused])
+  );
+
+  // Add navigation effect
+  useEffect(() => {
+    if (!isFocused) {
+      // Reset states when leaving the screen
+      setSelectedItems([]);
+      setOrderDetails({});
+      setServiceCharges(0);
+      setGstAmount(0);
+      setDiscountAmount(0);
+      setSearchQuery("");
+      setSearchResults([]);
+    }
+  }, [isFocused]);
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
         title={isOccupied === "1" ? "Order Details" : "Create Order"}
-        onBackPress={() => {
-          router.replace("/(tabs)/tables/sections");
-        }}
+        onBackPress={() => router.replace("/(tabs)/tables/sections")}
         rightComponent={
           <Badge colorScheme="blue" rounded="lg" px={3} py={1}>
             <HStack space={1} alignItems="center">
               <Text color="blue.800" fontSize="sm" fontWeight="medium">
-                Table
-              </Text>
-              <Text color="blue.800" fontSize="sm" fontWeight="medium">
-                T{tableNumber}
+                Table {tableNumber}
               </Text>
             </HStack>
           </Badge>
@@ -1394,11 +1363,11 @@ export default function CreateOrderScreen() {
                 {/* Discount - Only shown if greater than 0 */}
                 {discountAmount > 0 && (
                   <VStack alignItems="center">
-                    <Text fontSize="xs" color="gray.500">
-                      Discount
-                    </Text>
                     <Text fontWeight="bold" fontSize="sm" color="red.500">
                       -₹{discountAmount.toFixed(2)}
+                    </Text>
+                    <Text fontSize="xs" color="gray.500">
+                      Discount
                     </Text>
                   </VStack>
                 )}

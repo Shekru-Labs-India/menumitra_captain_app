@@ -366,7 +366,96 @@ export default function TableSectionsScreen() {
   };
 
   const handleTablePress = async (table, section) => {
-    if (table.is_occupied === 0) {
+    try {
+      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+      if (!storedRestaurantId) {
+        toast.show({
+          description: "Restaurant ID not found. Please login again.",
+          status: "error",
+        });
+        return;
+      }
+
+      // For unoccupied tables, directly navigate to create order
+      if (table.is_occupied === 0) {
+        router.push({
+          pathname: "/(tabs)/orders/create-order",
+          params: {
+            tableId: table.table_id,
+            tableNumber: table.table_number,
+            sectionId: section.id,
+            sectionName: section.name,
+            isOccupied: "0",
+          },
+        });
+        return;
+      }
+
+      // For occupied tables, fetch the ongoing order
+      const today = new Date();
+      const formattedDate = today.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+
+      // Get ongoing orders list
+      const listResponse = await fetch(
+        `${API_BASE_URL}/captain_order/listview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            restaurant_id: parseInt(storedRestaurantId),
+            order_status: "ongoing",
+            date: formattedDate,
+          }),
+        }
+      );
+
+      const listData = await listResponse.json();
+      console.log("Ongoing Orders:", listData);
+
+      if (listData.st !== 1) {
+        throw new Error(listData.msg || "Failed to fetch ongoing orders");
+      }
+
+      if (!listData.lists || listData.lists.length === 0) {
+        throw new Error("No ongoing orders found");
+      }
+
+      // Find order for this table
+      const tableOrder = listData.lists.find(
+        (order) => order.table_number === table.table_number.toString()
+      );
+
+      if (!tableOrder) {
+        throw new Error("No active order found for this table");
+      }
+
+      // Get detailed order info
+      const detailsResponse = await fetch(
+        `${API_BASE_URL}/captain_order/view`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            restaurant_id: parseInt(storedRestaurantId),
+            order_number: tableOrder.order_number,
+          }),
+        }
+      );
+
+      const detailsData = await detailsResponse.json();
+      console.log("Order Details:", detailsData);
+
+      if (detailsData.st !== 1 || !detailsData.lists) {
+        throw new Error("Failed to fetch order details");
+      }
+
+      const { order_details, menu_details } = detailsData.lists;
+
+      // Navigate to order screen with all necessary details
       router.push({
         pathname: "/(tabs)/orders/create-order",
         params: {
@@ -374,101 +463,25 @@ export default function TableSectionsScreen() {
           tableNumber: table.table_number,
           sectionId: section.id,
           sectionName: section.name,
-          isOccupied: "0",
+          orderId: order_details.order_id,
+          orderNumber: tableOrder.order_number,
+          orderType: tableOrder.order_type || "Dine In",
+          existingItems: JSON.stringify(menu_details),
+          isOccupied: "1",
+          grandTotal: order_details.total_bill?.toString() || "0",
+          serviceCharges:
+            order_details.service_charges_amount?.toString() || "0",
+          gstAmount: order_details.gst_amount?.toString() || "0",
+          discountAmount: order_details.discount_amount?.toString() || "0",
         },
       });
-    } else {
-      try {
-        const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-
-        // Format date as "DD MMM YYYY"
-        const today = new Date();
-        const formattedDate = today.toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        });
-
-        // First get the ongoing orders list
-        const listResponse = await fetch(
-          `${API_BASE_URL}/captain_order/listview`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              restaurant_id: parseInt(storedRestaurantId),
-              order_status: "ongoing",
-              date: formattedDate,
-            }),
-          }
-        );
-
-        const listData = await listResponse.json();
-        console.log("List Response:", listData);
-
-        if (listData.st === 1 && listData.lists && listData.lists.length > 0) {
-          // Find the order for this table
-          const tableOrder = listData.lists.find(
-            (order) => order.table_number === table.table_number.toString()
-          );
-
-          console.log("Found Table Order:", tableOrder);
-
-          if (tableOrder) {
-            // Get detailed order info
-            const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                restaurant_id: parseInt(storedRestaurantId),
-                order_number: tableOrder.order_number,
-              }),
-            });
-
-            const data = await response.json();
-            console.log("Order Details:", data);
-
-            if (data.st === 1 && data.lists) {
-              const { order_details, menu_details } = data.lists;
-
-              router.push({
-                pathname: "/(tabs)/orders/create-order",
-                params: {
-                  tableId: table.table_id,
-                  tableNumber: table.table_number,
-                  sectionId: section.id,
-                  sectionName: section.name,
-                  orderId: order_details.order_id,
-                  orderNumber: tableOrder.order_number,
-                  customerName: order_details.customer_name || "",
-                  customerPhone: order_details.customer_phone || "",
-                  orderType: tableOrder.order_type || "Dine In",
-                  existingItems: JSON.stringify(menu_details),
-                  isOccupied: "1",
-                  grandTotal: order_details.total_bill?.toString() || "0",
-                  serviceCharges:
-                    order_details.service_charges_amount?.toString() || "0",
-                  gstAmount: order_details.gst_amount?.toString() || "0",
-                  discountAmount:
-                    order_details.discount_amount?.toString() || "0",
-                },
-              });
-            }
-          } else {
-            throw new Error("No active order found for this table");
-          }
-        } else {
-          throw new Error("No ongoing orders found");
-        }
-      } catch (error) {
-        console.error("Error:", error);
-        toast.show({
-          description: error.message || "Failed to fetch order details",
-          status: "error",
-        });
-      }
+    } catch (error) {
+      console.error("Table Press Error:", error);
+      toast.show({
+        description: error.message || "Failed to process table selection",
+        status: "error",
+        duration: 3000,
+      });
     }
   };
 
@@ -681,7 +694,7 @@ export default function TableSectionsScreen() {
                                             : "green.500"
                                         }
                                       >
-                                        T{row[colIndex].table_number}
+                                        {row[colIndex].table_number}
                                       </Text>
                                       <Text fontSize={12} color="coolGray.600">
                                         <Text
