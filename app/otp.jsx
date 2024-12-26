@@ -128,9 +128,9 @@ export default function OtpScreen() {
       return;
     }
 
-    const enteredOtp = otp.join("");
-
     try {
+      const enteredOtp = otp.join("");
+
       const response = await fetch(`${API_BASE_URL}/captain_verify_otp`, {
         method: "POST",
         headers: {
@@ -145,16 +145,18 @@ export default function OtpScreen() {
       const data = await response.json();
       console.log("Verify OTP Response:", data);
 
-      if (data && data.st === 1) {
+      if (data.st === 1) {
         try {
-          await AsyncStorage.setItem("captain_id", data.captain_id.toString());
-          await AsyncStorage.setItem(
-            "restaurant_id",
-            data.restaurant_id.toString()
-          );
-          await AsyncStorage.setItem("captain_name", data.captain_name);
-          await AsyncStorage.setItem("role", data.role);
+          // Store all required data from API response
+          await AsyncStorage.multiSet([
+            ["captain_id", data.captain_id.toString()],
+            ["restaurant_id", data.restaurant_id.toString()],
+            ["captain_name", data.captain_name],
+            ["role", data.role],
+            ["user_id", data.captain_id.toString()], // Store captain_id as user_id for orders
+          ]);
 
+          // Store session data
           const thirtyDaysFromNow = new Date();
           thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
@@ -167,6 +169,16 @@ export default function OtpScreen() {
             "userSession",
             JSON.stringify(sessionData)
           );
+
+          // Log stored data for verification
+          console.log("Stored Data:", {
+            captain_id: data.captain_id,
+            restaurant_id: data.restaurant_id,
+            captain_name: data.captain_name,
+            role: data.role,
+            user_id: data.captain_id, // Same as captain_id
+          });
+
           router.replace("/(tabs)");
         } catch (error) {
           console.error("Error saving data:", error);
@@ -184,6 +196,51 @@ export default function OtpScreen() {
       otpInputs.current[0].focus();
     }
   };
+
+  // Add verification function to check stored data
+  const verifyStoredData = async () => {
+    try {
+      const keys = [
+        "captain_id",
+        "restaurant_id",
+        "user_id",
+        "captain_name",
+        "role",
+      ];
+      const storedData = await AsyncStorage.multiGet(keys);
+
+      const missingKeys = storedData
+        .filter(([key, value]) => !value)
+        .map(([key]) => key);
+
+      if (missingKeys.length > 0) {
+        console.error("Missing required data:", missingKeys);
+        return false;
+      }
+
+      console.log("Stored Data Verified:", Object.fromEntries(storedData));
+      return true;
+    } catch (error) {
+      console.error("Error verifying stored data:", error);
+      return false;
+    }
+  };
+
+  // Add this to your useEffect
+  useEffect(() => {
+    const checkData = async () => {
+      const isDataValid = await verifyStoredData();
+      if (!isDataValid) {
+        // Handle missing data
+        console.error("Required data missing. Please login again.");
+        // Optionally clear storage and redirect to login
+        await AsyncStorage.clear();
+        router.replace("/");
+      }
+    };
+
+    checkData();
+  }, []);
 
   return (
     <Box flex={1} bg="white" safeArea>

@@ -49,71 +49,58 @@ export default function OrdersScreen() {
       .replace(/ /g, " ");
   };
 
+  // Add this function to flatten the date-grouped orders
+  const flattenOrders = (ordersData) => {
+    if (!ordersData) return [];
+
+    return Object.entries(ordersData).flatMap(([date, orders]) =>
+      orders.map((order) => ({
+        ...order,
+        date, // Add the date to each order
+      }))
+    );
+  };
+
   const fetchOrders = async () => {
     if (!restaurantId) return;
 
     setIsLoading(true);
     try {
-      // Make multiple API calls when status is "all"
-      if (orderStatus === "all") {
-        const statuses = ["ongoing", "completed", "cancelled"];
-        const allOrdersPromises = statuses.map((status) =>
-          fetch(`${API_BASE_URL}/captain_order/listview`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              restaurant_id: parseInt(restaurantId),
-              order_status: status,
-              date: getCurrentDate(),
-            }),
-          }).then((res) => res.json())
+      const response = await fetch(`${API_BASE_URL}/captain_order/listview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          restaurant_id: parseInt(restaurantId),
+          order_status: orderStatus === "all" ? "" : orderStatus,
+        }),
+      });
+
+      const data = await response.json();
+      console.log("Orders Response:", data);
+
+      if (data.st === 1 && data.lists) {
+        const allOrders = Object.entries(data.lists).reduce(
+          (acc, [date, orders]) => {
+            const ordersWithDate = orders.map((order) => ({
+              ...order,
+              date: date,
+            }));
+            return [...acc, ...ordersWithDate];
+          },
+          []
         );
 
-        const responses = await Promise.all(allOrdersPromises);
-        const allOrders = responses.reduce((acc, data) => {
-          if (data.st === 1 && data.lists) {
-            return [...acc, ...data.lists];
-          }
-          return acc;
-        }, []);
-
+        console.log("Processed Orders:", allOrders);
         setOrders(allOrders);
       } else {
-        // Single API call for specific status
-        const response = await fetch(`${API_BASE_URL}/captain_order/listview`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            restaurant_id: parseInt(restaurantId),
-            order_status: orderStatus,
-            date: getCurrentDate(),
-          }),
-        });
-
-        const data = await response.json();
-        console.log("Orders Response:", data);
-
-        if (data.st === 1) {
-          setOrders(data.lists || []);
-        } else {
-          setOrders([]);
-          toast.show({
-            description: data.msg || "Failed to fetch orders",
-            status: "error",
-          });
-        }
+        console.log("No orders found or error:", data.msg);
+        setOrders([]);
       }
     } catch (error) {
       console.error("Fetch Orders Error:", error);
       setOrders([]);
-      toast.show({
-        description: "Error fetching orders",
-        status: "error",
-      });
     } finally {
       setIsLoading(false);
     }
@@ -139,45 +126,52 @@ export default function OrdersScreen() {
   useFocusEffect(
     useCallback(() => {
       if (restaurantId) {
+        console.log("Fetching orders with status:", orderStatus);
         fetchOrders();
       }
     }, [restaurantId, orderStatus])
   );
 
   // Filter and sort orders
-  const filteredOrders = orders
-    .filter((order) => {
-      if (orderStatus !== "all") {
-        return order.order_status === orderStatus;
-      }
-      return true;
-    })
-    .filter((order) => {
-      const searchLower = searchQuery.toLowerCase();
-      return (
-        order.order_number.toLowerCase().includes(searchLower) ||
-        order.restaurant_name.toLowerCase().includes(searchLower) ||
-        order.order_type.toLowerCase().includes(searchLower)
-      );
-    })
-    .sort((a, b) => {
-      let comparison = 0;
-      switch (sortBy) {
-        case "date":
-          const timeA = new Date(`${getCurrentDate()} ${a.date_time}`);
-          const timeB = new Date(`${getCurrentDate()} ${b.date_time}`);
-          comparison = timeB - timeA;
-          break;
-        case "amount":
-          comparison = b.total_bill - a.total_bill;
-          break;
-        default:
-          const defaultTimeA = new Date(`${getCurrentDate()} ${a.date_time}`);
-          const defaultTimeB = new Date(`${getCurrentDate()} ${b.date_time}`);
-          comparison = defaultTimeB - defaultTimeA;
-      }
-      return isAscending ? -comparison : comparison;
-    });
+  const filteredOrders = React.useMemo(() => {
+    return orders
+      .filter((order) => {
+        // Status filter
+        if (orderStatus !== "all" && order.order_status !== orderStatus) {
+          return false;
+        }
+
+        // Search filter
+        if (searchQuery) {
+          const searchLower = searchQuery.toLowerCase();
+          return (
+            order.order_number?.toLowerCase().includes(searchLower) ||
+            order.table_number?.toString().includes(searchLower) ||
+            order.order_type?.toLowerCase().includes(searchLower) ||
+            order.order_status?.toLowerCase().includes(searchLower)
+          );
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        // Sort logic
+        switch (sortBy) {
+          case "date":
+            const dateA = new Date(`${a.date} ${a.time}`);
+            const dateB = new Date(`${b.date} ${b.time}`);
+            return isAscending ? dateA - dateB : dateB - dateA;
+
+          case "amount":
+            const amountA = parseFloat(a.grand_total) || 0;
+            const amountB = parseFloat(b.grand_total) || 0;
+            return isAscending ? amountA - amountB : amountB - amountA;
+
+          default:
+            return 0;
+        }
+      });
+  }, [orders, orderStatus, searchQuery, sortBy, isAscending]);
 
   if (isLoading) {
     return (
@@ -265,7 +259,9 @@ export default function OrdersScreen() {
         >
           <Select.Item label="All Status" value="all" />
           <Select.Item label="Ongoing" value="ongoing" />
-          <Select.Item label="Completed" value="completed" />
+          <Select.Item label="Paid" value="paid" />
+          <Select.Item label="Served" value="served" />
+          <Select.Item label="Placed" value="placed" />
           <Select.Item label="Cancelled" value="cancelled" />
         </Select>
 
@@ -314,119 +310,65 @@ export default function OrdersScreen() {
                   params: { id: item.order_number },
                 });
               }}
-              flex={viewType === "grid" ? 1 : undefined}
             >
               <Box bg="white" rounded="lg" shadow={1} m={2} p={3} flex={1}>
                 <VStack space={2}>
-                  {/* Order Header */}
-                  <VStack space={2}>
-                    {/* Order Number and Badge in same row */}
-                    <HStack justifyContent="space-between" alignItems="center">
-                      <Text
-                        fontSize={viewType === "grid" ? "sm" : "lg"}
-                        fontWeight="bold"
-                        numberOfLines={1}
-                        flex={1}
-                      >
+                  <HStack justifyContent="space-between" alignItems="center">
+                    <VStack>
+                      <Text fontSize="md" fontWeight="bold">
                         #{item.order_number}
                       </Text>
-                      <Badge
-                        colorScheme={
-                          item.order_status === "ongoing"
-                            ? "orange"
-                            : item.order_status === "completed"
-                            ? "green"
-                            : "red"
-                        }
-                        rounded="sm"
-                      >
-                        {item.order_status.toUpperCase()}
-                      </Badge>
-                    </HStack>
-
-                    {/* Restaurant Name */}
-                    <Text fontSize="xs" color="coolGray.600" numberOfLines={1}>
-                      {item.restaurant_name}
-                    </Text>
-                  </VStack>
-
-                  {/* Rest of the code remains the same */}
-                  <HStack
-                    justifyContent="space-between"
-                    alignItems="center"
-                    flexWrap="wrap"
-                  >
-                    <HStack space={1} alignItems="center" flex={1}>
-                      <MaterialIcons
-                        name={
-                          item.order_type === "Dine In"
-                            ? "restaurant"
-                            : "delivery-dining"
-                        }
-                        size={14}
-                        color="coolGray.500"
-                      />
-                      <Text
-                        fontSize="xs"
-                        color="coolGray.600"
-                        numberOfLines={1}
-                        flex={1}
-                      >
-                        {item.order_type}{" "}
-                        {item.table_number && `• Table ${item.table_number}`}
+                      <Text fontSize="xs" color="gray.500">
+                        {item.date} {item.time}
                       </Text>
-                    </HStack>
-                    <Text fontSize="xs" color="coolGray.500" numberOfLines={1}>
-                      {item.date_time}
+                    </VStack>
+                    <Badge
+                      colorScheme={
+                        item.order_status === "ongoing"
+                          ? "orange"
+                          : item.order_status === "paid"
+                          ? "green"
+                          : item.order_status === "served"
+                          ? "blue"
+                          : item.order_status === "placed"
+                          ? "purple"
+                          : item.order_status === "cancelled"
+                          ? "red"
+                          : "gray"
+                      }
+                    >
+                      {item.order_status?.toUpperCase()}
+                    </Badge>
+                  </HStack>
+
+                  <HStack justifyContent="space-between" alignItems="center">
+                    <Text fontSize="sm" color="gray.600">
+                      Table {item.table_number}
+                    </Text>
+                    <Text fontSize="sm" color="gray.600">
+                      {item.order_type}
                     </Text>
                   </HStack>
 
-                  {/* Menu Items section remains the same */}
-                  <VStack space={1}>
-                    <Text fontSize="xs" color="coolGray.600" numberOfLines={1}>
-                      {item.menu_details.length} items
+                  <HStack justifyContent="space-between" alignItems="center">
+                    <Text fontSize="sm" color="gray.600">
+                      Items: {item.menu_count || 0}
                     </Text>
-                    {viewType === "list" &&
-                      item.menu_details.map((menu, index) => (
-                        <HStack key={index} justifyContent="space-between">
-                          <Text fontSize="xs" flex={1} numberOfLines={1}>
-                            {menu.quantity}x {menu.menu_name}
-                          </Text>
-                          <Text fontSize="xs">
-                            ₹{menu.price * menu.quantity}
-                          </Text>
-                        </HStack>
-                      ))}
-                  </VStack>
-
-                  {/* Total section remains the same */}
-                  <HStack
-                    justifyContent="space-between"
-                    pt={2}
-                    borderTopWidth={1}
-                    borderTopColor="coolGray.100"
-                  >
-                    <Text
-                      fontSize={viewType === "grid" ? "xs" : "sm"}
-                      fontWeight="bold"
-                    >
-                      Total
-                    </Text>
-                    <Text
-                      fontSize={viewType === "grid" ? "xs" : "sm"}
-                      fontWeight="bold"
-                      color="blue.500"
-                    >
-                      ₹{item.total_bill}
+                    <Text fontSize="sm" fontWeight="600" color="green.600">
+                      ₹{item.grand_total?.toFixed(2) || 0}
                     </Text>
                   </HStack>
                 </VStack>
               </Box>
             </Pressable>
           )}
-          keyExtractor={(item) => item.order_id.toString()}
+          keyExtractor={(item) => item.order_id?.toString()}
           contentContainerStyle={{ padding: 2 }}
-          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={() => (
+            <Center flex={1} py={10}>
+              <Text color="gray.500">No orders found</Text>
+            </Center>
+          )}
         />
       )}
     </Box>
