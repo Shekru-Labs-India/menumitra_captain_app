@@ -258,7 +258,7 @@ export default function OrdersScreen() {
           }}
         >
           <Select.Item label="All Status" value="all" />
-          <Select.Item label="Ongoing" value="ongoing" />
+          <Select.Item label="Cooking" value="cooking" />
           <Select.Item label="Paid" value="paid" />
           <Select.Item label="Served" value="served" />
           <Select.Item label="Placed" value="placed" />
@@ -324,7 +324,7 @@ export default function OrdersScreen() {
                     </VStack>
                     <Badge
                       colorScheme={
-                        item.order_status === "ongoing"
+                        item.order_status === "cooking"
                           ? "orange"
                           : item.order_status === "paid"
                           ? "green"

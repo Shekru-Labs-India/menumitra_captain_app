@@ -37,7 +37,7 @@ export default function AddSupplierScreen() {
     creditLimit: "",
     location: "",
     ownerName: "",
-    supplierCode: "",
+   
     website: "",
     mobileNumber1: "",
     mobileNumber2: "",
@@ -228,17 +228,7 @@ export default function AddSupplierScreen() {
                 </Select>
               </FormControl>
 
-              <FormControl>
-                <FormControl.Label>Supplier Code</FormControl.Label>
-                <Input
-                  value={formData.supplierCode}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, supplierCode: text })
-                  }
-                  placeholder="Enter supplier code"
-                  bg="white"
-                />
-              </FormControl>
+            
             </VStack>
           </Box>
 

@@ -35,19 +35,16 @@ export default function AddInventoryItemScreen() {
     name: "",
     supplierId: "",
     description: "",
-    category: "",
-    price: "",
+    category_id: "", // Changed from category to category_id
+    unit_price: "", // Changed from price
     quantity: "",
-    serialNo: "",
-    status: "in",
-    brandName: "",
-    tax: "",
-    paymentStatus: "pending",
-    orderId: "",
-    unitOfMeasure: "",
-    reorderLevel: "",
-    expirationDate: "",
-    inDate: "",
+    unit_of_measure: "", // Changed from unitOfMeasure
+    reorder_level: "", // Changed from reorderLevel
+    brand_name: "", // Changed from brandName
+    tax_rate: "", // Changed from tax
+    in_or_out: "in", // Changed from status
+    in_date: "", // Changed from inDate
+    expiration_date: "", // Changed from expirationDate
   });
   const [errors, setErrors] = useState({});
   const [categories, setCategories] = useState([]);
@@ -189,7 +186,7 @@ export default function AddInventoryItemScreen() {
     // Required field validations
     if (!formData.name) newErrors.name = "Name is required";
     if (!formData.supplierId) newErrors.supplierId = "Supplier is required";
-    if (!formData.category) newErrors.category = "Category is required";
+    if (!formData.category_id) newErrors.category_id = "Category is required";
 
     if (!formData.quantity) {
       newErrors.quantity = "Quantity is required";
@@ -197,34 +194,34 @@ export default function AddInventoryItemScreen() {
       newErrors.quantity = "Please enter a valid quantity";
     }
 
-    if (!formData.price) {
-      newErrors.price = "Price is required";
-    } else if (isNaN(formData.price) || Number(formData.price) <= 0) {
-      newErrors.price = "Please enter a valid price";
+    if (!formData.unit_price) {
+      newErrors.unit_price = "Price is required";
+    } else if (isNaN(formData.unit_price) || Number(formData.unit_price) <= 0) {
+      newErrors.unit_price = "Please enter a valid price";
     }
 
-    if (!formData.unitOfMeasure)
-      newErrors.unitOfMeasure = "Unit of measure is required";
-    if (!formData.reorderLevel) {
-      newErrors.reorderLevel = "Reorder level is required";
+    if (!formData.unit_of_measure)
+      newErrors.unit_of_measure = "Unit of measure is required";
+    if (!formData.reorder_level) {
+      newErrors.reorder_level = "Reorder level is required";
     } else if (
-      isNaN(formData.reorderLevel) ||
-      Number(formData.reorderLevel) < 0
+      isNaN(formData.reorder_level) ||
+      Number(formData.reorder_level) < 0
     ) {
-      newErrors.reorderLevel = "Please enter a valid reorder level";
+      newErrors.reorder_level = "Please enter a valid reorder level";
     }
 
-    if (!formData.brandName) newErrors.brandName = "Brand name is required";
+    if (!formData.brand_name) newErrors.brand_name = "Brand name is required";
 
-    if (!formData.tax) {
-      newErrors.tax = "Tax rate is required";
-    } else if (isNaN(formData.tax) || Number(formData.tax) < 0) {
-      newErrors.tax = "Please enter a valid tax rate";
+    if (!formData.tax_rate) {
+      newErrors.tax_rate = "Tax rate is required";
+    } else if (isNaN(formData.tax_rate) || Number(formData.tax_rate) < 0) {
+      newErrors.tax_rate = "Please enter a valid tax rate";
     }
 
-    if (!formData.inDate) newErrors.inDate = "In date is required";
-    if (!formData.expirationDate)
-      newErrors.expirationDate = "Expiration date is required";
+    if (!formData.in_date) newErrors.in_date = "In date is required";
+    if (!formData.expiration_date)
+      newErrors.expiration_date = "Expiration date is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -235,20 +232,20 @@ export default function AddInventoryItemScreen() {
       try {
         setIsLoading(true);
         const requestBody = {
-          supplier_id: formData.supplierId, // Use supplierId from formData
-          restaurant_id: restaurantId, // Use the stored restaurantId
-          category_id: formData.category, // Use category from formData
-          name: formData.name, // Use name from formData
-          description: formData.description, // Use description from formData
-          unit_price: formData.price, // Use price from formData
-          quantity: formData.quantity, // Use quantity from formData
-          unit_of_measure: formData.unitOfMeasure, // Use unitOfMeasure from formData
-          reorder_level: formData.reorderLevel, // Use reorderLevel from formData
-          brand_name: formData.brandName, // Use brandName from formData
-          tax_rate: formData.tax, // Use tax from formData
-          in_or_out: formData.status, // Use status from formData
-          in_date: formData.inDate, // Use inDate from formData
-          expiration_date: formData.expirationDate, // Use expirationDate from formData
+          supplier_id: formData.supplierId,
+          restaurant_id: restaurantId.toString(),
+          category_id: formData.category_id,
+          name: formData.name,
+          description: formData.description,
+          unit_price: formData.unit_price,
+          quantity: parseInt(formData.quantity),
+          unit_of_measure: formData.unit_of_measure,
+          reorder_level: parseInt(formData.reorder_level),
+          brand_name: formData.brand_name,
+          tax_rate: formData.tax_rate,
+          in_or_out: formData.in_or_out,
+          in_date: formData.in_date,
+          expiration_date: formData.expiration_date
         };
 
         console.log("Request Body:", requestBody);
@@ -362,14 +359,14 @@ export default function AddInventoryItemScreen() {
   const handleInDateChange = (event, selectedDate) => {
     setShowInDatePicker(false);
     if (selectedDate && event.type !== "dismissed") {
-      setFormData({ ...formData, inDate: formatDate(selectedDate) });
+      setFormData({ ...formData, in_date: formatDate(selectedDate) });
     }
   };
 
   const handleExpirationDateChange = (event, selectedDate) => {
     setShowExpirationDatePicker(false);
     if (selectedDate && event.type !== "dismissed") {
-      setFormData({ ...formData, expirationDate: formatDate(selectedDate) });
+      setFormData({ ...formData, expiration_date: formatDate(selectedDate) });
     }
   };
 
@@ -434,7 +431,7 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* Category */}
-          <FormControl isRequired isInvalid={"category" in errors}>
+          <FormControl isRequired isInvalid={"category_id" in errors}>
             <HStack justifyContent="space-between" alignItems="center">
               <FormControl.Label>Category</FormControl.Label>
               <IconButton
@@ -442,61 +439,40 @@ export default function AddInventoryItemScreen() {
                 onPress={() => setAddCategoryModalOpen(true)}
               />
             </HStack>
-            <Input
-              placeholder="Search category"
-              value={formData.category}
-              onFocus={fetchCategories}
-              onChangeText={(value) => {
-                setFormData({ ...formData, category: value });
-                const filteredCategories = categories.filter((category) =>
-                  category.name.toLowerCase().includes(value.toLowerCase())
-                );
-                setFilteredCategories(filteredCategories);
-              }}
-            />
+            <Select
+              placeholder="Select category"
+              selectedValue={formData.category_id}
+              onValueChange={(value) =>
+                setFormData({ ...formData, category_id: value })
+              }
+            >
+              {categories.map((category) => (
+                <Select.Item
+                  key={category.id}
+                  label={category.name}
+                  value={category.id}
+                />
+              ))}
+            </Select>
             <FormControl.ErrorMessage>
-              {errors.category}
+              {errors.category_id}
             </FormControl.ErrorMessage>
-
-            {/* Autocomplete List */}
-            {formData.category && filteredCategories.length > 0 && (
-              <VStack
-                mt={2}
-                borderWidth={1}
-                borderColor="gray.300"
-                borderRadius="md"
-                bg="white"
-              >
-                {filteredCategories.map((category) => (
-                  <Button
-                    key={category.id}
-                    variant="ghost"
-                    onPress={() => {
-                      setFormData({ ...formData, category: category.id });
-                      setFilteredCategories([]);
-                    }}
-                  >
-                    {category.name}
-                  </Button>
-                ))}
-              </VStack>
-            )}
           </FormControl>
 
           {/* Price Input */}
-          <FormControl isRequired isInvalid={"price" in errors}>
+          <FormControl isRequired isInvalid={"unit_price" in errors}>
             <FormControl.Label>Unit Price (₹)</FormControl.Label>
             <Input
               keyboardType="decimal-pad"
               placeholder="0.00"
-              value={formData.price}
+              value={formData.unit_price}
               onChangeText={(value) => {
                 // Allow only numbers and decimal point
                 const formattedValue = value.replace(/[^0-9.]/g, "");
-                setFormData({ ...formData, price: formattedValue });
+                setFormData({ ...formData, unit_price: formattedValue });
               }}
             />
-            <FormControl.ErrorMessage>{errors.price}</FormControl.ErrorMessage>
+            <FormControl.ErrorMessage>{errors.unit_price}</FormControl.ErrorMessage>
           </FormControl>
 
           {/* Quantity Input */}
@@ -518,57 +494,57 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* Brand Name */}
-          <FormControl isRequired isInvalid={"brandName" in errors}>
+          <FormControl isRequired isInvalid={"brand_name" in errors}>
             <FormControl.Label>Brand Name</FormControl.Label>
             <Input
               placeholder="Enter brand name"
-              value={formData.brandName}
+              value={formData.brand_name}
               onChangeText={(value) =>
-                setFormData({ ...formData, brandName: value })
+                setFormData({ ...formData, brand_name: value })
               }
             />
             <FormControl.ErrorMessage>
-              {errors.brandName}
+              {errors.brand_name}
             </FormControl.ErrorMessage>
           </FormControl>
 
           {/* Unit of Measure */}
-          <FormControl isRequired isInvalid={"unitOfMeasure" in errors}>
+          <FormControl isRequired isInvalid={"unit_of_measure" in errors}>
             <FormControl.Label>Unit of Measure</FormControl.Label>
             <Input
               placeholder="Enter unit of measure"
-              value={formData.unitOfMeasure}
+              value={formData.unit_of_measure}
               onChangeText={(value) =>
-                setFormData({ ...formData, unitOfMeasure: value })
+                setFormData({ ...formData, unit_of_measure: value })
               }
             />
             <FormControl.ErrorMessage>
-              {errors.unitOfMeasure}
+              {errors.unit_of_measure}
             </FormControl.ErrorMessage>
           </FormControl>
 
           {/* Reorder Level */}
-          <FormControl isRequired isInvalid={"reorderLevel" in errors}>
+          <FormControl isRequired isInvalid={"reorder_level" in errors}>
             <FormControl.Label>Reorder Level</FormControl.Label>
             <Input
               keyboardType="numeric"
               placeholder="Enter reorder level"
-              value={formData.reorderLevel}
+              value={formData.reorder_level}
               onChangeText={(value) =>
-                setFormData({ ...formData, reorderLevel: value })
+                setFormData({ ...formData, reorder_level: value })
               }
             />
             <FormControl.ErrorMessage>
-              {errors.reorderLevel}
+              {errors.reorder_level}
             </FormControl.ErrorMessage>
           </FormControl>
 
           {/* Expiration Date */}
-          <FormControl isRequired isInvalid={"expirationDate" in errors}>
+          <FormControl isRequired isInvalid={"expiration_date" in errors}>
             <FormControl.Label>Expiration Date</FormControl.Label>
             <Pressable onPress={() => setShowExpirationDatePicker(true)}>
               <Input
-                value={formData.expirationDate}
+                value={formData.expiration_date}
                 placeholder="Select expiration date"
                 isReadOnly
                 rightElement={
@@ -586,16 +562,16 @@ export default function AddInventoryItemScreen() {
               />
             </Pressable>
             <FormControl.ErrorMessage>
-              {errors.expirationDate}
+              {errors.expiration_date}
             </FormControl.ErrorMessage>
           </FormControl>
 
           {/* In Date */}
-          <FormControl isRequired isInvalid={"inDate" in errors}>
+          <FormControl isRequired isInvalid={"in_date" in errors}>
             <FormControl.Label>In Date</FormControl.Label>
             <Pressable onPress={() => setShowInDatePicker(true)}>
               <Input
-                value={formData.inDate}
+                value={formData.in_date}
                 placeholder="Select in date"
                 isReadOnly
                 rightElement={
@@ -612,13 +588,13 @@ export default function AddInventoryItemScreen() {
                 }
               />
             </Pressable>
-            <FormControl.ErrorMessage>{errors.inDate}</FormControl.ErrorMessage>
+            <FormControl.ErrorMessage>{errors.in_date}</FormControl.ErrorMessage>
           </FormControl>
 
           {/* Date Pickers */}
           {showInDatePicker && (
             <DateTimePicker
-              value={formData.inDate ? new Date(formData.inDate) : new Date()}
+              value={formData.in_date ? new Date(formData.in_date) : new Date()}
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleInDateChange}
@@ -628,15 +604,15 @@ export default function AddInventoryItemScreen() {
           {showExpirationDatePicker && (
             <DateTimePicker
               value={
-                formData.expirationDate
-                  ? new Date(formData.expirationDate)
+                formData.expiration_date
+                  ? new Date(formData.expiration_date)
                   : new Date()
               }
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleExpirationDateChange}
               minimumDate={
-                formData.inDate ? new Date(formData.inDate) : new Date()
+                formData.in_date ? new Date(formData.in_date) : new Date()
               }
             />
           )}
@@ -645,9 +621,9 @@ export default function AddInventoryItemScreen() {
           <FormControl flex={1}>
             <FormControl.Label>Status</FormControl.Label>
             <Select
-              selectedValue={formData.status}
+              selectedValue={formData.in_or_out}
               onValueChange={(value) =>
-                setFormData({ ...formData, status: value })
+                setFormData({ ...formData, in_or_out: value })
               }
             >
               {statusOptions.map((option) => (
@@ -660,34 +636,22 @@ export default function AddInventoryItemScreen() {
             </Select>
           </FormControl>
 
-          {/* Payment Status */}
-          <FormControl flex={1}>
-            <FormControl.Label>Payment Status</FormControl.Label>
-            <Select
-              selectedValue={formData.paymentStatus}
-              onValueChange={(value) =>
-                setFormData({ ...formData, paymentStatus: value })
-              }
-            >
-              <Select.Item label="Pending" value="pending" />
-              <Select.Item label="Paid" value="paid" />
-            </Select>
-          </FormControl>
+         
 
           {/* Tax Rate Input */}
-          <FormControl isRequired isInvalid={"tax" in errors}>
+          <FormControl isRequired isInvalid={"tax_rate" in errors}>
             <FormControl.Label>Tax Rate (%)</FormControl.Label>
             <Input
               keyboardType="decimal-pad"
               placeholder="0.00"
-              value={formData.tax}
+              value={formData.tax_rate}
               onChangeText={(value) => {
                 // Allow only numbers and decimal point
                 const formattedValue = value.replace(/[^0-9.]/g, "");
-                setFormData({ ...formData, tax: formattedValue });
+                setFormData({ ...formData, tax_rate: formattedValue });
               }}
             />
-            <FormControl.ErrorMessage>{errors.tax}</FormControl.ErrorMessage>
+            <FormControl.ErrorMessage>{errors.tax_rate}</FormControl.ErrorMessage>
           </FormControl>
 
           {/* Modal for adding new category */}

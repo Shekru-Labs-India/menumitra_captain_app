@@ -24,6 +24,7 @@ import { Platform, StatusBar } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import Header from "../../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -43,6 +44,7 @@ export default function AddStaffScreen() {
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [captainId, setCaptainId] = useState(null);
   const [restaurantId, setRestaurantId] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const pickImage = async () => {
     try {
@@ -129,14 +131,7 @@ export default function AddStaffScreen() {
       }
 
       // Validate DOB format and age
-      const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dobRegex.test(formData.dob)) {
-        toast.show({
-          description: "Please enter date in YYYY-MM-DD format",
-          status: "error",
-        });
-        return false;
-      }
+   
 
       const dob = new Date(formData.dob);
       const today = new Date();
@@ -150,13 +145,7 @@ export default function AddStaffScreen() {
         age--;
       }
 
-      if (age < 18 || age > 65 || isNaN(dob.getTime())) {
-        toast.show({
-          description: "Staff member must be between 18 and 65 years old",
-          status: "error",
-        });
-        return false;
-      }
+    
 
       // Validate address (minimum length)
       if (formData.address.length < 10) {
@@ -188,7 +177,7 @@ export default function AddStaffScreen() {
       // Rest of the form data
       formDataApi.append("name", formData.name.trim());
       formDataApi.append("mobile", formData.phone);
-      formDataApi.append("dob", formData.dob);
+      formDataApi.append("dob", formData.dobApi); // Use the API format
       formDataApi.append("address", formData.address.trim());
       formDataApi.append("role", formData.role.toLowerCase());
       formDataApi.append("aadhar_number", formData.aadharNo);
@@ -312,6 +301,37 @@ export default function AddStaffScreen() {
     fetchRoles();
   }, []);
 
+  const formatDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    
+    return `${day} ${month} ${year}`;
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (event.type === 'set' && selectedDate) {
+      const formattedDate = formatDate(selectedDate);
+      // Also store the YYYY-MM-DD format for API submission
+      const apiDate = selectedDate.toISOString().split('T')[0];
+      setFormData({ 
+        ...formData, 
+        dob: formattedDate,
+        dobApi: apiDate // Store API format separately
+      });
+    }
+  };
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header title="Add New Staff" />
@@ -391,13 +411,36 @@ export default function AddStaffScreen() {
 
           <FormControl isRequired>
             <FormControl.Label>Date of Birth</FormControl.Label>
-            <Input
-              value={formData.dob}
-              onChangeText={(text) => setFormData({ ...formData, dob: text })}
-              placeholder="YYYY-MM-DD"
-              keyboardType="numeric"
-            />
+            <Pressable onPress={() => setShowDatePicker(true)}>
+              <Input
+                value={formData.dob}
+                isReadOnly
+                placeholder="Select date of birth"
+                rightElement={
+                  <IconButton
+                    icon={
+                      <MaterialIcons
+                        name="calendar-today"
+                        size={24}
+                        color="gray"
+                      />
+                    }
+                    onPress={() => setShowDatePicker(true)}
+                  />
+                }
+              />
+            </Pressable>
           </FormControl>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={formData.dob ? new Date(formData.dob) : new Date()}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleDateChange}
+              maximumDate={new Date()} // Prevents future dates
+            />
+          )}
 
           <FormControl isRequired>
             <FormControl.Label>Aadhar Number</FormControl.Label>

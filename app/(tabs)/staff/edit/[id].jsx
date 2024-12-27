@@ -12,11 +12,16 @@ import {
   TextArea,
   HStack,
   Spinner,
+  Pressable,
+  Text,
+  Select,
+  CheckIcon,
 } from "native-base";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Header from "../../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
@@ -27,6 +32,9 @@ export default function EditStaffScreen() {
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [captainId, setCaptainId] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [roles, setRoles] = useState([]);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -37,6 +45,30 @@ export default function EditStaffScreen() {
     aadhar_number: "",
     photo: "",
   });
+
+  const formatDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    
+    return `${day} ${month} ${year}`;
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (event.type === 'set' && selectedDate) {
+      setFormData({ ...formData, dob: formatDate(selectedDate) });
+    }
+  };
 
   useEffect(() => {
     const getStoredData = async () => {
@@ -51,7 +83,37 @@ export default function EditStaffScreen() {
     };
 
     getStoredData();
+    fetchRoles();
   }, []);
+
+  const fetchRoles = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/get_staff_role`, {
+        method: "GET",
+      });
+
+      const data = await response.json();
+      console.log("Roles Response:", data);
+
+      if (data.st === 1 && data.role_list) {
+        const roleArray = Object.keys(data.role_list);
+        setRoles(roleArray);
+      } else {
+        toast.show({
+          description: "Failed to fetch roles",
+          status: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Fetch Roles Error:", error);
+      toast.show({
+        description: "Failed to fetch roles",
+        status: "error",
+      });
+    } finally {
+      setIsLoadingRoles(false);
+    }
+  };
 
   useEffect(() => {
     const fetchStaffDetails = async () => {
@@ -159,7 +221,8 @@ export default function EditStaffScreen() {
           status: "success",
         });
         router.replace({
-          pathname: "/(tabs)/staff",
+         // pathname: "/(tabs)/staff",
+          pathname:`/(tabs)/staff/${parseInt(id)}`,
           params: { refresh: Date.now() },
         });
       } else {
@@ -196,11 +259,26 @@ export default function EditStaffScreen() {
 
           <FormControl isRequired>
             <FormControl.Label>Role</FormControl.Label>
-            <Input
-              value={formData.role}
-              onChangeText={(text) => setFormData({ ...formData, role: text })}
-              placeholder={formData.role || "Enter role"}
-            />
+            <Select
+              selectedValue={formData.role}
+              onValueChange={(value) =>
+                setFormData({ ...formData, role: value })
+              }
+              placeholder="Select role"
+              isDisabled={isLoadingRoles}
+              _selectedItem={{
+                bg: "cyan.600",
+                endIcon: <CheckIcon size="5" color="white" />,
+              }}
+            >
+              {roles.map((role) => (
+                <Select.Item
+                  key={role}
+                  label={role.charAt(0).toUpperCase() + role.slice(1)}
+                  value={role}
+                />
+              ))}
+            </Select>
           </FormControl>
 
           <FormControl isRequired>
@@ -217,12 +295,36 @@ export default function EditStaffScreen() {
 
           <FormControl isRequired>
             <FormControl.Label>Date of Birth</FormControl.Label>
-            <Input
-              value={formData.dob}
-              onChangeText={(text) => setFormData({ ...formData, dob: text })}
-              placeholder={formData.dob || "YYYY-MM-DD"}
-            />
+            <Pressable onPress={() => setShowDatePicker(true)}>
+              <Input
+                value={formData.dob}
+                isReadOnly
+                placeholder="Select date of birth"
+                rightElement={
+                  <IconButton
+                    icon={
+                      <MaterialIcons
+                        name="calendar-today"
+                        size={24}
+                        color="gray"
+                      />
+                    }
+                    onPress={() => setShowDatePicker(true)}
+                  />
+                }
+              />
+            </Pressable>
           </FormControl>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={formData.dob ? new Date(formData.dob) : new Date()}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleDateChange}
+              maximumDate={new Date()} // Prevents future dates
+            />
+          )}
 
           <FormControl isRequired>
             <FormControl.Label>Aadhar Number</FormControl.Label>

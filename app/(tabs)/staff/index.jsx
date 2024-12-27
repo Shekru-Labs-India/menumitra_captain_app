@@ -166,7 +166,14 @@ export default function StaffScreen() {
         return "info";
     }
   };
-
+  const toTitleCase = (str) => {
+    return str
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+  
   const renderStaffItem = ({ item }) => (
     <Pressable
       onPress={() => {
@@ -195,13 +202,14 @@ export default function StaffScreen() {
             {!item.photo && item.name?.charAt(0).toUpperCase()}
           </Avatar>
           <VStack flex={1} ml={2}>
-            <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
-              {item.name}
-            </Text>
-            <Text fontSize="md" color="coolGray.600">
-              {item.role}
-            </Text>
-          </VStack>
+  <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
+    {toTitleCase(item.name)}
+  </Text>
+  <Text fontSize="md" color="coolGray.600">
+    {toTitleCase(item.role)}
+  </Text>
+</VStack>
+
           <VStack alignItems="flex-end" space={1}>
             <Button.Group size="xs" space={1}>
               <Button
@@ -273,10 +281,10 @@ export default function StaffScreen() {
           </Avatar>
           <VStack space={1} alignItems="center">
             <Text fontSize="md" fontWeight="bold" textAlign="center">
-              {item.name}
+            {toTitleCase(item.name)}
             </Text>
             <Text fontSize="sm" color="coolGray.600" textAlign="center">
-              {item.role}
+            {toTitleCase(item.role)}
             </Text>
 
             <Button.Group size="sm" space={1}>

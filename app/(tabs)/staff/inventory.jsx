@@ -22,13 +22,7 @@ import Header from "../../components/Header";
 export default function InventoryScreen() {
   const router = useRouter();
   const [categories, setCategories] = useState([
-    {
-      id: "1",
-      name: "Suppliers",
-      icon: "people",
-      description: "Manage all suppliers",
-      route: "/(tabs)/staff/suppliers",
-    },
+   
     {
       id: "2",
       name: "Inventory",
@@ -105,7 +99,7 @@ export default function InventoryScreen() {
       />
 
       {/* Add Category FAB */}
-      <Fab
+      {/* <Fab
         renderInPortal={false}
         shadow={2}
         size="sm"
@@ -115,9 +109,9 @@ export default function InventoryScreen() {
         position="absolute"
         bottom={4}
         right={4}
-      />
+      /> */}
 
-      {/* Add Category Dialog */}
+      {/* Add Category Dialog
       <AlertDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
@@ -164,7 +158,7 @@ export default function InventoryScreen() {
             </Button.Group>
           </AlertDialog.Footer>
         </AlertDialog.Content>
-      </AlertDialog>
+      </AlertDialog> */}
     </Box>
   );
 }

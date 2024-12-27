@@ -19,11 +19,10 @@ import { Linking } from "react-native";
 import { useVersion } from "../context/VersionContext";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
-const TEST_MOBILE = "9999999999";
-const TEST_OTP = "1234";
+
 
 export default function OtpScreen() {
-  const [otp, setOtp] = useState(["", "", "", ""]);
+  const [otp, setOtp] = useState(["1", "2", "3", "4"]);
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const [error, setError] = useState("");
@@ -76,9 +75,10 @@ export default function OtpScreen() {
   }, []);
 
   const resetTimer = () => {
-    setTimer(30);
-    setCanResend(false);
+    setTimer(30); // Reset the timer to 30 seconds
+    setCanResend(false); // Disable resend until timer expires
   };
+  
 
   const formatMobileNumber = (number) => {
     if (!number) return "";
@@ -121,6 +121,7 @@ export default function OtpScreen() {
     setError("");
     otpInputs.current[0].focus();
   };
+  
 
   const handleVerifyOtp = async () => {
     if (otp.some((digit) => !digit)) {
@@ -227,20 +228,20 @@ export default function OtpScreen() {
   };
 
   // Add this to your useEffect
-  useEffect(() => {
-    const checkData = async () => {
-      const isDataValid = await verifyStoredData();
-      if (!isDataValid) {
-        // Handle missing data
-        console.error("Required data missing. Please login again.");
-        // Optionally clear storage and redirect to login
-        await AsyncStorage.clear();
-        router.replace("/");
-      }
-    };
+  // useEffect(() => {
+  //   const checkData = async () => {
+  //     const isDataValid = await verifyStoredData();
+  //     if (!isDataValid) {
+  //       // Handle missing data
+  //       console.error("Required data missing. Please login again.");
+  //       // Optionally clear storage and redirect to login
+  //       await AsyncStorage.clear();
+  //       router.replace("/");
+  //     }
+  //   };
 
-    checkData();
-  }, []);
+  //   checkData();
+  // }, []);
 
   return (
     <Box flex={1} bg="white" safeArea>

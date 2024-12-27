@@ -10,8 +10,11 @@ import {
   Select,
   useToast,
   Spinner,
+  Pressable,
+  Text,
 } from "native-base";
 import { Platform, StatusBar } from "react-native";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
@@ -27,6 +30,8 @@ export default function EditInventoryItemScreen() {
   const [suppliers, setSuppliers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [errors, setErrors] = useState({});
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [currentDateField, setCurrentDateField] = useState(null);
 
   const [formData, setFormData] = useState({
     inventory_id: "",
@@ -90,22 +95,22 @@ export default function EditInventoryItemScreen() {
       const data = await response.json();
       if (data.st === 1 && data.data) {
         setFormData({
-          inventory_id: data.data.inventory_id,
-          restaurant_id: data.data.restaurant_id,
-          supplier_id: data.data.supplier_id,
-          category_id: data.data.category_id,
-          name: data.data.name,
-          description: data.data.description,
-          unit_price: data.data.unit_price,
-          quantity: data.data.quantity,
-          unit_of_measure: data.data.unit_of_measure,
-          reorder_level: data.data.reorder_level,
-          brand_name: data.data.brand_name,
-          tax_rate: data.data.tax_rate,
-          in_or_out: data.data.in_or_out,
-          in_date: data.data.in_date,
-          out_date: data.data.out_date,
-          expiration_date: data.data.expiration_date,
+          inventory_id: data.data.inventory_id?.toString() || "",
+          restaurant_id: data.data.restaurant_id?.toString() || "",
+          supplier_id: data.data.supplier_id?.toString() || "",
+          category_id: data.data.category_id?.toString() || "",
+          name: data.data.name || "",
+          description: data.data.description || "",
+          unit_price: data.data.unit_price?.toString() || "",
+          quantity: data.data.quantity?.toString() || "",  // Convert to string
+          unit_of_measure: data.data.unit_of_measure || "",
+          reorder_level: data.data.reorder_level?.toString() || "",  // Convert to string
+          brand_name: data.data.brand_name || "",
+          tax_rate: data.data.tax_rate?.toString() || "",
+          in_or_out: data.data.in_or_out || "in",
+          in_date: parseDate(data.data.in_date),
+          out_date: parseDate(data.data.out_date),
+          expiration_date: parseDate(data.data.expiration_date),
         });
       }
     } catch (error) {
@@ -216,6 +221,7 @@ export default function EditInventoryItemScreen() {
     if (validateForm()) {
       try {
         setIsLoading(true);
+        const preparedData = prepareDataForSubmission(formData);
         const response = await fetch(
           `${API_BASE_URL}/captain_manage/inventory_update`,
           {
@@ -223,7 +229,7 @@ export default function EditInventoryItemScreen() {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify(formData),
+            body: JSON.stringify(preparedData),
           }
         );
 
@@ -252,6 +258,59 @@ export default function EditInventoryItemScreen() {
     }
   };
 
+  const formatDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return ''; // Return empty string if invalid date
+    
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    
+    return `${day} ${month} ${year}`;
+  };
+
+  const parseDate = (dateString) => {
+    if (!dateString) return '';
+    // Handle different date formats that might come from the API
+    const d = new Date(dateString);
+    if (!isNaN(d.getTime())) {
+      return formatDate(d);
+    }
+    return dateString; // Return original string if parsing fails
+  };
+
+  const onDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (event.type === 'set' && selectedDate) {
+      setFormData({
+        ...formData,
+        [currentDateField]: formatDate(selectedDate),
+      });
+    }
+  };
+
+  const prepareDataForSubmission = (data) => {
+    // Convert dates to API expected format if needed
+    const prepared = {
+      ...data,
+      in_date: data.in_date || '',
+      out_date: data.out_date || '',
+      expiration_date: data.expiration_date || '',
+    };
+    return prepared;
+  };
+
+  const showDatepicker = (fieldName) => {
+    setCurrentDateField(fieldName);
+    setShowDatePicker(true);
+  };
+
   if (isLoading) {
     return (
       <Box flex={1} justifyContent="center" alignItems="center">
@@ -262,7 +321,7 @@ export default function EditInventoryItemScreen() {
 
   return (
     <Box flex={1} bg="white" safeArea>
-      <Header title="Edit Inventory Item" />
+      <Header title="Edit Inventory " />
 
       <ScrollView px={4} showsVerticalScrollIndicator={false}>
         <VStack space={4} py={4}>
@@ -389,36 +448,55 @@ export default function EditInventoryItemScreen() {
           {/* Dates */}
           <FormControl>
             <FormControl.Label>In Date</FormControl.Label>
-            <Input
-              value={formData.in_date}
-              onChangeText={(value) =>
-                setFormData({ ...formData, in_date: value })
-              }
-              placeholder="Enter in date"
-            />
+            <Pressable onPress={() => showDatepicker('in_date')}>
+              <Input
+                value={formData.in_date}
+                isReadOnly
+                placeholder="Select in date"
+                rightElement={
+                  <Text px={2} color="gray.400">📅</Text>
+                }
+              />
+            </Pressable>
           </FormControl>
 
           <FormControl>
             <FormControl.Label>Out Date</FormControl.Label>
-            <Input
-              value={formData.out_date}
-              onChangeText={(value) =>
-                setFormData({ ...formData, out_date: value })
-              }
-              placeholder="Enter out date"
-            />
+            <Pressable onPress={() => showDatepicker('out_date')}>
+              <Input
+                value={formData.out_date}
+                isReadOnly
+                placeholder="Select out date"
+                rightElement={
+                  <Text px={2} color="gray.400">📅</Text>
+                }
+              />
+            </Pressable>
           </FormControl>
 
           <FormControl>
             <FormControl.Label>Expiration Date</FormControl.Label>
-            <Input
-              value={formData.expiration_date}
-              onChangeText={(value) =>
-                setFormData({ ...formData, expiration_date: value })
-              }
-              placeholder="Enter expiration date"
-            />
+            <Pressable onPress={() => showDatepicker('expiration_date')}>
+              <Input
+                value={formData.expiration_date}
+                isReadOnly
+                placeholder="Select expiration date"
+                rightElement={
+                  <Text px={2} color="gray.400">📅</Text>
+                }
+              />
+            </Pressable>
           </FormControl>
+
+          {/* Date Picker */}
+          {showDatePicker && (
+            <DateTimePicker
+              value={new Date(formData[currentDateField] || Date.now())}
+              mode="date"
+              display="default"
+              onChange={onDateChange}
+            />
+          )}
 
           {/* Category Selection */}
           <FormControl isRequired isInvalid={"category_id" in errors}>

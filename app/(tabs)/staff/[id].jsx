@@ -259,7 +259,9 @@ export default function StaffDetailsScreen() {
                     Address
                   </Text>
                   <Text fontSize="md">
-                    {staff.address || "Address not provided"}
+                    {/* {staff.address || "Address not provided"} */}
+                    {staff.address?.charAt(0).toUpperCase() + staff.address?.slice(1) || "Address not provided"}
+
                   </Text>
                 </VStack>
               </HStack>
@@ -279,12 +281,18 @@ export default function StaffDetailsScreen() {
                 </HStack>
                 <HStack justifyContent="space-between">
                   <Text color="coolGray.500">Aadhar Number</Text>
-                  <Text>{staff.aadhar_number}</Text>
+                  <Text>{staff.aadhar_number}
+                    
+                  </Text>
                 </HStack>
                 <Divider />
                 <HStack justifyContent="space-between">
                   <Text color="coolGray.500">Created By</Text>
-                  <Text>{staff.created_by}</Text>
+                  <Text>
+                  {staff.created_by?.charAt(0).toUpperCase() + staff.created_by?.slice(1) }
+
+                  </Text>
+                  
                 </HStack>
                 <HStack justifyContent="space-between">
                   <Text color="coolGray.500">Created On</Text>

@@ -57,6 +57,18 @@ export default function TableSectionsScreen() {
   const [showCreateTableModal, setShowCreateTableModal] = useState(false);
   const [selectedSection, setSelectedSection] = useState(null);
 
+  const handleSelectChange = (value) => {
+    if (value === "availableTables") {
+      setActiveFilter("AVAILABLE");
+    } else if (value === "occupiedTables") {
+      setActiveFilter("ENGAGED");
+    } else {
+      setActiveFilter(""); // Reset the filter when other options are selected
+    }
+
+    setSortBy(value); // Update the sort criteria
+  };
+
   useEffect(() => {
     const initializeData = async () => {
       await getStoredData();
@@ -664,7 +676,7 @@ export default function TableSectionsScreen() {
                                         top={-2}
                                         left={-2}
                                         right={-2}
-                                        bg="red.500"
+                                        setActiveFilter          bg="red.500"
                                         py={1}
                                         rounded="md"
                                         shadow={1}
@@ -707,6 +719,7 @@ export default function TableSectionsScreen() {
                                         </Text>
                                       </Text>
                                     </VStack>
+                                    
                                   </Box>
                                 </Pressable>
                               ) : isLastEmptySlot ? (
@@ -1169,7 +1182,7 @@ export default function TableSectionsScreen() {
           <Select
             w="110"
             selectedValue={sortBy}
-            onValueChange={setSortBy}
+            onValueChange={handleSelectChange}
             bg="coolGray.50"
             borderRadius="lg"
             _selectedItem={{
@@ -1181,7 +1194,8 @@ export default function TableSectionsScreen() {
           >
             <Select.Item label="Name" value="name" />
             <Select.Item label="Total Tables" value="totalTables" />
-            <Select.Item label="Engaged Tables" value="engagedTables" />
+        <Select.Item label="Available Tables" value="availableTables" />
+        <Select.Item label="Occupied Tables" value="occupiedTables" />
           </Select>
           <IconButton
             icon={

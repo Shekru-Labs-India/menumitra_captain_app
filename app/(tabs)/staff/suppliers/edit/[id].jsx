@@ -38,7 +38,7 @@ export default function EditSupplierScreen() {
     creditLimit: "",
     location: "",
     ownerName: "",
-    supplierCode: "",
+
     website: "",
     mobileNumber1: "",
     mobileNumber2: "",
@@ -106,7 +106,7 @@ export default function EditSupplierScreen() {
             creditLimit: data.data.credit_limit?.toString(),
             location: data.data.location,
             ownerName: data.data.owner_name,
-            supplierCode: data.data.supplier_code,
+          
             website: data.data.website,
             mobileNumber1: data.data.mobile_number1,
             mobileNumber2: data.data.mobile_number2,
@@ -308,17 +308,7 @@ export default function EditSupplierScreen() {
                 </Select>
               </FormControl>
 
-              <FormControl>
-                <FormControl.Label>Supplier Code</FormControl.Label>
-                <Input
-                  value={formData.supplierCode}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, supplierCode: text })
-                  }
-                  placeholder="Enter supplier code"
-                  bg="white"
-                />
-              </FormControl>
+            
             </VStack>
           </Box>
 

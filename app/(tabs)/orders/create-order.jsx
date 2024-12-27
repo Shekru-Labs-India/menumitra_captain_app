@@ -171,59 +171,63 @@ export default function CreateOrderScreen() {
   }, []);
 
   useEffect(() => {
-    fetchMenuItems();
-  }, [restaurantId]);
+    if (restaurantId) {
+      fetchMenuItems();
+    }
+  }, [restaurantId]); // Only depend on restaurantId
 
   useEffect(() => {
-    const loadOrderDetails = async () => {
-      if (orderNumber && isOccupied === "1") {
-        try {
-          const storedRestaurantId = await AsyncStorage.getItem(
-            "restaurant_id"
-          );
+    if (orderNumber && isOccupied === "1") {
+      loadOrderDetails();
+    }
+  }, [orderNumber, isOccupied]); // Only depend on these two values
 
-          // Fetch order details from API
-          const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              restaurant_id: parseInt(storedRestaurantId),
-              order_number: orderNumber,
-            }),
-          });
+  const loadOrderDetails = async () => {
+    if (orderNumber && isOccupied === "1") {
+      try {
+        const storedRestaurantId = await AsyncStorage.getItem(
+          "restaurant_id"
+        );
 
-          const data = await response.json();
-          console.log("Order Details Response:", data);
+        // Fetch order details from API
+        const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: parseInt(storedRestaurantId),
+            order_number: orderNumber,
+          }),
+        });
 
-          if (data.st === 1 && data.lists?.order_details) {
-            setOrderDetails(data.lists.order_details);
+        const data = await response.json();
+        console.log("Order Details Response:", data);
 
-            if (data.lists.menu_details) {
-              const formattedItems = data.lists.menu_details.map((item) => ({
-                menu_id: item.menu_id,
-                menu_name: item.menu_name,
-                price: parseFloat(item.price),
-                quantity: parseInt(item.quantity),
-                portionSize: "Full",
-                menu_sub_total: parseFloat(item.menu_sub_total),
-              }));
-              setSelectedItems(formattedItems);
-            }
+        if (data.st === 1 && data.lists?.order_details) {
+          setOrderDetails(data.lists.order_details);
+
+          if (data.lists.menu_details) {
+            const formattedItems = data.lists.menu_details.map((item) => ({
+              menu_id: item.menu_id,
+              menu_name: item.menu_name,
+              price: parseFloat(item.price),
+              quantity: parseInt(item.quantity),
+              portionSize: "Full",
+              menu_sub_total: parseFloat(item.menu_sub_total),
+            }));
+            setSelectedItems(formattedItems);
           }
-        } catch (error) {
-          console.error("Error loading order details:", error);
-          toast.show({
-            description: "Failed to load order details",
-            status: "error",
-          });
         }
+      } catch (error) {
+        console.error("Error loading order details:", error);
+        toast.show({
+          description: "Failed to load order details",
+          status: "error",
+        });
       }
-    };
-
-    loadOrderDetails();
-  }, [orderNumber, isOccupied]);
+    }
+  };
 
   useEffect(() => {
     console.log("Received params:", params);
@@ -622,6 +626,70 @@ export default function CreateOrderScreen() {
     };
   }, []);
 
+  const memoizedGetSearchResults = React.useCallback((query) => {
+    if (!query || !menuItems) return [];
+    const searchTerm = query.toLowerCase();
+    return menuItems.filter((item) => {
+      const itemName = item.menu_name?.toLowerCase() || '';
+      const itemDescription = item.description?.toLowerCase() || '';
+      const itemCategory = item.category?.toLowerCase() || '';
+      
+      return (
+        itemName.includes(searchTerm) ||
+        itemDescription.includes(searchTerm) ||
+        itemCategory.includes(searchTerm)
+      );
+    });
+  }, [menuItems]);
+
+  const handleSearch = (text) => {
+    setSearchQuery(text);
+    if (text.length >= 1) {
+      const results = memoizedGetSearchResults(text);
+      setSearchResults(results);
+      setIsSearchOpen(true);
+    } else {
+      setSearchResults([]);
+      setIsSearchOpen(false);
+    }
+  };
+
+  const handleSelectMenuItem = (item) => {
+    // Check if item already exists in selectedItems
+    const existingItem = selectedItems.find(
+      (selectedItem) => selectedItem.menu_id === item.menu_id
+    );
+
+    if (existingItem) {
+      // If item exists, update its quantity
+      const updatedItems = selectedItems.map((selectedItem) =>
+        selectedItem.menu_id === item.menu_id
+          ? { ...selectedItem, quantity: selectedItem.quantity + 1 }
+          : selectedItem
+      );
+      setSelectedItems(updatedItems);
+    } else {
+      // If item doesn't exist, add it with quantity 1
+      setSelectedItems([
+        ...selectedItems,
+        {
+          menu_id: item.menu_id,
+          menu_name: item.menu_name,
+          price: parseFloat(item.price),
+          quantity: 1,
+          portionSize: "Full",
+          specialInstructions: "",
+        },
+      ]);
+    }
+
+    // Clear search
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsSearchOpen(false);
+    Keyboard.dismiss();
+  };
+
   const OrderSummary = () => {
     console.log("Order Details:", orderDetails); // Add this for debugging
 
@@ -795,6 +863,29 @@ export default function CreateOrderScreen() {
     }
   }, [isFocused]);
 
+  const calculateSubtotal = (items) => {
+    return items.reduce((sum, item) => {
+      const itemPrice = item.portionSize === "Half" ? item.price * 0.6 : item.price;
+      return sum + (itemPrice * item.quantity);
+    }, 0);
+  };
+
+  const calculateTotal = (items) => {
+    const subtotal = calculateSubtotal(items);
+    // Only update these states if they've changed
+    const newGst = subtotal * 0.05;
+    const newService = subtotal * 0.05;
+    
+    if (Math.abs(newGst - gstAmount) > 0.01) {
+      setGstAmount(newGst);
+    }
+    if (Math.abs(newService - serviceCharges) > 0.01) {
+      setServiceCharges(newService);
+    }
+    
+    return (subtotal + newGst + newService - discountAmount).toFixed(2);
+  };
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -822,16 +913,7 @@ export default function CreateOrderScreen() {
           borderWidth={1}
           borderColor="coolGray.400"
           bg="white"
-          onChangeText={(text) => {
-            setSearchQuery(text);
-            if (text.length >= 1) {
-              setSearchResults(getSearchResults(text));
-              setIsSearchOpen(true);
-            } else {
-              setSearchResults([]);
-              setIsSearchOpen(false);
-            }
-          }}
+          onChangeText={handleSearch}
           onFocus={() => {
             if (searchQuery.length >= 1) {
               setIsSearchOpen(true);

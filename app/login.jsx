@@ -20,7 +20,7 @@ import { router } from "expo-router";
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
 export default function LoginScreen() {
-  const [mobileNumber, setMobileNumber] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("6723211225");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState("");
@@ -56,36 +56,37 @@ export default function LoginScreen() {
   };
 
   const handleMobileNumberChange = (text) => {
-    const numbersOnly = text.replace(/[^0-9]/g, "");
-    setMobileNumber(numbersOnly);
-
-    // Clear all errors when input is empty
+    const numbersOnly = text.replace(/[^0-9]/g, ""); // Allow only numeric input
+    
+    // Reject input if the first digit is between 0 and 5
+    if (numbersOnly.length === 1 && !["6", "7", "8", "9"].includes(numbersOnly)) {
+      setErrorMessage("Mobile number should start with 6, 7, 8 or 9");
+      return; // Do not update the input field
+    }
+  
+    // Clear error messages when input is empty
     if (numbersOnly.length === 0) {
+      setMobileNumber(""); // Clear the input field
       setErrorMessage("");
       setApiError("");
       return;
     }
-
-    // Check first digit
-    if (
-      numbersOnly.length === 1 &&
-      !["6", "7", "8", "9"].includes(numbersOnly)
-    ) {
-      setErrorMessage("Mobile number should start with 6, 7, 8 or 9");
-      return;
-    }
-
-    // Check length
+  
+    setMobileNumber(numbersOnly); // Update the state
+  
+    // Validate length
     if (numbersOnly.length > 0 && numbersOnly.length < 10) {
       setErrorMessage("Please enter a valid 10-digit mobile number");
     } else {
       setErrorMessage("");
     }
-
+  
+    // Automatically dismiss the keyboard when the number reaches 10 digits
     if (numbersOnly.length === 10) {
       Keyboard.dismiss();
     }
   };
+  
 
   const handleSendOtp = async () => {
     if (!validateMobileNumber(mobileNumber)) {
@@ -135,7 +136,10 @@ export default function LoginScreen() {
       setIsLoading(false);
     }
   };
-
+ 
+  
+  
+  
   const handleLogin = async (response) => {
     try {
       await AsyncStorage.setItem("captain_id", response.captain_id.toString());

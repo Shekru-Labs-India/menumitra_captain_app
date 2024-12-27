@@ -359,7 +359,7 @@ export default function SupplierDetails() {
                 </HStack>
               )}
 
-              {/* Address */}
+{supplier.address && (
               <HStack space={3} alignItems="center">
                 <Box p={2} bg="blue.100" rounded="full">
                   <MaterialIcons
@@ -377,6 +377,7 @@ export default function SupplierDetails() {
                   </Text>
                 </VStack>
               </HStack>
+)}
             </VStack>
           </VStack>
 
@@ -387,15 +388,23 @@ export default function SupplierDetails() {
             <Heading size="md">Business Details</Heading>
             <VStack space={4} bg="coolGray.50" p={4} rounded="lg">
               <VStack space={3}>
+              {supplier.ownerName && (
                 <HStack justifyContent="space-between">
                   <Text color="coolGray.500">Owner Name</Text>
                   <Text>{supplier.ownerName || "Not specified"}</Text>
                 </HStack>
+              )}
+                {supplier.location && (
+                  <>
                 <HStack justifyContent="space-between">
                   <Text color="coolGray.500">Location</Text>
                   <Text>{supplier.location || "Not specified"}</Text>
                 </HStack>
+            
                 <Divider />
+                </>
+              )}
+              {supplier.creditRating && (
                 <HStack justifyContent="space-between">
                   <Text color="coolGray.500">Credit Rating</Text>
                   <Badge
@@ -406,10 +415,13 @@ export default function SupplierDetails() {
                     {supplier.creditRating || "Not Rated"}
                   </Badge>
                 </HStack>
+              )}
+              {supplier.creditLimit && (
                 <HStack justifyContent="space-between">
                   <Text color="coolGray.500">Credit Limit</Text>
                   <Text>{supplier.creditLimit || "Not specified"}</Text>
                 </HStack>
+              )}
               </VStack>
             </VStack>
           </VStack>
