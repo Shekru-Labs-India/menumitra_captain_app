@@ -31,6 +31,8 @@ export default function OtpScreen() {
   const mobileNumber = params.mobile;
   const navigation = useNavigation();
   const { version } = useVersion();
+  const [timerKey, setTimerKey] = useState(0);
+
   useEffect(() => {
     checkExistingSession();
   }, []);
@@ -72,7 +74,7 @@ export default function OtpScreen() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [timerKey]);
 
   const resetTimer = () => {
     setTimer(30); // Reset the timer to 30 seconds
@@ -114,14 +116,43 @@ export default function OtpScreen() {
     }
   };
 
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
     if (!canResend) return;
-    setOtp(["", "", "", ""]);
-    resetTimer();
-    setError("");
-    otpInputs.current[0].focus();
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/captain_login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mobile: mobileNumber,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data && data.st === 1) {
+        setOtp(["", "", "", ""]);
+        setError("");
+        setTimer(30);
+        setCanResend(false);
+        setTimerKey(prev => prev + 1); // Force timer reset
+        otpInputs.current[0].focus();
+
+        // Extract and store new OTP if present
+        const otpMatch = data.msg.match(/\d{4}/);
+        if (otpMatch) {
+          await AsyncStorage.setItem("currentOtp", otpMatch[0]);
+        }
+      } else {
+        setError(data.msg || "Failed to resend OTP");
+      }
+    } catch (error) {
+      console.error("Resend OTP Error:", error);
+      setError("Failed to resend OTP. Please try again.");
+    }
   };
-  
 
   const handleVerifyOtp = async () => {
     if (otp.some((digit) => !digit)) {

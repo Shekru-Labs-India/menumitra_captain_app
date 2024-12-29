@@ -37,7 +37,6 @@ export default function AddSupplierScreen() {
     creditLimit: "",
     location: "",
     ownerName: "",
-   
     website: "",
     mobileNumber1: "",
     mobileNumber2: "",
@@ -46,6 +45,7 @@ export default function AddSupplierScreen() {
 
   const [creditRatings, setCreditRatings] = useState([]);
   const [statusChoices, setStatusChoices] = useState([]);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     fetchCreditRatings();
@@ -114,12 +114,205 @@ export default function AddSupplierScreen() {
     }
   };
 
-  const handleSave = async () => {
-    if (!formData.name || !formData.mobileNumber1) {
+  // Add validation functions
+  const validateName = (text) => {
+    return /^[a-zA-Z\s]+$/.test(text); // Only letters and spaces
+  };
+
+  const validateMobileNumber = (text) => {
+    return /^[0-9]+$/.test(text); // Only numbers
+  };
+
+  const validateLocation = (text) => {
+    return /^[a-zA-Z0-9\s,.-]+$/.test(text); // Letters, numbers, spaces, commas, dots, hyphens
+  };
+
+  const validateAddress = (text) => {
+    return text.trim().length >= 5;
+  };
+
+  // Update form change handler
+  const handleFormChange = (field, value) => {
+    let isValid = true;
+    let sanitizedValue = value.trim();
+
+    switch (field) {
+      case "name":
+      case "ownerName":
+        isValid = validateName(sanitizedValue);
+        if (!isValid) {
+          toast.show({
+            description: `${
+              field === "name" ? "Supplier name" : "Owner name"
+            } should only contain letters`,
+            status: "error",
+          });
+          return;
+        }
+        break;
+
+      case "mobileNumber1":
+      case "mobileNumber2":
+        isValid = validateMobileNumber(sanitizedValue);
+        if (!isValid) {
+          toast.show({
+            description: "Mobile number should only contain digits",
+            status: "error",
+          });
+          return;
+        }
+        if (sanitizedValue.length > 0 && sanitizedValue.length !== 10) {
+          toast.show({
+            description: "Mobile number should be 10 digits",
+            status: "error",
+          });
+          return;
+        }
+        break;
+
+      case "location":
+        isValid = validateLocation(sanitizedValue);
+        if (!isValid) {
+          toast.show({
+            description: "Location should not contain special characters",
+            status: "error",
+          });
+          return;
+        }
+        break;
+    }
+
+    if (isValid) {
+      setFormData((prev) => ({ ...prev, [field]: sanitizedValue }));
+    }
+  };
+
+  const handleAddressChange = (text) => {
+    setFormData({ ...formData, address: text });
+
+    if (!text.trim()) {
+      setErrors((prev) => ({ ...prev, address: "Address is required" }));
+    } else if (text.trim().length < 5) {
+      setErrors((prev) => ({
+        ...prev,
+        address: "Address must be at least 5 characters",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, address: undefined }));
+    }
+  };
+
+  const validateForm = () => {
+    // Check required fields
+    if (!formData.name) {
       toast.show({
-        description: "Please fill in all required fields",
-        status: "error",
+        title: "Required Field",
+        description: "Please enter supplier name",
+        status: "warning",
+        duration: 3000,
       });
+      return false;
+    }
+
+    if (!formData.mobileNumber1) {
+      toast.show({
+        title: "Required Field",
+        description: "Please enter primary mobile number",
+        status: "warning",
+        duration: 3000,
+      });
+      return false;
+    }
+
+    // Validate name format
+    if (!validateName(formData.name)) {
+      toast.show({
+        title: "Invalid Input",
+        description: "Supplier name should only contain letters",
+        status: "error",
+        duration: 3000,
+      });
+      return false;
+    }
+
+    // Validate mobile number
+    if (
+      !validateMobileNumber(formData.mobileNumber1) ||
+      formData.mobileNumber1.length !== 10
+    ) {
+      toast.show({
+        title: "Invalid Input",
+        description: "Please enter a valid 10-digit mobile number",
+        status: "error",
+        duration: 3000,
+      });
+      return false;
+    }
+
+    // If mobile number 2 is provided, validate it
+    if (
+      formData.mobileNumber2 &&
+      (!validateMobileNumber(formData.mobileNumber2) ||
+        formData.mobileNumber2.length !== 10)
+    ) {
+      toast.show({
+        title: "Invalid Input",
+        // description: "Secondary mobile number should be 10 digits",
+        status: "error",
+        duration: 3000,
+      });
+      return false;
+    }
+
+    // Validate owner name if provided
+    if (formData.ownerName && !validateName(formData.ownerName)) {
+      toast.show({
+        title: "Invalid Input",
+        description: "Owner name should only contain letters",
+        status: "error",
+        duration: 3000,
+      });
+      return false;
+    }
+
+    // Validate location if provided
+    if (formData.location && !validateLocation(formData.location)) {
+      toast.show({
+        title: "Invalid Input",
+        description: "Location contains invalid characters",
+        status: "error",
+        duration: 3000,
+      });
+      return false;
+    }
+
+    // Add address validation
+    if (!formData.address?.trim()) {
+      toast.show({
+        title: "Required Field",
+        description: "Please enter address",
+        status: "warning",
+        duration: 3000,
+      });
+      return false;
+    }
+
+    if (!validateAddress(formData.address)) {
+      toast.show({
+        title: "Invalid Input",
+        description: "Address must be at least 5 characters long",
+        status: "error",
+        duration: 3000,
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSave = async () => {
+    // First validate all fields
+    if (!validateForm()) {
       return;
     }
 
@@ -138,7 +331,7 @@ export default function AddSupplierScreen() {
             name: formData.name,
             supplier_status: formData.status || "active",
             credit_rating: formData.creditRating,
-            credit_limit: parseInt(formData.creditLimit),
+            credit_limit: parseInt(formData.creditLimit) || 0,
             location: formData.location,
             owner_name: formData.ownerName,
             website: formData.website,
@@ -152,18 +345,21 @@ export default function AddSupplierScreen() {
       const data = await response.json();
 
       if (data.st === 1) {
-        toast.show({
-          description: "Supplier created successfully",
-          status: "success",
-        });
         router.back();
       } else {
-        throw new Error(data.msg || "Failed to create supplier");
+        toast.show({
+          title: "Error",
+          description: data.msg || "Failed to create supplier",
+          status: "error",
+          duration: 3000,
+        });
       }
     } catch (error) {
       toast.show({
-        description: error.message,
+        title: "Error",
+        description: "Something went wrong. Please try again.",
         status: "error",
+        duration: 3000,
       });
     }
   };
@@ -194,9 +390,7 @@ export default function AddSupplierScreen() {
                 <FormControl.Label>Name</FormControl.Label>
                 <Input
                   value={formData.name}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, name: text })
-                  }
+                  onChangeText={(text) => handleFormChange("name", text)}
                   placeholder="Enter supplier name"
                   bg="white"
                 />
@@ -227,8 +421,6 @@ export default function AddSupplierScreen() {
                   ))}
                 </Select>
               </FormControl>
-
-            
             </VStack>
           </Box>
 
@@ -247,10 +439,11 @@ export default function AddSupplierScreen() {
                 <Input
                   value={formData.mobileNumber1}
                   onChangeText={(text) =>
-                    setFormData({ ...formData, mobileNumber1: text })
+                    handleFormChange("mobileNumber1", text)
                   }
                   placeholder="Enter primary mobile number"
-                  keyboardType="phone-pad"
+                  keyboardType="numeric"
+                  maxLength={10}
                   bg="white"
                 />
               </FormControl>
@@ -260,10 +453,11 @@ export default function AddSupplierScreen() {
                 <Input
                   value={formData.mobileNumber2}
                   onChangeText={(text) =>
-                    setFormData({ ...formData, mobileNumber2: text })
+                    handleFormChange("mobileNumber2", text)
                   }
                   placeholder="Enter secondary mobile number"
-                  keyboardType="phone-pad"
+                  keyboardType="numeric"
+                  maxLength={10}
                   bg="white"
                 />
               </FormControl>
@@ -336,9 +530,7 @@ export default function AddSupplierScreen() {
                 <FormControl.Label>Owner Name</FormControl.Label>
                 <Input
                   value={formData.ownerName}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, ownerName: text })
-                  }
+                  onChangeText={(text) => handleFormChange("ownerName", text)}
                   placeholder="Enter owner name"
                   bg="white"
                 />
@@ -348,26 +540,26 @@ export default function AddSupplierScreen() {
                 <FormControl.Label>Location</FormControl.Label>
                 <Input
                   value={formData.location}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, location: text })
-                  }
+                  onChangeText={(text) => handleFormChange("location", text)}
                   placeholder="Enter location"
                   bg="white"
                 />
               </FormControl>
 
-              <FormControl>
+              <FormControl isRequired isInvalid={"address" in errors}>
                 <FormControl.Label>Address</FormControl.Label>
                 <TextArea
                   value={formData.address}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, address: text })
-                  }
-                  placeholder="Enter complete address"
+                  onChangeText={handleAddressChange}
+                  placeholder="Enter complete address (minimum 5 characters)"
                   autoCompleteType={undefined}
                   h={20}
                   bg="white"
                 />
+                <FormControl.ErrorMessage>
+                  {errors.address}
+                </FormControl.ErrorMessage>
+              
               </FormControl>
 
               <Button

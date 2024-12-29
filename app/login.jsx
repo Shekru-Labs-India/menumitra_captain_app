@@ -9,6 +9,7 @@ import {
   Button,
   Icon,
   Spinner,
+  KeyboardAvoidingView,
 } from "native-base";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useVersion } from "../context/VersionContext";
@@ -156,6 +157,7 @@ export default function LoginScreen() {
   };
 
   return (
+    
     <Box flex={1} bg="white" safeArea>
       <Box flex={1} px={6} justifyContent="center">
         <VStack space={6} alignItems="center" w="100%">

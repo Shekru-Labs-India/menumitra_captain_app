@@ -45,6 +45,7 @@ export default function AddStaffScreen() {
   const [captainId, setCaptainId] = useState(null);
   const [restaurantId, setRestaurantId] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [errors, setErrors] = useState({}); // Add this state for form errors
 
   const pickImage = async () => {
     try {
@@ -81,77 +82,110 @@ export default function AddStaffScreen() {
     }
   };
 
+  // Add this function to handle name input with validation
+  const handleNameChange = (text) => {
+    // Remove special characters and numbers on input
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, '');
+    setFormData({ ...formData, name: sanitizedText });
+    
+    // Validate and set error
+    if (sanitizedText.trim().length < 2) {
+      setErrors(prev => ({...prev, name: "Name must be at least 2 characters long"}));
+    } else if (!/^[a-zA-Z\s]+$/.test(sanitizedText)) {
+      setErrors(prev => ({...prev, name: "Only letters and spaces allowed"}));
+    } else {
+      setErrors(prev => ({...prev, name: undefined}));
+    }
+  };
+
+  // Modify handlePhoneChange function
+  const handlePhoneChange = (text) => {
+    // Prevent entering 0-5 as first digit
+    if (text.length === 1 && ['0','1','2','3','4','5'].includes(text)) {
+      setErrors(prev => ({...prev, phone: "Number must start with 6, 7, 8 or 9"}));
+      return; // Don't update state with invalid first digit
+    }
+
+    // Only allow digits
+    const sanitizedText = text.replace(/[^0-9]/g, '');
+    setFormData({ ...formData, phone: sanitizedText });
+    
+    // Validate the phone number
+    if (sanitizedText.length > 0 && !['6','7','8','9'].includes(sanitizedText[0])) {
+      setErrors(prev => ({...prev, phone: "Number must start with 6, 7, 8 or 9"}));
+    } else if (sanitizedText.length === 10 && !/^[6-9]\d{9}$/.test(sanitizedText)) {
+      setErrors(prev => ({...prev, phone: "Enter valid 10-digit number"}));
+    } else {
+      setErrors(prev => ({...prev, phone: undefined}));
+    }
+  };
+
+  // Add this function to handle address input validation
+  const handleAddressChange = (text) => {
+    // Remove special characters but allow basic punctuation
+    const sanitizedText = text.replace(/[^a-zA-Z0-9\s,.-]/g, '');
+    setFormData({ ...formData, address: sanitizedText });
+    
+    // Validate address
+    if (!sanitizedText.trim()) {
+      setErrors(prev => ({...prev, address: "Address is required"}));
+    } else if (sanitizedText.trim().length < 10) {
+      setErrors(prev => ({...prev, address: "Address must be at least 10 characters"}));
+    } else {
+      setErrors(prev => ({...prev, address: undefined}));
+    }
+  };
+
+  // Update validateForm function
   const validateForm = () => {
     try {
-      // Check if all fields are filled
-      if (
-        !formData.name ||
-        !formData.role ||
-        !formData.dob ||
-        !formData.aadharNo ||
-        !formData.phone ||
-        !formData.address
-      ) {
-        toast.show({
-          description: "All fields are mandatory",
-          status: "error",
-        });
-        return false;
-      }
-
+      const newErrors = {};
+      
       // Validate name (only letters and spaces)
-      const nameRegex = /^[a-zA-Z\s]{2,50}$/;
-      if (!nameRegex.test(formData.name)) {
-        toast.show({
-          description: "Please enter a valid name (only letters and spaces)",
-          status: "error",
-        });
-        return false;
+      if (!formData.name?.trim()) {
+        newErrors.name = "Name is required";
+      } else if (!/^[a-zA-Z\s]{2,50}$/.test(formData.name.trim())) {
+        newErrors.name = "Name can only contain letters and spaces";
       }
 
-      // Validate phone number (10 digits starting with 6-9)
-      const phoneRegex = /^[6-9]\d{9}$/;
-      if (!phoneRegex.test(formData.phone)) {
-        toast.show({
-          description:
-            "Please enter a valid 10-digit mobile number starting with 6-9",
-          status: "error",
-        });
-        return false;
+      // Validate phone number
+      if (!formData.phone) {
+        newErrors.phone = "Mobile number is required";
+      } else if (formData.phone.length !== 10) {
+        newErrors.phone = "Mobile number must be 10 digits";
+      } else if (!/^[6-9]\d{9}$/.test(formData.phone)) {
+        newErrors.phone = "Invalid mobile number format";
       }
 
-      // Validate Aadhar number (12 digits)
-      const aadharRegex = /^\d{12}$/;
-      if (!aadharRegex.test(formData.aadharNo)) {
-        toast.show({
-          description: "Please enter a valid 12-digit Aadhar number",
-          status: "error",
-        });
-        return false;
+      // Role validation
+      if (!formData.role) {
+        newErrors.role = "Role is required";
       }
 
-      // Validate DOB format and age
-   
-
-      const dob = new Date(formData.dob);
-      const today = new Date();
-      let age = today.getFullYear() - dob.getFullYear();
-      const monthDiff = today.getMonth() - dob.getMonth();
-
-      if (
-        monthDiff < 0 ||
-        (monthDiff === 0 && today.getDate() < dob.getDate())
-      ) {
-        age--;
+      // DOB validation
+      if (!formData.dob) {
+        newErrors.dob = "Date of birth is required";
       }
 
-    
+      // Aadhar validation
+      if (!formData.aadharNo) {
+        newErrors.aadharNo = "Aadhar number is required";
+      } else if (!/^\d{12}$/.test(formData.aadharNo)) {
+        newErrors.aadharNo = "Enter valid 12-digit Aadhar number";
+      }
 
-      // Validate address (minimum length)
-      if (formData.address.length < 10) {
+      // Address validation
+      if (!formData.address?.trim()) {
+        newErrors.address = "Address is required";
+      } else if (formData.address.trim().length < 10) {
+        newErrors.address = "Address must be at least 10 characters";
+      }
+
+      setErrors(newErrors);
+      
+      if (Object.keys(newErrors).length > 0) {
         toast.show({
-          description:
-            "Please enter a complete address (minimum 10 characters)",
+          description: "Please fix all errors before submitting",
           status: "error",
         });
         return false;
@@ -364,23 +398,29 @@ export default function AddStaffScreen() {
             </Pressable>
           </Center>
 
-          <FormControl isRequired>
+          <FormControl isRequired isInvalid={"name" in errors}>
             <FormControl.Label>Full Name</FormControl.Label>
             <Input
               value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
+              onChangeText={handleNameChange}
               placeholder="Enter Full Name"
               autoCapitalize="words"
+              maxLength={50}
             />
+            <FormControl.ErrorMessage>
+              {errors.name}
+            </FormControl.ErrorMessage>
+           
           </FormControl>
 
-          <FormControl isRequired>
+          <FormControl isRequired isInvalid={"role" in errors}>
             <FormControl.Label>Role</FormControl.Label>
             <Select
               selectedValue={formData.role}
-              onValueChange={(value) =>
-                setFormData({ ...formData, role: value })
-              }
+              onValueChange={(value) => {
+                setFormData({ ...formData, role: value });
+                setErrors(prev => ({...prev, role: undefined}));
+              }}
               placeholder="Select role"
               isDisabled={isLoadingRoles}
               _selectedItem={{
@@ -396,20 +436,25 @@ export default function AddStaffScreen() {
                 />
               ))}
             </Select>
+            <FormControl.ErrorMessage>{errors.role}</FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl isRequired>
+          <FormControl isRequired isInvalid={"phone" in errors}>
             <FormControl.Label>Mobile Number</FormControl.Label>
             <Input
               value={formData.phone}
-              onChangeText={(text) => setFormData({ ...formData, phone: text })}
-              placeholder="Enter  Mobile Number"
+              onChangeText={handlePhoneChange}
+              placeholder="Enter Mobile Number (start with 6-9)"
               keyboardType="numeric"
               maxLength={10}
             />
+            <FormControl.ErrorMessage>
+              {errors.phone}
+            </FormControl.ErrorMessage>
+      
           </FormControl>
 
-          <FormControl isRequired>
+          <FormControl isRequired isInvalid={"dob" in errors}>
             <FormControl.Label>Date of Birth</FormControl.Label>
             <Pressable onPress={() => setShowDatePicker(true)}>
               <Input
@@ -430,6 +475,7 @@ export default function AddStaffScreen() {
                 }
               />
             </Pressable>
+            <FormControl.ErrorMessage>{errors.dob}</FormControl.ErrorMessage>
           </FormControl>
 
           {showDatePicker && (
@@ -442,30 +488,37 @@ export default function AddStaffScreen() {
             />
           )}
 
-          <FormControl isRequired>
+          <FormControl isRequired isInvalid={"aadharNo" in errors}>
             <FormControl.Label>Aadhar Number</FormControl.Label>
             <Input
               value={formData.aadharNo}
-              onChangeText={(text) =>
-                setFormData({ ...formData, aadharNo: text })
-              }
+              onChangeText={(text) => {
+                const numbers = text.replace(/[^0-9]/g, '');
+                setFormData({ ...formData, aadharNo: numbers });
+                if (numbers.length !== 12) {
+                  setErrors(prev => ({...prev, aadharNo: "Must be 12 digits"}));
+                } else {
+                  setErrors(prev => ({...prev, aadharNo: undefined}));
+                }
+              }}
               placeholder="Enter 12-digit Aadhar number"
               keyboardType="numeric"
               maxLength={12}
             />
+            <FormControl.ErrorMessage>{errors.aadharNo}</FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl isRequired>
+          <FormControl isRequired isInvalid={"address" in errors}>
             <FormControl.Label>Address</FormControl.Label>
             <TextArea
               value={formData.address}
-              onChangeText={(text) =>
-                setFormData({ ...formData, address: text })
-              }
+              onChangeText={handleAddressChange}
               placeholder="Enter complete address"
               autoCompleteType={undefined}
               h={20}
             />
+            <FormControl.ErrorMessage>{errors.address}</FormControl.ErrorMessage>
+           
           </FormControl>
 
           <Button

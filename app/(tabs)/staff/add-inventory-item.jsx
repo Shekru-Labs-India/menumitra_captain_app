@@ -180,11 +180,35 @@ export default function AddInventoryItemScreen() {
     fetchSuppliers(); // Call the function to fetch suppliers
   }, []);
 
+  // Add name validation handler
+  const handleNameChange = (text) => {
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, '');
+    setFormData({ ...formData, name: sanitizedText });
+    
+    if (!sanitizedText.trim()) {
+      setErrors(prev => ({...prev, name: "Name is required"}));
+    } else if (sanitizedText.trim().length < 2) {
+      setErrors(prev => ({...prev, name: "Name must be at least 2 characters"}));
+    } else {
+      setErrors(prev => ({...prev, name: undefined}));
+    }
+  };
+
+  // Update validateForm to include stricter name validation
   const validateForm = () => {
     const newErrors = {};
 
+    // Updated name validation
+    if (!formData.name?.trim()) {
+      newErrors.name = "Name is required";
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.name.trim())) {
+      newErrors.name = "Name can only contain letters and spaces";
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = "Name must be at least 2 characters";
+    }
+
     // Required field validations
-    if (!formData.name) newErrors.name = "Name is required";
     if (!formData.supplierId) newErrors.supplierId = "Supplier is required";
     if (!formData.category_id) newErrors.category_id = "Category is required";
 
@@ -387,11 +411,11 @@ export default function AddInventoryItemScreen() {
             <Input
               placeholder="Enter item name"
               value={formData.name}
-              onChangeText={(value) =>
-                setFormData({ ...formData, name: value })
-              }
+              onChangeText={handleNameChange}
+              autoCapitalize="words"
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
+           
           </FormControl>
 
           {/* Supplier Name */}

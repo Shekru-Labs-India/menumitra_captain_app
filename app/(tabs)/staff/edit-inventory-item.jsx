@@ -191,9 +191,54 @@ export default function EditInventoryItemScreen() {
     }
   };
 
+  // Add these handlers for name and brand name validation
+  const handleNameChange = (text) => {
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, '');
+    setFormData({ ...formData, name: sanitizedText });
+    
+    if (!sanitizedText.trim()) {
+      setErrors(prev => ({...prev, name: "Name is required"}));
+    } else if (sanitizedText.trim().length < 2) {
+      setErrors(prev => ({...prev, name: "Name must be at least 2 characters"}));
+    } else {
+      setErrors(prev => ({...prev, name: undefined}));
+    }
+  };
+
+  const handleBrandNameChange = (text) => {
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, '');
+    setFormData({ ...formData, brand_name: sanitizedText });
+    
+    if (!sanitizedText.trim()) {
+      setErrors(prev => ({...prev, brand_name: "Brand name is required"}));
+    } else if (sanitizedText.trim().length < 2) {
+      setErrors(prev => ({...prev, brand_name: "Brand name must be at least 2 characters"}));
+    } else {
+      setErrors(prev => ({...prev, brand_name: undefined}));
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name) newErrors.name = "Name is required";
+    const nameRegex = /^[a-zA-Z\s]+$/;
+
+    // Validate name
+    if (!formData.name?.trim()) {
+      newErrors.name = "Name is required";
+    } else if (!nameRegex.test(formData.name.trim())) {
+      newErrors.name = "Name can only contain letters and spaces";
+    }
+
+    // Validate brand name
+    if (!formData.brand_name?.trim()) {
+      newErrors.brand_name = "Brand name is required";
+    } else if (!nameRegex.test(formData.brand_name.trim())) {
+      newErrors.brand_name = "Brand name can only contain letters and spaces";
+    }
+
+    // ...rest of your existing validations...
     if (!formData.supplier_id) newErrors.supplier_id = "Supplier is required";
     if (!formData.category_id) newErrors.category_id = "Category is required";
     if (!formData.unit_price || Number(formData.unit_price) <= 0) {
@@ -208,7 +253,6 @@ export default function EditInventoryItemScreen() {
     if (!formData.reorder_level || Number(formData.reorder_level) < 0) {
       newErrors.reorder_level = "Valid reorder level is required";
     }
-    if (!formData.brand_name) newErrors.brand_name = "Brand name is required";
     if (!formData.tax_rate || Number(formData.tax_rate) < 0) {
       newErrors.tax_rate = "Valid tax rate is required";
     }
@@ -330,12 +374,12 @@ export default function EditInventoryItemScreen() {
             <FormControl.Label>Item Name</FormControl.Label>
             <Input
               value={formData.name}
-              onChangeText={(value) =>
-                setFormData({ ...formData, name: value })
-              }
+              onChangeText={handleNameChange}
               placeholder="Enter item name"
+              autoCapitalize="words"
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
+           
           </FormControl>
 
           {/* Description */}
@@ -419,14 +463,14 @@ export default function EditInventoryItemScreen() {
             <FormControl.Label>Brand Name</FormControl.Label>
             <Input
               value={formData.brand_name}
-              onChangeText={(value) =>
-                setFormData({ ...formData, brand_name: value })
-              }
+              onChangeText={handleBrandNameChange}
               placeholder="Enter brand name"
+              autoCapitalize="words"
             />
             <FormControl.ErrorMessage>
               {errors.brand_name}
             </FormControl.ErrorMessage>
+           
           </FormControl>
 
           {/* Tax Rate */}

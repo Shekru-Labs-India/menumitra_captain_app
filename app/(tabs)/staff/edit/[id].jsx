@@ -35,6 +35,7 @@ export default function EditStaffScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [roles, setRoles] = useState([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+  const [errors, setErrors] = useState({});
 
   const [formData, setFormData] = useState({
     name: "",
@@ -168,21 +169,77 @@ export default function EditStaffScreen() {
     }
   }, [id, restaurant_id]);
 
-  const handleSave = async () => {
-    // Validate phone number
-    const phoneRegex = /^\d{10}$/;
-    if (!phoneRegex.test(formData.mobile)) {
-      toast.show({
-        description: "Please enter a valid 10-digit phone number",
-        status: "error",
-      });
+  const handleNameChange = (text) => {
+    // Remove special characters and numbers
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, '');
+    setFormData({ ...formData, name: sanitizedText });
+    
+    if (sanitizedText.trim().length < 2) {
+      setErrors(prev => ({...prev, name: "Name must be at least 2 characters long"}));
+    } else if (!/^[a-zA-Z\s]+$/.test(sanitizedText)) {
+      setErrors(prev => ({...prev, name: "Only letters and spaces allowed"}));
+    } else {
+      setErrors(prev => ({...prev, name: undefined}));
+    }
+  };
+
+  const handleMobileChange = (text) => {
+    // Prevent entering 0-5 as first digit
+    if (text.length === 1 && ['0','1','2','3','4','5'].includes(text)) {
+      setErrors(prev => ({...prev, mobile: "Number must start with 6, 7, 8 or 9"}));
       return;
     }
 
-    // Validate aadhar number
-    if (formData.aadhar_number && formData.aadhar_number.length !== 12) {
+    // Only allow digits
+    const sanitizedText = text.replace(/[^0-9]/g, '');
+    setFormData({ ...formData, mobile: sanitizedText });
+    
+    if (sanitizedText.length > 0 && !['6','7','8','9'].includes(sanitizedText[0])) {
+      setErrors(prev => ({...prev, mobile: "Number must start with 6, 7, 8 or 9"}));
+    } else if (sanitizedText.length === 10 && !/^[6-9]\d{9}$/.test(sanitizedText)) {
+      setErrors(prev => ({...prev, mobile: "Enter valid 10-digit number"}));
+    } else {
+      setErrors(prev => ({...prev, mobile: undefined}));
+    }
+  };
+
+  const handleAadharChange = (text) => {
+    // Only allow digits
+    const sanitizedText = text.replace(/[^0-9]/g, '');
+    setFormData({ ...formData, aadhar_number: sanitizedText });
+    
+    if (sanitizedText && sanitizedText.length !== 12) {
+      setErrors(prev => ({...prev, aadhar_number: "Must be 12 digits"}));
+    } else {
+      setErrors(prev => ({...prev, aadhar_number: undefined}));
+    }
+  };
+
+  const handleSave = async () => {
+    const newErrors = {};
+    
+    // Validate all fields
+    if (!formData.name?.trim() || !/^[a-zA-Z\s]{2,50}$/.test(formData.name.trim())) {
+      newErrors.name = "Enter valid name (only letters and spaces)";
+    }
+    
+    if (!formData.role) {
+      newErrors.role = "Role is required";
+    }
+    
+    if (!formData.mobile || !/^[6-9]\d{9}$/.test(formData.mobile)) {
+      newErrors.mobile = "Enter valid 10-digit number starting with 6-9";
+    }
+    
+    if (!formData.aadhar_number || !/^\d{12}$/.test(formData.aadhar_number)) {
+      newErrors.aadhar_number = "Enter valid 12-digit Aadhar number";
+    }
+
+    setErrors(newErrors);
+    
+    if (Object.keys(newErrors).length > 0) {
       toast.show({
-        description: "Please enter a valid 12-digit Aadhar number",
+        description: "Please fix all errors before submitting",
         status: "error",
       });
       return;
@@ -248,16 +305,18 @@ export default function EditStaffScreen() {
 
       <ScrollView px={4} py={4}>
         <VStack space={4}>
-          <FormControl isRequired>
+          <FormControl isRequired isInvalid={"name" in errors}>
             <FormControl.Label>Name</FormControl.Label>
             <Input
               value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder={formData.name || "Enter name"}
+              onChangeText={handleNameChange}
+              placeholder="Enter name"
+              autoCapitalize="words"
             />
+            <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl isRequired>
+          <FormControl isRequired isInvalid={"role" in errors}>
             <FormControl.Label>Role</FormControl.Label>
             <Select
               selectedValue={formData.role}
@@ -281,16 +340,16 @@ export default function EditStaffScreen() {
             </Select>
           </FormControl>
 
-          <FormControl isRequired>
+          <FormControl isRequired isInvalid={"mobile" in errors}>
             <FormControl.Label>Phone</FormControl.Label>
             <Input
               value={formData.mobile}
-              onChangeText={(text) =>
-                setFormData({ ...formData, mobile: text })
-              }
-              keyboardType="phone-pad"
-              placeholder={formData.mobile || "Enter phone number"}
+              onChangeText={handleMobileChange}
+              keyboardType="numeric"
+              placeholder="Enter phone number (start with 6-9)"
+              maxLength={10}
             />
+            <FormControl.ErrorMessage>{errors.mobile}</FormControl.ErrorMessage>
           </FormControl>
 
           <FormControl isRequired>
@@ -326,18 +385,16 @@ export default function EditStaffScreen() {
             />
           )}
 
-          <FormControl isRequired>
+          <FormControl isRequired isInvalid={"aadhar_number" in errors}>
             <FormControl.Label>Aadhar Number</FormControl.Label>
             <Input
               value={formData.aadhar_number}
-              onChangeText={(text) =>
-                setFormData({ ...formData, aadhar_number: text })
-              }
+              onChangeText={handleAadharChange}
               keyboardType="numeric"
-              placeholder={
-                formData.aadhar_number || "Enter 12-digit Aadhar number"
-              }
+              placeholder="Enter 12-digit Aadhar number"
+              maxLength={12}
             />
+            <FormControl.ErrorMessage>{errors.aadhar_number}</FormControl.ErrorMessage>
           </FormControl>
 
           <FormControl>

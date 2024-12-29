@@ -132,37 +132,56 @@ export default function EditSupplierScreen() {
     fetchCreditRatings();
   }, []);
 
+  // Add this function to handle name input with validation
+  const handleNameChange = (text) => {
+    // Remove special characters on input
+    const sanitizedText = text.replace(/[^a-zA-Z0-9\s]/g, '');
+    setFormData({ ...formData, name: sanitizedText });
+  };
+
   const validateForm = () => {
     const newErrors = {};
+    const nameRegex = /^[a-zA-Z0-9\s]+$/;
+    const mobileRegex = /^[0-9]{10}$/;
 
-    // Required fields
+    // Stricter name validation
     if (!formData.name?.trim()) {
       newErrors.name = "Name is required";
+    } else if (!nameRegex.test(formData.name.trim())) {
+      newErrors.name = "Name can only contain letters, numbers and spaces";
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = "Name must be at least 2 characters long";
     }
 
+    // Primary mobile validation
     if (!formData.mobileNumber1?.trim()) {
       newErrors.mobileNumber1 = "Primary contact is required";
-    } else if (!/^\d{10}$/.test(formData.mobileNumber1.trim())) {
+    } else if (!mobileRegex.test(formData.mobileNumber1.trim())) {
       newErrors.mobileNumber1 = "Enter valid 10-digit number";
     }
 
-    // Optional field validations
-    if (
-      formData.mobileNumber2?.trim() &&
-      !/^\d{10}$/.test(formData.mobileNumber2.trim())
-    ) {
+    // Secondary mobile validation (optional)
+    if (formData.mobileNumber2?.trim() && !mobileRegex.test(formData.mobileNumber2.trim())) {
       newErrors.mobileNumber2 = "Enter valid 10-digit number";
     }
 
-    if (
-      formData.website?.trim() &&
-      !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(
-        formData.website.trim()
-      )
-    ) {
+    // Owner name validation (optional)
+    if (formData.ownerName?.trim() && !nameRegex.test(formData.ownerName.trim())) {
+      newErrors.ownerName = "Owner name can only contain letters, numbers and spaces";
+    }
+
+    // Location validation (optional)
+    if (formData.location?.trim() && !nameRegex.test(formData.location.trim())) {
+      newErrors.location = "Location can only contain letters, numbers and spaces";
+    }
+
+    // Website validation (optional)
+    if (formData.website?.trim() &&
+      !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(formData.website.trim())) {
       newErrors.website = "Enter valid website URL";
     }
 
+    // Credit limit validation (optional)
     if (formData.creditLimit?.trim() && isNaN(formData.creditLimit.trim())) {
       newErrors.creditLimit = "Credit limit must be a number";
     }
@@ -282,15 +301,17 @@ export default function EditSupplierScreen() {
                 <FormControl.Label>Name</FormControl.Label>
                 <Input
                   value={formData.name}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, name: text })
-                  }
+                  onChangeText={handleNameChange} // Use the new handler
                   placeholder="Enter supplier name"
                   bg="white"
+                  maxLength={50} // Add character limit
                 />
                 <FormControl.ErrorMessage>
                   {errors.name}
                 </FormControl.ErrorMessage>
+                <FormControl.HelperText>
+                  Only letters, numbers and spaces allowed
+                </FormControl.HelperText>
               </FormControl>
 
               <FormControl>

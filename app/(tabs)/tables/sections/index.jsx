@@ -548,6 +548,46 @@ export default function TableSectionsScreen() {
     return grouped;
   };
 
+  // Add handleDeleteTable function
+  const handleDeleteTable = async (sectionId, tableId) => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/table_delete`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_id: restaurantId,
+            section_id: parseInt(sectionId),
+            table_id: parseInt(tableId)
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (data.st === 1) {
+        toast.show({
+          description: "Table deleted successfully",
+          status: "success",
+        });
+        await fetchSections(restaurantId);
+      } else {
+        throw new Error(data.msg || "Failed to delete table");
+      }
+    } catch (error) {
+      console.error("Delete Table Error:", error);
+      toast.show({
+        description: error.message || "Failed to delete table",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Update the renderGridView function to handle the last empty slot correctly
   const renderGridView = (sections) => (
     <ScrollView px={2} py={2}>
@@ -556,6 +596,7 @@ export default function TableSectionsScreen() {
         const totalTables = section.tables.length;
         const lastRowIndex = Math.floor(totalTables / 4);
         const lastRowItemCount = totalTables % 4;
+        const lastTable = section.tables[section.tables.length - 1];
 
         return (
           <Box key={section.id}>
@@ -670,6 +711,20 @@ export default function TableSectionsScreen() {
                                     }
                                     position="relative"
                                   >
+                                    {/* Show delete icon for last table when settings is active */}
+                                    {showEditIcons && row[colIndex].table_id === lastTable?.table_id && row[colIndex].is_occupied !== 1 && (
+                                      <IconButton
+                                        position="absolute"
+                                        top={-2}
+                                        right={-2}
+                                        zIndex={2}
+                                        size="sm"
+                                        rounded="full"
+                                        colorScheme="red"
+                                        icon={<MaterialIcons name="delete" size={16} color="red" />}
+                                        onPress={() => handleDeleteTable(section.id, row[colIndex].table_id)}
+                                      />
+                                    )}
                                     {row[colIndex].is_occupied === 1 && (
                                       <Box
                                         position="absolute"
