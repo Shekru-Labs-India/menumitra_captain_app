@@ -380,107 +380,38 @@ export default function TableSectionsScreen() {
         toast.show({
           description: "Outlet ID not found. Please login again.",
           status: "error",
+          duration: 3000,
         });
         return;
       }
 
-      // For unoccupied tables, directly navigate to create order
+      // For unoccupied tables, pass minimal data
       if (table.is_occupied === 0) {
         router.push({
           pathname: "/(tabs)/orders/create-order",
           params: {
             tableId: table.table_id.toString(),
-            tableNumber: table.table_number,
             sectionId: section.id.toString(),
-            sectionName: section.name,
-            isOccupied: "0",
           },
         });
         return;
       }
 
-      // For occupied tables, fetch the ongoing order
-      const today = new Date();
-      const formattedDate = today.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-
-      // Get ongoing orders list
-      const listResponse = await fetch(
-        `${API_BASE_URL}/captain_order/listview`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            outlet_id: storedOutletId,
-            order_status: "ongoing",
-            date: formattedDate,
-          }),
-        }
-      );
-
-      const listData = await listResponse.json();
-      console.log("Ongoing Orders:", listData);
-
-      if (listData.st !== 1) {
-        throw new Error(listData.msg || "Failed to fetch ongoing orders");
+      // For occupied tables without order_id, show message
+      if (!table.order_id) {
+        toast.show({
+          description: "No active order found for this table",
+          status: "warning",
+          duration: 3000,
+        });
+        return;
       }
 
-      if (!listData.lists || listData.lists.length === 0) {
-        throw new Error("No ongoing orders found");
-      }
-
-      // Find order for this table
-      const tableOrder = listData.lists.find(
-        (order) => order.table_number === table.table_number.toString()
-      );
-
-      if (!tableOrder) {
-        throw new Error("No active order found for this table");
-      }
-
-      // Get detailed order info
-      const detailsResponse = await fetch(
-        `${API_BASE_URL}/captain_order/view`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            outlet_id: storedOutletId,
-            order_number: tableOrder.order_number,
-          }),
-        }
-      );
-
-      const detailsData = await detailsResponse.json();
-      console.log("Order Details:", detailsData);
-
-      if (detailsData.st !== 1 || !detailsData.lists) {
-        throw new Error("Failed to fetch order details");
-      }
-
-      const { order_details, menu_details } = detailsData.lists;
-
-      // Navigate to order screen with all necessary details
+      // For occupied tables with order_id, only pass the order_id
       router.push({
         pathname: "/(tabs)/orders/create-order",
         params: {
-          tableId: table.table_id.toString(),
-          tableNumber: table.table_number,
-          sectionId: section.id.toString(),
-          sectionName: section.name,
-          orderId: order_details.order_id.toString(),
-          orderNumber: tableOrder.order_number,
-          orderType: tableOrder.order_type || "Dine In",
-          existingItems: JSON.stringify(menu_details),
-          isOccupied: "1",
-          grandTotal: order_details.total_bill?.toString() || "0",
-          serviceCharges:
-            order_details.service_charges_amount?.toString() || "0",
-          gstAmount: order_details.gst_amount?.toString() || "0",
-          discountAmount: order_details.discount_amount?.toString() || "0",
+          orderId: table.order_id.toString(),
         },
       });
     } catch (error) {

@@ -321,7 +321,7 @@ export default function CreateOrderScreen() {
         tables: [tableNumber.toString()], // Changed to match API format
         section_id: sectionId.toString(),
         order_type: "Dine-in",
-        order_status: "paid",
+
         order_items: selectedItems.map((item) => ({
           menu_id: item.menu_id.toString(),
           quantity: parseInt(item.quantity),
@@ -403,7 +403,7 @@ export default function CreateOrderScreen() {
         tables: [tableNumber.toString()], // Changed to match API format
         section_id: sectionId.toString(),
         order_type: "Dine-in",
-        order_status: "paid",
+
         order_items: selectedItems.map((item) => ({
           menu_id: item.menu_id.toString(),
           quantity: parseInt(item.quantity),
