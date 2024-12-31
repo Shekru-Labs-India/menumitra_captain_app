@@ -530,13 +530,18 @@ export default function TableSectionsScreen() {
     }
   };
 
-  // Update the getTablesByRow function to handle all tables
+  // Update the getTablesByRow function to always include one extra empty slot
   const getTablesByRow = (sectionTables) => {
-    if (!sectionTables || sectionTables.length === 0) return {};
+    if (!sectionTables) return { 0: {} }; // For sections with no tables
 
     const filteredTables = getFilteredTables(sectionTables);
     const grouped = {};
 
+    // Calculate how many complete rows we need
+    const totalSlots = filteredTables.length + 1; // Add 1 for the "Add Table" button
+    const totalRows = Math.ceil(totalSlots / 4);
+
+    // Fill in the existing tables
     filteredTables.forEach((table, index) => {
       const row = Math.floor(index / 4);
       if (!grouped[row]) {
@@ -544,6 +549,14 @@ export default function TableSectionsScreen() {
       }
       grouped[row][index % 4] = table;
     });
+
+    // Add an empty row if needed for the "Add Table" button
+    const lastRow = Math.floor(filteredTables.length / 4);
+    const lastCol = filteredTables.length % 4;
+
+    if (!grouped[lastRow]) {
+      grouped[lastRow] = {};
+    }
 
     return grouped;
   };
@@ -562,7 +575,7 @@ export default function TableSectionsScreen() {
           body: JSON.stringify({
             restaurant_id: restaurantId,
             section_id: parseInt(sectionId),
-            table_id: parseInt(tableId)
+            table_id: parseInt(tableId),
           }),
         }
       );
@@ -588,15 +601,19 @@ export default function TableSectionsScreen() {
     }
   };
 
-  // Update the renderGridView function to handle the last empty slot correctly
+  // Get the last table from the section's tables
+  const getLastTable = (sectionTables) => {
+    if (!sectionTables || sectionTables.length === 0) return null;
+    return sectionTables[sectionTables.length - 1];
+  };
+
+  // Update the renderGridView function's table rendering logic
   const renderGridView = (sections) => (
     <ScrollView px={2} py={2}>
       {sections.map((section, index) => {
         const tablesByRow = getTablesByRow(section.tables);
-        const totalTables = section.tables.length;
-        const lastRowIndex = Math.floor(totalTables / 4);
-        const lastRowItemCount = totalTables % 4;
-        const lastTable = section.tables[section.tables.length - 1];
+        const lastTable = getLastTable(section.tables);
+        const hasNoTables = !section.tables || section.tables.length === 0;
 
         return (
           <Box key={section.id}>
@@ -668,156 +685,192 @@ export default function TableSectionsScreen() {
                   {/* Divider */}
                   <Box height={0.5} bg="coolGray.200" />
 
-                  {/* Tables Grid */}
-                  <VStack space={0}>
-                    {Object.entries(tablesByRow).map(([rowIndex, row]) => (
-                      <HStack
-                        key={rowIndex}
-                        px={0}
-                        py={2}
-                        alignItems="center"
-                        justifyContent="space-between"
-                      >
-                        {Array.from({ length: 4 }).map((_, colIndex) => {
-                          const isLastEmptySlot =
-                            parseInt(rowIndex) === lastRowIndex &&
-                            colIndex === lastRowItemCount &&
-                            showEditIcons;
+                  {/* Add this condition for no tables message */}
+                  {hasNoTables && !showEditIcons ? (
+                    <Center py={4}>
+                      <Text color="coolGray.500" fontSize="sm">
+                        No tables available in this section.
+                      </Text>
+                    </Center>
+                  ) : (
+                    <VStack space={0}>
+                      {/* Tables Grid */}
+                      <VStack space={0}>
+                        {Object.entries(tablesByRow).map(([rowIndex, row]) => (
+                          <HStack
+                            key={rowIndex}
+                            px={0}
+                            py={2}
+                            alignItems="center"
+                            justifyContent="space-between"
+                          >
+                            {Array.from({ length: 4 }).map((_, colIndex) => {
+                              const isAddTableSlot =
+                                showEditIcons &&
+                                ((hasNoTables &&
+                                  rowIndex === "0" &&
+                                  colIndex === 0) || // First slot for empty sections
+                                  (!hasNoTables && // Last empty slot for sections with tables
+                                    rowIndex ===
+                                      Math.floor(
+                                        section.tables.length / 4
+                                      ).toString() &&
+                                    colIndex === section.tables.length % 4));
 
-                          return (
-                            <Box key={`${rowIndex}-${colIndex}`}>
-                              {row[colIndex] ? (
-                                <Pressable
-                                  onPress={() =>
-                                    handleTablePress(row[colIndex], section)
-                                  }
-                                >
-                                  <Box
-                                    p={2}
-                                    rounded="lg"
-                                    width={20}
-                                    height={20}
-                                    bg={
-                                      row[colIndex].is_occupied === 1
-                                        ? "red.100"
-                                        : "green.100"
-                                    }
-                                    borderWidth={1}
-                                    borderStyle="dashed"
-                                    borderColor={
-                                      row[colIndex].is_occupied === 1
-                                        ? "red.600"
-                                        : "green.600"
-                                    }
-                                    position="relative"
-                                  >
-                                    {/* Show delete icon for last table when settings is active */}
-                                    {showEditIcons && row[colIndex].table_id === lastTable?.table_id && row[colIndex].is_occupied !== 1 && (
-                                      <IconButton
-                                        position="absolute"
-                                        top={-2}
-                                        right={-2}
-                                        zIndex={2}
-                                        size="sm"
-                                        rounded="full"
-                                        colorScheme="red"
-                                        icon={<MaterialIcons name="delete" size={16} color="red" />}
-                                        onPress={() => handleDeleteTable(section.id, row[colIndex].table_id)}
-                                      />
-                                    )}
-                                    {row[colIndex].is_occupied === 1 && (
-                                      <Box
-                                        position="absolute"
-                                        top={-2}
-                                        left={-2}
-                                        right={-2}
-                                        setActiveFilter          bg="red.500"
-                                        py={1}
-                                        rounded="md"
-                                        shadow={1}
-                                        zIndex={1}
-                                        alignItems="center"
-                                      >
-                                        <Text
-                                          color="white"
-                                          fontSize="2xs"
-                                          fontWeight="bold"
-                                        >
-                                          ₹{row[colIndex].grandTotal || 0}
-                                        </Text>
-                                      </Box>
-                                    )}
-                                    <VStack
-                                      space={2}
-                                      alignItems="center"
-                                      mt={5}
+                              return (
+                                <Box key={`${rowIndex}-${colIndex}`}>
+                                  {row[colIndex] ? (
+                                    <Pressable
+                                      onPress={() =>
+                                        handleTablePress(row[colIndex], section)
+                                      }
                                     >
-                                      <Text
-                                        fontSize={18}
-                                        fontWeight="bold"
-                                        color={
+                                      <Box
+                                        p={2}
+                                        rounded="lg"
+                                        width={20}
+                                        height={20}
+                                        bg={
                                           row[colIndex].is_occupied === 1
-                                            ? "red.500"
-                                            : "green.500"
+                                            ? "red.100"
+                                            : "green.100"
                                         }
+                                        borderWidth={1}
+                                        borderStyle="dashed"
+                                        borderColor={
+                                          row[colIndex].is_occupied === 1
+                                            ? "red.600"
+                                            : "green.600"
+                                        }
+                                        position="relative"
                                       >
-                                        {row[colIndex].table_number}
-                                      </Text>
-                                      <Text fontSize={12} color="coolGray.600">
-                                        <Text
-                                          fontSize={12}
-                                          color="coolGray.600"
+                                        {/* Show delete icon for last table when settings is active */}
+                                        {showEditIcons &&
+                                          row[colIndex].table_id ===
+                                            lastTable?.table_id &&
+                                          row[colIndex].is_occupied !== 1 && (
+                                            <IconButton
+                                              position="absolute"
+                                              top={-2}
+                                              right={-2}
+                                              zIndex={2}
+                                              size="sm"
+                                              rounded="full"
+                                              colorScheme="red"
+                                              icon={
+                                                <MaterialIcons
+                                                  name="delete"
+                                                  size={16}
+                                                  color="red"
+                                                />
+                                              }
+                                              onPress={() =>
+                                                handleDeleteTable(
+                                                  section.id,
+                                                  row[colIndex].table_id
+                                                )
+                                              }
+                                            />
+                                          )}
+                                        {row[colIndex].is_occupied === 1 && (
+                                          <Box
+                                            position="absolute"
+                                            top={-2}
+                                            left={-2}
+                                            right={-2}
+                                            setActiveFilter
+                                            bg="red.500"
+                                            py={1}
+                                            rounded="md"
+                                            shadow={1}
+                                            zIndex={1}
+                                            alignItems="center"
+                                          >
+                                            <Text
+                                              color="white"
+                                              fontSize="2xs"
+                                              fontWeight="bold"
+                                            >
+                                              ₹{row[colIndex].grandTotal || 0}
+                                            </Text>
+                                          </Box>
+                                        )}
+                                        <VStack
+                                          space={2}
+                                          alignItems="center"
+                                          mt={5}
                                         >
-                                          {row[colIndex].is_occupied === 1 &&
-                                            (row[colIndex].occupiedTime ||
-                                              "00:00")}
-                                        </Text>
-                                      </Text>
-                                    </VStack>
-                                    
-                                  </Box>
-                                </Pressable>
-                              ) : isLastEmptySlot ? (
-                                <Pressable
-                                  onPress={() => {
-                                    setSelectedSection(section.id);
-                                    setShowCreateTableModal(true);
-                                  }}
-                                >
-                                  <Box
-                                    p={2}
-                                    rounded="lg"
-                                    width={20}
-                                    height={20}
-                                    borderWidth={1}
-                                    borderStyle="dashed"
-                                    borderColor="green.500"
-                                    justifyContent="center"
-                                    alignItems="center"
-                                    opacity={0.8}
-                                  >
-                                    <MaterialIcons
-                                      name="add-circle-outline"
-                                      size={24}
-                                      color="green"
+                                          <Text
+                                            fontSize={18}
+                                            fontWeight="bold"
+                                            color={
+                                              row[colIndex].is_occupied === 1
+                                                ? "red.500"
+                                                : "green.500"
+                                            }
+                                          >
+                                            {row[colIndex].table_number}
+                                          </Text>
+                                          <Text
+                                            fontSize={12}
+                                            color="coolGray.600"
+                                          >
+                                            <Text
+                                              fontSize={12}
+                                              color="coolGray.600"
+                                            >
+                                              {row[colIndex].is_occupied ===
+                                                1 &&
+                                                (row[colIndex].occupiedTime ||
+                                                  "00:00")}
+                                            </Text>
+                                          </Text>
+                                        </VStack>
+                                      </Box>
+                                    </Pressable>
+                                  ) : isAddTableSlot ? (
+                                    <Pressable
+                                      onPress={() => {
+                                        setSelectedSection(section.id);
+                                        setShowCreateTableModal(true);
+                                      }}
+                                    >
+                                      <Box
+                                        p={2}
+                                        rounded="lg"
+                                        width={20}
+                                        height={20}
+                                        borderWidth={1}
+                                        borderStyle="dashed"
+                                        borderColor="green.500"
+                                        justifyContent="center"
+                                        alignItems="center"
+                                        opacity={0.8}
+                                      >
+                                        <MaterialIcons
+                                          name="add-circle-outline"
+                                          size={24}
+                                          color="green"
+                                        />
+                                      </Box>
+                                    </Pressable>
+                                  ) : (
+                                    <Box
+                                      p={2}
+                                      rounded="lg"
+                                      width={20}
+                                      height={20}
+                                      opacity={0}
                                     />
-                                  </Box>
-                                </Pressable>
-                              ) : (
-                                <Box
-                                  p={2}
-                                  rounded="lg"
-                                  width={20}
-                                  height={20}
-                                  opacity={0}
-                                />
-                              )}
-                            </Box>
-                          );
-                        })}
-                      </HStack>
-                    ))}
-                  </VStack>
+                                  )}
+                                </Box>
+                              );
+                            })}
+                          </HStack>
+                        ))}
+                      </VStack>
+                    </VStack>
+                  )}
                 </VStack>
               </Box>
             </Box>
@@ -1249,8 +1302,8 @@ export default function TableSectionsScreen() {
           >
             <Select.Item label="Name" value="name" />
             <Select.Item label="Total Tables" value="totalTables" />
-        <Select.Item label="Available Tables" value="availableTables" />
-        <Select.Item label="Occupied Tables" value="occupiedTables" />
+            <Select.Item label="Available Tables" value="availableTables" />
+            <Select.Item label="Occupied Tables" value="occupiedTables" />
           </Select>
           <IconButton
             icon={

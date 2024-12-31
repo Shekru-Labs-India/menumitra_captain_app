@@ -15,9 +15,9 @@ import {
   Badge,
   FlatList,
   Center,
-  Linking,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
+import { Linking } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
