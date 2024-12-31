@@ -32,6 +32,7 @@ export default function SupplierDetails() {
   const [supplier, setSupplier] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [outletId, setOutletId] = useState(null);
 
   useEffect(() => {
     fetchSupplierDetails();
@@ -43,10 +44,25 @@ export default function SupplierDetails() {
     }, [])
   );
 
+  useEffect(() => {
+    const getStoredData = async () => {
+      try {
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        if (storedOutletId) {
+          setOutletId(storedOutletId);
+        }
+      } catch (error) {
+        console.error("Error getting stored data:", error);
+      }
+    };
+
+    getStoredData();
+  }, []);
+
   const fetchSupplierDetails = async () => {
     setLoading(true);
     try {
-      const restaurantId = await AsyncStorage.getItem("restaurant_id");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/supplier/view`,
@@ -56,8 +72,8 @@ export default function SupplierDetails() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            supplier_id: parseInt(id),
-            restaurant_id: parseInt(restaurantId),
+            outlet_id: storedOutletId.toString(),
+            supplier_id: id.toString(),
           }),
         }
       );
@@ -95,7 +111,7 @@ export default function SupplierDetails() {
 
   const handleDelete = async () => {
     try {
-      const restaurantId = await AsyncStorage.getItem("restaurant_id");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/supplier/delete`,
@@ -105,8 +121,8 @@ export default function SupplierDetails() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            supplier_id: parseInt(id),
-            restaurant_id: parseInt(restaurantId),
+            outlet_id: storedOutletId.toString(),
+            supplier_id: id.toString(),
           }),
         }
       );
@@ -359,25 +375,25 @@ export default function SupplierDetails() {
                 </HStack>
               )}
 
-{supplier.address && (
-              <HStack space={3} alignItems="center">
-                <Box p={2} bg="blue.100" rounded="full">
-                  <MaterialIcons
-                    name="location-on"
-                    size={20}
-                    color="blue.500"
-                  />
-                </Box>
-                <VStack flex={1}>
-                  <Text color="coolGray.500" fontSize="sm">
-                    Address
-                  </Text>
-                  <Text fontSize="md">
-                    {supplier.address || "Address not provided"}
-                  </Text>
-                </VStack>
-              </HStack>
-)}
+              {supplier.address && (
+                <HStack space={3} alignItems="center">
+                  <Box p={2} bg="blue.100" rounded="full">
+                    <MaterialIcons
+                      name="location-on"
+                      size={20}
+                      color="blue.500"
+                    />
+                  </Box>
+                  <VStack flex={1}>
+                    <Text color="coolGray.500" fontSize="sm">
+                      Address
+                    </Text>
+                    <Text fontSize="md">
+                      {supplier.address || "Address not provided"}
+                    </Text>
+                  </VStack>
+                </HStack>
+              )}
             </VStack>
           </VStack>
 
@@ -388,40 +404,40 @@ export default function SupplierDetails() {
             <Heading size="md">Business Details</Heading>
             <VStack space={4} bg="coolGray.50" p={4} rounded="lg">
               <VStack space={3}>
-              {supplier.ownerName && (
-                <HStack justifyContent="space-between">
-                  <Text color="coolGray.500">Owner Name</Text>
-                  <Text>{supplier.ownerName || "Not specified"}</Text>
-                </HStack>
-              )}
+                {supplier.ownerName && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Owner Name</Text>
+                    <Text>{supplier.ownerName || "Not specified"}</Text>
+                  </HStack>
+                )}
                 {supplier.location && (
                   <>
-                <HStack justifyContent="space-between">
-                  <Text color="coolGray.500">Location</Text>
-                  <Text>{supplier.location || "Not specified"}</Text>
-                </HStack>
-            
-                <Divider />
-                </>
-              )}
-              {supplier.creditRating && (
-                <HStack justifyContent="space-between">
-                  <Text color="coolGray.500">Credit Rating</Text>
-                  <Badge
-                    colorScheme={getCreditRatingColor(supplier.creditRating)}
-                    variant="subtle"
-                    rounded="full"
-                  >
-                    {supplier.creditRating || "Not Rated"}
-                  </Badge>
-                </HStack>
-              )}
-              {supplier.creditLimit && (
-                <HStack justifyContent="space-between">
-                  <Text color="coolGray.500">Credit Limit</Text>
-                  <Text>{supplier.creditLimit || "Not specified"}</Text>
-                </HStack>
-              )}
+                    <HStack justifyContent="space-between">
+                      <Text color="coolGray.500">Location</Text>
+                      <Text>{supplier.location || "Not specified"}</Text>
+                    </HStack>
+
+                    <Divider />
+                  </>
+                )}
+                {supplier.creditRating && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Credit Rating</Text>
+                    <Badge
+                      colorScheme={getCreditRatingColor(supplier.creditRating)}
+                      variant="subtle"
+                      rounded="full"
+                    >
+                      {supplier.creditRating || "Not Rated"}
+                    </Badge>
+                  </HStack>
+                )}
+                {supplier.creditLimit && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Credit Limit</Text>
+                    <Text>{supplier.creditLimit || "Not specified"}</Text>
+                  </HStack>
+                )}
               </VStack>
             </VStack>
           </VStack>

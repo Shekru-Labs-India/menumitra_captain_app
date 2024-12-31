@@ -49,7 +49,7 @@ export default function StaffScreen() {
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const params = useLocalSearchParams();
-  const [restaurantId, setRestaurantId] = useState(null);
+  const [outletId, setOutletId] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -169,11 +169,11 @@ export default function StaffScreen() {
   const toTitleCase = (str) => {
     return str
       .toLowerCase()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   };
-  
+
   const renderStaffItem = ({ item }) => (
     <Pressable
       onPress={() => {
@@ -202,13 +202,13 @@ export default function StaffScreen() {
             {!item.photo && item.name?.charAt(0).toUpperCase()}
           </Avatar>
           <VStack flex={1} ml={2}>
-  <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
-    {toTitleCase(item.name)}
-  </Text>
-  <Text fontSize="md" color="coolGray.600">
-    {toTitleCase(item.role)}
-  </Text>
-</VStack>
+            <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
+              {toTitleCase(item.name)}
+            </Text>
+            <Text fontSize="md" color="coolGray.600">
+              {toTitleCase(item.role)}
+            </Text>
+          </VStack>
 
           <VStack alignItems="flex-end" space={1}>
             <Button.Group size="xs" space={1}>
@@ -257,7 +257,7 @@ export default function StaffScreen() {
       onPress={() => {
         router.push({
           pathname: `/(tabs)/staff/${item.staff_id}`,
-          params: { restaurant_id: restaurantId },
+          params: { outlet_id: outletId },
         });
       }}
       flex={1}
@@ -281,10 +281,10 @@ export default function StaffScreen() {
           </Avatar>
           <VStack space={1} alignItems="center">
             <Text fontSize="md" fontWeight="bold" textAlign="center">
-            {toTitleCase(item.name)}
+              {toTitleCase(item.name)}
             </Text>
             <Text fontSize="sm" color="coolGray.600" textAlign="center">
-            {toTitleCase(item.role)}
+              {toTitleCase(item.role)}
             </Text>
 
             <Button.Group size="sm" space={1}>
@@ -320,7 +320,7 @@ export default function StaffScreen() {
   );
 
   const fetchStaffList = async () => {
-    if (!restaurantId) return;
+    if (!outletId) return;
 
     setIsLoading(true);
     try {
@@ -332,7 +332,7 @@ export default function StaffScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restaurantId,
+            outlet_id: outletId,
           }),
         }
       );
@@ -366,26 +366,26 @@ export default function StaffScreen() {
   // Replace useEffect with useFocusEffect
   useFocusEffect(
     useCallback(() => {
-      if (restaurantId) {
+      if (outletId) {
         console.log("Screen focused, fetching staff list...");
         fetchStaffList();
       }
-    }, [restaurantId])
+    }, [outletId])
   );
 
   // Keep existing useEffect for initial load
   useEffect(() => {
-    if (restaurantId) {
+    if (outletId) {
       fetchStaffList();
     }
-  }, [restaurantId, params.refresh]);
+  }, [outletId, params.refresh]);
 
   useEffect(() => {
     const getStoredData = async () => {
       try {
-        const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-        if (storedRestaurantId) {
-          setRestaurantId(parseInt(storedRestaurantId));
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        if (storedOutletId) {
+          setOutletId(parseInt(storedOutletId));
           fetchStaffList();
         } else {
           toast.show({

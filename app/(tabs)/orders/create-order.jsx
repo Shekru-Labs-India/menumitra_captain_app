@@ -79,7 +79,7 @@ export default function CreateOrderScreen() {
   } = params;
 
   const [loading, setLoading] = useState(false);
-  const [restaurantId, setRestaurantId] = useState(null);
+  const [outletId, setOutletId] = useState(null);
   const [orderType, setOrderType] = useState("Dine In");
   const [orderItems, setOrderItems] = useState([
     {
@@ -163,18 +163,18 @@ export default function CreateOrderScreen() {
   }, [params]); // Only depend on params
 
   useEffect(() => {
-    const getRestaurantId = async () => {
-      const storedId = await AsyncStorage.getItem("restaurant_id");
-      setRestaurantId(storedId);
+    const getStoredData = async () => {
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      setOutletId(storedOutletId);
     };
-    getRestaurantId();
+    getStoredData();
   }, []);
 
   useEffect(() => {
-    if (restaurantId) {
+    if (outletId) {
       fetchMenuItems();
     }
-  }, [restaurantId]); // Only depend on restaurantId
+  }, [outletId]);
 
   useEffect(() => {
     if (orderNumber && isOccupied === "1") {
@@ -185,9 +185,7 @@ export default function CreateOrderScreen() {
   const loadOrderDetails = async () => {
     if (orderNumber && isOccupied === "1") {
       try {
-        const storedRestaurantId = await AsyncStorage.getItem(
-          "restaurant_id"
-        );
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
         // Fetch order details from API
         const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
@@ -196,7 +194,7 @@ export default function CreateOrderScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: parseInt(storedRestaurantId),
+            outlet_id: storedOutletId,
             order_number: orderNumber,
           }),
         });
@@ -235,7 +233,7 @@ export default function CreateOrderScreen() {
   }, [params, orderId]);
 
   const fetchMenuItems = async () => {
-    if (!restaurantId) return;
+    if (!outletId) return;
 
     setLoading(true);
     try {
@@ -247,7 +245,7 @@ export default function CreateOrderScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: parseInt(restaurantId),
+            outlet_id: outletId.toString(),
           }),
         }
       );
@@ -271,10 +269,10 @@ export default function CreateOrderScreen() {
   const verifyRequiredData = async () => {
     try {
       const userId = await AsyncStorage.getItem("user_id");
-      const restaurantId = await AsyncStorage.getItem("restaurant_id");
+      const outletId = await AsyncStorage.getItem("outlet_id");
       const captainId = await AsyncStorage.getItem("captain_id");
 
-      if (!userId || !restaurantId || !captainId) {
+      if (!userId || !outletId || !captainId) {
         toast.show({
           description: "Missing required data. Please login again.",
           status: "error",
@@ -285,7 +283,7 @@ export default function CreateOrderScreen() {
 
       console.log("Verified Data:", {
         userId,
-        restaurantId,
+        outletId,
         captainId,
       });
 
@@ -303,6 +301,7 @@ export default function CreateOrderScreen() {
       toast.show({
         description: "Please add items to the order",
         status: "warning",
+        duration: 2000,
       });
       return;
     }
@@ -310,17 +309,17 @@ export default function CreateOrderScreen() {
     try {
       setLoading(true);
       const storedUserId = await AsyncStorage.getItem("user_id");
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-      if (!storedUserId || !storedRestaurantId) {
+      if (!storedUserId || !storedOutletId) {
         throw new Error("Missing required information");
       }
 
       const requestBody = {
-        user_id: storedUserId,
-        restaurant_id: storedRestaurantId,
-        table_number: tableNumber,
-        section_id: sectionId,
+        user_id: storedUserId.toString(),
+        outlet_id: storedOutletId.toString(),
+        tables: [tableNumber.toString()], // Changed to match API format
+        section_id: sectionId.toString(),
         order_type: "Dine-in",
         order_status: "paid",
         order_items: selectedItems.map((item) => ({
@@ -333,20 +332,12 @@ export default function CreateOrderScreen() {
 
       // Only add orderId to request if it exists
       if (orderId) {
-        requestBody.order_id = orderId;
-        console.log("Updating existing order:", orderId);
-      } else {
-        console.log("Creating new order");
+        requestBody.order_id = orderId.toString();
       }
 
-      const endpoint = orderId
-        ? `${API_BASE_URL}/update_order`
-        : `${API_BASE_URL}/create_order`;
-
       console.log("Request Body:", requestBody);
-      console.log("Endpoint:", endpoint);
 
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${API_BASE_URL}/create_order`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -355,16 +346,20 @@ export default function CreateOrderScreen() {
       });
 
       const data = await response.json();
-      console.log("Response:", data);
+      console.log("Create Order Response:", data);
 
       if (data.st === 1) {
         toast.show({
-          description: orderId
-            ? "Order updated successfully"
-            : "Order created successfully",
+          description: "Order created successfully",
           status: "success",
           duration: 2000,
         });
+
+        // Store the new order_id if returned
+        if (data.order_id) {
+          setOrderId(data.order_id.toString());
+        }
+
         router.replace("/(tabs)/orders");
       } else {
         throw new Error(data.msg || "Failed to process order");
@@ -374,6 +369,7 @@ export default function CreateOrderScreen() {
       toast.show({
         description: error.message || "Failed to process order",
         status: "error",
+        duration: 2000,
       });
     } finally {
       setLoading(false);
@@ -387,67 +383,65 @@ export default function CreateOrderScreen() {
       toast.show({
         description: "Please add items to the order",
         status: "warning",
+        duration: 2000,
       });
       return;
     }
 
     try {
       setLoading(true);
-
       const storedUserId = await AsyncStorage.getItem("user_id");
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-      if (!storedUserId || !storedRestaurantId) {
+      if (!storedUserId || !storedOutletId) {
         throw new Error("Missing required information");
       }
 
-      const formattedOrderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id.toString(),
-        quantity: parseInt(item.quantity),
-        comment: item.specialInstructions || "Less spicy",
-        half_or_full: (item.portionSize || "Full").toLowerCase(),
-      }));
-
       const requestBody = {
-        user_id: storedUserId,
-        restaurant_id: storedRestaurantId,
-        table_number: tableNumber.toString(),
+        user_id: storedUserId.toString(),
+        outlet_id: storedOutletId.toString(),
+        tables: [tableNumber.toString()], // Changed to match API format
         section_id: sectionId.toString(),
-        order_type: orderType || "Dine-in",
+        order_type: "Dine-in",
         order_status: "paid",
-        order_items: formattedOrderItems,
+        order_items: selectedItems.map((item) => ({
+          menu_id: item.menu_id.toString(),
+          quantity: parseInt(item.quantity),
+          comment: item.specialInstructions || "Less spicy",
+          half_or_full: (item.portionSize || "Full").toLowerCase(),
+        })),
       };
 
+      // Only add orderId to request if it exists
       if (orderId) {
-        requestBody.order_id = orderId;
+        requestBody.order_id = orderId.toString();
       }
 
       console.log("KOT Request:", requestBody);
 
-      const response = await fetch(
-        orderId
-          ? `${API_BASE_URL}/update_order`
-          : `${API_BASE_URL}/create_order`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/create_order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
 
       const data = await response.json();
       console.log("KOT Response:", data);
 
       if (data.st === 1) {
         toast.show({
-          description: orderId
-            ? "KOT updated successfully"
-            : "KOT generated successfully",
+          description: "KOT generated successfully",
           status: "success",
           duration: 2000,
         });
+
+        // Store the new order_id if returned
+        if (data.order_id) {
+          setOrderId(data.order_id.toString());
+        }
+
         router.replace("/(tabs)/orders");
       } else {
         throw new Error(data.msg || "Failed to process KOT");
@@ -457,6 +451,7 @@ export default function CreateOrderScreen() {
       toast.show({
         description: error.message || "Failed to process KOT",
         status: "error",
+        duration: 2000,
       });
     } finally {
       setLoading(false);
@@ -476,9 +471,9 @@ export default function CreateOrderScreen() {
       setIsProcessing(true);
       setLoadingMessage("Processing order...");
 
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-      if (!storedRestaurantId) {
-        throw new Error("Restaurant ID not found");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      if (!storedOutletId) {
+        throw new Error("Outlet ID not found");
       }
 
       // First update the order
@@ -486,7 +481,7 @@ export default function CreateOrderScreen() {
         const updatePayload = {
           order_id: parseInt(orderId),
           customer_id: "367",
-          restaurant_id: parseInt(storedRestaurantId),
+          outlet_id: storedOutletId,
           table_number: parseInt(tableNumber),
           section_id: parseInt(sectionId),
           order_type: orderType || "Dine-in",
@@ -520,7 +515,7 @@ export default function CreateOrderScreen() {
       setLoadingMessage("Completing order...");
 
       const statusPayload = {
-        restaurant_id: parseInt(storedRestaurantId),
+        outlet_id: storedOutletId,
         order_id: parseInt(orderId),
         order_status: "completed",
         table_number: parseInt(tableNumber),
@@ -626,21 +621,24 @@ export default function CreateOrderScreen() {
     };
   }, []);
 
-  const memoizedGetSearchResults = React.useCallback((query) => {
-    if (!query || !menuItems) return [];
-    const searchTerm = query.toLowerCase();
-    return menuItems.filter((item) => {
-      const itemName = item.menu_name?.toLowerCase() || '';
-      const itemDescription = item.description?.toLowerCase() || '';
-      const itemCategory = item.category?.toLowerCase() || '';
-      
-      return (
-        itemName.includes(searchTerm) ||
-        itemDescription.includes(searchTerm) ||
-        itemCategory.includes(searchTerm)
-      );
-    });
-  }, [menuItems]);
+  const memoizedGetSearchResults = React.useCallback(
+    (query) => {
+      if (!query || !menuItems) return [];
+      const searchTerm = query.toLowerCase();
+      return menuItems.filter((item) => {
+        const itemName = item.menu_name?.toLowerCase() || "";
+        const itemDescription = item.description?.toLowerCase() || "";
+        const itemCategory = item.category?.toLowerCase() || "";
+
+        return (
+          itemName.includes(searchTerm) ||
+          itemDescription.includes(searchTerm) ||
+          itemCategory.includes(searchTerm)
+        );
+      });
+    },
+    [menuItems]
+  );
 
   const handleSearch = (text) => {
     setSearchQuery(text);
@@ -723,7 +721,7 @@ export default function CreateOrderScreen() {
       });
     } else {
       try {
-        const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
         // Format date as "DD MMM YYYY"
         const today = new Date();
@@ -742,7 +740,7 @@ export default function CreateOrderScreen() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              restaurant_id: parseInt(storedRestaurantId),
+              outlet_id: storedOutletId,
               order_status: "ongoing",
               date: formattedDate, // Using the correctly formatted date
             }),
@@ -766,7 +764,7 @@ export default function CreateOrderScreen() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                restaurant_id: parseInt(storedRestaurantId),
+                outlet_id: storedOutletId,
                 order_number: tableOrder.order_number,
               }),
             });
@@ -865,8 +863,9 @@ export default function CreateOrderScreen() {
 
   const calculateSubtotal = (items) => {
     return items.reduce((sum, item) => {
-      const itemPrice = item.portionSize === "Half" ? item.price * 0.6 : item.price;
-      return sum + (itemPrice * item.quantity);
+      const itemPrice =
+        item.portionSize === "Half" ? item.price * 0.6 : item.price;
+      return sum + itemPrice * item.quantity;
     }, 0);
   };
 
@@ -875,14 +874,14 @@ export default function CreateOrderScreen() {
     // Only update these states if they've changed
     const newGst = subtotal * 0.05;
     const newService = subtotal * 0.05;
-    
+
     if (Math.abs(newGst - gstAmount) > 0.01) {
       setGstAmount(newGst);
     }
     if (Math.abs(newService - serviceCharges) > 0.01) {
       setServiceCharges(newService);
     }
-    
+
     return (subtotal + newGst + newService - discountAmount).toFixed(2);
   };
 

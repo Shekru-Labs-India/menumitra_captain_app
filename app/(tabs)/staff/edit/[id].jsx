@@ -21,14 +21,14 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker from "@react-native-community/datetimepicker";
 import Header from "../../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
 export default function EditStaffScreen() {
   const router = useRouter();
-  const { id, restaurant_id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams();
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [captainId, setCaptainId] = useState(null);
@@ -36,6 +36,7 @@ export default function EditStaffScreen() {
   const [roles, setRoles] = useState([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [errors, setErrors] = useState({});
+  const [outletId, setOutletId] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -48,25 +49,35 @@ export default function EditStaffScreen() {
   });
 
   const formatDate = (date) => {
-    if (!date) return '';
+    if (!date) return "";
     const d = new Date(date);
-    if (isNaN(d.getTime())) return '';
-    
+    if (isNaN(d.getTime())) return "";
+
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
-    
-    const day = String(d.getDate()).padStart(2, '0');
+
+    const day = String(d.getDate()).padStart(2, "0");
     const month = months[d.getMonth()];
     const year = d.getFullYear();
-    
+
     return `${day} ${month} ${year}`;
   };
 
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
-    if (event.type === 'set' && selectedDate) {
+    if (event.type === "set" && selectedDate) {
       setFormData({ ...formData, dob: formatDate(selectedDate) });
     }
   };
@@ -75,11 +86,13 @@ export default function EditStaffScreen() {
     const getStoredData = async () => {
       try {
         const storedCaptainId = await AsyncStorage.getItem("captain_id");
-        if (storedCaptainId) {
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        if (storedCaptainId && storedOutletId) {
           setCaptainId(parseInt(storedCaptainId));
+          setOutletId(parseInt(storedOutletId));
         }
       } catch (error) {
-        console.error("Error getting captain ID:", error);
+        console.error("Error getting stored data:", error);
       }
     };
 
@@ -128,7 +141,7 @@ export default function EditStaffScreen() {
             },
             body: JSON.stringify({
               staff_id: parseInt(id),
-              restaurant_id: parseInt(restaurant_id),
+              outlet_id: outletId,
             }),
           }
         );
@@ -137,7 +150,6 @@ export default function EditStaffScreen() {
         console.log("Staff Details Response:", data);
 
         if (data.st === 1 && data.data) {
-          // Populate form with existing data
           setFormData({
             name: data.data.name || "",
             role: data.data.role || "",
@@ -164,79 +176,100 @@ export default function EditStaffScreen() {
       }
     };
 
-    if (id && restaurant_id) {
+    if (id && outletId) {
       fetchStaffDetails();
     }
-  }, [id, restaurant_id]);
+  }, [id, outletId]);
 
   const handleNameChange = (text) => {
     // Remove special characters and numbers
-    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, '');
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setFormData({ ...formData, name: sanitizedText });
-    
+
     if (sanitizedText.trim().length < 2) {
-      setErrors(prev => ({...prev, name: "Name must be at least 2 characters long"}));
+      setErrors((prev) => ({
+        ...prev,
+        name: "Name must be at least 2 characters long",
+      }));
     } else if (!/^[a-zA-Z\s]+$/.test(sanitizedText)) {
-      setErrors(prev => ({...prev, name: "Only letters and spaces allowed"}));
+      setErrors((prev) => ({
+        ...prev,
+        name: "Only letters and spaces allowed",
+      }));
     } else {
-      setErrors(prev => ({...prev, name: undefined}));
+      setErrors((prev) => ({ ...prev, name: undefined }));
     }
   };
 
   const handleMobileChange = (text) => {
     // Prevent entering 0-5 as first digit
-    if (text.length === 1 && ['0','1','2','3','4','5'].includes(text)) {
-      setErrors(prev => ({...prev, mobile: "Number must start with 6, 7, 8 or 9"}));
+    if (text.length === 1 && ["0", "1", "2", "3", "4", "5"].includes(text)) {
+      setErrors((prev) => ({
+        ...prev,
+        mobile: "Number must start with 6, 7, 8 or 9",
+      }));
       return;
     }
 
     // Only allow digits
-    const sanitizedText = text.replace(/[^0-9]/g, '');
+    const sanitizedText = text.replace(/[^0-9]/g, "");
     setFormData({ ...formData, mobile: sanitizedText });
-    
-    if (sanitizedText.length > 0 && !['6','7','8','9'].includes(sanitizedText[0])) {
-      setErrors(prev => ({...prev, mobile: "Number must start with 6, 7, 8 or 9"}));
-    } else if (sanitizedText.length === 10 && !/^[6-9]\d{9}$/.test(sanitizedText)) {
-      setErrors(prev => ({...prev, mobile: "Enter valid 10-digit number"}));
+
+    if (
+      sanitizedText.length > 0 &&
+      !["6", "7", "8", "9"].includes(sanitizedText[0])
+    ) {
+      setErrors((prev) => ({
+        ...prev,
+        mobile: "Number must start with 6, 7, 8 or 9",
+      }));
+    } else if (
+      sanitizedText.length === 10 &&
+      !/^[6-9]\d{9}$/.test(sanitizedText)
+    ) {
+      setErrors((prev) => ({ ...prev, mobile: "Enter valid 10-digit number" }));
     } else {
-      setErrors(prev => ({...prev, mobile: undefined}));
+      setErrors((prev) => ({ ...prev, mobile: undefined }));
     }
   };
 
   const handleAadharChange = (text) => {
     // Only allow digits
-    const sanitizedText = text.replace(/[^0-9]/g, '');
+    const sanitizedText = text.replace(/[^0-9]/g, "");
     setFormData({ ...formData, aadhar_number: sanitizedText });
-    
+
     if (sanitizedText && sanitizedText.length !== 12) {
-      setErrors(prev => ({...prev, aadhar_number: "Must be 12 digits"}));
+      setErrors((prev) => ({ ...prev, aadhar_number: "Must be 12 digits" }));
     } else {
-      setErrors(prev => ({...prev, aadhar_number: undefined}));
+      setErrors((prev) => ({ ...prev, aadhar_number: undefined }));
     }
   };
 
   const handleSave = async () => {
     const newErrors = {};
-    
+
     // Validate all fields
-    if (!formData.name?.trim() || !/^[a-zA-Z\s]{2,50}$/.test(formData.name.trim())) {
+    if (
+      !formData.name?.trim() ||
+      !/^[a-zA-Z\s]{2,50}$/.test(formData.name.trim())
+    ) {
       newErrors.name = "Enter valid name (only letters and spaces)";
     }
-    
+
     if (!formData.role) {
       newErrors.role = "Role is required";
     }
-    
+
     if (!formData.mobile || !/^[6-9]\d{9}$/.test(formData.mobile)) {
       newErrors.mobile = "Enter valid 10-digit number starting with 6-9";
     }
-    
+
     if (!formData.aadhar_number || !/^\d{12}$/.test(formData.aadhar_number)) {
       newErrors.aadhar_number = "Enter valid 12-digit Aadhar number";
     }
 
     setErrors(newErrors);
-    
+
     if (Object.keys(newErrors).length > 0) {
       toast.show({
         description: "Please fix all errors before submitting",
@@ -257,13 +290,13 @@ export default function EditStaffScreen() {
           body: JSON.stringify({
             captain_id: captainId,
             staff_id: parseInt(id),
-            restaurant_id: parseInt(restaurant_id),
+            outlet_id: outletId,
             name: formData.name,
-            mobile: parseInt(formData.mobile),
+            mobile: formData.mobile,
             address: formData.address,
             role: formData.role,
             dob: formData.dob,
-            aadhar_number: parseInt(formData.aadhar_number),
+            aadhar_number: formData.aadhar_number,
             photo: formData.photo,
           }),
         }
@@ -278,8 +311,7 @@ export default function EditStaffScreen() {
           status: "success",
         });
         router.replace({
-         // pathname: "/(tabs)/staff",
-          pathname:`/(tabs)/staff/${parseInt(id)}`,
+          pathname: `/(tabs)/staff/${parseInt(id)}`,
           params: { refresh: Date.now() },
         });
       } else {
@@ -394,7 +426,9 @@ export default function EditStaffScreen() {
               placeholder="Enter 12-digit Aadhar number"
               maxLength={12}
             />
-            <FormControl.ErrorMessage>{errors.aadhar_number}</FormControl.ErrorMessage>
+            <FormControl.ErrorMessage>
+              {errors.aadhar_number}
+            </FormControl.ErrorMessage>
           </FormControl>
 
           <FormControl>

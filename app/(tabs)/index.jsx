@@ -35,13 +35,14 @@ export default function HomeScreen() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch restaurant ID from AsyncStorage
-        const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+        // Fetch outlet ID from AsyncStorage
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-        if (!storedRestaurantId) {
+        if (!storedOutletId) {
           toast.show({
-            description: "Restaurant ID not found. Please log in again.",
+            description: "Please log in again",
             status: "error",
+            duration: 3000,
           });
           return;
         }
@@ -55,12 +56,13 @@ export default function HomeScreen() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              restaurant_id: parseInt(storedRestaurantId),
+              outlet_id: storedOutletId.toString(),
             }),
           }
         );
 
         const staffData = await staffResponse.json();
+        console.log("Staff Data Response:", staffData);
 
         // Fetch table list from API
         const tableResponse = await fetch(
@@ -71,21 +73,26 @@ export default function HomeScreen() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              restaurant_id: parseInt(storedRestaurantId),
+              outlet_id: storedOutletId.toString(),
             }),
           }
         );
 
         const tableData = await tableResponse.json();
+        console.log("Table Data Response:", tableData);
 
         if (staffData.st === 1) {
           const staffList = staffData.lists || [];
           setStaffCount(staffList.length);
+        } else {
+          console.log("Staff Data Error:", staffData.msg);
         }
 
         if (tableData.st === 1) {
           const tableList = tableData.data || [];
           setTableCount(tableList.length);
+        } else {
+          console.log("Table Data Error:", tableData.msg);
         }
 
         // TODO: Replace with actual API call for sales data
@@ -98,6 +105,7 @@ export default function HomeScreen() {
         toast.show({
           description: "Failed to fetch data",
           status: "error",
+          duration: 3000,
         });
       }
     };

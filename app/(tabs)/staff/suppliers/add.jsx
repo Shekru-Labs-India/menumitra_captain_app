@@ -46,8 +46,27 @@ export default function AddSupplierScreen() {
   const [creditRatings, setCreditRatings] = useState([]);
   const [statusChoices, setStatusChoices] = useState([]);
   const [errors, setErrors] = useState({});
+  const [outletId, setOutletId] = useState(null);
 
   useEffect(() => {
+    const getStoredData = async () => {
+      try {
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        if (storedOutletId) {
+          setOutletId(storedOutletId);
+        } else {
+          toast.show({
+            description: "Please login again",
+            status: "error",
+          });
+          router.replace("/login");
+        }
+      } catch (error) {
+        console.error("Error getting stored data:", error);
+      }
+    };
+
+    getStoredData();
     fetchCreditRatings();
     fetchStatusChoices();
   }, []);
@@ -140,7 +159,8 @@ export default function AddSupplierScreen() {
       case "name":
       case "ownerName":
         isValid = validateName(sanitizedValue);
-        if (!isValid) {
+        if (!isValid && sanitizedValue.length > 0) {
+          // Only show error if there's input
           toast.show({
             description: `${
               field === "name" ? "Supplier name" : "Owner name"
@@ -153,26 +173,31 @@ export default function AddSupplierScreen() {
 
       case "mobileNumber1":
       case "mobileNumber2":
-        isValid = validateMobileNumber(sanitizedValue);
-        if (!isValid) {
-          toast.show({
-            description: "Mobile number should only contain digits",
-            status: "error",
-          });
-          return;
-        }
-        if (sanitizedValue.length > 0 && sanitizedValue.length !== 10) {
-          toast.show({
-            description: "Mobile number should be 10 digits",
-            status: "error",
-          });
-          return;
+        // Only validate if there's input and it's not being deleted
+        if (sanitizedValue.length > 0) {
+          isValid = validateMobileNumber(sanitizedValue);
+          if (!isValid) {
+            toast.show({
+              description: "Mobile number should only contain digits",
+              status: "error",
+            });
+            return;
+          }
+          // Only show length error when user has finished typing (10+ digits)
+          if (sanitizedValue.length > 10) {
+            toast.show({
+              description: "Mobile number should be 10 digits",
+              status: "error",
+            });
+            return;
+          }
         }
         break;
 
       case "location":
         isValid = validateLocation(sanitizedValue);
-        if (!isValid) {
+        if (!isValid && sanitizedValue.length > 0) {
+          // Only show error if there's input
           toast.show({
             description: "Location should not contain special characters",
             status: "error",
@@ -182,9 +207,8 @@ export default function AddSupplierScreen() {
         break;
     }
 
-    if (isValid) {
-      setFormData((prev) => ({ ...prev, [field]: sanitizedValue }));
-    }
+    // Always update the form data while typing
+    setFormData((prev) => ({ ...prev, [field]: value })); // Use original value instead of sanitizedValue
   };
 
   const handleAddressChange = (text) => {
@@ -235,33 +259,48 @@ export default function AddSupplierScreen() {
       return false;
     }
 
-    // Validate mobile number
-    if (
-      !validateMobileNumber(formData.mobileNumber1) ||
-      formData.mobileNumber1.length !== 10
-    ) {
-      toast.show({
-        title: "Invalid Input",
-        description: "Please enter a valid 10-digit mobile number",
-        status: "error",
-        duration: 3000,
-      });
-      return false;
+    // Validate mobile number format and length at submission
+    if (formData.mobileNumber1) {
+      if (!validateMobileNumber(formData.mobileNumber1)) {
+        toast.show({
+          title: "Invalid Input",
+          description: "Primary mobile number should only contain digits",
+          status: "error",
+          duration: 3000,
+        });
+        return false;
+      }
+      if (formData.mobileNumber1.length !== 10) {
+        toast.show({
+          title: "Invalid Input",
+          description: "Primary mobile number must be 10 digits",
+          status: "error",
+          duration: 3000,
+        });
+        return false;
+      }
     }
 
-    // If mobile number 2 is provided, validate it
-    if (
-      formData.mobileNumber2 &&
-      (!validateMobileNumber(formData.mobileNumber2) ||
-        formData.mobileNumber2.length !== 10)
-    ) {
-      toast.show({
-        title: "Invalid Input",
-        // description: "Secondary mobile number should be 10 digits",
-        status: "error",
-        duration: 3000,
-      });
-      return false;
+    // Validate secondary mobile number if provided
+    if (formData.mobileNumber2) {
+      if (!validateMobileNumber(formData.mobileNumber2)) {
+        toast.show({
+          title: "Invalid Input",
+          description: "Secondary mobile number should only contain digits",
+          status: "error",
+          duration: 3000,
+        });
+        return false;
+      }
+      if (formData.mobileNumber2.length !== 10) {
+        toast.show({
+          title: "Invalid Input",
+          description: "Secondary mobile number must be 10 digits",
+          status: "error",
+          duration: 3000,
+        });
+        return false;
+      }
     }
 
     // Validate owner name if provided
@@ -311,13 +350,20 @@ export default function AddSupplierScreen() {
   };
 
   const handleSave = async () => {
-    // First validate all fields
     if (!validateForm()) {
       return;
     }
 
     try {
-      const restaurantId = await AsyncStorage.getItem("restaurant_id");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      if (!storedOutletId) {
+        toast.show({
+          description: "Please login again",
+          status: "error",
+        });
+        router.replace("/login");
+        return;
+      }
 
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/supplier/create`,
@@ -327,37 +373,51 @@ export default function AddSupplierScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: parseInt(restaurantId),
-            name: formData.name,
+            outlet_id: storedOutletId.toString(),
+            name: formData.name.trim(),
             supplier_status: formData.status || "active",
-            credit_rating: formData.creditRating,
-            credit_limit: parseInt(formData.creditLimit) || 0,
-            location: formData.location,
-            owner_name: formData.ownerName,
-            website: formData.website,
-            mobile_number1: formData.mobileNumber1,
-            mobile_number2: formData.mobileNumber2,
-            address: formData.address,
+            credit_rating: formData.creditRating || "",
+            credit_limit: formData.creditLimit
+              ? parseInt(formData.creditLimit)
+              : 0,
+            location: formData.location?.trim() || "",
+            owner_name: formData.ownerName?.trim() || "",
+            website: formData.website?.trim() || "",
+            mobile_number1: formData.mobileNumber1?.trim() || "",
+            mobile_number2: formData.mobileNumber2?.trim() || "",
+            address: formData.address?.trim() || "",
           }),
         }
       );
 
       const data = await response.json();
+      console.log("Create Supplier Response:", data);
 
       if (data.st === 1) {
-        router.back();
-      } else {
         toast.show({
-          title: "Error",
-          description: data.msg || "Failed to create supplier",
-          status: "error",
+          description: "Supplier created successfully",
+          status: "success",
           duration: 3000,
         });
+        router.back();
+      } else {
+        // Handle specific error for duplicate mobile number
+        if (data.msg?.toLowerCase().includes("mobile number already exists")) {
+          toast.show({
+            title: "Duplicate Mobile Number",
+            description:
+              "This mobile number is already registered with another supplier",
+            status: "error",
+            duration: 3000,
+          });
+        } else {
+          throw new Error(data.msg || "Failed to create supplier");
+        }
       }
     } catch (error) {
+      console.error("Create Error:", error);
       toast.show({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: error.message || "Failed to create supplier",
         status: "error",
         duration: 3000,
       });
@@ -559,7 +619,6 @@ export default function AddSupplierScreen() {
                 <FormControl.ErrorMessage>
                   {errors.address}
                 </FormControl.ErrorMessage>
-              
               </FormControl>
 
               <Button

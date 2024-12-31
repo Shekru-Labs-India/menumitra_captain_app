@@ -41,6 +41,7 @@ export default function SuppliersScreen() {
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
   const [searchQuery, setSearchQuery] = useState("");
+  const [outletId, setOutletId] = useState(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -64,7 +65,7 @@ export default function SuppliersScreen() {
 
   const fetchSuppliers = async () => {
     try {
-      const restaurantId = await AsyncStorage.getItem("restaurant_id");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/supplier/listview`,
@@ -74,7 +75,7 @@ export default function SuppliersScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: parseInt(restaurantId),
+            outlet_id: storedOutletId.toString(),
           }),
         }
       );
@@ -106,6 +107,22 @@ export default function SuppliersScreen() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const getStoredData = async () => {
+      try {
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        if (storedOutletId) {
+          setOutletId(storedOutletId);
+          fetchSuppliers();
+        }
+      } catch (error) {
+        console.error("Error getting stored data:", error);
+      }
+    };
+
+    getStoredData();
+  }, []);
 
   const handleSort = (a, b) => {
     if (sortBy === "name") {

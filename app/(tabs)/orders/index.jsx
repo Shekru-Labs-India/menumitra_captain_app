@@ -29,7 +29,7 @@ export default function OrdersScreen() {
   const router = useRouter();
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(true);
-  const [restaurantId, setRestaurantId] = useState(null);
+  const [outletId, setOutletId] = useState(null);
   const [orders, setOrders] = useState([]);
   const [viewType, setViewType] = useState("list");
   const [searchQuery, setSearchQuery] = useState("");
@@ -62,7 +62,7 @@ export default function OrdersScreen() {
   };
 
   const fetchOrders = async () => {
-    if (!restaurantId) return;
+    if (!outletId) return;
 
     setIsLoading(true);
     try {
@@ -72,7 +72,7 @@ export default function OrdersScreen() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          restaurant_id: parseInt(restaurantId),
+          outlet_id: outletId.toString(),
           order_status: orderStatus === "all" ? "" : orderStatus,
         }),
       });
@@ -110,9 +110,9 @@ export default function OrdersScreen() {
   useEffect(() => {
     const getStoredData = async () => {
       try {
-        const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-        if (storedRestaurantId) {
-          setRestaurantId(parseInt(storedRestaurantId));
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        if (storedOutletId) {
+          setOutletId(storedOutletId);
         }
       } catch (error) {
         console.error("Error getting stored data:", error);
@@ -125,11 +125,11 @@ export default function OrdersScreen() {
   // Refresh orders when screen is focused
   useFocusEffect(
     useCallback(() => {
-      if (restaurantId) {
+      if (outletId) {
         console.log("Fetching orders with status:", orderStatus);
         fetchOrders();
       }
-    }, [restaurantId, orderStatus])
+    }, [outletId, orderStatus])
   );
 
   // Filter and sort orders

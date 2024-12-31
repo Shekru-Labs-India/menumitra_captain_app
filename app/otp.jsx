@@ -20,7 +20,6 @@ import { useVersion } from "../context/VersionContext";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
-
 export default function OtpScreen() {
   const [otp, setOtp] = useState(["1", "2", "3", "4"]);
   const [timer, setTimer] = useState(30);
@@ -80,7 +79,6 @@ export default function OtpScreen() {
     setTimer(30); // Reset the timer to 30 seconds
     setCanResend(false); // Disable resend until timer expires
   };
-  
 
   const formatMobileNumber = (number) => {
     if (!number) return "";
@@ -118,7 +116,7 @@ export default function OtpScreen() {
 
   const handleResendOtp = async () => {
     if (!canResend) return;
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/captain_login`, {
         method: "POST",
@@ -131,13 +129,13 @@ export default function OtpScreen() {
       });
 
       const data = await response.json();
-      
+
       if (data && data.st === 1) {
         setOtp(["", "", "", ""]);
         setError("");
         setTimer(30);
         setCanResend(false);
-        setTimerKey(prev => prev + 1); // Force timer reset
+        setTimerKey((prev) => prev + 1); // Force timer reset
         otpInputs.current[0].focus();
 
         // Extract and store new OTP if present
@@ -162,7 +160,6 @@ export default function OtpScreen() {
 
     try {
       const enteredOtp = otp.join("");
-
       const response = await fetch(`${API_BASE_URL}/captain_verify_otp`, {
         method: "POST",
         headers: {
@@ -179,13 +176,13 @@ export default function OtpScreen() {
 
       if (data.st === 1) {
         try {
-          // Store all required data from API response
+          // Store all required data from API response with updated keys
           await AsyncStorage.multiSet([
             ["captain_id", data.captain_id.toString()],
-            ["restaurant_id", data.restaurant_id.toString()],
+            ["outlet_id", data.outlet_id.toString()], // Changed from restaurant_id
+            ["user_id", data.user_id.toString()], // Now using actual user_id from response
             ["captain_name", data.captain_name],
             ["role", data.role],
-            ["user_id", data.captain_id.toString()], // Store captain_id as user_id for orders
           ]);
 
           // Store session data
@@ -205,10 +202,10 @@ export default function OtpScreen() {
           // Log stored data for verification
           console.log("Stored Data:", {
             captain_id: data.captain_id,
-            restaurant_id: data.restaurant_id,
+            outlet_id: data.outlet_id,
+            user_id: data.user_id,
             captain_name: data.captain_name,
             role: data.role,
-            user_id: data.captain_id, // Same as captain_id
           });
 
           router.replace("/(tabs)");

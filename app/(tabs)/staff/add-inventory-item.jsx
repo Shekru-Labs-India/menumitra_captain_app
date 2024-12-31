@@ -29,7 +29,7 @@ const API_BASE_URL = "https://men4u.xyz/captain_api";
 export default function AddInventoryItemScreen() {
   const router = useRouter();
   const toast = useToast();
-  const [restaurantId, setRestaurantId] = useState(null);
+  const [outletId, setOutletId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -66,9 +66,9 @@ export default function AddInventoryItemScreen() {
 
   const getStoredData = async () => {
     try {
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-      if (storedRestaurantId) {
-        setRestaurantId(parseInt(storedRestaurantId));
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      if (storedOutletId) {
+        setOutletId(storedOutletId);
       } else {
         toast.show({
           description: "Please login again",
@@ -140,15 +140,15 @@ export default function AddInventoryItemScreen() {
 
   const fetchSuppliers = async () => {
     try {
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
       const response = await fetch(`${API_BASE_URL}/get_supplier_list`, {
-        method: "POST", // Use POST method as per the API requirement
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          restaurant_id: storedRestaurantId, // Include restaurant_id in the request body
+          outlet_id: storedOutletId,
         }),
       });
 
@@ -156,14 +156,13 @@ export default function AddInventoryItemScreen() {
       console.log("Suppliers Response:", data);
 
       if (data.st === 1) {
-        // Convert suppliers_dict to an array of objects
         const suppliersArray = Object.entries(data.suppliers_dict).map(
           ([name, id]) => ({
             name,
             id,
           })
         );
-        setSuppliers(suppliersArray); // Set the suppliers state
+        setSuppliers(suppliersArray);
       } else {
         throw new Error(data.msg || "Failed to fetch suppliers");
       }
@@ -183,15 +182,18 @@ export default function AddInventoryItemScreen() {
   // Add name validation handler
   const handleNameChange = (text) => {
     // Only allow letters and spaces
-    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, '');
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setFormData({ ...formData, name: sanitizedText });
-    
+
     if (!sanitizedText.trim()) {
-      setErrors(prev => ({...prev, name: "Name is required"}));
+      setErrors((prev) => ({ ...prev, name: "Name is required" }));
     } else if (sanitizedText.trim().length < 2) {
-      setErrors(prev => ({...prev, name: "Name must be at least 2 characters"}));
+      setErrors((prev) => ({
+        ...prev,
+        name: "Name must be at least 2 characters",
+      }));
     } else {
-      setErrors(prev => ({...prev, name: undefined}));
+      setErrors((prev) => ({ ...prev, name: undefined }));
     }
   };
 
@@ -252,73 +254,79 @@ export default function AddInventoryItemScreen() {
   };
 
   const handleSubmit = async () => {
-    if (validateForm()) {
-      try {
-        setIsLoading(true);
-        const requestBody = {
-          supplier_id: formData.supplierId,
-          restaurant_id: restaurantId.toString(),
-          category_id: formData.category_id,
-          name: formData.name,
-          description: formData.description,
-          unit_price: formData.unit_price,
-          quantity: parseInt(formData.quantity),
-          unit_of_measure: formData.unit_of_measure,
-          reorder_level: parseInt(formData.reorder_level),
-          brand_name: formData.brand_name,
-          tax_rate: formData.tax_rate,
-          in_or_out: formData.in_or_out,
-          in_date: formData.in_date,
-          expiration_date: formData.expiration_date
-        };
+    if (!validateForm()) return;
 
-        console.log("Request Body:", requestBody);
-
-        const response = await fetch(
-          `${API_BASE_URL}/captain_manage/inventory_create`, // Ensure this is the correct endpoint
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(requestBody),
-          }
-        );
-
-        const data = await response.json();
-        console.log("Create Inventory Response:", data);
-
-        if (data.st === 1) {
-          toast.show({
-            description: "Inventory item added successfully",
-            status: "success",
-          });
-          router.push({
-            pathname: "/(tabs)/staff/inventory-items",
-            params: { refresh: Date.now() },
-          });
-        } else {
-          toast.show({
-            description: data.msg || "Failed to add inventory item",
-            status: "error",
-          });
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/inventory_create`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            outlet_id: outletId.toString(),
+            name: formData.name,
+            supplier_id: formData.supplierId.toString(),
+            description: formData.description,
+            category_id: formData.category_id.toString(),
+            unit_price: formData.unit_price.toString(),
+            quantity: formData.quantity.toString(),
+            unit_of_measure: formData.unit_of_measure,
+            reorder_level: formData.reorder_level.toString(),
+            brand_name: formData.brand_name,
+            tax_rate: formData.tax_rate.toString(),
+            in_or_out: formData.in_or_out,
+            in_date: formData.in_date,
+            expiration_date: formData.expiration_date,
+          }),
         }
-      } catch (error) {
-        console.error("Create Inventory Error:", error);
+      );
+
+      const data = await response.json();
+      console.log("Create Response:", data);
+
+      if (data.st === 1) {
         toast.show({
-          description: "Failed to add inventory item",
-          status: "error",
+          description: "Inventory item created successfully",
+          status: "success",
         });
-      } finally {
-        setIsLoading(false);
+        router.push({
+          pathname: "/(tabs)/staff/inventory-items",
+          params: { refresh: Date.now() },
+        });
+      } else {
+        throw new Error(data.msg || "Failed to create inventory item");
       }
-    } else {
-      console.log("Form validation failed.");
+    } catch (error) {
+      console.error("Create Error:", error);
+      toast.show({
+        description: error.message || "Failed to create inventory item",
+        status: "error",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.show({
+        description: "Category name is required",
+        status: "error",
+      });
+      return;
+    }
+
     try {
+      // Log the request payload for debugging
+      const requestPayload = {
+        outlet_id: outletId.toString(),
+        name: newCategoryName.trim(), // Changed from inventory_category_name to name
+      };
+      console.log("Category Create Request:", requestPayload);
+
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/inventory_category_create`,
         {
@@ -326,34 +334,28 @@ export default function AddInventoryItemScreen() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ name: newCategoryName }),
+          body: JSON.stringify(requestPayload),
         }
       );
 
       const data = await response.json();
+      console.log("Add Category Response:", data);
+
       if (data.st === 1) {
         toast.show({
-          description: "Inventory Category Created Successfully",
+          description: "Category added successfully",
           status: "success",
         });
-
-        // Update categories state
-        setCategories((prevCategories) => [
-          ...prevCategories,
-          { name: newCategoryName, inventory_category_id: data.newCategoryId }, // Assuming newCategoryId is returned
-        ]);
-        setNewCategoryName(""); // Clear the input
-        setAddCategoryModalOpen(false); // Close the modal
+        setNewCategoryName("");
+        setAddCategoryModalOpen(false);
+        await fetchCategories();
       } else {
-        toast.show({
-          description: data.msg || "Failed to add category",
-          status: "error",
-        });
+        throw new Error(data.msg || "Failed to add category");
       }
     } catch (error) {
-      console.error("Error adding category:", error);
+      console.error("Add Category Error:", error);
       toast.show({
-        description: "Failed to add category",
+        description: error.message || "Failed to add category",
         status: "error",
       });
     }
@@ -415,7 +417,6 @@ export default function AddInventoryItemScreen() {
               autoCapitalize="words"
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
-           
           </FormControl>
 
           {/* Supplier Name */}
@@ -496,7 +497,9 @@ export default function AddInventoryItemScreen() {
                 setFormData({ ...formData, unit_price: formattedValue });
               }}
             />
-            <FormControl.ErrorMessage>{errors.unit_price}</FormControl.ErrorMessage>
+            <FormControl.ErrorMessage>
+              {errors.unit_price}
+            </FormControl.ErrorMessage>
           </FormControl>
 
           {/* Quantity Input */}
@@ -612,7 +615,9 @@ export default function AddInventoryItemScreen() {
                 }
               />
             </Pressable>
-            <FormControl.ErrorMessage>{errors.in_date}</FormControl.ErrorMessage>
+            <FormControl.ErrorMessage>
+              {errors.in_date}
+            </FormControl.ErrorMessage>
           </FormControl>
 
           {/* Date Pickers */}
@@ -660,8 +665,6 @@ export default function AddInventoryItemScreen() {
             </Select>
           </FormControl>
 
-         
-
           {/* Tax Rate Input */}
           <FormControl isRequired isInvalid={"tax_rate" in errors}>
             <FormControl.Label>Tax Rate (%)</FormControl.Label>
@@ -675,7 +678,9 @@ export default function AddInventoryItemScreen() {
                 setFormData({ ...formData, tax_rate: formattedValue });
               }}
             />
-            <FormControl.ErrorMessage>{errors.tax_rate}</FormControl.ErrorMessage>
+            <FormControl.ErrorMessage>
+              {errors.tax_rate}
+            </FormControl.ErrorMessage>
           </FormControl>
 
           {/* Modal for adding new category */}

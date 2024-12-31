@@ -47,6 +47,7 @@ export default function EditSupplierScreen() {
 
   const [errors, setErrors] = useState({});
   const [creditRatings, setCreditRatings] = useState([]);
+  const [outletId, setOutletId] = useState(null);
 
   const fetchCreditRatings = async () => {
     try {
@@ -80,7 +81,17 @@ export default function EditSupplierScreen() {
   useEffect(() => {
     const fetchSupplierDetails = async () => {
       try {
-        const restaurantId = await AsyncStorage.getItem("restaurant_id");
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        if (!storedOutletId) {
+          toast.show({
+            description: "Please login again",
+            status: "error",
+          });
+          router.replace("/login");
+          return;
+        }
+
+        setOutletId(storedOutletId);
 
         const response = await fetch(
           `${API_BASE_URL}/captain_manage/supplier/view`,
@@ -90,27 +101,27 @@ export default function EditSupplierScreen() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              supplier_id: parseInt(id),
-              restaurant_id: parseInt(restaurantId),
+              supplier_id: id.toString(),
+              outlet_id: storedOutletId.toString(),
             }),
           }
         );
 
         const data = await response.json();
+        console.log("Supplier Details Response:", data);
 
         if (data.st === 1 && data.data) {
           setFormData({
-            name: data.data.name,
-            status: data.data.supplier_status,
-            creditRating: data.data.credit_rating,
-            creditLimit: data.data.credit_limit?.toString(),
-            location: data.data.location,
-            ownerName: data.data.owner_name,
-          
-            website: data.data.website,
-            mobileNumber1: data.data.mobile_number1,
-            mobileNumber2: data.data.mobile_number2,
-            address: data.data.address,
+            name: data.data.name || "",
+            status: data.data.supplier_status || "active",
+            creditRating: data.data.credit_rating || "",
+            creditLimit: data.data.credit_limit?.toString() || "",
+            location: data.data.location || "",
+            ownerName: data.data.owner_name || "",
+            website: data.data.website || "",
+            mobileNumber1: data.data.mobile_number1 || "",
+            mobileNumber2: data.data.mobile_number2 || "",
+            address: data.data.address || "",
           });
         } else {
           throw new Error(data.msg || "Failed to fetch supplier details");
@@ -118,8 +129,9 @@ export default function EditSupplierScreen() {
       } catch (error) {
         console.error("Fetch Error:", error);
         toast.show({
-          description: "Failed to fetch supplier details",
+          description: error.message || "Failed to fetch supplier details",
           status: "error",
+          duration: 3000,
         });
         router.back();
       }
@@ -132,10 +144,31 @@ export default function EditSupplierScreen() {
     fetchCreditRatings();
   }, []);
 
+  useEffect(() => {
+    const getStoredData = async () => {
+      try {
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        if (storedOutletId) {
+          setOutletId(storedOutletId);
+        } else {
+          toast.show({
+            description: "Please login again",
+            status: "error",
+          });
+          router.replace("/login");
+        }
+      } catch (error) {
+        console.error("Error getting stored data:", error);
+      }
+    };
+
+    getStoredData();
+  }, []);
+
   // Add this function to handle name input with validation
   const handleNameChange = (text) => {
     // Remove special characters on input
-    const sanitizedText = text.replace(/[^a-zA-Z0-9\s]/g, '');
+    const sanitizedText = text.replace(/[^a-zA-Z0-9\s]/g, "");
     setFormData({ ...formData, name: sanitizedText });
   };
 
@@ -144,13 +177,11 @@ export default function EditSupplierScreen() {
     const nameRegex = /^[a-zA-Z0-9\s]+$/;
     const mobileRegex = /^[0-9]{10}$/;
 
-    // Stricter name validation
+    // Name validation
     if (!formData.name?.trim()) {
       newErrors.name = "Name is required";
     } else if (!nameRegex.test(formData.name.trim())) {
       newErrors.name = "Name can only contain letters, numbers and spaces";
-    } else if (formData.name.trim().length < 2) {
-      newErrors.name = "Name must be at least 2 characters long";
     }
 
     // Primary mobile validation
@@ -161,23 +192,38 @@ export default function EditSupplierScreen() {
     }
 
     // Secondary mobile validation (optional)
-    if (formData.mobileNumber2?.trim() && !mobileRegex.test(formData.mobileNumber2.trim())) {
+    if (
+      formData.mobileNumber2?.trim() &&
+      !mobileRegex.test(formData.mobileNumber2.trim())
+    ) {
       newErrors.mobileNumber2 = "Enter valid 10-digit number";
     }
 
     // Owner name validation (optional)
-    if (formData.ownerName?.trim() && !nameRegex.test(formData.ownerName.trim())) {
-      newErrors.ownerName = "Owner name can only contain letters, numbers and spaces";
+    if (
+      formData.ownerName?.trim() &&
+      !nameRegex.test(formData.ownerName.trim())
+    ) {
+      newErrors.ownerName =
+        "Owner name can only contain letters, numbers and spaces";
     }
 
     // Location validation (optional)
-    if (formData.location?.trim() && !nameRegex.test(formData.location.trim())) {
-      newErrors.location = "Location can only contain letters, numbers and spaces";
+    if (
+      formData.location?.trim() &&
+      !nameRegex.test(formData.location.trim())
+    ) {
+      newErrors.location =
+        "Location can only contain letters, numbers and spaces";
     }
 
     // Website validation (optional)
-    if (formData.website?.trim() &&
-      !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(formData.website.trim())) {
+    if (
+      formData.website?.trim() &&
+      !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(
+        formData.website.trim()
+      )
+    ) {
       newErrors.website = "Enter valid website URL";
     }
 
@@ -195,12 +241,31 @@ export default function EditSupplierScreen() {
       toast.show({
         description: "Please fix the errors before submitting",
         status: "error",
+        duration: 3000,
       });
       return;
     }
 
     try {
-      const restaurantId = await AsyncStorage.getItem("restaurant_id");
+      // Prepare the request body with proper data types
+      const requestBody = {
+        supplier_id: id.toString(),
+        outlet_id: outletId.toString(),
+        name: formData.name?.trim() || "",
+        supplier_status: formData.status || "active",
+        credit_rating: formData.creditRating || "",
+        credit_limit: formData.creditLimit
+          ? formData.creditLimit.toString()
+          : "0",
+        location: formData.location?.trim() || "",
+        owner_name: formData.ownerName?.trim() || "",
+        website: formData.website?.trim() || "",
+        mobile_number1: formData.mobileNumber1?.trim() || "",
+        mobile_number2: formData.mobileNumber2?.trim() || "",
+        address: formData.address?.trim() || "",
+      };
+
+      console.log("Update Request Body:", requestBody); // Debug log
 
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/supplier/update`,
@@ -209,22 +274,7 @@ export default function EditSupplierScreen() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            supplier_id: parseInt(id),
-            restaurant_id: parseInt(restaurantId),
-            name: formData.name,
-            supplier_status: formData.status || "active",
-            credit_rating: formData.creditRating || "not_rated",
-            credit_limit: formData.creditLimit
-              ? parseInt(formData.creditLimit)
-              : 0,
-            location: formData.location || "",
-            owner_name: formData.ownerName || "",
-            website: formData.website || "",
-            mobile_number1: formData.mobileNumber1,
-            mobile_number2: formData.mobileNumber2 || "",
-            address: formData.address || "",
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
@@ -241,8 +291,8 @@ export default function EditSupplierScreen() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              supplier_id: parseInt(id),
-              restaurant_id: parseInt(restaurantId),
+              supplier_id: id.toString(),
+              outlet_id: outletId.toString(),
             }),
           }
         );
@@ -250,7 +300,11 @@ export default function EditSupplierScreen() {
         const detailsData = await detailsResponse.json();
 
         if (detailsData.st === 1) {
-          // Pass the updated data back to the details screen
+          toast.show({
+            description: "Supplier updated successfully",
+            status: "success",
+            duration: 3000,
+          });
           router.back({
             params: {
               updatedSupplier: detailsData.data,
@@ -258,19 +312,26 @@ export default function EditSupplierScreen() {
             },
           });
         }
-
-        toast.show({
-          description: data.msg || "Supplier updated successfully",
-          status: "success",
-        });
       } else {
-        throw new Error(data.msg || "Failed to update supplier");
+        // Handle specific error for duplicate mobile number
+        if (data.msg?.toLowerCase().includes("mobile number already exists")) {
+          toast.show({
+            title: "Duplicate Mobile Number",
+            description:
+              "This mobile number is already registered with another supplier",
+            status: "error",
+            duration: 3000,
+          });
+        } else {
+          throw new Error(data.msg || "Failed to update supplier");
+        }
       }
     } catch (error) {
       console.error("Update Error:", error);
       toast.show({
         description: error.message || "Failed to update supplier",
         status: "error",
+        duration: 3000,
       });
     }
   };
@@ -328,8 +389,6 @@ export default function EditSupplierScreen() {
                   <Select.Item label="Inactive" value="inactive" />
                 </Select>
               </FormControl>
-
-            
             </VStack>
           </Box>
 

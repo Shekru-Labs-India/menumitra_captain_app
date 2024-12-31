@@ -27,16 +27,16 @@ const API_BASE_URL = "https://men4u.xyz/captain_api";
 
 export default function StaffDetailsScreen() {
   const router = useRouter();
-  const { id, restaurant_id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams();
   const toast = useToast();
 
   const [staff, setStaff] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [restaurantId, setRestaurantId] = useState(null);
+  const [outletId, setOutletId] = useState(null);
   const cancelRef = React.useRef(null);
 
-  const fetchStaffDetails = async () => {
+  const fetchStaffDetails = async (storedOutletId) => {
     setIsLoading(true);
     try {
       const response = await fetch(
@@ -48,7 +48,7 @@ export default function StaffDetailsScreen() {
           },
           body: JSON.stringify({
             staff_id: parseInt(id),
-            restaurant_id: parseInt(restaurant_id),
+            outlet_id: storedOutletId,
           }),
         }
       );
@@ -80,11 +80,11 @@ export default function StaffDetailsScreen() {
   useEffect(() => {
     const getStoredData = async () => {
       try {
-        const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-        if (storedRestaurantId) {
-          setRestaurantId(parseInt(storedRestaurantId));
-          // Fetch staff details after getting restaurant ID
-          fetchStaffDetails(parseInt(storedRestaurantId));
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        if (storedOutletId) {
+          const parsedOutletId = parseInt(storedOutletId);
+          setOutletId(parsedOutletId);
+          fetchStaffDetails(parsedOutletId);
         } else {
           toast.show({
             description: "Please login again",
@@ -110,8 +110,8 @@ export default function StaffDetailsScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            staff_id: parseInt(id),
-            restaurant_id: restaurantId,
+            staff_id: id.toString(),
+            outlet_id: outletId.toString(),
           }),
         }
       );
@@ -124,7 +124,7 @@ export default function StaffDetailsScreen() {
           description: "Staff member deleted successfully",
           status: "success",
         });
-        setIsAlertOpen(false); // Close the alert dialog
+        setIsAlertOpen(false);
         router.replace({
           pathname: "/(tabs)/staff",
           params: { refresh: Date.now() },
@@ -260,8 +260,8 @@ export default function StaffDetailsScreen() {
                   </Text>
                   <Text fontSize="md">
                     {/* {staff.address || "Address not provided"} */}
-                    {staff.address?.charAt(0).toUpperCase() + staff.address?.slice(1) || "Address not provided"}
-
+                    {staff.address?.charAt(0).toUpperCase() +
+                      staff.address?.slice(1) || "Address not provided"}
                   </Text>
                 </VStack>
               </HStack>
@@ -281,18 +281,15 @@ export default function StaffDetailsScreen() {
                 </HStack>
                 <HStack justifyContent="space-between">
                   <Text color="coolGray.500">Aadhar Number</Text>
-                  <Text>{staff.aadhar_number}
-                    
-                  </Text>
+                  <Text>{staff.aadhar_number}</Text>
                 </HStack>
                 <Divider />
                 <HStack justifyContent="space-between">
                   <Text color="coolGray.500">Created By</Text>
                   <Text>
-                  {staff.created_by?.charAt(0).toUpperCase() + staff.created_by?.slice(1) }
-
+                    {staff.created_by?.charAt(0).toUpperCase() +
+                      staff.created_by?.slice(1)}
                   </Text>
-                  
                 </HStack>
                 <HStack justifyContent="space-between">
                   <Text color="coolGray.500">Created On</Text>

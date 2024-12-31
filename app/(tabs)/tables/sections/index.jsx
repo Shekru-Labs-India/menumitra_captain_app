@@ -43,7 +43,7 @@ export default function TableSectionsScreen() {
   const [newSectionName, setNewSectionName] = useState("");
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [restaurantId, setRestaurantId] = useState(null);
+  const [outletId, setOutletId] = useState(null);
   const [activeSection, setActiveSection] = useState(null);
   const [showTableActionModal, setShowTableActionModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
@@ -84,9 +84,7 @@ export default function TableSectionsScreen() {
     if (activeSection) {
       const fetchTablesForSection = async () => {
         try {
-          const storedRestaurantId = await AsyncStorage.getItem(
-            "restaurant_id"
-          );
+          const storedOutletId = await AsyncStorage.getItem("outlet_id");
           const response = await fetch(
             `${API_BASE_URL}/captain_manage/table_listview`,
             {
@@ -95,7 +93,7 @@ export default function TableSectionsScreen() {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                restaurant_id: parseInt(storedRestaurantId),
+                outlet_id: storedOutletId,
               }),
             }
           );
@@ -129,10 +127,8 @@ export default function TableSectionsScreen() {
     useCallback(() => {
       const refreshSections = async () => {
         try {
-          const storedRestaurantId = await AsyncStorage.getItem(
-            "restaurant_id"
-          );
-          if (!storedRestaurantId) {
+          const storedOutletId = await AsyncStorage.getItem("outlet_id");
+          if (!storedOutletId) {
             toast.show({
               description: "Please login again",
               status: "error",
@@ -141,7 +137,7 @@ export default function TableSectionsScreen() {
             return;
           }
 
-          await fetchSections(parseInt(storedRestaurantId));
+          await fetchSections(storedOutletId);
         } catch (error) {
           console.error("Refresh Sections Error:", error);
           toast.show({
@@ -158,10 +154,10 @@ export default function TableSectionsScreen() {
   const getStoredData = async () => {
     try {
       setLoading(true);
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-      if (storedRestaurantId) {
-        setRestaurantId(parseInt(storedRestaurantId));
-        await fetchSections(parseInt(storedRestaurantId));
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      if (storedOutletId) {
+        setOutletId(parseInt(storedOutletId));
+        await fetchSections(storedOutletId);
       } else {
         toast.show({
           description: "Please login again",
@@ -180,7 +176,7 @@ export default function TableSectionsScreen() {
     }
   };
 
-  const fetchSections = async (restId) => {
+  const fetchSections = async (outId) => {
     try {
       setLoading(true);
 
@@ -193,7 +189,7 @@ export default function TableSectionsScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restId,
+            outlet_id: outId.toString(),
           }),
         }
       );
@@ -209,7 +205,7 @@ export default function TableSectionsScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restId,
+            outlet_id: outId.toString(),
           }),
         }
       );
@@ -340,7 +336,7 @@ export default function TableSectionsScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restaurantId,
+            outlet_id: outletId.toString(),
             section_name: newSectionName.trim(),
           }),
         }
@@ -361,7 +357,7 @@ export default function TableSectionsScreen() {
         setShowAddModal(false);
 
         // Refresh sections list
-        await fetchSections(restaurantId);
+        await fetchSections(outletId);
       } else {
         throw new Error(data.msg || "Failed to create section");
       }
@@ -379,10 +375,10 @@ export default function TableSectionsScreen() {
 
   const handleTablePress = async (table, section) => {
     try {
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-      if (!storedRestaurantId) {
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      if (!storedOutletId) {
         toast.show({
-          description: "Restaurant ID not found. Please login again.",
+          description: "Outlet ID not found. Please login again.",
           status: "error",
         });
         return;
@@ -393,9 +389,9 @@ export default function TableSectionsScreen() {
         router.push({
           pathname: "/(tabs)/orders/create-order",
           params: {
-            tableId: table.table_id,
+            tableId: table.table_id.toString(),
             tableNumber: table.table_number,
-            sectionId: section.id,
+            sectionId: section.id.toString(),
             sectionName: section.name,
             isOccupied: "0",
           },
@@ -418,7 +414,7 @@ export default function TableSectionsScreen() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            restaurant_id: parseInt(storedRestaurantId),
+            outlet_id: storedOutletId,
             order_status: "ongoing",
             date: formattedDate,
           }),
@@ -452,7 +448,7 @@ export default function TableSectionsScreen() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            restaurant_id: parseInt(storedRestaurantId),
+            outlet_id: storedOutletId,
             order_number: tableOrder.order_number,
           }),
         }
@@ -471,11 +467,11 @@ export default function TableSectionsScreen() {
       router.push({
         pathname: "/(tabs)/orders/create-order",
         params: {
-          tableId: table.table_id,
+          tableId: table.table_id.toString(),
           tableNumber: table.table_number,
-          sectionId: section.id,
+          sectionId: section.id.toString(),
           sectionName: section.name,
-          orderId: order_details.order_id,
+          orderId: order_details.order_id.toString(),
           orderNumber: tableOrder.order_number,
           orderType: tableOrder.order_type || "Dine In",
           existingItems: JSON.stringify(menu_details),
@@ -573,20 +569,22 @@ export default function TableSectionsScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restaurantId,
-            section_id: parseInt(sectionId),
-            table_id: parseInt(tableId),
+            outlet_id: outletId?.toString() || "",
+            section_id: (sectionId || "").toString(),
+            table_id: (tableId || "").toString(),
           }),
         }
       );
 
       const data = await response.json();
+      console.log("Delete Table Response:", data);
+
       if (data.st === 1) {
         toast.show({
           description: "Table deleted successfully",
           status: "success",
         });
-        await fetchSections(restaurantId);
+        await fetchSections(outletId.toString());
       } else {
         throw new Error(data.msg || "Failed to delete table");
       }
@@ -1065,8 +1063,8 @@ export default function TableSectionsScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restaurantId,
-            section_id: parseInt(editSection.id),
+            outlet_id: outletId.toString(),
+            section_id: editSection.id.toString(),
             section_name: editSection.name.trim(),
           }),
         }
@@ -1080,7 +1078,7 @@ export default function TableSectionsScreen() {
         });
         setShowEditModal(false);
         setEditSection(null);
-        await fetchSections(restaurantId);
+        await fetchSections(outletId);
       } else {
         throw new Error(data.msg || "Failed to update section");
       }
@@ -1106,8 +1104,8 @@ export default function TableSectionsScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restaurantId,
-            section_id: parseInt(activeSection.id),
+            outlet_id: outletId.toString(),
+            section_id: activeSection.id.toString(),
           }),
         }
       );
@@ -1120,7 +1118,7 @@ export default function TableSectionsScreen() {
         });
         setShowDeleteModal(false);
         setActiveSection(null);
-        await fetchSections(restaurantId);
+        await fetchSections(outletId.toString());
       } else {
         throw new Error(data.msg || "Failed to delete section");
       }
@@ -1147,8 +1145,8 @@ export default function TableSectionsScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: parseInt(restaurantId),
-            section_id: parseInt(sectionId),
+            outlet_id: outletId.toString(),
+            section_id: sectionId.toString(),
           }),
         }
       );
@@ -1164,7 +1162,7 @@ export default function TableSectionsScreen() {
         });
 
         // Refresh the sections data
-        await fetchSections(restaurantId);
+        await fetchSections(outletId);
       } else {
         throw new Error(data.msg || "Failed to create table");
       }

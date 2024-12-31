@@ -24,7 +24,7 @@ import { Platform, StatusBar } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import Header from "../../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -43,7 +43,7 @@ export default function AddStaffScreen() {
   const [roles, setRoles] = useState([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [captainId, setCaptainId] = useState(null);
-  const [restaurantId, setRestaurantId] = useState(null);
+  const [outletId, setOutletId] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState({}); // Add this state for form errors
 
@@ -85,54 +85,75 @@ export default function AddStaffScreen() {
   // Add this function to handle name input with validation
   const handleNameChange = (text) => {
     // Remove special characters and numbers on input
-    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, '');
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setFormData({ ...formData, name: sanitizedText });
-    
+
     // Validate and set error
     if (sanitizedText.trim().length < 2) {
-      setErrors(prev => ({...prev, name: "Name must be at least 2 characters long"}));
+      setErrors((prev) => ({
+        ...prev,
+        name: "Name must be at least 2 characters long",
+      }));
     } else if (!/^[a-zA-Z\s]+$/.test(sanitizedText)) {
-      setErrors(prev => ({...prev, name: "Only letters and spaces allowed"}));
+      setErrors((prev) => ({
+        ...prev,
+        name: "Only letters and spaces allowed",
+      }));
     } else {
-      setErrors(prev => ({...prev, name: undefined}));
+      setErrors((prev) => ({ ...prev, name: undefined }));
     }
   };
 
   // Modify handlePhoneChange function
   const handlePhoneChange = (text) => {
     // Prevent entering 0-5 as first digit
-    if (text.length === 1 && ['0','1','2','3','4','5'].includes(text)) {
-      setErrors(prev => ({...prev, phone: "Number must start with 6, 7, 8 or 9"}));
+    if (text.length === 1 && ["0", "1", "2", "3", "4", "5"].includes(text)) {
+      setErrors((prev) => ({
+        ...prev,
+        phone: "Number must start with 6, 7, 8 or 9",
+      }));
       return; // Don't update state with invalid first digit
     }
 
     // Only allow digits
-    const sanitizedText = text.replace(/[^0-9]/g, '');
+    const sanitizedText = text.replace(/[^0-9]/g, "");
     setFormData({ ...formData, phone: sanitizedText });
-    
+
     // Validate the phone number
-    if (sanitizedText.length > 0 && !['6','7','8','9'].includes(sanitizedText[0])) {
-      setErrors(prev => ({...prev, phone: "Number must start with 6, 7, 8 or 9"}));
-    } else if (sanitizedText.length === 10 && !/^[6-9]\d{9}$/.test(sanitizedText)) {
-      setErrors(prev => ({...prev, phone: "Enter valid 10-digit number"}));
+    if (
+      sanitizedText.length > 0 &&
+      !["6", "7", "8", "9"].includes(sanitizedText[0])
+    ) {
+      setErrors((prev) => ({
+        ...prev,
+        phone: "Number must start with 6, 7, 8 or 9",
+      }));
+    } else if (
+      sanitizedText.length === 10 &&
+      !/^[6-9]\d{9}$/.test(sanitizedText)
+    ) {
+      setErrors((prev) => ({ ...prev, phone: "Enter valid 10-digit number" }));
     } else {
-      setErrors(prev => ({...prev, phone: undefined}));
+      setErrors((prev) => ({ ...prev, phone: undefined }));
     }
   };
 
   // Add this function to handle address input validation
   const handleAddressChange = (text) => {
     // Remove special characters but allow basic punctuation
-    const sanitizedText = text.replace(/[^a-zA-Z0-9\s,.-]/g, '');
+    const sanitizedText = text.replace(/[^a-zA-Z0-9\s,.-]/g, "");
     setFormData({ ...formData, address: sanitizedText });
-    
+
     // Validate address
     if (!sanitizedText.trim()) {
-      setErrors(prev => ({...prev, address: "Address is required"}));
+      setErrors((prev) => ({ ...prev, address: "Address is required" }));
     } else if (sanitizedText.trim().length < 10) {
-      setErrors(prev => ({...prev, address: "Address must be at least 10 characters"}));
+      setErrors((prev) => ({
+        ...prev,
+        address: "Address must be at least 10 characters",
+      }));
     } else {
-      setErrors(prev => ({...prev, address: undefined}));
+      setErrors((prev) => ({ ...prev, address: undefined }));
     }
   };
 
@@ -140,7 +161,7 @@ export default function AddStaffScreen() {
   const validateForm = () => {
     try {
       const newErrors = {};
-      
+
       // Validate name (only letters and spaces)
       if (!formData.name?.trim()) {
         newErrors.name = "Name is required";
@@ -182,7 +203,7 @@ export default function AddStaffScreen() {
       }
 
       setErrors(newErrors);
-      
+
       if (Object.keys(newErrors).length > 0) {
         toast.show({
           description: "Please fix all errors before submitting",
@@ -206,7 +227,7 @@ export default function AddStaffScreen() {
 
       // Use the stored IDs
       formDataApi.append("captain_id", captainId);
-      formDataApi.append("restaurant_id", restaurantId);
+      formDataApi.append("outlet_id", outletId);
 
       // Rest of the form data
       formDataApi.append("name", formData.name.trim());
@@ -314,11 +335,11 @@ export default function AddStaffScreen() {
     const getStoredData = async () => {
       try {
         const storedCaptainId = await AsyncStorage.getItem("captain_id");
-        const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-        if (storedCaptainId && storedRestaurantId) {
+        if (storedCaptainId && storedOutletId) {
           setCaptainId(parseInt(storedCaptainId));
-          setRestaurantId(parseInt(storedRestaurantId));
+          setOutletId(parseInt(storedOutletId));
         } else {
           toast.show({
             description: "Please login again",
@@ -336,32 +357,42 @@ export default function AddStaffScreen() {
   }, []);
 
   const formatDate = (date) => {
-    if (!date) return '';
+    if (!date) return "";
     const d = new Date(date);
-    if (isNaN(d.getTime())) return '';
-    
+    if (isNaN(d.getTime())) return "";
+
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
-    
-    const day = String(d.getDate()).padStart(2, '0');
+
+    const day = String(d.getDate()).padStart(2, "0");
     const month = months[d.getMonth()];
     const year = d.getFullYear();
-    
+
     return `${day} ${month} ${year}`;
   };
 
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
-    if (event.type === 'set' && selectedDate) {
+    if (event.type === "set" && selectedDate) {
       const formattedDate = formatDate(selectedDate);
       // Also store the YYYY-MM-DD format for API submission
-      const apiDate = selectedDate.toISOString().split('T')[0];
-      setFormData({ 
-        ...formData, 
+      const apiDate = selectedDate.toISOString().split("T")[0];
+      setFormData({
+        ...formData,
         dob: formattedDate,
-        dobApi: apiDate // Store API format separately
+        dobApi: apiDate, // Store API format separately
       });
     }
   };
@@ -407,10 +438,7 @@ export default function AddStaffScreen() {
               autoCapitalize="words"
               maxLength={50}
             />
-            <FormControl.ErrorMessage>
-              {errors.name}
-            </FormControl.ErrorMessage>
-           
+            <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
           </FormControl>
 
           <FormControl isRequired isInvalid={"role" in errors}>
@@ -419,7 +447,7 @@ export default function AddStaffScreen() {
               selectedValue={formData.role}
               onValueChange={(value) => {
                 setFormData({ ...formData, role: value });
-                setErrors(prev => ({...prev, role: undefined}));
+                setErrors((prev) => ({ ...prev, role: undefined }));
               }}
               placeholder="Select role"
               isDisabled={isLoadingRoles}
@@ -444,14 +472,11 @@ export default function AddStaffScreen() {
             <Input
               value={formData.phone}
               onChangeText={handlePhoneChange}
-              placeholder="Enter Mobile Number (start with 6-9)"
+              placeholder="Enter Mobile Number"
               keyboardType="numeric"
               maxLength={10}
             />
-            <FormControl.ErrorMessage>
-              {errors.phone}
-            </FormControl.ErrorMessage>
-      
+            <FormControl.ErrorMessage>{errors.phone}</FormControl.ErrorMessage>
           </FormControl>
 
           <FormControl isRequired isInvalid={"dob" in errors}>
@@ -493,19 +518,24 @@ export default function AddStaffScreen() {
             <Input
               value={formData.aadharNo}
               onChangeText={(text) => {
-                const numbers = text.replace(/[^0-9]/g, '');
+                const numbers = text.replace(/[^0-9]/g, "");
                 setFormData({ ...formData, aadharNo: numbers });
                 if (numbers.length !== 12) {
-                  setErrors(prev => ({...prev, aadharNo: "Must be 12 digits"}));
+                  setErrors((prev) => ({
+                    ...prev,
+                    aadharNo: "Must be 12 digits",
+                  }));
                 } else {
-                  setErrors(prev => ({...prev, aadharNo: undefined}));
+                  setErrors((prev) => ({ ...prev, aadharNo: undefined }));
                 }
               }}
               placeholder="Enter 12-digit Aadhar number"
               keyboardType="numeric"
               maxLength={12}
             />
-            <FormControl.ErrorMessage>{errors.aadharNo}</FormControl.ErrorMessage>
+            <FormControl.ErrorMessage>
+              {errors.aadharNo}
+            </FormControl.ErrorMessage>
           </FormControl>
 
           <FormControl isRequired isInvalid={"address" in errors}>
@@ -517,8 +547,9 @@ export default function AddStaffScreen() {
               autoCompleteType={undefined}
               h={20}
             />
-            <FormControl.ErrorMessage>{errors.address}</FormControl.ErrorMessage>
-           
+            <FormControl.ErrorMessage>
+              {errors.address}
+            </FormControl.ErrorMessage>
           </FormControl>
 
           <Button

@@ -14,7 +14,7 @@ import {
   Text,
 } from "native-base";
 import { Platform, StatusBar } from "react-native";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
@@ -26,7 +26,7 @@ export default function EditInventoryItemScreen() {
   const toast = useToast();
   const { itemId } = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const [restaurantId, setRestaurantId] = useState(null);
+  const [outletId, setOutletId] = useState(null);
   const [suppliers, setSuppliers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [errors, setErrors] = useState({});
@@ -35,7 +35,7 @@ export default function EditInventoryItemScreen() {
 
   const [formData, setFormData] = useState({
     inventory_id: "",
-    restaurant_id: "",
+    outlet_id: "",
     supplier_id: "",
     category_id: "",
     name: "",
@@ -60,10 +60,10 @@ export default function EditInventoryItemScreen() {
 
   const getStoredData = async () => {
     try {
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-      if (storedRestaurantId) {
-        setRestaurantId(storedRestaurantId);
-        fetchInventoryDetails(storedRestaurantId, itemId);
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      if (storedOutletId) {
+        setOutletId(storedOutletId);
+        fetchInventoryDetails(storedOutletId, itemId);
       } else {
         toast.show({
           description: "Please login again",
@@ -76,7 +76,7 @@ export default function EditInventoryItemScreen() {
     }
   };
 
-  const fetchInventoryDetails = async (restId, invId) => {
+  const fetchInventoryDetails = async (outId, invId) => {
     try {
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/inventory_view`,
@@ -86,8 +86,8 @@ export default function EditInventoryItemScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restId,
-            inventory_id: invId,
+            outlet_id: outId.toString(),
+            inventory_id: invId.toString(),
           }),
         }
       );
@@ -96,15 +96,15 @@ export default function EditInventoryItemScreen() {
       if (data.st === 1 && data.data) {
         setFormData({
           inventory_id: data.data.inventory_id?.toString() || "",
-          restaurant_id: data.data.restaurant_id?.toString() || "",
+          outlet_id: data.data.outlet_id?.toString() || "",
           supplier_id: data.data.supplier_id?.toString() || "",
           category_id: data.data.category_id?.toString() || "",
           name: data.data.name || "",
           description: data.data.description || "",
           unit_price: data.data.unit_price?.toString() || "",
-          quantity: data.data.quantity?.toString() || "",  // Convert to string
+          quantity: data.data.quantity?.toString() || "",
           unit_of_measure: data.data.unit_of_measure || "",
-          reorder_level: data.data.reorder_level?.toString() || "",  // Convert to string
+          reorder_level: data.data.reorder_level?.toString() || "",
           brand_name: data.data.brand_name || "",
           tax_rate: data.data.tax_rate?.toString() || "",
           in_or_out: data.data.in_or_out || "in",
@@ -124,7 +124,7 @@ export default function EditInventoryItemScreen() {
 
   const fetchSuppliers = async () => {
     try {
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
       const response = await fetch(`${API_BASE_URL}/get_supplier_list`, {
         method: "POST",
@@ -132,7 +132,7 @@ export default function EditInventoryItemScreen() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          restaurant_id: storedRestaurantId,
+          outlet_id: storedOutletId,
         }),
       });
 
@@ -194,29 +194,35 @@ export default function EditInventoryItemScreen() {
   // Add these handlers for name and brand name validation
   const handleNameChange = (text) => {
     // Only allow letters and spaces
-    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, '');
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setFormData({ ...formData, name: sanitizedText });
-    
+
     if (!sanitizedText.trim()) {
-      setErrors(prev => ({...prev, name: "Name is required"}));
+      setErrors((prev) => ({ ...prev, name: "Name is required" }));
     } else if (sanitizedText.trim().length < 2) {
-      setErrors(prev => ({...prev, name: "Name must be at least 2 characters"}));
+      setErrors((prev) => ({
+        ...prev,
+        name: "Name must be at least 2 characters",
+      }));
     } else {
-      setErrors(prev => ({...prev, name: undefined}));
+      setErrors((prev) => ({ ...prev, name: undefined }));
     }
   };
 
   const handleBrandNameChange = (text) => {
     // Only allow letters and spaces
-    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, '');
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setFormData({ ...formData, brand_name: sanitizedText });
-    
+
     if (!sanitizedText.trim()) {
-      setErrors(prev => ({...prev, brand_name: "Brand name is required"}));
+      setErrors((prev) => ({ ...prev, brand_name: "Brand name is required" }));
     } else if (sanitizedText.trim().length < 2) {
-      setErrors(prev => ({...prev, brand_name: "Brand name must be at least 2 characters"}));
+      setErrors((prev) => ({
+        ...prev,
+        brand_name: "Brand name must be at least 2 characters",
+      }));
     } else {
-      setErrors(prev => ({...prev, brand_name: undefined}));
+      setErrors((prev) => ({ ...prev, brand_name: undefined }));
     }
   };
 
@@ -262,65 +268,91 @@ export default function EditInventoryItemScreen() {
   };
 
   const handleSubmit = async () => {
-    if (validateForm()) {
-      try {
-        setIsLoading(true);
-        const preparedData = prepareDataForSubmission(formData);
-        const response = await fetch(
-          `${API_BASE_URL}/captain_manage/inventory_update`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(preparedData),
-          }
-        );
+    if (!validateForm()) return;
 
-        const data = await response.json();
-        if (data.st === 1) {
-          toast.show({
-            description: "Inventory updated successfully",
-            status: "success",
-          });
-          router.push({
-            pathname: "/(tabs)/staff/inventory-items",
-            params: { refresh: Date.now() },
-          });
-        } else {
-          throw new Error(data.msg || "Failed to update inventory");
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/inventory_update`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            outlet_id: outletId.toString(),
+            inventory_id: formData.inventory_id.toString(),
+            supplier_id: formData.supplier_id.toString(),
+            category_id: formData.category_id.toString(),
+            name: formData.name,
+            description: formData.description,
+            unit_price: formData.unit_price.toString(),
+            quantity: formData.quantity.toString(),
+            unit_of_measure: formData.unit_of_measure,
+            reorder_level: formData.reorder_level.toString(),
+            brand_name: formData.brand_name,
+            tax_rate: formData.tax_rate.toString(),
+            in_or_out: formData.in_or_out,
+            in_date: formData.in_date,
+            out_date: formData.out_date,
+            expiration_date: formData.expiration_date,
+          }),
         }
-      } catch (error) {
-        console.error("Update Error:", error);
+      );
+
+      const data = await response.json();
+      if (data.st === 1) {
         toast.show({
-          description: error.message || "Failed to update inventory",
-          status: "error",
+          description: "Inventory item updated successfully",
+          status: "success",
         });
-      } finally {
-        setIsLoading(false);
+        router.push({
+          pathname: "/(tabs)/staff/inventory-items",
+          params: { refresh: Date.now() },
+        });
+      } else {
+        throw new Error(data.msg || "Failed to update inventory item");
       }
+    } catch (error) {
+      console.error("Update Error:", error);
+      toast.show({
+        description: error.message || "Failed to update inventory item",
+        status: "error",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const formatDate = (date) => {
-    if (!date) return '';
+    if (!date) return "";
     const d = new Date(date);
-    if (isNaN(d.getTime())) return ''; // Return empty string if invalid date
-    
+    if (isNaN(d.getTime())) return ""; // Return empty string if invalid date
+
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
-    
-    const day = String(d.getDate()).padStart(2, '0');
+
+    const day = String(d.getDate()).padStart(2, "0");
     const month = months[d.getMonth()];
     const year = d.getFullYear();
-    
+
     return `${day} ${month} ${year}`;
   };
 
   const parseDate = (dateString) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
     // Handle different date formats that might come from the API
     const d = new Date(dateString);
     if (!isNaN(d.getTime())) {
@@ -331,7 +363,7 @@ export default function EditInventoryItemScreen() {
 
   const onDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
-    if (event.type === 'set' && selectedDate) {
+    if (event.type === "set" && selectedDate) {
       setFormData({
         ...formData,
         [currentDateField]: formatDate(selectedDate),
@@ -343,9 +375,9 @@ export default function EditInventoryItemScreen() {
     // Convert dates to API expected format if needed
     const prepared = {
       ...data,
-      in_date: data.in_date || '',
-      out_date: data.out_date || '',
-      expiration_date: data.expiration_date || '',
+      in_date: data.in_date || "",
+      out_date: data.out_date || "",
+      expiration_date: data.expiration_date || "",
     };
     return prepared;
   };
@@ -379,7 +411,6 @@ export default function EditInventoryItemScreen() {
               autoCapitalize="words"
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
-           
           </FormControl>
 
           {/* Description */}
@@ -470,7 +501,6 @@ export default function EditInventoryItemScreen() {
             <FormControl.ErrorMessage>
               {errors.brand_name}
             </FormControl.ErrorMessage>
-           
           </FormControl>
 
           {/* Tax Rate */}
@@ -492,13 +522,15 @@ export default function EditInventoryItemScreen() {
           {/* Dates */}
           <FormControl>
             <FormControl.Label>In Date</FormControl.Label>
-            <Pressable onPress={() => showDatepicker('in_date')}>
+            <Pressable onPress={() => showDatepicker("in_date")}>
               <Input
                 value={formData.in_date}
                 isReadOnly
                 placeholder="Select in date"
                 rightElement={
-                  <Text px={2} color="gray.400">📅</Text>
+                  <Text px={2} color="gray.400">
+                    📅
+                  </Text>
                 }
               />
             </Pressable>
@@ -506,13 +538,15 @@ export default function EditInventoryItemScreen() {
 
           <FormControl>
             <FormControl.Label>Out Date</FormControl.Label>
-            <Pressable onPress={() => showDatepicker('out_date')}>
+            <Pressable onPress={() => showDatepicker("out_date")}>
               <Input
                 value={formData.out_date}
                 isReadOnly
                 placeholder="Select out date"
                 rightElement={
-                  <Text px={2} color="gray.400">📅</Text>
+                  <Text px={2} color="gray.400">
+                    📅
+                  </Text>
                 }
               />
             </Pressable>
@@ -520,13 +554,15 @@ export default function EditInventoryItemScreen() {
 
           <FormControl>
             <FormControl.Label>Expiration Date</FormControl.Label>
-            <Pressable onPress={() => showDatepicker('expiration_date')}>
+            <Pressable onPress={() => showDatepicker("expiration_date")}>
               <Input
                 value={formData.expiration_date}
                 isReadOnly
                 placeholder="Select expiration date"
                 rightElement={
-                  <Text px={2} color="gray.400">📅</Text>
+                  <Text px={2} color="gray.400">
+                    📅
+                  </Text>
                 }
               />
             </Pressable>

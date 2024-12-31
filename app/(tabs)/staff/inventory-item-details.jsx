@@ -30,7 +30,7 @@ export default function InventoryItemDetailsScreen() {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [restaurantId, setRestaurantId] = useState(null);
+  const [outletId, setOutletId] = useState(null);
   const cancelRef = React.useRef(null);
 
   useEffect(() => {
@@ -39,10 +39,10 @@ export default function InventoryItemDetailsScreen() {
 
   const getStoredData = async () => {
     try {
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-      if (storedRestaurantId) {
-        setRestaurantId(parseInt(storedRestaurantId));
-        fetchInventoryDetails(parseInt(storedRestaurantId), itemId);
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      if (storedOutletId) {
+        setOutletId(storedOutletId);
+        fetchInventoryDetails(storedOutletId, itemId);
       } else {
         toast.show({
           description: "Please login again",
@@ -56,7 +56,7 @@ export default function InventoryItemDetailsScreen() {
     }
   };
 
-  const fetchInventoryDetails = async (restId, invId) => {
+  const fetchInventoryDetails = async (outId, invId) => {
     try {
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/inventory_view`,
@@ -66,8 +66,8 @@ export default function InventoryItemDetailsScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restId.toString(),
-            inventory_id: parseInt(invId),
+            outlet_id: outId.toString(),
+            inventory_id: invId.toString(),
           }),
         }
       );
@@ -93,7 +93,7 @@ export default function InventoryItemDetailsScreen() {
           expiration_date: data.data.expiration_date,
           supplier_name: data.data.supplier_name,
           supplier_id: data.data.supplier_id,
-          restaurant_id: data.data.restaurant_id,
+          outlet_id: data.data.outlet_id,
         });
       } else {
         toast.show({
@@ -119,9 +119,9 @@ export default function InventoryItemDetailsScreen() {
       setIsDeleteOpen(false);
       const inventoryId = item?.id || item?.inventory_id;
 
-      if (!inventoryId || !restaurantId) {
+      if (!inventoryId || !outletId) {
         toast.show({
-          description: "Invalid item or restaurant ID",
+          description: "Invalid item or outlet ID",
           status: "error",
         });
         return;
@@ -135,8 +135,8 @@ export default function InventoryItemDetailsScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restaurantId.toString(),
-            inventory_id: parseInt(inventoryId),
+            outlet_id: outletId.toString(),
+            inventory_id: inventoryId.toString(),
           }),
         }
       );

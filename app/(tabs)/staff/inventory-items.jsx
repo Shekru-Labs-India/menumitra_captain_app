@@ -25,7 +25,7 @@ export default function InventoryItemsScreen() {
   const { refresh } = useLocalSearchParams();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [restaurantId, setRestaurantId] = useState(null);
+  const [outletId, setOutletId] = useState(null);
 
   useEffect(() => {
     getStoredData();
@@ -33,10 +33,10 @@ export default function InventoryItemsScreen() {
 
   const getStoredData = async () => {
     try {
-      const storedRestaurantId = await AsyncStorage.getItem("restaurant_id");
-      if (storedRestaurantId) {
-        setRestaurantId(storedRestaurantId);
-        fetchInventoryItems(storedRestaurantId);
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      if (storedOutletId) {
+        setOutletId(storedOutletId);
+        fetchInventoryItems(storedOutletId);
       } else {
         toast.show({
           description: "Please login again",
@@ -50,7 +50,7 @@ export default function InventoryItemsScreen() {
     }
   };
 
-  const fetchInventoryItems = async (restId) => {
+  const fetchInventoryItems = async (outId) => {
     try {
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/inventory_listview`,
@@ -60,7 +60,7 @@ export default function InventoryItemsScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            restaurant_id: restId,
+            outlet_id: outId.toString(),
           }),
         }
       );
