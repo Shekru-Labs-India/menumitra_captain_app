@@ -27,6 +27,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
+import { sendNotificationToWaiter } from '../../../services/NotificationService';
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -883,6 +884,28 @@ export default function CreateOrderScreen() {
     }
 
     return (subtotal + newGst + newService - discountAmount).toFixed(2);
+  };
+
+  const handleAssignWaiter = async (waiterId) => {
+    try {
+      await sendNotificationToWaiter(waiterId, {
+        tableNumber: tableNumber,
+        sectionName: sectionName,
+        orderId: orderId
+      });
+
+      toast.show({
+        description: "Notification sent to waiter",
+        status: "success",
+        duration: 2000,
+      });
+    } catch (error) {
+      toast.show({
+        description: "Failed to notify waiter",
+        status: "error",
+        duration: 2000,
+      });
+    }
   };
 
   return (

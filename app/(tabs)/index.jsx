@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import Sidebar from "../components/Sidebar";
 import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { sendNotificationToWaiter } from "../../services/NotificationService";
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -113,32 +114,127 @@ export default function HomeScreen() {
     fetchData();
   }, []);
 
-  // Cleanup sound on component unmount
+  // Add Audio initialization
   useEffect(() => {
-    return sound
-      ? () => {
-          sound.unloadAsync();
-        }
-      : undefined;
+    const initAudio = async () => {
+      try {
+        await Audio.requestPermissionsAsync();
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          shouldDuckAndroid: true,
+          staysActiveInBackground: true,
+          playThroughEarpieceAndroid: false,
+        });
+      } catch (error) {
+        console.error("Error initializing audio:", error);
+      }
+    };
+
+    initAudio();
+  }, []);
+
+  // Update sound cleanup
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        console.log("Unloading Sound");
+        sound.unloadAsync();
+      }
+    };
   }, [sound]);
 
-  async function playSound() {
-    if (isPlaying) {
-      // If sound is playing, stop it
-      await sound.stopAsync();
-      await sound.unloadAsync();
-      setSound(undefined);
-      setIsPlaying(false);
-    } else {
-      // Load and play the sound
+  // Update playSound function
+  const playSound = async () => {
+    try {
+      console.log("Loading Sound");
+      if (sound) {
+        await sound.unloadAsync();
+      }
+
       const { sound: newSound } = await Audio.Sound.createAsync(
         require("../../assets/sounds/simple-notification.mp3"),
         { shouldPlay: true }
       );
+
       setSound(newSound);
-      setIsPlaying(true);
+      console.log("Playing Sound");
+
+      await newSound.playAsync();
+    } catch (error) {
+      console.error("Error playing sound:", error);
     }
-  }
+  };
+
+  const handleNotification = async () => {
+    try {
+      const result = await sendNotificationToWaiter({
+        order_number: Date.now().toString(),
+        order_id: Date.now().toString(),
+        tableNumber: "1",
+        outletId: "5",
+      });
+
+      // Immediately show toast after notification is sent
+      if (result.success) {
+        toast.show({
+          render: () => (
+            <Box bg="emerald.500" px="4" py="2" rounded="sm" mb={5}>
+              <HStack space={2} alignItems="center">
+                <Icon
+                  as={MaterialIcons}
+                  name="notifications-active"
+                  color="white"
+                  size="sm"
+                />
+                <VStack>
+                  <Text color="white" fontSize="md" fontWeight="bold">
+                    Notification Sent Successfully
+                  </Text>
+                  <Text color="white" fontSize="sm">
+                    Sent to Prassanna
+                  </Text>
+                </VStack>
+              </HStack>
+            </Box>
+          ),
+          placement: "top",
+          duration: 3000,
+        });
+      } else {
+        toast.show({
+          render: () => (
+            <Box bg="red.500" px="4" py="2" rounded="sm" mb={5}>
+              <HStack space={2} alignItems="center">
+                <Icon as={MaterialIcons} name="error" color="white" size="sm" />
+                <Text color="white" fontSize="md">
+                  Failed to send notification
+                </Text>
+              </HStack>
+            </Box>
+          ),
+          placement: "top",
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.show({
+        render: () => (
+          <Box bg="red.500" px="4" py="2" rounded="sm" mb={5}>
+            <HStack space={2} alignItems="center">
+              <Icon as={MaterialIcons} name="error" color="white" size="sm" />
+              <Text color="white" fontSize="md">
+                Error sending notification
+              </Text>
+            </HStack>
+          </Box>
+        ),
+        placement: "top",
+        duration: 3000,
+      });
+    }
+  };
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -212,9 +308,7 @@ export default function HomeScreen() {
 
         <HStack space={2}>
           <Pressable
-            onPress={() => {
-              playSound();
-            }}
+            onPress={handleNotification}
             p={2}
             rounded="full"
             _pressed={{ bg: "coolGray.100" }}
@@ -228,7 +322,7 @@ export default function HomeScreen() {
           </Pressable>
 
           <Pressable
-            onPress={toggleSidebar}
+            onPress={() => setIsSidebarOpen(true)}
             p={2}
             rounded="full"
             _pressed={{ bg: "coolGray.100" }}
