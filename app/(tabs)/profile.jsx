@@ -22,14 +22,66 @@ import {
 import { useRouter } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { version } from "../../context/VersionContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { logout } = useAuth();
   const [profileImage, setProfileImage] = useState(null); // State to hold the profile image
+  const [userData, setUserData] = useState({
+    captainName: "",
+    role: "",
+    outletId: "",
+    captainId: "",
+  });
+
+  const [stats, setStats] = useState({
+    todayOrders: 0,
+    rating: "0%",
+    monthsActive: 0,
+  });
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch data using the correct AsyncStorage keys
+        const [[, captainName], [, role], [, captainId], [, outletId]] =
+          await AsyncStorage.multiGet([
+            "captain_name",
+            "role",
+            "captain_id",
+            "outlet_id",
+          ]);
+
+        setUserData({
+          captainName: captainName || "Captain",
+          role: role || "Staff",
+          captainId,
+          outletId,
+        });
+
+        // You can fetch stats from API if needed
+        setStats({
+          todayOrders: 0,
+          rating: "0%",
+          monthsActive: 0,
+        });
+      } catch (error) {
+        console.error("Error fetching profile data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const profileMenuItems = [
     {
@@ -127,7 +179,7 @@ export default function ProfileScreen() {
               />
             ) : (
               <Box
-                size="80px" // Adjusted size for the "Add Photo" field
+                size="80px"
                 borderWidth={4}
                 borderColor="white"
                 bg="coolGray.200"
@@ -136,8 +188,6 @@ export default function ProfileScreen() {
                 rounded="full"
               >
                 <HStack space={2} alignItems="center">
-                  {" "}
-                  {/* Adjusted space from 4 to 2 */}
                   <Icon
                     as={MaterialIcons}
                     name="add-a-photo"
@@ -150,15 +200,20 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           <VStack flex={1}>
             <Text color="white" fontSize="2xl" fontWeight="bold">
-              John Doe
+              {userData.captainName}
             </Text>
             <Text color="white" fontSize="md">
-              Head Captain
+              {userData.role}
             </Text>
             <HStack space={2} mt={1}>
-              <Icon as={MaterialIcons} name="phone" size={4} color="white" />
+              <Icon
+                as={MaterialIcons}
+                name="verified-user"
+                size={4}
+                color="white"
+              />
               <Text color="white" fontSize="sm">
-                +1234567890 {/* Replace with the actual mobile number */}
+                Active
               </Text>
             </HStack>
           </VStack>
@@ -176,7 +231,7 @@ export default function ProfileScreen() {
       >
         <VStack alignItems="center">
           <Text fontSize="xl" fontWeight="bold" color="primary.500">
-            156
+            {stats.todayOrders}
           </Text>
           <Text fontSize="sm" color="coolGray.500">
             Orders Today
@@ -184,7 +239,7 @@ export default function ProfileScreen() {
         </VStack>
         <VStack alignItems="center">
           <Text fontSize="xl" fontWeight="bold" color="primary.500">
-            98%
+            {stats.rating}
           </Text>
           <Text fontSize="sm" color="coolGray.500">
             Rating
@@ -192,7 +247,7 @@ export default function ProfileScreen() {
         </VStack>
         <VStack alignItems="center">
           <Text fontSize="xl" fontWeight="bold" color="primary.500">
-            12
+            {stats.monthsActive}
           </Text>
           <Text fontSize="sm" color="coolGray.500">
             Months

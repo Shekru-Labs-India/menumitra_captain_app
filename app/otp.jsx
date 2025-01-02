@@ -226,41 +226,6 @@ export default function OtpScreen() {
     }
   };
 
-  // Add verification function to check stored data
-  const verifyStoredData = async () => {
-    try {
-      const keys = [
-        "captain_id",
-        "restaurant_id",
-        "user_id",
-        "captain_name",
-        "role",
-      ];
-      const storedData = await AsyncStorage.multiGet(keys);
-
-      const missingKeys = storedData
-        .filter(([key, value]) => !value)
-        .map(([key]) => key);
-
-      if (missingKeys.length > 0) {
-        console.error("Missing required data:", missingKeys);
-        return false;
-      }
-
-      console.log("Stored Data Verified:", Object.fromEntries(storedData));
-      return true;
-    } catch (error) {
-      console.error("Error verifying stored data:", error);
-      return false;
-    }
-  };
-
-  // Add this to your useEffect
-  // useEffect(() => {
-  //   const checkData = async () => {
-  //     const isDataValid = await verifyStoredData();
-  //     if (!isDataValid) {
-  //       // Handle missing data
   //       console.error("Required data missing. Please login again.");
   //       // Optionally clear storage and redirect to login
   //       await AsyncStorage.clear();

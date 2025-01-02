@@ -172,70 +172,99 @@ export default function EditSupplierScreen() {
     setFormData({ ...formData, name: sanitizedText });
   };
 
+  // Add validation functions
+  const validateName = (value) => {
+    const nameRegex = /^[a-zA-Z\s]+$/;
+    return value.trim() !== "" && nameRegex.test(value);
+  };
+
+  const validateMobileNumber = (value) => {
+    const mobileRegex = /^[0-9]+$/;
+    return value.trim() !== "" && mobileRegex.test(value);
+  };
+
+  const validateLocation = (value) => {
+    const locationRegex = /^[a-zA-Z0-9\s,.-]+$/;
+    return value.trim() === "" || locationRegex.test(value);
+  };
+
+  const validateWebsite = (value) => {
+    const websiteRegex =
+      /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
+    return value.trim() === "" || websiteRegex.test(value);
+  };
+
+  // Add this function to handle mobile number input
+  const handleMobileNumberChange = (field, value) => {
+    // Remove any non-numeric characters
+    const numericValue = value.replace(/[^0-9]/g, "");
+
+    // Limit to 10 digits
+    const truncatedValue = numericValue.slice(0, 10);
+
+    setFormData((prev) => ({
+      ...prev,
+      [field]: truncatedValue,
+    }));
+  };
+
+  // Update validateForm function
   const validateForm = () => {
     const newErrors = {};
-    const nameRegex = /^[a-zA-Z0-9\s]+$/;
-    const mobileRegex = /^[0-9]{10}$/;
 
-    // Name validation
+    // Name validation (Required)
     if (!formData.name?.trim()) {
       newErrors.name = "Name is required";
-    } else if (!nameRegex.test(formData.name.trim())) {
-      newErrors.name = "Name can only contain letters, numbers and spaces";
+    } else if (!validateName(formData.name)) {
+      newErrors.name = "Name should only contain letters and spaces";
     }
 
-    // Primary mobile validation
+    // Primary Mobile validation (Required)
     if (!formData.mobileNumber1?.trim()) {
-      newErrors.mobileNumber1 = "Primary contact is required";
-    } else if (!mobileRegex.test(formData.mobileNumber1.trim())) {
-      newErrors.mobileNumber1 = "Enter valid 10-digit number";
+      newErrors.mobileNumber1 = "Primary mobile number is required";
+    } else if (!validateMobileNumber(formData.mobileNumber1)) {
+      newErrors.mobileNumber1 = "Mobile number should only contain digits";
+    } else if (formData.mobileNumber1.trim().length !== 10) {
+      newErrors.mobileNumber1 = "Mobile number should be 10 digits";
     }
 
-    // Secondary mobile validation (optional)
-    if (
-      formData.mobileNumber2?.trim() &&
-      !mobileRegex.test(formData.mobileNumber2.trim())
-    ) {
-      newErrors.mobileNumber2 = "Enter valid 10-digit number";
+    // Secondary Mobile validation (Optional)
+    if (formData.mobileNumber2?.trim()) {
+      if (!validateMobileNumber(formData.mobileNumber2)) {
+        newErrors.mobileNumber2 = "Mobile number should only contain digits";
+      } else if (formData.mobileNumber2.trim().length !== 10) {
+        newErrors.mobileNumber2 = "Mobile number should be 10 digits";
+      }
     }
 
-    // Owner name validation (optional)
-    if (
-      formData.ownerName?.trim() &&
-      !nameRegex.test(formData.ownerName.trim())
-    ) {
-      newErrors.ownerName =
-        "Owner name can only contain letters, numbers and spaces";
+    // Credit Limit validation
+    if (formData.creditLimit) {
+      const creditLimit = parseFloat(formData.creditLimit);
+      if (isNaN(creditLimit) || creditLimit < 0) {
+        newErrors.creditLimit = "Credit limit must be a positive number";
+      }
     }
 
-    // Location validation (optional)
-    if (
-      formData.location?.trim() &&
-      !nameRegex.test(formData.location.trim())
-    ) {
-      newErrors.location =
-        "Location can only contain letters, numbers and spaces";
+    // Location validation (Optional)
+    if (formData.location?.trim() && !validateLocation(formData.location)) {
+      newErrors.location = "Location contains invalid characters";
     }
 
-    // Website validation (optional)
-    if (
-      formData.website?.trim() &&
-      !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(
-        formData.website.trim()
-      )
-    ) {
-      newErrors.website = "Enter valid website URL";
+    // Website validation (Optional)
+    if (formData.website?.trim() && !validateWebsite(formData.website)) {
+      newErrors.website = "Please enter a valid website URL";
     }
 
-    // Credit limit validation (optional)
-    if (formData.creditLimit?.trim() && isNaN(formData.creditLimit.trim())) {
-      newErrors.creditLimit = "Credit limit must be a number";
+    // Owner Name validation (Optional)
+    if (formData.ownerName?.trim() && !validateName(formData.ownerName)) {
+      newErrors.ownerName = "Owner name should only contain letters and spaces";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // Update handleSubmit with the validated data
   const handleSubmit = async () => {
     if (!validateForm()) {
       toast.show({
@@ -247,11 +276,10 @@ export default function EditSupplierScreen() {
     }
 
     try {
-      // Prepare the request body with proper data types
       const requestBody = {
         supplier_id: id.toString(),
         outlet_id: outletId.toString(),
-        name: formData.name?.trim() || "",
+        name: formData.name.trim(),
         supplier_status: formData.status || "active",
         credit_rating: formData.creditRating || "",
         credit_limit: formData.creditLimit
@@ -260,7 +288,7 @@ export default function EditSupplierScreen() {
         location: formData.location?.trim() || "",
         owner_name: formData.ownerName?.trim() || "",
         website: formData.website?.trim() || "",
-        mobile_number1: formData.mobileNumber1?.trim() || "",
+        mobile_number1: formData.mobileNumber1.trim(),
         mobile_number2: formData.mobileNumber2?.trim() || "",
         address: formData.address?.trim() || "",
       };
@@ -402,15 +430,16 @@ export default function EditSupplierScreen() {
                 </Heading>
               </HStack>
 
-              <FormControl isRequired isInvalid={"mobileNumber1" in errors}>
-                <FormControl.Label>Primary Contact</FormControl.Label>
+              <FormControl isInvalid={!!errors.mobileNumber1}>
+                <FormControl.Label>Primary Mobile Number *</FormControl.Label>
                 <Input
                   value={formData.mobileNumber1}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, mobileNumber1: text })
+                  onChangeText={(value) =>
+                    handleMobileNumberChange("mobileNumber1", value)
                   }
                   placeholder="Enter primary mobile number"
-                  keyboardType="phone-pad"
+                  keyboardType="numeric"
+                  maxLength={10}
                   bg="white"
                 />
                 <FormControl.ErrorMessage>
@@ -418,15 +447,16 @@ export default function EditSupplierScreen() {
                 </FormControl.ErrorMessage>
               </FormControl>
 
-              <FormControl isInvalid={"mobileNumber2" in errors}>
-                <FormControl.Label>Secondary Contact</FormControl.Label>
+              <FormControl isInvalid={!!errors.mobileNumber2}>
+                <FormControl.Label>Secondary Mobile Number</FormControl.Label>
                 <Input
                   value={formData.mobileNumber2}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, mobileNumber2: text })
+                  onChangeText={(value) =>
+                    handleMobileNumberChange("mobileNumber2", value)
                   }
                   placeholder="Enter secondary mobile number"
-                  keyboardType="phone-pad"
+                  keyboardType="numeric"
+                  maxLength={10}
                   bg="white"
                 />
                 <FormControl.ErrorMessage>

@@ -21,7 +21,7 @@ import { router } from "expo-router";
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
 export default function LoginScreen() {
-  const [mobileNumber, setMobileNumber] = useState("6723211225");
+  const [mobileNumber, setMobileNumber] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState("");
@@ -58,13 +58,16 @@ export default function LoginScreen() {
 
   const handleMobileNumberChange = (text) => {
     const numbersOnly = text.replace(/[^0-9]/g, ""); // Allow only numeric input
-    
+
     // Reject input if the first digit is between 0 and 5
-    if (numbersOnly.length === 1 && !["6", "7", "8", "9"].includes(numbersOnly)) {
+    if (
+      numbersOnly.length === 1 &&
+      !["6", "7", "8", "9"].includes(numbersOnly)
+    ) {
       setErrorMessage("Mobile number should start with 6, 7, 8 or 9");
       return; // Do not update the input field
     }
-  
+
     // Clear error messages when input is empty
     if (numbersOnly.length === 0) {
       setMobileNumber(""); // Clear the input field
@@ -72,22 +75,21 @@ export default function LoginScreen() {
       setApiError("");
       return;
     }
-  
+
     setMobileNumber(numbersOnly); // Update the state
-  
+
     // Validate length
     if (numbersOnly.length > 0 && numbersOnly.length < 10) {
       setErrorMessage("Please enter a valid 10-digit mobile number");
     } else {
       setErrorMessage("");
     }
-  
+
     // Automatically dismiss the keyboard when the number reaches 10 digits
     if (numbersOnly.length === 10) {
       Keyboard.dismiss();
     }
   };
-  
 
   const handleSendOtp = async () => {
     if (!validateMobileNumber(mobileNumber)) {
@@ -137,27 +139,8 @@ export default function LoginScreen() {
       setIsLoading(false);
     }
   };
- 
-  
-  
-  
-  const handleLogin = async (response) => {
-    try {
-      await AsyncStorage.setItem("captain_id", response.captain_id.toString());
-      await AsyncStorage.setItem(
-        "restaurant_id",
-        response.restaurant_id.toString()
-      );
-      await AsyncStorage.setItem("captain_name", response.captain_name);
-      await AsyncStorage.setItem("role", response.role);
-      // ... rest of login logic
-    } catch (error) {
-      console.error("Error storing login data:", error);
-    }
-  };
 
   return (
-    
     <Box flex={1} bg="white" safeArea>
       <Box flex={1} px={6} justifyContent="center">
         <VStack space={6} alignItems="center" w="100%">
