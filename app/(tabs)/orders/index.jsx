@@ -31,7 +31,6 @@ export default function OrdersScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [outletId, setOutletId] = useState(null);
   const [orders, setOrders] = useState([]);
-  const [viewType, setViewType] = useState("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [orderStatus, setOrderStatus] = useState("all");
@@ -212,21 +211,7 @@ export default function OrdersScreen() {
           }
         />
 
-        {/* Grid/List View Toggle */}
-        <IconButton
-          variant="outline"
-          borderColor="coolGray.300"
-          icon={
-            <MaterialIcons
-              name={viewType === "grid" ? "view-list" : "grid-view"}
-              size={22}
-              color="coolGray.500"
-            />
-          }
-          onPress={() => setViewType(viewType === "grid" ? "list" : "grid")}
-        />
-
-        {/* Sort Direction Toggle */}
+        {/* Only Sort Direction Toggle */}
         <IconButton
           variant="outline"
           borderColor="coolGray.300"
@@ -284,7 +269,7 @@ export default function OrdersScreen() {
         </Select>
       </HStack>
 
-      {/* Orders List/Grid */}
+      {/* Orders List */}
       {isLoading ? (
         <Center flex={1}>
           <Spinner size="lg" />
@@ -300,8 +285,6 @@ export default function OrdersScreen() {
       ) : (
         <FlatList
           data={filteredOrders}
-          key={viewType}
-          numColumns={viewType === "grid" ? 2 : 1}
           renderItem={({ item }) => (
             <Pressable
               onPress={() => {
@@ -311,7 +294,7 @@ export default function OrdersScreen() {
                 });
               }}
             >
-              <Box bg="white" rounded="lg" shadow={1} m={2} p={3} flex={1}>
+              <Box bg="white" rounded="lg" shadow={1} m={2} p={3}>
                 <VStack space={2}>
                   <HStack justifyContent="space-between" alignItems="center">
                     <VStack>

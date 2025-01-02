@@ -1,3 +1,4 @@
+import React, { useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -5,6 +6,8 @@ import {
   Platform,
   StatusBar,
   Linking,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -13,9 +16,46 @@ import { useVersion } from "../../context/VersionContext";
 import { useAuth } from "../../context/AuthContext";
 import { Box, VStack, HStack, Text, Pressable, Image, Icon } from "native-base";
 
+const SIDEBAR_WIDTH = 300;
+const SCREEN_WIDTH = Dimensions.get("window").width;
+
 export default function Sidebar({ isOpen, onClose }) {
   const { version, appName } = useVersion();
   const { logout } = useAuth();
+  const slideAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isOpen) {
+      // Animate sidebar in
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: SCREEN_WIDTH - SIDEBAR_WIDTH,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Animate sidebar out
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: SCREEN_WIDTH,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isOpen]);
 
   const menuItems = [
     { title: "Home", icon: "home", route: "/(tabs)" },
@@ -52,9 +92,26 @@ export default function Sidebar({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <View style={styles.overlay}>
-      <TouchableOpacity style={styles.overlayBg} onPress={onClose} />
-      <Box style={styles.sidebar}>
+    <View style={styles.container}>
+      <Animated.View
+        style={[
+          styles.overlay,
+          {
+            opacity: fadeAnim,
+          },
+        ]}
+      >
+        <TouchableOpacity style={styles.overlayBg} onPress={onClose} />
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          styles.sidebar,
+          {
+            transform: [{ translateX: slideAnim }],
+          },
+        ]}
+      >
         <Box style={styles.sidebarHeader}>
           <Text style={styles.headerTitle}>Menu</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -181,22 +238,21 @@ export default function Sidebar({ isOpen, onClose }) {
             </VStack>
           </VStack>
         </Box>
-      </Box>
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  container: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "transparent",
     zIndex: 1000,
   },
-  overlayBg: {
+  overlay: {
     position: "absolute",
     top: 0,
     left: 0,
@@ -204,12 +260,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: "rgba(0,0,0,0.5)",
   },
+  overlayBg: {
+    flex: 1,
+  },
   sidebar: {
     position: "absolute",
     top: 0,
-    right: 0,
     bottom: 0,
-    width: 300,
+    width: SIDEBAR_WIDTH,
     backgroundColor: "#fff",
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
     shadowColor: "#000",
