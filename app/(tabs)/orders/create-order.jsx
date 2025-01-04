@@ -611,54 +611,6 @@ export default function CreateOrderScreen() {
     );
   };
 
-  // Handle device back button
-  useFocusEffect(
-    React.useCallback(() => {
-      const onBackPress = () => {
-        router.replace("/(tabs)/tables/sections");
-        return true; // Prevents default behavior
-      };
-
-      BackHandler.addEventListener("hardwareBackPress", onBackPress);
-
-      return () => {
-        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
-      };
-    }, [])
-  );
-
-  // Add cleanup effect
-  useFocusEffect(
-    React.useCallback(() => {
-      return () => {
-        // Cleanup when screen is unfocused
-        if (!isFocused) {
-          setSelectedItems([]);
-          setOrderDetails({});
-          setServiceCharges(0);
-          setGstAmount(0);
-          setDiscountAmount(0);
-          setSearchQuery("");
-          setSearchResults([]);
-        }
-      };
-    }, [isFocused])
-  );
-
-  // Add navigation effect
-  useEffect(() => {
-    if (!isFocused) {
-      // Reset states when leaving the screen
-      setSelectedItems([]);
-      setOrderDetails({});
-      setServiceCharges(0);
-      setGstAmount(0);
-      setDiscountAmount(0);
-      setSearchQuery("");
-      setSearchResults([]);
-    }
-  }, [isFocused]);
-
   const calculateSubtotal = (items) => {
     return items.reduce((sum, item) => {
       const itemPrice =
@@ -738,7 +690,7 @@ export default function CreateOrderScreen() {
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
-        title={isOccupied === "1" ? "Order Details" : "Create Order"}
+        title={isOccupied === "1" ? "Update Order" : "Create Order"}
         onBackPress={() => router.replace("/(tabs)/tables/sections")}
         rightComponent={
           <Badge colorScheme="blue" rounded="lg" px={3} py={1}>
