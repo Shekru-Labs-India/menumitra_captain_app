@@ -176,88 +176,59 @@ export default function TableSectionsScreen() {
     }
   };
 
-  const fetchSections = async (outId) => {
+  const fetchSections = async (outletId) => {
     try {
       setLoading(true);
-
-      // Get sections
-      const sectionListResponse = await fetch(
-        `${API_BASE_URL}/captain_manage/section_listview`,
+      const response = await fetch(
+        "https://men4u.xyz/captain_api/captain_manage/table_listview",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            outlet_id: outId.toString(),
+            outlet_id: outletId.toString(),
           }),
         }
       );
 
-      const sectionListData = await sectionListResponse.json();
+      const data = await response.json();
+      console.log("API Response:", data);
 
-      // Get tables for each section
-      const tablesResponse = await fetch(
-        `${API_BASE_URL}/captain_manage/table_listview`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outId.toString(),
-          }),
+      if (data.st === 1) {
+        // Process sections data while maintaining existing structure
+        const processedSections = data.data.map((section) => ({
+          id: section.section_id,
+          name: section.section_name,
+          tables: section.tables.map((table) => ({
+            table_id: table.table_id,
+            table_number: table.table_number,
+            is_occupied: table.is_occupied,
+            occupied_time: table.occupied_time,
+            grandTotal: table.grand_total,
+            order_id: table.order_id,
+            order_number: table.order_number,
+            menu_items: table.menu_items || [],
+          })),
+          totalTables: section.tables.length,
+          engagedTables: section.tables.filter(
+            (table) => table.is_occupied === 1
+          ).length,
+        }));
+
+        setSections(processedSections);
+
+        // Keep existing functionality for active section
+        if (processedSections.length > 0 && !activeSection) {
+          setActiveSection(processedSections[0]);
         }
-      );
-
-      const tablesData = await tablesResponse.json();
-      console.log("Tables Data:", tablesData);
-
-      if (sectionListData.st === 1) {
-        const formattedSections = await Promise.all(
-          sectionListData.data.map(async (section) => {
-            // Get tables for this section from the new response format
-            // Match section name case-insensitively
-            const sectionKey = Object.keys(tablesData.data).find(
-              (key) => key.toLowerCase() === section.section_name.toLowerCase()
-            );
-            const sectionTables =
-              tablesData.st === 1 && tablesData.data
-                ? tablesData.data[sectionKey] || []
-                : [];
-
-            // Sort tables by table number
-            const sortedTables = sectionTables.sort(
-              (a, b) => parseInt(a.table_number) - parseInt(b.table_number)
-            );
-
-            return {
-              id: section.section_id.toString(),
-              name: section.section_name,
-              totalTables: sortedTables.length,
-              engagedTables: sortedTables.filter(
-                (table) => table.is_occupied === 1
-              ).length,
-              color: getRandomColor(),
-              tables: sortedTables.map((table) => ({
-                table_id: table.table_id,
-                table_number: table.table_number.toString(),
-                is_occupied: table.is_occupied,
-                order_number: table.order_number || null,
-                grandTotal: table.grand_total || 0,
-                occupiedTime: table.occupied_time || "00:00",
-              })),
-            };
-          })
-        );
-
-        console.log("Formatted Sections:", formattedSections);
-        setSections(formattedSections);
+      } else {
+        throw new Error(data.msg || "Failed to fetch sections");
       }
     } catch (error) {
-      console.error("Fetch Error:", error);
+      console.error("Fetch Sections Error:", error);
       toast.show({
-        description: error.message || "Failed to fetch sections",
+        description: error.message || "Failed to load sections",
         status: "error",
       });
     } finally {
@@ -375,51 +346,54 @@ export default function TableSectionsScreen() {
 
   const handleTablePress = async (table, section) => {
     try {
-      const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      if (!storedOutletId) {
+      console.log("Table pressed:", table);
+      console.log("Section:", section);
+
+      // Validate table and section data
+      if (
+        !table?.table_id ||
+        !table?.table_number ||
+        !section?.id ||
+        !section?.name
+      ) {
+        console.error("Missing table/section data:", { table, section });
         toast.show({
-          description: "Outlet ID not found. Please login again.",
+          description: "Invalid table information",
           status: "error",
-          duration: 3000,
         });
         return;
       }
 
-      // For unoccupied tables, pass minimal data
-      if (table.is_occupied === 0) {
-        router.push({
-          pathname: "/(tabs)/orders/create-order",
-          params: {
-            tableId: table.table_id.toString(),
-            sectionId: section.id.toString(),
-          },
+      const navigationParams = {
+        tableId: table.table_id.toString(),
+        tableNumber: table.table_number.toString(),
+        sectionId: section.id.toString(),
+        sectionName: section.name,
+        isOccupied: table.is_occupied === 1 ? "1" : "0",
+      };
+
+      // Add order details for occupied tables
+      if (table.is_occupied === 1) {
+        navigationParams.orderId = table.order_id?.toString();
+        navigationParams.orderNumber = table.order_number;
+        navigationParams.orderDetails = JSON.stringify({
+          order_id: table.order_id,
+          menu_items: table.menu_items,
+          grand_total: table.grandTotal,
         });
-        return;
       }
 
-      // For occupied tables without order_id, show message
-      if (!table.order_id) {
-        toast.show({
-          description: "No active order found for this table",
-          status: "warning",
-          duration: 3000,
-        });
-        return;
-      }
+      console.log("Navigation params:", navigationParams);
 
-      // For occupied tables with order_id, only pass the order_id
       router.push({
         pathname: "/(tabs)/orders/create-order",
-        params: {
-          orderId: table.order_id.toString(),
-        },
+        params: navigationParams,
       });
     } catch (error) {
-      console.error("Table Press Error:", error);
+      console.error("Navigation error:", error);
       toast.show({
-        description: error.message || "Failed to process table selection",
+        description: "Failed to open order screen",
         status: "error",
-        duration: 3000,
       });
     }
   };
@@ -457,16 +431,12 @@ export default function TableSectionsScreen() {
     }
   };
 
-  // Update the getTablesByRow function to always include one extra empty slot
+  // Update the getTablesByRow function
   const getTablesByRow = (sectionTables) => {
     if (!sectionTables) return { 0: {} }; // For sections with no tables
 
     const filteredTables = getFilteredTables(sectionTables);
     const grouped = {};
-
-    // Calculate how many complete rows we need
-    const totalSlots = filteredTables.length + 1; // Add 1 for the "Add Table" button
-    const totalRows = Math.ceil(totalSlots / 4);
 
     // Fill in the existing tables
     filteredTables.forEach((table, index) => {
@@ -477,7 +447,7 @@ export default function TableSectionsScreen() {
       grouped[row][index % 4] = table;
     });
 
-    // Add an empty row if needed for the "Add Table" button
+    // Add an empty slot for the "Add Table" button
     const lastRow = Math.floor(filteredTables.length / 4);
     const lastCol = filteredTables.length % 4;
 
@@ -536,12 +506,24 @@ export default function TableSectionsScreen() {
     return sectionTables[sectionTables.length - 1];
   };
 
+  // Add this helper function to format time
+  const formatTime = (timeString) => {
+    if (!timeString) return "";
+    // Check if timeString includes AM/PM
+    if (timeString.includes("AM") || timeString.includes("PM")) {
+      // Split the time string and remove seconds
+      const [time, meridiem] = timeString.split(" ");
+      const [hours, minutes] = time.split(":");
+      return `${hours}:${minutes} ${meridiem}`;
+    }
+    return timeString;
+  };
+
   // Update the renderGridView function's table rendering logic
   const renderGridView = (sections) => (
     <ScrollView px={2} py={2}>
-      {sections.map((section, index) => {
+      {sections.map((section) => {
         const tablesByRow = getTablesByRow(section.tables);
-        const lastTable = getLastTable(section.tables);
         const hasNoTables = !section.tables || section.tables.length === 0;
 
         return (
@@ -551,7 +533,6 @@ export default function TableSectionsScreen() {
                 <VStack space={4}>
                   {/* Section Header */}
                   <VStack space={1}>
-                    {/* Section Name and Actions */}
                     <HStack justifyContent="space-between" alignItems="center">
                       <Heading size="md" color="black">
                         {section.name}
@@ -615,7 +596,7 @@ export default function TableSectionsScreen() {
                   <Box height={0.5} bg="coolGray.200" />
 
                   {/* Add this condition for no tables message */}
-                  {hasNoTables && !showEditIcons ? (
+                  {section.tables.length === 0 && !showEditIcons ? (
                     <Center py={4}>
                       <Text color="coolGray.500" fontSize="sm">
                         No tables available in this section.
@@ -638,8 +619,8 @@ export default function TableSectionsScreen() {
                                 showEditIcons &&
                                 ((hasNoTables &&
                                   rowIndex === "0" &&
-                                  colIndex === 0) || // First slot for empty sections
-                                  (!hasNoTables && // Last empty slot for sections with tables
+                                  colIndex === 0) ||
+                                  (!hasNoTables &&
                                     rowIndex ===
                                       Math.floor(
                                         section.tables.length / 4
@@ -676,7 +657,8 @@ export default function TableSectionsScreen() {
                                         {/* Show delete icon for last table when settings is active */}
                                         {showEditIcons &&
                                           row[colIndex].table_id ===
-                                            lastTable?.table_id &&
+                                            getLastTable(section.tables)
+                                              ?.table_id &&
                                           row[colIndex].is_occupied !== 1 && (
                                             <IconButton
                                               position="absolute"
@@ -744,15 +726,10 @@ export default function TableSectionsScreen() {
                                             fontSize={12}
                                             color="coolGray.600"
                                           >
-                                            <Text
-                                              fontSize={12}
-                                              color="coolGray.600"
-                                            >
-                                              {row[colIndex].is_occupied ===
-                                                1 &&
-                                                (row[colIndex].occupiedTime ||
-                                                  "00:00")}
-                                            </Text>
+                                            {row[colIndex].is_occupied === 1 &&
+                                              formatTime(
+                                                row[colIndex].occupied_time
+                                              )}
                                           </Text>
                                         </VStack>
                                       </Box>
@@ -806,6 +783,9 @@ export default function TableSectionsScreen() {
           </Box>
         );
       })}
+
+      {/* Add the CreateTableModal component */}
+      <CreateTableModal />
     </ScrollView>
   );
 
@@ -1064,10 +1044,9 @@ export default function TableSectionsScreen() {
     }
   };
 
-  const handleCreateTable = async (sectionId) => {
+  const handleCreateTable = async () => {
     try {
       setLoading(true);
-
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/table_create`,
         {
@@ -1077,7 +1056,7 @@ export default function TableSectionsScreen() {
           },
           body: JSON.stringify({
             outlet_id: outletId.toString(),
-            section_id: sectionId.toString(),
+            section_id: selectedSection.toString(),
           }),
         }
       );
@@ -1087,13 +1066,11 @@ export default function TableSectionsScreen() {
 
       if (data.st === 1) {
         toast.show({
-          description: data.msg || "Table created successfully",
+          description: "Table created successfully",
           status: "success",
-          duration: 2000,
         });
-
-        // Refresh the sections data
         await fetchSections(outletId);
+        setShowCreateTableModal(false);
       } else {
         throw new Error(data.msg || "Failed to create table");
       }
@@ -1105,7 +1082,6 @@ export default function TableSectionsScreen() {
       });
     } finally {
       setLoading(false);
-      setShowCreateTableModal(false);
     }
   };
 
@@ -1118,34 +1094,20 @@ export default function TableSectionsScreen() {
         <Modal.Header>Create New Table</Modal.Header>
         <Modal.CloseButton />
         <Modal.Body>
-          <VStack space={3}>
-            <Text>
-              Are you sure you want to create a new table in this section?
-            </Text>
-            <Text fontSize="sm" color="coolGray.500">
-              The table number will be automatically assigned.
-            </Text>
-          </VStack>
+          <Text>Are you sure you want to create a new table?</Text>
         </Modal.Body>
         <Modal.Footer>
-          <HStack space={2} width="100%" justifyContent="space-between">
+          <Button.Group space={2}>
             <Button
               variant="ghost"
-              colorScheme="coolGray"
               onPress={() => setShowCreateTableModal(false)}
-              isDisabled={loading}
             >
               Cancel
             </Button>
-            <Button
-              onPress={() => handleCreateTable(selectedSection)}
-              isLoading={loading}
-              isLoadingText="Creating..."
-              colorScheme="primary"
-            >
+            <Button onPress={handleCreateTable} isLoading={loading}>
               Create
             </Button>
-          </HStack>
+          </Button.Group>
         </Modal.Footer>
       </Modal.Content>
     </Modal>
