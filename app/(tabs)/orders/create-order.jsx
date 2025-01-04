@@ -374,25 +374,66 @@ export default function CreateOrderScreen() {
       setIsProcessing(true);
       setLoadingMessage("Processing order...");
 
+      const storedUserId = await AsyncStorage.getItem("user_id");
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      if (!storedOutletId) {
-        throw new Error("Outlet ID not found");
+
+      if (!storedOutletId || !storedUserId) {
+        throw new Error("Required data not found");
       }
 
-      // First update the order
-      if (orderId) {
-        const updatePayload = {
-          order_id: parseInt(orderId),
-          customer_id: "367",
-          outlet_id: storedOutletId,
-          table_number: parseInt(tableNumber),
-          section_id: parseInt(sectionId),
-          order_type: orderType || "Dine-in",
+      let currentOrderId = orderId;
+
+      // For new orders, create the order first
+      if (!orderId) {
+        setLoadingMessage("Creating new order...");
+        const createPayload = {
+          user_id: storedUserId.toString(),
+          outlet_id: storedOutletId.toString(),
+          tables: [tableNumber.toString()],
+          section_id: sectionId.toString(),
+          order_type: "dine-in",
           order_items: selectedItems.map((item) => ({
             menu_id: item.menu_id.toString(),
-            quantity: parseInt(item.quantity),
-            comment: "",
-            half_or_full: (item.portionSize || "Full").toLowerCase(),
+            quantity: item.quantity,
+            comment: item.specialInstructions || "",
+            half_or_full: (item.portionSize || "full").toLowerCase(),
+          })),
+        };
+
+        console.log("Create Order Payload:", createPayload);
+
+        const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(createPayload),
+        });
+
+        const createData = await createResponse.json();
+        console.log("Create Order Response:", createData);
+
+        if (createData.st !== 1) {
+          throw new Error(createData.msg || "Failed to create order");
+        }
+
+        currentOrderId = createData.order_id;
+      }
+      // For existing orders, update first
+      else {
+        setLoadingMessage("Updating order...");
+        const updatePayload = {
+          order_id: orderId.toString(),
+          user_id: storedUserId.toString(),
+          outlet_id: storedOutletId.toString(),
+          tables: [tableNumber.toString()],
+          section_id: sectionId.toString(),
+          order_type: "dine-in",
+          order_items: selectedItems.map((item) => ({
+            menu_id: item.menu_id.toString(),
+            quantity: item.quantity,
+            comment: item.specialInstructions || "",
+            half_or_full: (item.portionSize || "full").toLowerCase(),
           })),
         };
 
@@ -414,15 +455,12 @@ export default function CreateOrderScreen() {
         }
       }
 
-      // Then update the order status
-      setLoadingMessage("Completing order...");
-
+      // Mark order as paid
+      setLoadingMessage("Completing payment...");
       const statusPayload = {
-        outlet_id: storedOutletId,
-        order_id: parseInt(orderId),
-        order_status: "completed",
-        table_number: parseInt(tableNumber),
-        section_id: parseInt(sectionId),
+        outlet_id: storedOutletId.toString(),
+        order_id: currentOrderId.toString(),
+        order_status: "paid",
       };
 
       console.log("Status Update Payload:", statusPayload);
@@ -438,18 +476,8 @@ export default function CreateOrderScreen() {
         }
       );
 
-      const statusText = await statusResponse.text();
-      console.log("Raw Status Response:", statusText);
-
-      let statusData;
-      try {
-        statusData = JSON.parse(statusText);
-      } catch (e) {
-        console.error("Failed to parse status response:", e);
-        throw new Error("Invalid response from server");
-      }
-
-      console.log("Parsed Status Response:", statusData);
+      const statusData = await statusResponse.json();
+      console.log("Status Update Response:", statusData);
 
       if (statusData.st === 1) {
         // Clear all states
@@ -461,7 +489,7 @@ export default function CreateOrderScreen() {
         setDiscountAmount(0);
 
         toast.show({
-          description: "Order completed successfully",
+          description: "Order settled successfully",
           status: "success",
           duration: 2000,
         });
@@ -471,27 +499,17 @@ export default function CreateOrderScreen() {
           pathname: "/(tabs)/orders",
           params: {
             refresh: Date.now().toString(),
-            status: "completed",
+            status: "paid",
             fromSettle: true,
           },
         });
       } else {
-        throw new Error(statusData.msg || "Failed to complete order");
+        throw new Error(statusData.msg || "Failed to mark order as paid");
       }
     } catch (error) {
       console.error("Settle Error:", error);
-
-      let errorMessage = "Failed to settle order";
-      if (error.message.includes("Failed to parse")) {
-        errorMessage = "Server returned invalid response. Please try again.";
-      } else if (error.message.includes("HTTP error")) {
-        errorMessage = "Server error. Please try again later.";
-      } else {
-        errorMessage = error.message;
-      }
-
       toast.show({
-        description: errorMessage,
+        description: error.message || "Failed to settle order",
         status: "error",
         duration: 3000,
       });
