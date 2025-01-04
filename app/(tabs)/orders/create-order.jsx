@@ -121,35 +121,78 @@ export default function CreateOrderScreen() {
   useEffect(() => {
     const initializeOrder = async () => {
       try {
-        // Get params from router
         const {
           tableId,
-          tableNumber,
-          sectionId,
+          tableNumber: routeTableNumber,
+          sectionId: routeSectionId,
           sectionName,
           isOccupied,
-          orderId: routeOrderId, // Get orderId from route if it exists
+          orderId: routeOrderId,
+          orderNumber,
+          orderDetails,
         } = params;
 
-        // Set state values from params
-        setTableNumber(tableNumber || "");
-        setSectionId(sectionId || "");
+        console.log("Raw params:", params);
+
+        // Set basic details
+        if (routeTableNumber) {
+          setTableNumber(routeTableNumber);
+        } else if (tableId) {
+          setTableNumber(tableId);
+        }
+
+        setSectionId(routeSectionId || "");
         setSectionName(sectionName || "");
         setIsOccupied(isOccupied || "0");
 
-        // Only set orderId if it exists in params
         if (routeOrderId) {
           setOrderId(routeOrderId);
-          console.log("Order ID set from params:", routeOrderId);
         }
 
-        // Log the initialized values
-        console.log("Initialized Order Details:", {
-          tableNumber,
-          sectionId,
-          sectionName,
+        // Parse orderDetails if it's a string
+        let parsedOrderDetails;
+        if (orderDetails && typeof orderDetails === "string") {
+          parsedOrderDetails = JSON.parse(orderDetails);
+          console.log("Parsed Order Details:", parsedOrderDetails);
+        }
+
+        // Set order details
+        setOrderDetails({
+          order_number: orderNumber,
+          table_number: routeTableNumber,
+          total_bill: parsedOrderDetails?.grand_total || 0,
+          datetime: new Date().toLocaleString(),
+          order_type: "dine-in",
+        });
+
+        // Format menu items from parsed order details
+        if (
+          parsedOrderDetails?.menu_items &&
+          Array.isArray(parsedOrderDetails.menu_items)
+        ) {
+          const formattedItems = parsedOrderDetails.menu_items.map((item) => ({
+            menu_id: item.menu_id.toString(),
+            menu_name: item.name,
+            price: parseFloat(item.price || 0),
+            quantity: parseInt(item.quantity || 1),
+            portionSize: "Full",
+            specialInstructions: "",
+            menu_sub_total: parseFloat(item.total_price || 0),
+          }));
+
+          console.log("Formatted Menu Items:", formattedItems);
+          setSelectedItems(formattedItems);
+        }
+
+        // Debug log
+        console.log("Order Initialization Complete:", {
+          tableNumber: routeTableNumber,
+          sectionId: routeSectionId,
           isOccupied,
-          orderId: routeOrderId || "New Order",
+          orderId: routeOrderId,
+          orderNumber,
+          menuItems: parsedOrderDetails?.menu_items || [],
+          grandTotal: parsedOrderDetails?.grand_total,
         });
       } catch (error) {
         console.error("Error initializing order:", error);
@@ -161,7 +204,7 @@ export default function CreateOrderScreen() {
     };
 
     initializeOrder();
-  }, [params]); // Only depend on params
+  }, []);
 
   useEffect(() => {
     const getStoredData = async () => {
@@ -176,62 +219,6 @@ export default function CreateOrderScreen() {
       fetchMenuItems();
     }
   }, [outletId]);
-
-  useEffect(() => {
-    if (orderNumber && isOccupied === "1") {
-      loadOrderDetails();
-    }
-  }, [orderNumber, isOccupied]); // Only depend on these two values
-
-  const loadOrderDetails = async () => {
-    if (orderNumber && isOccupied === "1") {
-      try {
-        const storedOutletId = await AsyncStorage.getItem("outlet_id");
-
-        // Fetch order details from API
-        const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: storedOutletId,
-            order_number: orderNumber,
-          }),
-        });
-
-        const data = await response.json();
-        console.log("Order Details Response:", data);
-
-        if (data.st === 1 && data.lists?.order_details) {
-          setOrderDetails(data.lists.order_details);
-
-          if (data.lists.menu_details) {
-            const formattedItems = data.lists.menu_details.map((item) => ({
-              menu_id: item.menu_id,
-              menu_name: item.menu_name,
-              price: parseFloat(item.price),
-              quantity: parseInt(item.quantity),
-              portionSize: "Full",
-              menu_sub_total: parseFloat(item.menu_sub_total),
-            }));
-            setSelectedItems(formattedItems);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading order details:", error);
-        toast.show({
-          description: "Failed to load order details",
-          status: "error",
-        });
-      }
-    }
-  };
-
-  useEffect(() => {
-    console.log("Received params:", params);
-    console.log("orderId:", orderId);
-  }, [params, orderId]);
 
   const fetchMenuItems = async () => {
     if (!outletId) return;
@@ -267,37 +254,7 @@ export default function CreateOrderScreen() {
     }
   };
 
-  const verifyRequiredData = async () => {
-    try {
-      const userId = await AsyncStorage.getItem("user_id");
-      const outletId = await AsyncStorage.getItem("outlet_id");
-      const captainId = await AsyncStorage.getItem("captain_id");
-
-      if (!userId || !outletId || !captainId) {
-        toast.show({
-          description: "Missing required data. Please login again.",
-          status: "error",
-        });
-        router.replace("/");
-        return false;
-      }
-
-      console.log("Verified Data:", {
-        userId,
-        outletId,
-        captainId,
-      });
-
-      return true;
-    } catch (error) {
-      console.error("Data verification error:", error);
-      return false;
-    }
-  };
-
-  const handleHold = async () => {
-    if (!(await verifyRequiredData())) return;
-
+  const createOrder = async (orderStatus) => {
     if (selectedItems.length === 0) {
       toast.show({
         description: "Please add items to the order",
@@ -312,152 +269,97 @@ export default function CreateOrderScreen() {
       const storedUserId = await AsyncStorage.getItem("user_id");
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-      if (!storedUserId || !storedOutletId) {
+      if (!storedUserId || !storedOutletId || !tableNumber || !sectionId) {
         throw new Error("Missing required information");
       }
 
-      const requestBody = {
+      // Format order items exactly like waiter app
+      const orderItems = selectedItems.map((item) => ({
+        menu_id: item.menu_id.toString(),
+        quantity: item.quantity,
+        comment: item.specialInstructions || "",
+        half_or_full: (item.portionSize || "full").toLowerCase(),
+      }));
+
+      // Match waiter app request format exactly
+      const orderData = {
         user_id: storedUserId.toString(),
         outlet_id: storedOutletId.toString(),
-        tables: [tableNumber.toString()], // Changed to match API format
+        tables: [tableNumber.toString()],
         section_id: sectionId.toString(),
-        order_type: "Dine-in",
-
-        order_items: selectedItems.map((item) => ({
-          menu_id: item.menu_id.toString(),
-          quantity: parseInt(item.quantity),
-          comment: item.specialInstructions || "Less spicy",
-          half_or_full: (item.portionSize || "Full").toLowerCase(),
-        })),
+        order_type: "dine-in",
+        order_items: orderItems,
       };
 
-      // Only add orderId to request if it exists
-      if (orderId) {
-        requestBody.order_id = orderId.toString();
-      }
+      // Check if table is occupied and has an existing order
+      if (params?.isOccupied === "1") {
+        if (!orderId) {
+          throw new Error("Order ID is required for occupied tables");
+        }
+        orderData.order_id = orderId.toString();
 
-      console.log("Request Body:", requestBody);
-
-      const response = await fetch(`${API_BASE_URL}/create_order`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-      console.log("Create Order Response:", data);
-
-      if (data.st === 1) {
-        toast.show({
-          description: "Order created successfully",
-          status: "success",
-          duration: 2000,
+        // Use update endpoint for occupied tables
+        console.log("Updating existing order:", orderData);
+        const response = await fetch(`${API_BASE_URL}/update_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(orderData),
         });
 
-        // Store the new order_id if returned
-        if (data.order_id) {
-          setOrderId(data.order_id.toString());
-        }
+        const result = await response.json();
+        console.log("Update Order Response:", result);
 
-        router.replace("/(tabs)/orders");
+        if (result.st === 1) {
+          toast.show({
+            description: "Order updated successfully",
+            status: "success",
+            duration: 2000,
+          });
+          router.replace("/(tabs)/orders");
+        } else {
+          throw new Error(result.msg || "Failed to update order");
+        }
       } else {
-        throw new Error(data.msg || "Failed to process order");
+        // Create new order for unoccupied tables
+        console.log("Creating new order:", orderData);
+        const response = await fetch(`${API_BASE_URL}/create_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(orderData),
+        });
+
+        const result = await response.json();
+        console.log("Create Order Response:", result);
+
+        if (result.st === 1) {
+          toast.show({
+            description: `Order ${result.order_id || ""} created successfully`,
+            status: "success",
+            duration: 2000,
+          });
+          router.replace("/(tabs)/orders");
+        } else {
+          throw new Error(result.msg || "Failed to create order");
+        }
       }
     } catch (error) {
-      console.error("Hold Order Error:", error);
+      console.error(`${orderStatus.toUpperCase()} Error:`, error);
       toast.show({
         description: error.message || "Failed to process order",
         status: "error",
-        duration: 2000,
+        duration: 3000,
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKOT = async () => {
-    if (!(await verifyRequiredData())) return;
-
-    if (selectedItems.length === 0) {
-      toast.show({
-        description: "Please add items to the order",
-        status: "warning",
-        duration: 2000,
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const storedUserId = await AsyncStorage.getItem("user_id");
-      const storedOutletId = await AsyncStorage.getItem("outlet_id");
-
-      if (!storedUserId || !storedOutletId) {
-        throw new Error("Missing required information");
-      }
-
-      const requestBody = {
-        user_id: storedUserId.toString(),
-        outlet_id: storedOutletId.toString(),
-        tables: [tableNumber.toString()], // Changed to match API format
-        section_id: sectionId.toString(),
-        order_type: "Dine-in",
-
-        order_items: selectedItems.map((item) => ({
-          menu_id: item.menu_id.toString(),
-          quantity: parseInt(item.quantity),
-          comment: item.specialInstructions || "Less spicy",
-          half_or_full: (item.portionSize || "Full").toLowerCase(),
-        })),
-      };
-
-      // Only add orderId to request if it exists
-      if (orderId) {
-        requestBody.order_id = orderId.toString();
-      }
-
-      console.log("KOT Request:", requestBody);
-
-      const response = await fetch(`${API_BASE_URL}/create_order`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-      console.log("KOT Response:", data);
-
-      if (data.st === 1) {
-        toast.show({
-          description: "KOT generated successfully",
-          status: "success",
-          duration: 2000,
-        });
-
-        // Store the new order_id if returned
-        if (data.order_id) {
-          setOrderId(data.order_id.toString());
-        }
-
-        router.replace("/(tabs)/orders");
-      } else {
-        throw new Error(data.msg || "Failed to process KOT");
-      }
-    } catch (error) {
-      console.error("KOT Error:", error);
-      toast.show({
-        description: error.message || "Failed to process KOT",
-        status: "error",
-        duration: 2000,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleHold = () => createOrder("hold");
+  const handleKOT = () => createOrder("kot");
 
   const handleSettle = async () => {
     if (selectedItems.length === 0) {
@@ -599,15 +501,6 @@ export default function CreateOrderScreen() {
     }
   };
 
-  // Add this function to validate the response
-  const isValidResponse = (response) => {
-    try {
-      return response && typeof response === "object" && "st" in response;
-    } catch {
-      return false;
-    }
-  };
-
   useEffect(() => {
     const keyboardDidHideListener = Keyboard.addListener(
       "keyboardDidHide",
@@ -690,128 +583,32 @@ export default function CreateOrderScreen() {
   };
 
   const OrderSummary = () => {
-    console.log("Order Details:", orderDetails); // Add this for debugging
-
     return (
       <Box bg="white" p={2} rounded="lg" shadow={1} my={1}>
         <VStack space={1}>
           <HStack justifyContent="space-between" alignItems="center">
             <Heading size="sm">
-              Order #{orderDetails?.order_number} - {orderDetails?.table_number}
+              {orderDetails?.order_number
+                ? `Order #${orderDetails.order_number} - Table ${tableNumber}`
+                : `Table ${tableNumber}`}
             </Heading>
             <Text fontSize="xs" color="gray.500">
-              {orderDetails?.datetime ? formatTime(orderDetails.datetime) : ""}
+              {orderDetails?.datetime
+                ? formatTime(orderDetails.datetime)
+                : getCurrentDate()}
             </Text>
           </HStack>
+          {isOccupied === "1" && (
+            <HStack justifyContent="space-between" mt={1}>
+              <Text fontSize="sm" color="gray.600">
+                Section: {sectionName}
+              </Text>
+              <Badge colorScheme="red">Occupied</Badge>
+            </HStack>
+          )}
         </VStack>
       </Box>
     );
-  };
-
-  const handleTablePress = async (table, section) => {
-    if (table.is_occupied === 0) {
-      router.push({
-        pathname: "/(tabs)/orders/create-order",
-        params: {
-          tableId: table.table_id.toString(),
-          tableNumber: table.table_number.toString(),
-          sectionId: section.id,
-          sectionName: section.name,
-          isOccupied: "0",
-        },
-      });
-    } else {
-      try {
-        const storedOutletId = await AsyncStorage.getItem("outlet_id");
-
-        // Format date as "DD MMM YYYY"
-        const today = new Date();
-        const formattedDate = today.toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        });
-
-        // First get the ongoing orders list
-        const listResponse = await fetch(
-          `${API_BASE_URL}/captain_order/listview`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              outlet_id: storedOutletId,
-              order_status: "ongoing",
-              date: formattedDate, // Using the correctly formatted date
-            }),
-          }
-        );
-
-        const listData = await listResponse.json();
-        console.log("List Response:", listData);
-
-        if (listData.st === 1 && listData.lists && listData.lists.length > 0) {
-          // Find the order for this table
-          const tableOrder = listData.lists.find(
-            (order) => order.table_number === table.table_number.toString()
-          );
-
-          console.log("Found Table Order:", tableOrder);
-
-          if (tableOrder) {
-            // Get detailed order info
-            const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                outlet_id: storedOutletId,
-                order_number: tableOrder.order_number,
-              }),
-            });
-
-            const data = await response.json();
-            console.log("Order Details:", data);
-
-            if (data.st === 1 && data.lists) {
-              const { order_details, menu_details } = data.lists;
-
-              router.push({
-                pathname: "/(tabs)/orders/create-order",
-                params: {
-                  tableId: table.table_id.toString(),
-                  tableNumber: table.table_number.toString(),
-                  sectionId: section.id.toString(),
-                  sectionName: section.name,
-                  orderNumber: tableOrder.order_number,
-                  customerName: order_details.customer_name || "",
-                  customerPhone: order_details.customer_phone || "",
-                  orderType: tableOrder.order_type || "Dine In", // Getting order_type from listData
-                  existingItems: JSON.stringify(menu_details),
-                  isOccupied: "1",
-                  grandTotal: order_details.total_bill?.toString() || "0",
-                  serviceCharges:
-                    order_details.service_charges_amount?.toString() || "0",
-                  gstAmount: order_details.gst_amount?.toString() || "0",
-                  discountAmount:
-                    order_details.discount_amount?.toString() || "0",
-                },
-              });
-            }
-          } else {
-            throw new Error("No active order found for this table");
-          }
-        } else {
-          throw new Error("No ongoing orders found");
-        }
-      } catch (error) {
-        console.error("Error:", error);
-        toast.show({
-          description: error.message || "Failed to fetch order details",
-          status: "error",
-        });
-      }
-    }
   };
 
   // Handle device back button
@@ -906,6 +703,36 @@ export default function CreateOrderScreen() {
         duration: 2000,
       });
     }
+  };
+
+  const SelectedItemsList = () => {
+    return (
+      <VStack space={2}>
+        {selectedItems.map((item, index) => (
+          <Box key={index} borderBottomWidth={1} borderColor="gray.200" pb={2}>
+            <HStack justifyContent="space-between" alignItems="center">
+              <VStack flex={1}>
+                <Text fontWeight="bold">{item.menu_name}</Text>
+                <Text fontSize="sm" color="gray.600">
+                  ₹{item.price?.toFixed(2)} x {item.quantity} = ₹
+                  {item.menu_sub_total?.toFixed(2)}
+                </Text>
+                {item.specialInstructions && (
+                  <Text fontSize="xs" color="gray.500">
+                    Note: {item.specialInstructions}
+                  </Text>
+                )}
+              </VStack>
+              <Badge
+                colorScheme={item.portionSize === "Half" ? "orange" : "blue"}
+              >
+                {item.portionSize}
+              </Badge>
+            </HStack>
+          </Box>
+        ))}
+      </VStack>
+    );
   };
 
   return (
