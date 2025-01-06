@@ -71,14 +71,9 @@ export default function CreateOrderScreen() {
   const router = useRouter();
   const toast = useToast();
   const params = useLocalSearchParams();
-  const {
-    tableId,
+  const isFocused = useIsFocused();
 
-    orderNumber,
-    orderType: existingOrderType,
-    existingItems,
-  } = params;
-
+  // Keep all existing states
   const [loading, setLoading] = useState(false);
   const [outletId, setOutletId] = useState(null);
   const [orderType, setOrderType] = useState("Dine In");
@@ -111,89 +106,88 @@ export default function CreateOrderScreen() {
   });
   const [loadingMessage, setLoadingMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const isFocused = useIsFocused();
   const [tableNumber, setTableNumber] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [sectionName, setSectionName] = useState("");
   const [isOccupied, setIsOccupied] = useState("0");
   const [orderId, setOrderId] = useState(null);
+  const [orderNumber, setOrderNumber] = useState("");
 
+  // Add these new states for better state management
+  const [currentTableNumber, setCurrentTableNumber] = useState(
+    params.tableNumber || ""
+  );
+  const [currentSectionId, setCurrentSectionId] = useState(
+    params.sectionId || ""
+  );
+  const [currentSectionName, setCurrentSectionName] = useState(
+    params.sectionName || ""
+  );
+  const [currentIsOccupied, setCurrentIsOccupied] = useState(
+    params.isOccupied || "0"
+  );
+  const [currentOrderId, setCurrentOrderId] = useState(params.orderId || null);
+
+  // Update the initialization useEffect
   useEffect(() => {
     const initializeOrder = async () => {
       try {
-        const {
-          tableId,
-          tableNumber: routeTableNumber,
-          sectionId: routeSectionId,
-          sectionName,
-          isOccupied,
-          orderId: routeOrderId,
-          orderNumber,
-          orderDetails,
-        } = params;
+        console.log("Initializing order with params:", params);
 
-        console.log("Raw params:", params);
+        // Reset states
+        setSelectedItems([]);
+        setGrandTotal(0);
+        setServiceCharges(0);
+        setGstAmount(0);
+        setDiscountAmount(0);
 
-        // Set basic details
-        if (routeTableNumber) {
-          setTableNumber(routeTableNumber);
-        } else if (tableId) {
-          setTableNumber(tableId);
+        // Set both current and existing state variables
+        setTableNumber(params.tableNumber);
+        setSectionId(params.sectionId);
+        setSectionName(params.sectionName);
+        setIsOccupied(params.isOccupied);
+        setOrderId(params.orderId);
+
+        setCurrentTableNumber(params.tableNumber);
+        setCurrentSectionId(params.sectionId);
+        setCurrentSectionName(params.sectionName);
+        setCurrentIsOccupied(params.isOccupied);
+        setCurrentOrderId(params.orderId);
+
+        // Handle occupied table data
+        if (params.isOccupied === "1" && params.orderDetails) {
+          try {
+            const orderData = JSON.parse(params.orderDetails);
+            console.log("Parsed order data:", orderData);
+
+            if (orderData.menu_items && Array.isArray(orderData.menu_items)) {
+              const transformedItems = orderData.menu_items.map((item) => ({
+                menu_id: item.menu_id.toString(),
+                menu_name: item.name,
+                price: parseFloat(item.price),
+                quantity: parseInt(item.quantity),
+                total_price: parseFloat(item.total_price),
+                specialInstructions: "",
+                portionSize: "Full",
+              }));
+
+              setSelectedItems(transformedItems);
+              setGrandTotal(parseFloat(orderData.grand_total) || 0);
+
+              // Update order details
+              setOrderDetails({
+                order_number: params.orderNumber || "",
+                table_number: params.tableNumber || "",
+                total_bill: parseFloat(orderData.grand_total) || 0,
+                datetime: new Date().toLocaleString(),
+                order_type: "dine-in",
+              });
+            }
+          } catch (parseError) {
+            console.error("Error parsing order details:", parseError);
+            console.log("Raw order details:", params.orderDetails);
+          }
         }
-
-        setSectionId(routeSectionId || "");
-        setSectionName(sectionName || "");
-        setIsOccupied(isOccupied || "0");
-
-        if (routeOrderId) {
-          setOrderId(routeOrderId);
-        }
-
-        // Parse orderDetails if it's a string
-        let parsedOrderDetails;
-        if (orderDetails && typeof orderDetails === "string") {
-          parsedOrderDetails = JSON.parse(orderDetails);
-          console.log("Parsed Order Details:", parsedOrderDetails);
-        }
-
-        // Set order details
-        setOrderDetails({
-          order_number: orderNumber,
-          table_number: routeTableNumber,
-          total_bill: parsedOrderDetails?.grand_total || 0,
-          datetime: new Date().toLocaleString(),
-          order_type: "dine-in",
-        });
-
-        // Format menu items from parsed order details
-        if (
-          parsedOrderDetails?.menu_items &&
-          Array.isArray(parsedOrderDetails.menu_items)
-        ) {
-          const formattedItems = parsedOrderDetails.menu_items.map((item) => ({
-            menu_id: item.menu_id.toString(),
-            menu_name: item.name,
-            price: parseFloat(item.price || 0),
-            quantity: parseInt(item.quantity || 1),
-            portionSize: "Full",
-            specialInstructions: "",
-            menu_sub_total: parseFloat(item.total_price || 0),
-          }));
-
-          console.log("Formatted Menu Items:", formattedItems);
-          setSelectedItems(formattedItems);
-        }
-
-        // Debug log
-        console.log("Order Initialization Complete:", {
-          tableNumber: routeTableNumber,
-          sectionId: routeSectionId,
-          isOccupied,
-          orderId: routeOrderId,
-          orderNumber,
-          menuItems: parsedOrderDetails?.menu_items || [],
-          grandTotal: parsedOrderDetails?.grand_total,
-        });
       } catch (error) {
         console.error("Error initializing order:", error);
         toast.show({
@@ -203,8 +197,10 @@ export default function CreateOrderScreen() {
       }
     };
 
-    initializeOrder();
-  }, []);
+    if (isFocused) {
+      initializeOrder();
+    }
+  }, [isFocused, params.tableNumber, params.sectionId]);
 
   useEffect(() => {
     const getStoredData = async () => {
