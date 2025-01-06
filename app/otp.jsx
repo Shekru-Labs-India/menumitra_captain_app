@@ -176,14 +176,13 @@ export default function OtpScreen() {
 
       if (data.st === 1) {
         try {
-          // Store both user_id and captain_id, but we'll primarily use captain_id in the app
+          // Store all required data from API response with updated keys
           await AsyncStorage.multiSet([
             ["captain_id", data.captain_id.toString()],
-            ["outlet_id", data.outlet_id.toString()],
-            ["user_id", data.user_id.toString()], // Store original user_id
+            ["outlet_id", data.outlet_id.toString()], // Changed from restaurant_id
+            ["user_id", data.user_id.toString()], // Now using actual user_id from response
             ["captain_name", data.captain_name],
             ["role", data.role],
-            ["primary_id", data.captain_id.toString()], // Add this new key to use throughout the app
           ]);
 
           // Store session data
@@ -199,6 +198,15 @@ export default function OtpScreen() {
             "userSession",
             JSON.stringify(sessionData)
           );
+
+          // Log stored data for verification
+          console.log("Stored Data:", {
+            captain_id: data.captain_id,
+            outlet_id: data.outlet_id,
+            user_id: data.user_id,
+            captain_name: data.captain_name,
+            role: data.role,
+          });
 
           router.replace("/(tabs)");
         } catch (error) {
@@ -217,6 +225,16 @@ export default function OtpScreen() {
       otpInputs.current[0].focus();
     }
   };
+
+  //       console.error("Required data missing. Please login again.");
+  //       // Optionally clear storage and redirect to login
+  //       await AsyncStorage.clear();
+  //       router.replace("/");
+  //     }
+  //   };
+
+  //   checkData();
+  // }, []);
 
   return (
     <Box flex={1} bg="white" safeArea>

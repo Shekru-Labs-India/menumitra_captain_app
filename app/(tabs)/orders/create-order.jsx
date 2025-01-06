@@ -262,10 +262,18 @@ export default function CreateOrderScreen() {
 
     try {
       setLoading(true);
+      // Get both user_id and captain_id
       const storedUserId = await AsyncStorage.getItem("user_id");
+      const storedCaptainId = await AsyncStorage.getItem("captain_id");
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-      if (!storedUserId || !storedOutletId || !tableNumber || !sectionId) {
+      console.log("Stored IDs:", {
+        userId: storedUserId,
+        captainId: storedCaptainId,
+        outletId: storedOutletId,
+      });
+
+      if (!storedCaptainId || !storedOutletId) {
         throw new Error("Missing required information");
       }
 
@@ -276,69 +284,57 @@ export default function CreateOrderScreen() {
         half_or_full: (item.portionSize || "full").toLowerCase(),
       }));
 
+      // Base order data with default empty tables and section
       const orderData = {
-        user_id: storedUserId.toString(),
+        user_id: storedCaptainId.toString(), // Use captain_id instead of user_id
         outlet_id: storedOutletId.toString(),
-        tables: [tableNumber.toString()],
-        section_id: sectionId.toString(),
-        order_type: "dine-in",
+        order_type: params.orderType || "dine-in",
         order_items: orderItems,
+        tables: ["0"], // Default empty table
+        section_id: "0", // Default empty section
       };
 
-      // Check if table is occupied and has an existing order
-      if (params?.isOccupied === "1") {
-        if (!orderId) {
-          throw new Error("Order ID is required for occupied tables");
+      // Override with actual table and section for dine-in orders
+      if (params.orderType === "dine-in") {
+        if (!tableNumber || !sectionId) {
+          throw new Error(
+            "Table and section details are required for dine-in orders"
+          );
         }
-        orderData.order_id = orderId.toString();
+        orderData.tables = [tableNumber.toString()];
+        orderData.section_id = sectionId.toString();
+      }
 
-        // Use update endpoint for occupied tables
-        console.log("Updating existing order:", orderData);
-        const response = await fetch(`${API_BASE_URL}/update_order`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(orderData),
+      // Create new order
+      console.log("Creating new order:", orderData);
+      const response = await fetch(`${API_BASE_URL}/create_order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      });
+
+      const result = await response.json();
+      console.log("Create Order Response:", result);
+
+      if (result.st === 1) {
+        toast.show({
+          description: `Order ${result.order_id || ""} created successfully`,
+          status: "success",
+          duration: 2000,
         });
 
-        const result = await response.json();
-        console.log("Update Order Response:", result);
-
-        if (result.st === 1) {
-          toast.show({
-            description: "Order updated successfully",
-            status: "success",
-            duration: 2000,
-          });
-          router.replace("/(tabs)/orders");
-        } else {
-          throw new Error(result.msg || "Failed to update order");
-        }
+        // Navigate back to orders screen
+        router.replace({
+          pathname: "/(tabs)/orders",
+          params: {
+            refresh: Date.now().toString(),
+            orderType: params.orderType,
+          },
+        });
       } else {
-        // Create new order for unoccupied tables
-        console.log("Creating new order:", orderData);
-        const response = await fetch(`${API_BASE_URL}/create_order`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(orderData),
-        });
-
-        const result = await response.json();
-        console.log("Create Order Response:", result);
-
-        if (result.st === 1) {
-          toast.show({
-            description: `Order ${result.order_id || ""} created successfully`,
-            status: "success",
-            duration: 2000,
-          });
-          router.replace("/(tabs)/orders");
-        } else {
-          throw new Error(result.msg || "Failed to create order");
-        }
+        throw new Error(result.msg || "Failed to create order");
       }
     } catch (error) {
       console.error(`${orderStatus.toUpperCase()} Error:`, error);
@@ -375,85 +371,53 @@ export default function CreateOrderScreen() {
         throw new Error("Required data not found");
       }
 
-      let currentOrderId = orderId;
+      // Create the order first
+      setLoadingMessage("Creating new order...");
+      const createPayload = {
+        user_id: storedUserId.toString(),
+        outlet_id: storedOutletId.toString(),
+        order_type: params.orderType || "dine-in",
+        order_items: selectedItems.map((item) => ({
+          menu_id: item.menu_id.toString(),
+          quantity: item.quantity,
+          comment: item.specialInstructions || "",
+          half_or_full: (item.portionSize || "full").toLowerCase(),
+        })),
+      };
 
-      // For new orders, create the order first
-      if (!orderId) {
-        setLoadingMessage("Creating new order...");
-        const createPayload = {
-          user_id: storedUserId.toString(),
-          outlet_id: storedOutletId.toString(),
-          tables: [tableNumber.toString()],
-          section_id: sectionId.toString(),
-          order_type: "dine-in",
-          order_items: selectedItems.map((item) => ({
-            menu_id: item.menu_id.toString(),
-            quantity: item.quantity,
-            comment: item.specialInstructions || "",
-            half_or_full: (item.portionSize || "full").toLowerCase(),
-          })),
-        };
-
-        console.log("Create Order Payload:", createPayload);
-
-        const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(createPayload),
-        });
-
-        const createData = await createResponse.json();
-        console.log("Create Order Response:", createData);
-
-        if (createData.st !== 1) {
-          throw new Error(createData.msg || "Failed to create order");
+      // Only add table and section details for dine-in orders
+      if (params.orderType === "dine-in") {
+        if (!tableNumber || !sectionId) {
+          throw new Error(
+            "Table and section details are required for dine-in orders"
+          );
         }
-
-        currentOrderId = createData.order_id;
+        createPayload.tables = [tableNumber.toString()];
+        createPayload.section_id = sectionId.toString();
       }
-      // For existing orders, update first
-      else {
-        setLoadingMessage("Updating order...");
-        const updatePayload = {
-          order_id: orderId.toString(),
-          user_id: storedUserId.toString(),
-          outlet_id: storedOutletId.toString(),
-          tables: [tableNumber.toString()],
-          section_id: sectionId.toString(),
-          order_type: "dine-in",
-          order_items: selectedItems.map((item) => ({
-            menu_id: item.menu_id.toString(),
-            quantity: item.quantity,
-            comment: item.specialInstructions || "",
-            half_or_full: (item.portionSize || "full").toLowerCase(),
-          })),
-        };
 
-        console.log("Update Order Payload:", updatePayload);
+      console.log("Create Order Payload:", createPayload);
 
-        const updateResponse = await fetch(`${API_BASE_URL}/update_order`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updatePayload),
-        });
+      const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(createPayload),
+      });
 
-        const updateData = await updateResponse.json();
-        console.log("Update Order Response:", updateData);
+      const createData = await createResponse.json();
+      console.log("Create Order Response:", createData);
 
-        if (updateData.st !== 1) {
-          throw new Error(updateData.msg || "Failed to update order");
-        }
+      if (createData.st !== 1) {
+        throw new Error(createData.msg || "Failed to create order");
       }
 
       // Mark order as paid
       setLoadingMessage("Completing payment...");
       const statusPayload = {
         outlet_id: storedOutletId.toString(),
-        order_id: currentOrderId.toString(),
+        order_id: createData.order_id.toString(),
         order_status: "paid",
       };
 
@@ -488,13 +452,13 @@ export default function CreateOrderScreen() {
           duration: 2000,
         });
 
-        // Navigate with refresh params
         router.replace({
           pathname: "/(tabs)/orders",
           params: {
             refresh: Date.now().toString(),
             status: "paid",
             fromSettle: true,
+            orderType: params.orderType, // Pass the order type to the orders screen
           },
         });
       } else {

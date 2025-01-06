@@ -72,7 +72,7 @@ export default function OrdersScreen() {
         },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
-          order_status: orderStatus === "all" ? "" : orderStatus,
+          order_status: "cooking",
         }),
       });
 
@@ -242,7 +242,6 @@ export default function OrdersScreen() {
             ),
           }}
         >
-          <Select.Item label="All Status" value="all" />
           <Select.Item label="Cooking" value="cooking" />
           <Select.Item label="Paid" value="paid" />
           <Select.Item label="Served" value="served" />
