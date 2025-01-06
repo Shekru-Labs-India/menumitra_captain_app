@@ -10,7 +10,7 @@ import {
 
 export const sendNotificationToWaiter = async (orderDetails) => {
   try {
-    const waiterId = "25"; // Prassanna's waiter_id
+    const waiterId = "57"; // Prassanna's waiter_id
     const outletId = "5"; // Outlet ID
     const waiterName = "Prassanna"; // Waiter's name
 

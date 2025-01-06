@@ -236,19 +236,6 @@ export default function TableSectionsScreen() {
     }
   };
 
-  // Helper function to generate random colors for sections
-  const getRandomColor = () => {
-    const colors = [
-      "#4CAF50",
-      "#2196F3",
-      "#9C27B0",
-      "#FF9800",
-      "#F44336",
-      "#009688",
-    ];
-    return colors[Math.floor(Math.random() * colors.length)];
-  };
-
   // Memoized sorting and filtering logic
   const sortedSections = useMemo(() => {
     let filtered = [...sections];
@@ -790,71 +777,175 @@ export default function TableSectionsScreen() {
   );
 
   const FilterButtons = () => (
-    <Box py={4} borderBottomWidth={1} borderBottomColor="coolGray.200">
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-        }}
-      >
-        <HStack space={3} alignItems="center">
-          <Pressable onPress={() => setActiveFilter("ALL")}>
-            <Box
-              px={4}
-              py={1.5}
-              bg={activeFilter === "ALL" ? "primary.500" : "white"}
-              borderWidth={1}
-              borderColor="primary.500"
-              rounded="md"
-            >
-              <Text
-                color={activeFilter === "ALL" ? "white" : "primary.500"}
-                fontSize="sm"
-                fontWeight="medium"
+    <Box>
+      <Box py={4} borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+          }}
+        >
+          <HStack space={3} alignItems="center">
+            <Pressable onPress={() => setActiveFilter("ALL")}>
+              <Box
+                px={4}
+                py={1.5}
+                bg={activeFilter === "ALL" ? "primary.500" : "white"}
+                borderWidth={1}
+                borderColor="primary.500"
+                rounded="md"
               >
-                All
-              </Text>
-            </Box>
-          </Pressable>
-          <Pressable onPress={() => setActiveFilter("AVAILABLE")}>
-            <Box
-              px={4}
-              py={1.5}
-              bg={activeFilter === "AVAILABLE" ? "green.500" : "white"}
-              borderWidth={1}
-              borderColor="green.500"
-              rounded="md"
-            >
-              <Text
-                color={activeFilter === "AVAILABLE" ? "white" : "green.500"}
-                fontSize="sm"
-                fontWeight="medium"
+                <Text
+                  color={activeFilter === "ALL" ? "white" : "primary.500"}
+                  fontSize="sm"
+                  fontWeight="medium"
+                >
+                  All
+                </Text>
+              </Box>
+            </Pressable>
+            <Pressable onPress={() => setActiveFilter("AVAILABLE")}>
+              <Box
+                px={4}
+                py={1.5}
+                bg={activeFilter === "AVAILABLE" ? "green.500" : "white"}
+                borderWidth={1}
+                borderColor="green.500"
+                rounded="md"
               >
-                Available
-              </Text>
-            </Box>
-          </Pressable>
-          <Pressable onPress={() => setActiveFilter("ENGAGED")}>
-            <Box
-              px={4}
-              py={1.5}
-              bg={activeFilter === "ENGAGED" ? "red.500" : "white"}
-              borderWidth={1}
-              borderColor="red.500"
-              rounded="md"
-            >
-              <Text
-                color={activeFilter === "ENGAGED" ? "white" : "red.500"}
-                fontSize="sm"
-                fontWeight="medium"
+                <Text
+                  color={activeFilter === "AVAILABLE" ? "white" : "green.500"}
+                  fontSize="sm"
+                  fontWeight="medium"
+                >
+                  Available
+                </Text>
+              </Box>
+            </Pressable>
+            <Pressable onPress={() => setActiveFilter("ENGAGED")}>
+              <Box
+                px={4}
+                py={1.5}
+                bg={activeFilter === "ENGAGED" ? "red.500" : "white"}
+                borderWidth={1}
+                borderColor="red.500"
+                rounded="md"
               >
-                Occupied
-              </Text>
-            </Box>
-          </Pressable>
-        </HStack>
-      </ScrollView>
+                <Text
+                  color={activeFilter === "ENGAGED" ? "white" : "red.500"}
+                  fontSize="sm"
+                  fontWeight="medium"
+                >
+                  Occupied
+                </Text>
+              </Box>
+            </Pressable>
+          </HStack>
+        </ScrollView>
+      </Box>
+
+      <Box py={4} borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+          }}
+        >
+          <HStack space={3} alignItems="center">
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/orders/create-order",
+                  params: { orderType: "parcel" },
+                })
+              }
+            >
+              <Box
+                px={4}
+                py={1.5}
+                bg="orange.500"
+                borderWidth={1}
+                borderColor="orange.500"
+                rounded="md"
+                flexDirection="row"
+                alignItems="center"
+              >
+                <MaterialIcons
+                  name="local-shipping"
+                  size={16}
+                  color="white"
+                  style={{ marginRight: 4 }}
+                />
+                <Text color="white" fontSize="sm" fontWeight="medium">
+                  Parcel
+                </Text>
+              </Box>
+            </Pressable>
+
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/orders/create-order",
+                  params: { orderType: "drive-through" },
+                })
+              }
+            >
+              <Box
+                px={4}
+                py={1.5}
+                bg="blue.500"
+                borderWidth={1}
+                borderColor="blue.500"
+                rounded="md"
+                flexDirection="row"
+                alignItems="center"
+              >
+                <MaterialIcons
+                  name="drive-eta"
+                  size={16}
+                  color="white"
+                  style={{ marginRight: 4 }}
+                />
+                <Text color="white" fontSize="sm" fontWeight="medium">
+                  Drive Through
+                </Text>
+              </Box>
+            </Pressable>
+
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/orders/create-order",
+                  params: { orderType: "counter" },
+                })
+              }
+            >
+              <Box
+                px={4}
+                py={1.5}
+                bg="purple.500"
+                borderWidth={1}
+                borderColor="purple.500"
+                rounded="md"
+                flexDirection="row"
+                alignItems="center"
+              >
+                <MaterialIcons
+                  name="point-of-sale"
+                  size={16}
+                  color="white"
+                  style={{ marginRight: 4 }}
+                />
+                <Text color="white" fontSize="sm" fontWeight="medium">
+                  Counter
+                </Text>
+              </Box>
+            </Pressable>
+          </HStack>
+        </ScrollView>
+      </Box>
     </Box>
   );
 

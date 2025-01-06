@@ -269,7 +269,6 @@ export default function CreateOrderScreen() {
         throw new Error("Missing required information");
       }
 
-      // Format order items exactly like waiter app
       const orderItems = selectedItems.map((item) => ({
         menu_id: item.menu_id.toString(),
         quantity: item.quantity,
@@ -277,7 +276,6 @@ export default function CreateOrderScreen() {
         half_or_full: (item.portionSize || "full").toLowerCase(),
       }));
 
-      // Match waiter app request format exactly
       const orderData = {
         user_id: storedUserId.toString(),
         outlet_id: storedOutletId.toString(),
