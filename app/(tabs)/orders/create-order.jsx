@@ -22,6 +22,7 @@ import {
   KeyboardAvoidingView,
   Center,
 } from "native-base";
+
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -534,30 +535,13 @@ export default function CreateOrderScreen() {
     };
   }, []);
 
-  const memoizedGetSearchResults = React.useCallback(
-    (query) => {
-      if (!query || !menuItems) return [];
-      const searchTerm = query.toLowerCase();
-      return menuItems.filter((item) => {
-        const itemName = item.menu_name?.toLowerCase() || "";
-        const itemDescription = item.description?.toLowerCase() || "";
-        const itemCategory = item.category?.toLowerCase() || "";
-
-        return (
-          itemName.includes(searchTerm) ||
-          itemDescription.includes(searchTerm) ||
-          itemCategory.includes(searchTerm)
-        );
-      });
-    },
-    [menuItems]
-  );
-
   const handleSearch = (text) => {
     setSearchQuery(text);
-    if (text.length >= 1) {
-      const results = memoizedGetSearchResults(text);
-      setSearchResults(results);
+    if (text.length >= 2) {
+      const filtered = menuItems.filter((item) =>
+        item.menu_name.toLowerCase().includes(text.toLowerCase())
+      );
+      setSearchResults(filtered);
       setIsSearchOpen(true);
     } else {
       setSearchResults([]);
@@ -565,32 +549,29 @@ export default function CreateOrderScreen() {
     }
   };
 
-  const handleSelectMenuItem = (item) => {
+  const handlePortionSelect = (item, portionValue) => {
+    const newItem = {
+      ...item,
+      quantity: 1,
+      portionSize: portionValue,
+      price:
+        portionValue === "half" ? Math.floor(item.price * 0.6) : item.price,
+      specialInstructions: "",
+    };
+
     setSelectedItems((prevItems) => {
       const existingItemIndex = prevItems.findIndex(
         (prevItem) => prevItem.menu_id === item.menu_id
       );
 
       if (existingItemIndex !== -1) {
-        // If item exists, update its portion size
+        // Update existing item
         const updatedItems = [...prevItems];
-        updatedItems[existingItemIndex] = {
-          ...updatedItems[existingItemIndex],
-          portionSize: item.portionSize || "full",
-          price: item.price,
-        };
+        updatedItems[existingItemIndex] = newItem;
         return updatedItems;
       } else {
-        // If item doesn't exist, add it with default values
-        return [
-          ...prevItems,
-          {
-            ...item,
-            quantity: 1,
-            portionSize: item.portionSize || "full",
-            specialInstructions: "",
-          },
-        ];
+        // Add new item
+        return [...prevItems, newItem];
       }
     });
   };
@@ -799,14 +780,14 @@ export default function CreateOrderScreen() {
           }}
         />
 
-        {isSearchOpen && searchQuery.length >= 3 && (
+        {isSearchOpen && searchResults.length > 0 && (
           <Box
             position="absolute"
-            top={12}
+            top={9}
             left={4}
             right={4}
             bg="white"
-            mt={0}
+            mt={5}
             rounded="lg"
             shadow={3}
             zIndex={2000}
@@ -818,134 +799,112 @@ export default function CreateOrderScreen() {
             <ScrollView
               nestedScrollEnabled={true}
               keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={true}
             >
-              {searchResults.length > 0 ? (
-                searchResults.map((item) => {
-                  const isSelected = selectedItems.some(
-                    (selectedItem) => selectedItem.menu_id === item.menu_id
-                  );
+              {searchResults.map((item) => {
+                const isSelected = selectedItems.some(
+                  (selectedItem) => selectedItem.menu_id === item.menu_id
+                );
 
-                  return (
-                    <Pressable
-                      key={item.menu_id}
-                      onPress={() => handleSelectMenuItem(item)}
-                      borderBottomWidth={1}
-                      borderBottomColor="coolGray.200"
-                      bg={isSelected ? "coolGray.100" : "white"}
-                      _pressed={{ bg: "coolGray.200" }}
-                    >
-                      <HStack alignItems="center" py={0}>
-                        {/* Category Indicator Line */}
-                        <Box
-                          w={1}
-                          h="80px"
-                          bg={
-                            item.menu_food_type === "veg"
-                              ? "green.500"
-                              : item.menu_food_type === "nonveg"
-                              ? "red.500"
-                              : item.menu_food_type === "vegan"
-                              ? "green.700"
-                              : "gray.300"
-                          }
-                          mr={0}
-                        />
+                return (
+                  <Box
+                    key={item.menu_id}
+                    borderBottomWidth={1}
+                    borderBottomColor="coolGray.200"
+                    bg={isSelected ? "coolGray.100" : "white"}
+                    py={2}
+                    px={2}
+                  >
+                    <HStack alignItems="center">
+                      {/* Category Indicator Line */}
+                      <Box
+                        w={1}
+                        h="80px"
+                        bg={
+                          item.menu_food_type === "veg"
+                            ? "green.500"
+                            : item.menu_food_type === "nonveg"
+                            ? "red.500"
+                            : item.menu_food_type === "vegan"
+                            ? "green.700"
+                            : "gray.300"
+                        }
+                        mr={2}
+                      />
 
-                        <Box w="80px" h="80px">
-                          {item.image ? (
-                            <Image
-                              source={{ uri: item.image }}
-                              alt={item.menu_name}
-                              w="full"
-                              h="full"
-                              resizeMode="cover"
-                              rounded="md"
+                      {/* Image Section */}
+                      <Box w="80px" h="80px" overflow="hidden">
+                        {item.image ? (
+                          <Image
+                            source={{ uri: item.image }}
+                            alt={item.menu_name}
+                            w="full"
+                            h="full"
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <Center bg="gray.100" w="full" h="full">
+                            <MaterialIcons
+                              name="restaurant"
+                              size={24}
+                              color="gray"
                             />
-                          ) : (
-                            <Box
-                              w="full"
-                              h="full"
-                              bg="coolGray.200"
-                              justifyContent="center"
-                              alignItems="center"
-                              rounded="md"
-                            >
-                              <MaterialIcons
-                                name="restaurant"
-                                size={24}
-                                color="gray"
-                              />
-                            </Box>
-                          )}
-                        </Box>
+                          </Center>
+                        )}
+                      </Box>
 
-                        <VStack flex={1} space={1} ml={3}>
-                          <HStack
-                            justifyContent="space-between"
-                            alignItems="center"
-                          >
-                            <Text
-                              fontSize={18}
-                              fontWeight={600}
-                              numberOfLines={1}
-                              flex={1}
-                              mb={2}
-                            >
-                              {item.menu_name}
+                      {/* Details Section */}
+                      <VStack flex={1} space={1} ml={3} mr={2}>
+                        <Text fontSize={18} fontWeight={600} numberOfLines={1}>
+                          {item.menu_name}
+                        </Text>
+                        <HStack space={4}>
+                          <HStack space={1} alignItems="center">
+                            <Text color="gray.800" fontWeight="500">
+                              H:
                             </Text>
-                            {isSelected && (
-                              <Badge
-                                colorScheme="green"
-                                variant="subtle"
-                                size="sm"
-                              >
-                                Added
-                              </Badge>
-                            )}
+                            <Text color="blue.500" fontWeight="600">
+                              ₹{Math.floor(item.price * 0.6)}
+                            </Text>
                           </HStack>
-
-                          <HStack
-                            justifyContent="space-between"
-                            alignItems="center"
-                          >
-                            <Text
-                              fontSize={16}
-                              fontWeight={600}
-                              color="blue.500"
-                            >
+                          <HStack space={1} alignItems="center">
+                            <Text color="gray.800" fontWeight="500">
+                              F:
+                            </Text>
+                            <Text color="blue.500" fontWeight="600">
                               ₹{item.price}
                             </Text>
-
-                            <Select
-                              selectedValue={item.portionSize || "full"}
-                              minWidth={120}
-                              accessibilityLabel="Choose portion"
-                              placeholder="Select portion"
-                              onValueChange={(value) => {
-                                // Update the item's portion size
-                                const updatedItem = {
-                                  ...item,
-                                  portionSize: value,
-                                };
-                                handleSelectMenuItem(updatedItem);
-                              }}
-                              _selectedItem={{
-                                bg: "blue.100",
-                              }}
-                            >
-                              <Select.Item label="Full" value="full" />
-                              <Select.Item label="Half" value="half" />
-                            </Select>
                           </HStack>
-                        </VStack>
-                      </HStack>
-                    </Pressable>
-                  );
-                })
-              ) : (
-                <Box p={0} alignItems="center"></Box>
-              )}
+                        </HStack>
+                      </VStack>
+
+                      {/* Portion Selector */}
+                      {/* Portion Selector */}
+                      <Select
+                        selectedValue="full"
+                        minWidth={100}
+                        accessibilityLabel="Choose portion"
+                        placeholder="Select"
+                        onValueChange={(value) => {
+                          handlePortionSelect(item, value);
+                        }}
+                        _selectedItem={{
+                          bg: "blue.100",
+                        }}
+                        dropdownCloseIcon={false}
+                        onOpen={(e) => {
+                          // Prevent search from closing
+                          if (e && e.stopPropagation) {
+                            e.stopPropagation();
+                          }
+                        }}
+                      >
+                        <Select.Item label="Full" value="full" />
+                        <Select.Item label="Half" value="half" />
+                      </Select>
+                    </HStack>
+                  </Box>
+                );
+              })}
             </ScrollView>
           </Box>
         )}
