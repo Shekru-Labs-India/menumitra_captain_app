@@ -112,6 +112,7 @@ export default function CreateOrderScreen() {
   const [isOccupied, setIsOccupied] = useState("0");
   const [orderId, setOrderId] = useState(null);
   const [orderNumber, setOrderNumber] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Add these new states for better state management
   const [currentTableNumber, setCurrentTableNumber] = useState(
@@ -262,19 +263,16 @@ export default function CreateOrderScreen() {
 
     try {
       setLoading(true);
-      // Get both user_id and captain_id
       const storedUserId = await AsyncStorage.getItem("user_id");
-      const storedCaptainId = await AsyncStorage.getItem("captain_id");
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-      console.log("Stored IDs:", {
-        userId: storedUserId,
-        captainId: storedCaptainId,
-        outletId: storedOutletId,
-      });
+      // Check for required information based on order type
+      if (!storedUserId || !storedOutletId) {
+        throw new Error("Missing user or outlet information");
+      }
 
-      if (!storedCaptainId || !storedOutletId) {
-        throw new Error("Missing required information");
+      if (!params?.isSpecialOrder && (!tableNumber || !sectionId)) {
+        throw new Error("Missing table or section information");
       }
 
       const orderItems = selectedItems.map((item) => ({
@@ -284,57 +282,70 @@ export default function CreateOrderScreen() {
         half_or_full: (item.portionSize || "full").toLowerCase(),
       }));
 
-      // Base order data with default empty tables and section
       const orderData = {
-        user_id: storedCaptainId.toString(), // Use captain_id instead of user_id
+        user_id: storedUserId.toString(),
         outlet_id: storedOutletId.toString(),
-        order_type: params.orderType || "dine-in",
+        order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
         order_items: orderItems,
-        tables: ["0"], // Default empty table
-        section_id: "0", // Default empty section
       };
 
-      // Override with actual table and section for dine-in orders
-      if (params.orderType === "dine-in") {
-        if (!tableNumber || !sectionId) {
-          throw new Error(
-            "Table and section details are required for dine-in orders"
-          );
-        }
+      // Add table and section details only for dine-in orders
+      if (!params?.isSpecialOrder) {
         orderData.tables = [tableNumber.toString()];
         orderData.section_id = sectionId.toString();
       }
 
-      // Create new order
-      console.log("Creating new order:", orderData);
-      const response = await fetch(`${API_BASE_URL}/create_order`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(orderData),
-      });
+      // Check if table has an existing order (only for dine-in)
+      if (!params?.isSpecialOrder && orderId && params?.isOccupied === "1") {
+        orderData.order_id = orderId.toString();
 
-      const result = await response.json();
-      console.log("Create Order Response:", result);
-
-      if (result.st === 1) {
-        toast.show({
-          description: `Order ${result.order_id || ""} created successfully`,
-          status: "success",
-          duration: 2000,
-        });
-
-        // Navigate back to orders screen
-        router.replace({
-          pathname: "/(tabs)/orders",
-          params: {
-            refresh: Date.now().toString(),
-            orderType: params.orderType,
+        // Use update endpoint for occupied tables
+        console.log("Updating existing order:", orderData);
+        const response = await fetch(`${API_BASE_URL}/update_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify(orderData),
         });
+
+        const result = await response.json();
+        console.log("Update Order Response:", result);
+
+        if (result.st === 1) {
+          toast.show({
+            description: "Order updated successfully",
+            status: "success",
+            duration: 2000,
+          });
+          router.replace("/(tabs)/orders");
+        } else {
+          throw new Error(result.msg || "Failed to update order");
+        }
       } else {
-        throw new Error(result.msg || "Failed to create order");
+        // Create new order
+        console.log("Creating new order:", orderData);
+        const response = await fetch(`${API_BASE_URL}/create_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(orderData),
+        });
+
+        const result = await response.json();
+        console.log("Create Order Response:", result);
+
+        if (result.st === 1) {
+          toast.show({
+            description: `Order ${result.order_id || ""} created successfully`,
+            status: "success",
+            duration: 2000,
+          });
+          router.replace("/(tabs)/orders");
+        } else {
+          throw new Error(result.msg || "Failed to create order");
+        }
       }
     } catch (error) {
       console.error(`${orderStatus.toUpperCase()} Error:`, error);
@@ -371,53 +382,85 @@ export default function CreateOrderScreen() {
         throw new Error("Required data not found");
       }
 
-      // Create the order first
-      setLoadingMessage("Creating new order...");
-      const createPayload = {
-        user_id: storedUserId.toString(),
-        outlet_id: storedOutletId.toString(),
-        order_type: params.orderType || "dine-in",
-        order_items: selectedItems.map((item) => ({
-          menu_id: item.menu_id.toString(),
-          quantity: item.quantity,
-          comment: item.specialInstructions || "",
-          half_or_full: (item.portionSize || "full").toLowerCase(),
-        })),
-      };
+      let currentOrderId = orderId;
 
-      // Only add table and section details for dine-in orders
-      if (params.orderType === "dine-in") {
-        if (!tableNumber || !sectionId) {
-          throw new Error(
-            "Table and section details are required for dine-in orders"
-          );
+      // For new orders, create the order first
+      if (!orderId) {
+        setLoadingMessage("Creating new order...");
+        const createPayload = {
+          user_id: storedUserId.toString(),
+          outlet_id: storedOutletId.toString(),
+          tables: [tableNumber.toString()],
+          section_id: sectionId.toString(),
+          order_type: "dine-in",
+          order_items: selectedItems.map((item) => ({
+            menu_id: item.menu_id.toString(),
+            quantity: item.quantity,
+            comment: item.specialInstructions || "",
+            half_or_full: (item.portionSize || "full").toLowerCase(),
+          })),
+        };
+
+        console.log("Create Order Payload:", createPayload);
+
+        const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(createPayload),
+        });
+
+        const createData = await createResponse.json();
+        console.log("Create Order Response:", createData);
+
+        if (createData.st !== 1) {
+          throw new Error(createData.msg || "Failed to create order");
         }
-        createPayload.tables = [tableNumber.toString()];
-        createPayload.section_id = sectionId.toString();
+
+        currentOrderId = createData.order_id;
       }
+      // For existing orders, update first
+      else {
+        setLoadingMessage("Updating order...");
+        const updatePayload = {
+          order_id: orderId.toString(),
+          user_id: storedUserId.toString(),
+          outlet_id: storedOutletId.toString(),
+          tables: [tableNumber.toString()],
+          section_id: sectionId.toString(),
+          order_type: "dine-in",
+          order_items: selectedItems.map((item) => ({
+            menu_id: item.menu_id.toString(),
+            quantity: item.quantity,
+            comment: item.specialInstructions || "",
+            half_or_full: (item.portionSize || "full").toLowerCase(),
+          })),
+        };
 
-      console.log("Create Order Payload:", createPayload);
+        console.log("Update Order Payload:", updatePayload);
 
-      const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(createPayload),
-      });
+        const updateResponse = await fetch(`${API_BASE_URL}/update_order`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatePayload),
+        });
 
-      const createData = await createResponse.json();
-      console.log("Create Order Response:", createData);
+        const updateData = await updateResponse.json();
+        console.log("Update Order Response:", updateData);
 
-      if (createData.st !== 1) {
-        throw new Error(createData.msg || "Failed to create order");
+        if (updateData.st !== 1) {
+          throw new Error(updateData.msg || "Failed to update order");
+        }
       }
 
       // Mark order as paid
       setLoadingMessage("Completing payment...");
       const statusPayload = {
         outlet_id: storedOutletId.toString(),
-        order_id: createData.order_id.toString(),
+        order_id: currentOrderId.toString(),
         order_status: "paid",
       };
 
@@ -452,13 +495,13 @@ export default function CreateOrderScreen() {
           duration: 2000,
         });
 
+        // Navigate with refresh params
         router.replace({
           pathname: "/(tabs)/orders",
           params: {
             refresh: Date.now().toString(),
             status: "paid",
             fromSettle: true,
-            orderType: params.orderType, // Pass the order type to the orders screen
           },
         });
       } else {
@@ -523,39 +566,33 @@ export default function CreateOrderScreen() {
   };
 
   const handleSelectMenuItem = (item) => {
-    // Check if item already exists in selectedItems
-    const existingItem = selectedItems.find(
-      (selectedItem) => selectedItem.menu_id === item.menu_id
-    );
-
-    if (existingItem) {
-      // If item exists, update its quantity
-      const updatedItems = selectedItems.map((selectedItem) =>
-        selectedItem.menu_id === item.menu_id
-          ? { ...selectedItem, quantity: selectedItem.quantity + 1 }
-          : selectedItem
+    setSelectedItems((prevItems) => {
+      const existingItemIndex = prevItems.findIndex(
+        (prevItem) => prevItem.menu_id === item.menu_id
       );
-      setSelectedItems(updatedItems);
-    } else {
-      // If item doesn't exist, add it with quantity 1
-      setSelectedItems([
-        ...selectedItems,
-        {
-          menu_id: item.menu_id,
-          menu_name: item.menu_name,
-          price: parseFloat(item.price),
-          quantity: 1,
-          portionSize: "Full",
-          specialInstructions: "",
-        },
-      ]);
-    }
 
-    // Clear search
-    setSearchQuery("");
-    setSearchResults([]);
-    setIsSearchOpen(false);
-    Keyboard.dismiss();
+      if (existingItemIndex !== -1) {
+        // If item exists, update its portion size
+        const updatedItems = [...prevItems];
+        updatedItems[existingItemIndex] = {
+          ...updatedItems[existingItemIndex],
+          portionSize: item.portionSize || "full",
+          price: item.price,
+        };
+        return updatedItems;
+      } else {
+        // If item doesn't exist, add it with default values
+        return [
+          ...prevItems,
+          {
+            ...item,
+            quantity: 1,
+            portionSize: item.portionSize || "full",
+            specialInstructions: "",
+          },
+        ];
+      }
+    });
   };
 
   const OrderSummary = () => {
@@ -671,9 +708,39 @@ export default function CreateOrderScreen() {
         rightComponent={
           <Badge colorScheme="blue" rounded="lg" px={3} py={1}>
             <HStack space={1} alignItems="center">
-              <Text color="blue.800" fontSize="sm" fontWeight="medium">
-                Table {tableNumber}
-              </Text>
+              {params?.isSpecialOrder ? (
+                <HStack alignItems="center" space={1}>
+                  <MaterialIcons
+                    name={
+                      params.orderType === "parcel"
+                        ? "local-shipping"
+                        : params.orderType === "drive-through"
+                        ? "drive-eta"
+                        : "point-of-sale"
+                    }
+                    size={20}
+                    color="gray.600"
+                  />
+                  <Text fontSize="md" fontWeight="600" color="gray.600">
+                    {params.orderType === "parcel"
+                      ? "Parcel"
+                      : params.orderType === "drive-through"
+                      ? "Drive Through"
+                      : "Counter"}
+                  </Text>
+                </HStack>
+              ) : (
+                <HStack alignItems="center" space={1}>
+                  <MaterialIcons
+                    name="table-restaurant"
+                    size={20}
+                    color="gray.600"
+                  />
+                  <Text fontSize="md" fontWeight="600" color="gray.600">
+                    Table {tableNumber}
+                  </Text>
+                </HStack>
+              )}
             </HStack>
           </Badge>
         }
@@ -838,39 +905,38 @@ export default function CreateOrderScreen() {
                             )}
                           </HStack>
 
-                          <HStack space={4} alignItems="center">
-                            <HStack space={1} alignItems="center">
-                              <Text
-                                fontSize={16}
-                                fontWeight={600}
-                                color="gray.500"
-                              >
-                                H:
-                              </Text>
-                              <Text
-                                fontSize={16}
-                                fontWeight={600}
-                                color="blue.500"
-                              >
-                                ₹{(item.price * 0.6).toFixed(0)}
-                              </Text>
-                            </HStack>
-                            <HStack space={1} alignItems="center">
-                              <Text
-                                fontSize={16}
-                                fontWeight={600}
-                                color="gray.500"
-                              >
-                                F:
-                              </Text>
-                              <Text
-                                fontSize={16}
-                                fontWeight={600}
-                                color="blue.500"
-                              >
-                                ₹{item.price}
-                              </Text>
-                            </HStack>
+                          <HStack
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <Text
+                              fontSize={16}
+                              fontWeight={600}
+                              color="blue.500"
+                            >
+                              ₹{item.price}
+                            </Text>
+
+                            <Select
+                              selectedValue={item.portionSize || "full"}
+                              minWidth={120}
+                              accessibilityLabel="Choose portion"
+                              placeholder="Select portion"
+                              onValueChange={(value) => {
+                                // Update the item's portion size
+                                const updatedItem = {
+                                  ...item,
+                                  portionSize: value,
+                                };
+                                handleSelectMenuItem(updatedItem);
+                              }}
+                              _selectedItem={{
+                                bg: "blue.100",
+                              }}
+                            >
+                              <Select.Item label="Full" value="full" />
+                              <Select.Item label="Half" value="half" />
+                            </Select>
                           </HStack>
                         </VStack>
                       </HStack>

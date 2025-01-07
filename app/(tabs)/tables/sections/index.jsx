@@ -900,7 +900,10 @@ export default function TableSectionsScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/(tabs)/orders/create-order",
-                  params: { orderType: "parcel" },
+                  params: {
+                    isSpecialOrder: true,
+                    orderType: "parcel",
+                  },
                 })
               }
             >
@@ -930,7 +933,10 @@ export default function TableSectionsScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/(tabs)/orders/create-order",
-                  params: { orderType: "drive-through" },
+                  params: {
+                    isSpecialOrder: true,
+                    orderType: "drive-through",
+                  },
                 })
               }
             >
@@ -960,7 +966,10 @@ export default function TableSectionsScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/(tabs)/orders/create-order",
-                  params: { orderType: "counter" },
+                  params: {
+                    isSpecialOrder: true,
+                    orderType: "counter",
+                  },
                 })
               }
             >
