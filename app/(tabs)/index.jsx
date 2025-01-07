@@ -255,7 +255,7 @@ export default function HomeScreen() {
       color: "blue.500",
     },
     {
-      title: "Table Section",
+      title: "Tables",
       icon: "table-restaurant",
       route: "/(tabs)/tables/sections",
       color: "purple.500",

@@ -5,6 +5,7 @@ import {
   Platform,
   StatusBar,
   Linking,
+  Alert,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -18,6 +19,8 @@ import {
   Pressable,
   Icon,
   Image,
+  Heading,
+  IconButton,
 } from "native-base";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
@@ -159,13 +162,87 @@ export default function ProfileScreen() {
     }
   };
 
+  // Logout confirmation and handler
+  const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Clear all AsyncStorage data
+              await AsyncStorage.multiRemove([
+                "captain_id",
+                "captain_name",
+                "user_id",
+                "outlet_id",
+                "role",
+                // Add any other keys you need to clear
+              ]);
+
+              // Call the logout function from AuthContext
+              await logout();
+
+              // Navigate to login screen
+              router.replace("/login");
+            } catch (error) {
+              console.error("Logout Error:", error);
+              toast.show({
+                description: "Failed to logout. Please try again.",
+                status: "error",
+                duration: 3000,
+              });
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   return (
-    <Box
-      flex={1}
-      bg="white"
-      safeArea
-      pt={Platform.OS === "android" ? StatusBar.currentHeight : 0}
-    >
+    <Box flex={1} bg="white" safeArea>
+      <Box
+        bg="white"
+        px={4}
+        py={3}
+        flexDirection="row"
+        alignItems="center"
+        justifyContent="space-between"
+        safeAreaTop
+        shadow={1}
+      >
+        <IconButton
+          icon={
+            <MaterialIcons name="arrow-back" size={24} color="coolGray.500" />
+          }
+          onPress={() => router.back()}
+        />
+
+        <Heading
+          size="lg"
+          position="absolute"
+          left={0}
+          right={0}
+          textAlign="center"
+        >
+          Profile
+        </Heading>
+
+        <IconButton
+          icon={<MaterialIcons name="logout" size={24} color="red.500" />}
+          rounded="full"
+          onPress={handleLogout}
+          _pressed={{ bg: "coolGray.100" }}
+        />
+      </Box>
       {/* Profile Header */}
       <Box px={6} pt={6} pb={8} bg="primary.500">
         <HStack space={4} alignItems="center">
@@ -264,22 +341,13 @@ export default function ProfileScreen() {
               {index < profileMenuItems.length - 1 && <Divider ml={20} />}
             </Box>
           ))}
+          <Divider mt={2} />
         </VStack>
 
         {/* Logout Button */}
-        <Pressable onPress={logout} _pressed={{ bg: "coolGray.100" }}>
-          <HStack space={4} py={4} px={6} alignItems="center">
-            <Box p={2} rounded="full" bg="red.100">
-              <Icon as={MaterialIcons} name="logout" size={6} color="red.600" />
-            </Box>
-            <Text fontSize="md" fontWeight="600" color="red.600">
-              Logout
-            </Text>
-          </HStack>
-        </Pressable>
 
         {/* Footer Section */}
-        <Box borderTopWidth={1} borderTopColor="coolGray.200" p={4}>
+        <Box borderTopColor="coolGray.200" p={4} mt={10}>
           <VStack space={3} alignItems="center">
             <HStack space={2} alignItems="center">
               <Image

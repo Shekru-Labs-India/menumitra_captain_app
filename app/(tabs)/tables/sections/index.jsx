@@ -496,14 +496,54 @@ export default function TableSectionsScreen() {
   // Add this helper function to format time
   const formatTime = (timeString) => {
     if (!timeString) return "";
-    // Check if timeString includes AM/PM
-    if (timeString.includes("AM") || timeString.includes("PM")) {
-      // Split the time string and remove seconds
+
+    try {
+      // Parse the time string into a Date object
       const [time, meridiem] = timeString.split(" ");
-      const [hours, minutes] = time.split(":");
-      return `${hours}:${minutes} ${meridiem}`;
+      const [hours, minutes, seconds] = time.split(":");
+
+      // Create date object for the order time
+      const orderDate = new Date();
+      let orderHours = parseInt(hours);
+
+      // Convert to 24-hour format if PM
+      if (meridiem === "PM" && orderHours !== 12) {
+        orderHours += 12;
+      }
+      // Handle 12 AM special case
+      if (meridiem === "AM" && orderHours === 12) {
+        orderHours = 0;
+      }
+
+      orderDate.setHours(orderHours, parseInt(minutes), parseInt(seconds));
+
+      // Get current time
+      const now = new Date();
+
+      // If order time is greater than current time, assume it's from previous day
+      if (orderDate > now) {
+        orderDate.setDate(orderDate.getDate() - 1);
+      }
+
+      // Calculate difference in minutes
+      const diffInMinutes = Math.floor((now - orderDate) / (1000 * 60));
+
+      // Format the relative time
+      if (diffInMinutes >= 180) {
+        // 3 hours or more
+        return "3h+";
+      } else if (diffInMinutes < 1) {
+        return "Just now";
+      } else if (diffInMinutes < 60) {
+        return `${diffInMinutes}m ago`;
+      } else {
+        const hours = Math.floor(diffInMinutes / 60);
+        return `${hours}h ago`;
+      }
+    } catch (error) {
+      console.error("Time formatting error:", error);
+      return "3h+"; // Return 3h+ as fallback
     }
-    return timeString;
   };
 
   // Update the renderGridView function's table rendering logic
@@ -678,7 +718,7 @@ export default function TableSectionsScreen() {
                                             right={-2}
                                             setActiveFilter
                                             bg="red.500"
-                                            py={1}
+                                            py={0.5}
                                             rounded="md"
                                             shadow={1}
                                             zIndex={1}
@@ -686,8 +726,10 @@ export default function TableSectionsScreen() {
                                           >
                                             <Text
                                               color="white"
-                                              fontSize="2xs"
+                                              fontSize="sm"
                                               fontWeight="bold"
+                                              numberOfLines={1}
+                                              adjustsFontSizeToFit
                                             >
                                               ₹{row[colIndex].grandTotal || 0}
                                             </Text>
@@ -783,7 +825,7 @@ export default function TableSectionsScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: 16,
+            paddingHorizontal: 80,
           }}
         >
           <HStack space={3} alignItems="center">
@@ -1232,7 +1274,7 @@ export default function TableSectionsScreen() {
           right={0}
           textAlign="center"
         >
-          Sections
+          Tables
         </Heading>
 
         <IconButton
@@ -1252,54 +1294,6 @@ export default function TableSectionsScreen() {
         />
       </Box>
       {/* Search and Filters */}
-      <Box bg="white" px={4} py={2} shadow={1}>
-        <HStack space={2} alignItems="center">
-          <Input
-            flex={1}
-            placeholder="Search..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            bg="coolGray.50"
-            borderRadius="lg"
-            py={2}
-            InputLeftElement={
-              <Box pl={2}>
-                <MaterialIcons name="search" size={20} color="coolGray.400" />
-              </Box>
-            }
-          />
-
-          <Select
-            w="110"
-            selectedValue={sortBy}
-            onValueChange={handleSelectChange}
-            bg="coolGray.50"
-            borderRadius="lg"
-            _selectedItem={{
-              bg: "coolGray.100",
-              endIcon: (
-                <MaterialIcons name="check" size={16} color="coolGray.600" />
-              ),
-            }}
-          >
-            <Select.Item label="Name" value="name" />
-            <Select.Item label="Total Tables" value="totalTables" />
-            <Select.Item label="Available Tables" value="availableTables" />
-            <Select.Item label="Occupied Tables" value="occupiedTables" />
-          </Select>
-          <IconButton
-            icon={
-              <MaterialIcons
-                name={isAscending ? "arrow-upward" : "arrow-downward"}
-                size={24}
-                color="coolGray.600"
-              />
-            }
-            onPress={() => setIsAscending(!isAscending)}
-            variant="ghost"
-          />
-        </HStack>
-      </Box>
 
       {/* Filter Buttons */}
       <FilterButtons />

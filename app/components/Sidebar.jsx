@@ -80,15 +80,6 @@ export default function Sidebar({ isOpen, onClose }) {
     onClose();
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      onClose();
-    } catch (error) {
-      console.error("Error during logout:", error);
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -134,14 +125,6 @@ export default function Sidebar({ isOpen, onClose }) {
             </Pressable>
           ))}
         </VStack>
-
-        <Pressable
-          style={[styles.sidebarItem, styles.logoutItem]}
-          onPress={handleLogout}
-        >
-          <MaterialIcons name="logout" size={24} color="#FF3B30" />
-          <Text style={[styles.sidebarText, styles.logoutText]}>Logout</Text>
-        </Pressable>
 
         <Box borderTopWidth={1} borderTopColor="coolGray.200" p={4}>
           <VStack space={3} alignItems="center">

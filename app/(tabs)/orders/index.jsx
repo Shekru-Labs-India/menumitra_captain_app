@@ -15,6 +15,7 @@ import {
   Center,
   FlatList,
   Badge,
+  Icon,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -25,6 +26,42 @@ import Header from "../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
+const ORDER_STATUS_COLORS = {
+  COMPLETED: "green",
+  CANCELLED: "red",
+  COOKING: "orange",
+  PLACED: "purple",
+  PAID: "blue",
+  SERVED: "teal",
+  DEFAULT: "gray",
+};
+
+const ORDER_TYPE_COLORS = {
+  "dine-in": "blue",
+  "take-away": "purple",
+  delivery: "green",
+  "drive-through": "orange",
+  counter: "pink",
+  DEFAULT: "coolGray",
+};
+
+const ORDER_TYPE_ICONS = {
+  "dine-in": "restaurant",
+  "take-away": "takeout-dining",
+  delivery: "delivery-dining",
+  "drive-through": "drive-eta",
+  counter: "point-of-sale",
+  DEFAULT: "receipt-long",
+};
+
+const PAYMENT_METHOD_ICONS = {
+  cash: "payments",
+  card: "credit-card",
+  upi: "account-balance",
+  wallet: "account-balance-wallet",
+  DEFAULT: "payment",
+};
+
 export default function OrdersScreen() {
   const router = useRouter();
   const toast = useToast();
@@ -33,7 +70,7 @@ export default function OrdersScreen() {
   const [orders, setOrders] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date");
-  const [orderStatus, setOrderStatus] = useState("all");
+  const [orderStatus, setOrderStatus] = useState("cooking");
   const [isAscending, setIsAscending] = useState(false);
 
   // Get current date in required format (DD MMM YYYY)
@@ -293,54 +330,153 @@ export default function OrdersScreen() {
                 });
               }}
             >
-              <Box bg="white" rounded="lg" shadow={1} m={2} p={3}>
+              <Box
+                bg="white"
+                shadow={2}
+                rounded="lg"
+                m={2}
+                p={4}
+                borderLeftWidth={4}
+                borderLeftColor={
+                  item.order_status === "cooking"
+                    ? `${ORDER_STATUS_COLORS.COOKING}.500`
+                    : item.order_status === "paid"
+                    ? `${ORDER_STATUS_COLORS.PAID}.500`
+                    : item.order_status === "served"
+                    ? `${ORDER_STATUS_COLORS.SERVED}.500`
+                    : item.order_status === "placed"
+                    ? `${ORDER_STATUS_COLORS.PLACED}.500`
+                    : item.order_status === "cancelled"
+                    ? `${ORDER_STATUS_COLORS.CANCELLED}.500`
+                    : `${ORDER_STATUS_COLORS.DEFAULT}.500`
+                }
+              >
+                {/* Header with Order Number and Status */}
+                <HStack
+                  justifyContent="space-between"
+                  alignItems="center"
+                  mb={3}
+                >
+                  <Text fontSize="lg" fontWeight="bold">
+                    #{item.order_number}
+                  </Text>
+                  <Badge
+                    colorScheme={
+                      item.order_status === "cooking"
+                        ? ORDER_STATUS_COLORS.COOKING
+                        : item.order_status === "paid"
+                        ? ORDER_STATUS_COLORS.PAID
+                        : item.order_status === "served"
+                        ? ORDER_STATUS_COLORS.SERVED
+                        : item.order_status === "placed"
+                        ? ORDER_STATUS_COLORS.PLACED
+                        : item.order_status === "cancelled"
+                        ? ORDER_STATUS_COLORS.CANCELLED
+                        : ORDER_STATUS_COLORS.DEFAULT
+                    }
+                    rounded="sm"
+                    variant="solid"
+                  >
+                    {item.order_status?.toUpperCase()}
+                  </Badge>
+                </HStack>
+
+                {/* Date and Time */}
+                <Text fontSize="sm" color="gray.500" mb={2}>
+                  {item.date} • {item.time}
+                </Text>
+
+                {/* Order Details */}
                 <VStack space={2}>
+                  {/* Show table and section only for dine-in orders */}
+                  {item.order_type?.toLowerCase() === "dine-in" && (
+                    <>
+                      <HStack justifyContent="space-between">
+                        <Text fontSize="sm" color="gray.600">
+                          Table No:
+                        </Text>
+                        <Text fontSize="sm" fontWeight="medium">
+                          {Array.isArray(item.table_number)
+                            ? item.table_number.join(", ")
+                            : item.table_number}
+                        </Text>
+                      </HStack>
+
+                      <HStack justifyContent="space-between">
+                        <Text fontSize="sm" color="gray.600">
+                          Section:
+                        </Text>
+                        <Text fontSize="sm" fontWeight="medium">
+                          {item.section_name}
+                        </Text>
+                      </HStack>
+                    </>
+                  )}
+
+                  {/* Order Type and Items Count */}
                   <HStack justifyContent="space-between" alignItems="center">
-                    <VStack>
-                      <Text fontSize="md" fontWeight="bold">
-                        #{item.order_number}
-                      </Text>
-                      <Text fontSize="xs" color="gray.500">
-                        {item.date} {item.time}
-                      </Text>
-                    </VStack>
                     <Badge
                       colorScheme={
-                        item.order_status === "cooking"
-                          ? "orange"
-                          : item.order_status === "paid"
-                          ? "green"
-                          : item.order_status === "served"
-                          ? "blue"
-                          : item.order_status === "placed"
-                          ? "purple"
-                          : item.order_status === "cancelled"
-                          ? "red"
-                          : "gray"
+                        ORDER_TYPE_COLORS[item.order_type?.toLowerCase()] ||
+                        "coolGray"
                       }
+                      variant="subtle"
+                      rounded="sm"
                     >
-                      {item.order_status?.toUpperCase()}
+                      <HStack space={1} alignItems="center">
+                        <Icon
+                          as={MaterialIcons}
+                          name={
+                            ORDER_TYPE_ICONS[item.order_type?.toLowerCase()] ||
+                            ORDER_TYPE_ICONS.DEFAULT
+                          }
+                          size="xs"
+                        />
+                        <Text fontSize="xs">{item.order_type}</Text>
+                      </HStack>
+                    </Badge>
+
+                    <Badge colorScheme="info" rounded="full" variant="subtle">
+                      <HStack alignItems="center" space={1}>
+                        <Text fontSize="xs">{item.menu_count || 0} Items</Text>
+                      </HStack>
                     </Badge>
                   </HStack>
+                </VStack>
 
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text fontSize="sm" color="gray.600">
-                      Table {item.table_number}
+                {/* Price Details */}
+                <HStack
+                  justifyContent="space-between"
+                  mt={3}
+                  pt={3}
+                  borderTopWidth={1}
+                  borderTopColor="gray.200"
+                >
+                  <VStack>
+                    <Text fontSize="md">
+                      ₹{item.total_bill_amount || item.sub_total || 0}
                     </Text>
-                    <Text fontSize="sm" color="gray.600">
-                      {item.order_type}
+                    <Text fontSize="xs" color="gray.500">
+                      Bill Amount
                     </Text>
-                  </HStack>
-
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text fontSize="sm" color="gray.600">
-                      Items: {item.menu_count || 0}
+                  </VStack>
+                  <VStack alignItems="center">
+                    <Text fontSize="md" color="green.600">
+                      -₹{item.discount_amount || 0}
                     </Text>
-                    <Text fontSize="sm" fontWeight="600" color="green.600">
+                    <Text fontSize="xs" color="gray.500">
+                      Discount
+                    </Text>
+                  </VStack>
+                  <VStack alignItems="flex-end">
+                    <Text fontSize="md" fontWeight="bold" color="primary.600">
                       ₹{item.grand_total?.toFixed(2) || 0}
                     </Text>
-                  </HStack>
-                </VStack>
+                    <Text fontSize="xs" color="gray.500">
+                      Total Amount
+                    </Text>
+                  </VStack>
+                </HStack>
               </Box>
             </Pressable>
           )}
