@@ -525,8 +525,8 @@ export default function CreateOrderScreen() {
     const keyboardDidHideListener = Keyboard.addListener(
       "keyboardDidHide",
       () => {
-        setIsSearchOpen(false);
-        setSearchResults([]);
+        // Don't close search results when keyboard hides
+        // setIsSearchOpen(false); - Remove or comment this
       }
     );
 
@@ -730,64 +730,53 @@ export default function CreateOrderScreen() {
       <Box flex={1} bg="coolGray.100" px={4}>
         {isOccupied === "1" && orderNumber && <OrderSummary />}
 
-        <Input
-          placeholder="Search menu items..."
-          value={searchQuery}
-          mt={2}
-          rounded="lg"
-          borderWidth={1}
-          borderColor="coolGray.400"
-          bg="white"
-          onChangeText={handleSearch}
-          onFocus={() => {
-            if (searchQuery.length >= 1) {
-              setIsSearchOpen(true);
-            }
-          }}
-          InputLeftElement={
-            <MaterialIcons
-              name="search"
-              size={24}
-              color="gray"
-              style={{ marginLeft: 10 }}
-            />
-          }
-          InputRightElement={
-            searchQuery ? (
-              <IconButton
-                icon={<MaterialIcons name="close" size={24} color="gray" />}
-                size="md"
-                rounded="full"
-                mr={1}
-                onPress={() => {
-                  setSearchQuery("");
-                  setSearchResults([]);
-                  setIsSearchOpen(false);
-                }}
-                _pressed={{
-                  bg: "coolGray.100",
-                }}
+        <Box>
+          <Input
+            placeholder="Search menu items..."
+            value={searchQuery}
+            mt={2}
+            rounded="lg"
+            borderWidth={1}
+            borderColor="coolGray.400"
+            bg="white"
+            fontSize={18}
+            h={12}
+            py={3}
+            InputLeftElement={
+              <MaterialIcons
+                name="search"
+                size={24}
+                color="gray"
+                style={{ marginLeft: 10 }}
               />
-            ) : null
-          }
-          fontSize={18}
-          h={12}
-          py={3}
-          placeholderTextColor="coolGray.400"
-          _focus={{
-            borderWidth: 0,
-            bg: "white",
-          }}
-        />
+            }
+            InputRightElement={
+              searchQuery ? (
+                <IconButton
+                  icon={<MaterialIcons name="close" size={24} color="gray" />}
+                  size="md"
+                  rounded="full"
+                  mr={1}
+                  onPress={() => {
+                    setSearchQuery("");
+                    setSearchResults([]);
+                    setIsSearchOpen(false);
+                  }}
+                />
+              ) : null
+            }
+            onChangeText={handleSearch}
+          />
+        </Box>
 
+        {/* Search Results */}
         {isSearchOpen && searchResults.length > 0 && (
           <Box
             position="absolute"
-            top={9}
+            top={16}
             left={4}
             right={4}
             bg="white"
-            mt={5}
             rounded="lg"
             shadow={3}
             zIndex={2000}
@@ -798,113 +787,109 @@ export default function CreateOrderScreen() {
           >
             <ScrollView
               nestedScrollEnabled={true}
-              keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="always"
             >
-              {searchResults.map((item) => {
-                const isSelected = selectedItems.some(
-                  (selectedItem) => selectedItem.menu_id === item.menu_id
-                );
+              {searchResults.map((item) => (
+                <Box
+                  key={item.menu_id}
+                  borderBottomWidth={1}
+                  borderBottomColor="coolGray.200"
+                  bg="white"
+                  p={2}
+                >
+                  <HStack alignItems="center" space={2}>
+                    {/* Category Indicator */}
+                    <Box
+                      w={1}
+                      h="80px"
+                      bg={
+                        item.menu_food_type === "veg"
+                          ? "green.500"
+                          : item.menu_food_type === "nonveg"
+                          ? "red.500"
+                          : "gray.300"
+                      }
+                    />
 
-                return (
-                  <Box
-                    key={item.menu_id}
-                    borderBottomWidth={1}
-                    borderBottomColor="coolGray.200"
-                    bg={isSelected ? "coolGray.100" : "white"}
-                    py={2}
-                    px={2}
-                  >
-                    <HStack alignItems="center">
-                      {/* Category Indicator Line */}
-                      <Box
-                        w={1}
-                        h="80px"
-                        bg={
-                          item.menu_food_type === "veg"
-                            ? "green.500"
-                            : item.menu_food_type === "nonveg"
-                            ? "red.500"
-                            : item.menu_food_type === "vegan"
-                            ? "green.700"
-                            : "gray.300"
-                        }
-                        mr={2}
-                      />
-
-                      {/* Image Section */}
-                      <Box w="80px" h="80px" overflow="hidden">
-                        {item.image ? (
-                          <Image
-                            source={{ uri: item.image }}
-                            alt={item.menu_name}
-                            w="full"
-                            h="full"
-                            resizeMode="cover"
+                    {/* Image */}
+                    <Box w="80px" h="80px">
+                      {item.image ? (
+                        <Image
+                          source={{ uri: item.image }}
+                          alt={item.menu_name}
+                          w="full"
+                          h="full"
+                          resizeMode="cover"
+                          rounded="md"
+                        />
+                      ) : (
+                        <Center bg="gray.100" w="full" h="full" rounded="md">
+                          <MaterialIcons
+                            name="restaurant"
+                            size={24}
+                            color="gray"
                           />
-                        ) : (
-                          <Center bg="gray.100" w="full" h="full">
-                            <MaterialIcons
-                              name="restaurant"
-                              size={24}
-                              color="gray"
-                            />
-                          </Center>
-                        )}
-                      </Box>
+                        </Center>
+                      )}
+                    </Box>
 
-                      {/* Details Section */}
-                      <VStack flex={1} space={1} ml={3} mr={2}>
-                        <Text fontSize={18} fontWeight={600} numberOfLines={1}>
-                          {item.menu_name}
+                    {/* Details */}
+                    <VStack flex={1} space={1}>
+                      <Text fontSize={16} fontWeight="600">
+                        {item.menu_name}
+                      </Text>
+                      <HStack space={4}>
+                        <Text fontSize={14}>
+                          Half: ₹{Math.floor(item.price * 0.6)}
                         </Text>
-                        <HStack space={4}>
-                          <HStack space={1} alignItems="center">
-                            <Text color="gray.800" fontWeight="500">
-                              H:
-                            </Text>
-                            <Text color="blue.500" fontWeight="600">
-                              ₹{Math.floor(item.price * 0.6)}
-                            </Text>
-                          </HStack>
-                          <HStack space={1} alignItems="center">
-                            <Text color="gray.800" fontWeight="500">
-                              F:
-                            </Text>
-                            <Text color="blue.500" fontWeight="600">
-                              ₹{item.price}
-                            </Text>
-                          </HStack>
-                        </HStack>
-                      </VStack>
+                        <Text fontSize={14}>Full: ₹{item.price}</Text>
+                      </HStack>
+                    </VStack>
 
-                      {/* Portion Selector */}
-                      {/* Portion Selector */}
+                    {/* Portion Selector */}
+                    <Box>
                       <Select
-                        selectedValue="full"
-                        minWidth={100}
+                        w={24}
                         accessibilityLabel="Choose portion"
                         placeholder="Select"
                         onValueChange={(value) => {
-                          handlePortionSelect(item, value);
-                        }}
-                        _selectedItem={{
-                          bg: "blue.100",
-                        }}
-                        dropdownCloseIcon={false}
-                        onOpen={(e) => {
-                          // Prevent search from closing
-                          if (e && e.stopPropagation) {
-                            e.stopPropagation();
-                          }
+                          const newItem = {
+                            ...item,
+                            quantity: 1,
+                            portionSize: value,
+                            price:
+                              value === "half"
+                                ? Math.floor(item.price * 0.6)
+                                : item.price,
+                            specialInstructions: "",
+                          };
+
+                          setSelectedItems((prevItems) => {
+                            const existingIndex = prevItems.findIndex(
+                              (prevItem) => prevItem.menu_id === item.menu_id
+                            );
+
+                            if (existingIndex !== -1) {
+                              const updatedItems = [...prevItems];
+                              updatedItems[existingIndex] = newItem;
+                              return updatedItems;
+                            }
+                            return [...prevItems, newItem];
+                          });
+
+                          // Clear search and close search list
+                          setSearchQuery("");
+                          setSearchResults([]);
+                          setIsSearchOpen(false);
                         }}
                       >
                         <Select.Item label="Full" value="full" />
                         <Select.Item label="Half" value="half" />
                       </Select>
-                    </HStack>
-                  </Box>
-                );
-              })}
+                    </Box>
+                  </HStack>
+                </Box>
+              ))}
             </ScrollView>
           </Box>
         )}
