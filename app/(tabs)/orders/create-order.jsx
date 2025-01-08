@@ -130,6 +130,43 @@ export default function CreateOrderScreen() {
   );
   const [currentOrderId, setCurrentOrderId] = useState(params.orderId || null);
 
+  // Add this at the top of your component
+  const [userData, setUserData] = useState(null);
+
+  // Update the useEffect for session handling
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const sessionData = await AsyncStorage.getItem("userSession");
+        if (sessionData) {
+          const parsedData = JSON.parse(sessionData);
+          console.log("Loaded user session:", parsedData);
+
+          if (!parsedData.user_id || !parsedData.outlet_id) {
+            console.error("Invalid session data:", parsedData);
+            toast.show({
+              description: "Session data incomplete",
+              status: "error",
+            });
+            return;
+          }
+
+          setUserData(parsedData);
+        } else {
+          console.error("No session data found");
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error);
+        toast.show({
+          description: "Error loading user data",
+          status: "error",
+        });
+      }
+    };
+
+    loadUserData();
+  }, []);
+
   // Update the initialization useEffect
   useEffect(() => {
     const initializeOrder = async () => {
@@ -264,89 +301,116 @@ export default function CreateOrderScreen() {
 
     try {
       setLoading(true);
+
+      // Get user_id and outlet_id from AsyncStorage
       const storedUserId = await AsyncStorage.getItem("user_id");
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-      // Check for required information based on order type
-      if (!storedUserId || !storedOutletId) {
-        throw new Error("Missing user or outlet information");
-      }
+      // Use stored values or params values
+      const user_id = storedUserId || params?.userId;
+      const outlet_id = storedOutletId || params?.outletId;
 
-      if (!params?.isSpecialOrder && (!tableNumber || !sectionId)) {
-        throw new Error("Missing table or section information");
+      console.log("Order creation data:", {
+        user_id,
+        outlet_id,
+        storedUserId,
+        storedOutletId,
+        params,
+        selectedItems,
+      });
+
+      if (!user_id || !outlet_id) {
+        console.error("Missing critical data:", {
+          user_id,
+          outlet_id,
+          storedUserId,
+          storedOutletId,
+          params,
+        });
+        throw new Error("Missing user or outlet information");
       }
 
       const orderItems = selectedItems.map((item) => ({
         menu_id: item.menu_id.toString(),
-        quantity: item.quantity,
+        quantity: parseInt(item.quantity) || 1,
         comment: item.specialInstructions || "",
         half_or_full: (item.portionSize || "full").toLowerCase(),
+        price: parseFloat(item.price) || 0,
+        total_price: parseFloat(item.total_price) || 0,
       }));
 
       const orderData = {
-        user_id: storedUserId.toString(),
-        outlet_id: storedOutletId.toString(),
+        user_id: user_id.toString(),
+        outlet_id: outlet_id.toString(),
         order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
         order_items: orderItems,
+        grand_total: orderItems.reduce(
+          (sum, item) => sum + (item.total_price || 0),
+          0
+        ),
       };
 
       // Add table and section details only for dine-in orders
       if (!params?.isSpecialOrder) {
-        orderData.tables = [tableNumber.toString()];
-        orderData.section_id = sectionId.toString();
+        if (!params.tableNumber || !params.sectionId) {
+          throw new Error(
+            "Missing table or section information for dine-in order"
+          );
+        }
+        orderData.tables = [params.tableNumber.toString()];
+        orderData.section_id = params.sectionId.toString();
       }
 
-      // Check if table has an existing order (only for dine-in)
-      if (!params?.isSpecialOrder && orderId && params?.isOccupied === "1") {
-        orderData.order_id = orderId.toString();
+      // Determine if this is an update (occupied table) or new order
+      const isUpdate =
+        !params?.isSpecialOrder &&
+        params?.orderId &&
+        params?.isOccupied === "1";
 
-        // Use update endpoint for occupied tables
-        console.log("Updating existing order:", orderData);
-        const response = await fetch(`${API_BASE_URL}/update_order`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(orderData),
+      const endpoint = isUpdate
+        ? `${API_BASE_URL}/update_order`
+        : `${API_BASE_URL}/create_order`;
+
+      console.log(
+        `${isUpdate ? "Updating" : "Creating"} order with data:`,
+        orderData
+      );
+
+      if (isUpdate) {
+        orderData.order_id = params.orderId.toString();
+      }
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      });
+
+      const result = await response.json();
+      console.log(`${isUpdate ? "Update" : "Create"} Order Response:`, result);
+
+      if (result.st === 1) {
+        if (isUpdate) {
+          await refreshOrderDetails();
+        }
+
+        toast.show({
+          description: isUpdate
+            ? "Order updated successfully"
+            : `Order ${result.order_id || ""} created successfully`,
+          status: "success",
+          duration: 2000,
         });
 
-        const result = await response.json();
-        console.log("Update Order Response:", result);
-
-        if (result.st === 1) {
-          toast.show({
-            description: "Order updated successfully",
-            status: "success",
-            duration: 2000,
-          });
-          router.replace("/(tabs)/orders");
-        } else {
-          throw new Error(result.msg || "Failed to update order");
-        }
+        router.replace(
+          params?.isSpecialOrder ? "/(tabs)/orders" : "/(tabs)/tables/sections"
+        );
       } else {
-        // Create new order
-        console.log("Creating new order:", orderData);
-        const response = await fetch(`${API_BASE_URL}/create_order`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(orderData),
-        });
-
-        const result = await response.json();
-        console.log("Create Order Response:", result);
-
-        if (result.st === 1) {
-          toast.show({
-            description: `Order ${result.order_id || ""} created successfully`,
-            status: "success",
-            duration: 2000,
-          });
-          router.replace("/(tabs)/orders");
-        } else {
-          throw new Error(result.msg || "Failed to create order");
-        }
+        throw new Error(
+          result.msg || `Failed to ${isUpdate ? "update" : "create"} order`
+        );
       }
     } catch (error) {
       console.error(`${orderStatus.toUpperCase()} Error:`, error);
@@ -681,6 +745,115 @@ export default function CreateOrderScreen() {
     );
   };
 
+  // Update the useEffect for handling existing orders
+  useEffect(() => {
+    const loadExistingOrder = async () => {
+      if (params?.isOccupied === "1" && params?.orderId) {
+        try {
+          const response = await fetch(
+            "https://men4u.xyz/captain_api/order_menu_details",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                order_id: params.orderId,
+                outlet_id: userData?.outlet_id,
+              }),
+            }
+          );
+
+          const orderData = await response.json();
+
+          if (orderData.st === 1) {
+            // Transform menu items to match our structure
+            const existingItems = orderData.data.map((item) => ({
+              menu_id: item.menu_id.toString(),
+              menu_name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              total_price: item.total_price,
+              portionSize: item.half_or_full || "full",
+              specialInstructions: "",
+            }));
+
+            setSelectedItems(existingItems);
+          }
+        } catch (error) {
+          console.error("Error loading existing order:", error);
+          toast.show({
+            description: "Error loading existing order",
+            status: "error",
+          });
+        }
+      }
+    };
+
+    if (userData?.outlet_id) {
+      loadExistingOrder();
+    }
+  }, [params, userData]);
+
+  // Add this function to refresh order details
+  const refreshOrderDetails = async () => {
+    if (!params?.orderId || !userData?.outlet_id) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/order_menu_details`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          order_id: params.orderId.toString(),
+          outlet_id: userData.outlet_id.toString(),
+        }),
+      });
+
+      const result = await response.json();
+      if (result.st === 1 && Array.isArray(result.data)) {
+        setSelectedItems(
+          result.data.map((item) => ({
+            menu_id: item.menu_id.toString(),
+            name: item.name,
+            price: parseFloat(item.price),
+            quantity: parseInt(item.quantity),
+            total_price: parseFloat(item.total_price),
+            half_or_full: item.half_or_full || "full",
+            specialInstructions: item.comment || "",
+          }))
+        );
+      }
+    } catch (error) {
+      console.error("Error refreshing order details:", error);
+    }
+  };
+
+  // Update only the order details loading part in your existing useEffect
+  useEffect(() => {
+    if (params?.orderDetails) {
+      try {
+        console.log("Loading order details:", params.orderDetails);
+        const orderData = JSON.parse(params.orderDetails);
+        if (orderData.menu_items) {
+          const transformedItems = orderData.menu_items.map((item) => ({
+            menu_id: item.menu_id.toString(),
+            name: item.name,
+            price: parseFloat(item.price),
+            quantity: parseInt(item.quantity),
+            total_price: parseFloat(item.total_price),
+            portionSize: item.half_or_full || "full",
+            specialInstructions: item.comment || "",
+          }));
+          setSelectedItems(transformedItems);
+        }
+      } catch (error) {
+        console.error("Error parsing order details:", error);
+      }
+    }
+  }, []); // Empty dependency array to run only once
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -688,37 +861,23 @@ export default function CreateOrderScreen() {
         onBackPress={() => router.replace("/(tabs)/tables/sections")}
         rightComponent={
           <Badge colorScheme="blue" rounded="lg" px={3} py={1}>
-            <HStack space={1} alignItems="center">
-              {params?.isSpecialOrder ? (
-                <HStack alignItems="center" space={1}>
-                  <MaterialIcons
-                    name={
-                      params.orderType === "parcel"
-                        ? "local-shipping"
-                        : params.orderType === "drive-through"
-                        ? "drive-eta"
-                        : "point-of-sale"
-                    }
-                    size={20}
-                    color="gray.600"
-                  />
-                  <Text fontSize="md" fontWeight="600" color="gray.600">
-                    {params.orderType === "parcel"
-                      ? "Parcel"
-                      : params.orderType === "drive-through"
-                      ? "Drive Through"
-                      : "Counter"}
+            <HStack space={2} alignItems="center">
+              <Text fontSize="md" fontWeight="600" color="blue.800">
+                {params?.isSpecialOrder
+                  ? params.orderType === "parcel"
+                    ? "Parcel"
+                    : params.orderType === "drive-through"
+                    ? "Drive Through"
+                    : "Counter"
+                  : `T${tableNumber}`}
+              </Text>
+              {!params?.isSpecialOrder && (
+                <HStack space={1} alignItems="center">
+                  <Text fontSize="md" fontWeight="600" color="blue.800">
+                    •
                   </Text>
-                </HStack>
-              ) : (
-                <HStack alignItems="center" space={1}>
-                  <MaterialIcons
-                    name="table-restaurant"
-                    size={20}
-                    color="gray.600"
-                  />
-                  <Text fontSize="md" fontWeight="600" color="gray.600">
-                    Table {tableNumber}
+                  <Text fontSize="md" fontWeight="600" color="blue.800">
+                    {sectionName}
                   </Text>
                 </HStack>
               )}

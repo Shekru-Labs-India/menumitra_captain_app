@@ -196,19 +196,11 @@ export default function TableSectionsScreen() {
       console.log("API Response:", data);
 
       if (data.st === 1) {
-        // Process sections data while maintaining existing structure
         const processedSections = data.data.map((section) => ({
           id: section.section_id,
           name: section.section_name,
           tables: section.tables.map((table) => ({
-            table_id: table.table_id,
-            table_number: table.table_number,
-            is_occupied: table.is_occupied,
-            occupied_time: table.occupied_time,
-            grandTotal: table.grand_total,
-            order_id: table.order_id,
-            order_number: table.order_number,
-            menu_items: table.menu_items || [],
+            ...table,
           })),
           totalTables: section.tables.length,
           engagedTables: section.tables.filter(
@@ -217,13 +209,9 @@ export default function TableSectionsScreen() {
         }));
 
         setSections(processedSections);
-
-        // Keep existing functionality for active section
         if (processedSections.length > 0 && !activeSection) {
           setActiveSection(processedSections[0]);
         }
-      } else {
-        throw new Error(data.msg || "Failed to fetch sections");
       }
     } catch (error) {
       console.error("Fetch Sections Error:", error);
@@ -336,73 +324,109 @@ export default function TableSectionsScreen() {
       console.log("Table pressed:", table);
       console.log("Section:", section);
 
-      // Validate table and section data
-      if (
-        !table?.table_id ||
-        !table?.table_number ||
-        !section?.id ||
-        !section?.name
-      ) {
-        console.error("Missing table/section data:", { table, section });
-        toast.show({
-          description: "Invalid table information",
-          status: "error",
-        });
+      if (!table || !section) {
+        console.error("Missing table or section data");
         return;
       }
 
-      const navigationParams = {
+      // Use the outlet_id from the table data since it's already available
+      const outlet_id = table.outlet_id;
+
+      if (!outlet_id) {
+        throw new Error("Outlet ID not found in table data");
+      }
+
+      const baseParams = {
         tableId: table.table_id.toString(),
         tableNumber: table.table_number.toString(),
         sectionId: section.id.toString(),
         sectionName: section.name,
+        outletId: outlet_id.toString(),
         isOccupied: table.is_occupied === 1 ? "1" : "0",
       };
 
-      // Add order details for occupied tables
-      if (table.is_occupied === 1) {
-        navigationParams.orderId = table.order_id?.toString();
-        navigationParams.orderNumber = table.order_number;
-        navigationParams.orderDetails = JSON.stringify({
-          order_id: table.order_id,
-          menu_items: table.menu_items,
-          grand_total: table.grandTotal,
+      // Handle occupied table with order
+      if (table.is_occupied === 1 && table.order_id) {
+        try {
+          console.log("Fetching order details for:", {
+            order_id: table.order_id,
+            outlet_id: outlet_id,
+          });
+
+          // Fetch order details for occupied table
+          const response = await fetch(
+            "https://men4u.xyz/captain_api/order_menu_details",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                order_id: table.order_id.toString(),
+                outlet_id: outlet_id.toString(),
+              }),
+            }
+          );
+
+          const result = await response.json();
+          console.log("Order menu details response:", result);
+
+          if (result.st === 1 && Array.isArray(result.data)) {
+            // Transform menu items to match expected format
+            const menuItems = result.data.map((item) => ({
+              menu_id: item.menu_id.toString(),
+              name: item.name,
+              price: parseFloat(item.price),
+              quantity: parseInt(item.quantity),
+              total_price: parseFloat(item.total_price),
+              half_or_full: item.half_or_full || "full",
+            }));
+
+            router.push({
+              pathname: "/(tabs)/orders/create-order",
+              params: {
+                ...baseParams,
+                orderId: table.order_id.toString(),
+                orderNumber: table.order_number,
+                orderType: "dine-in",
+                orderDetails: JSON.stringify({
+                  order_id: table.order_id,
+                  menu_items: menuItems,
+                  grand_total: table.grand_total || 0,
+                }),
+              },
+            });
+          } else {
+            throw new Error(result.msg || "Failed to fetch order details");
+          }
+        } catch (error) {
+          console.error("Error fetching order details:", error);
+          toast.show({
+            description: "Error loading order details",
+            status: "error",
+          });
+        }
+      } else {
+        // Navigate for new order
+        router.push({
+          pathname: "/(tabs)/orders/create-order",
+          params: {
+            ...baseParams,
+            orderType: "dine-in",
+            orderDetails: JSON.stringify({
+              menu_items: [],
+              grand_total: 0,
+            }),
+          },
         });
       }
-
-      console.log("Navigation params:", navigationParams);
-
-      router.push({
-        pathname: "/(tabs)/orders/create-order",
-        params: navigationParams,
-      });
     } catch (error) {
-      console.error("Navigation error:", error);
+      console.error("Error in handleTablePress:", error);
       toast.show({
-        description: "Failed to open order screen",
+        description: error.message || "Error loading table details",
         status: "error",
       });
     }
-  };
-
-  const getCurrentDate = () => {
-    const date = new Date();
-    return date
-      .toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-      .replace(/ /g, " ");
-  };
-
-  const chunk = (array, size) => {
-    if (!Array.isArray(array)) return [];
-    const chunked = [];
-    for (let i = 0; i < array.length; i += size) {
-      chunked.push(array.slice(i, i + size));
-    }
-    return chunked;
   };
 
   const getFilteredTables = (sectionTables) => {
@@ -631,7 +655,6 @@ export default function TableSectionsScreen() {
                     </Center>
                   ) : (
                     <VStack space={0}>
-                      {/* Tables Grid */}
                       <VStack space={0}>
                         {Object.entries(tablesByRow).map(([rowIndex, row]) => (
                           <HStack
@@ -654,12 +677,15 @@ export default function TableSectionsScreen() {
                                       ).toString() &&
                                     colIndex === section.tables.length % 4));
 
+                              const table = row[colIndex];
+                              const isOccupied = table?.is_occupied === 1;
+
                               return (
                                 <Box key={`${rowIndex}-${colIndex}`}>
-                                  {row[colIndex] ? (
+                                  {table ? (
                                     <Pressable
                                       onPress={() =>
-                                        handleTablePress(row[colIndex], section)
+                                        handleTablePress(table, section)
                                       }
                                     >
                                       <Box
@@ -668,25 +694,21 @@ export default function TableSectionsScreen() {
                                         width={20}
                                         height={20}
                                         bg={
-                                          row[colIndex].is_occupied === 1
-                                            ? "red.100"
-                                            : "green.100"
+                                          isOccupied ? "red.100" : "green.100"
                                         }
                                         borderWidth={1}
                                         borderStyle="dashed"
                                         borderColor={
-                                          row[colIndex].is_occupied === 1
-                                            ? "red.600"
-                                            : "green.600"
+                                          isOccupied ? "red.600" : "green.600"
                                         }
                                         position="relative"
                                       >
                                         {/* Show delete icon for last table when settings is active */}
                                         {showEditIcons &&
-                                          row[colIndex].table_id ===
+                                          table.table_id ===
                                             getLastTable(section.tables)
                                               ?.table_id &&
-                                          row[colIndex].is_occupied !== 1 && (
+                                          !isOccupied && (
                                             <IconButton
                                               position="absolute"
                                               top={-2}
@@ -705,18 +727,19 @@ export default function TableSectionsScreen() {
                                               onPress={() =>
                                                 handleDeleteTable(
                                                   section.id,
-                                                  row[colIndex].table_id
+                                                  table.table_id
                                                 )
                                               }
                                             />
                                           )}
-                                        {row[colIndex].is_occupied === 1 && (
+
+                                        {/* Show price banner for occupied tables */}
+                                        {isOccupied && (
                                           <Box
                                             position="absolute"
                                             top={-2}
                                             left={-2}
                                             right={-2}
-                                            setActiveFilter
                                             bg="red.500"
                                             py={0.5}
                                             rounded="md"
@@ -731,10 +754,11 @@ export default function TableSectionsScreen() {
                                               numberOfLines={1}
                                               adjustsFontSizeToFit
                                             >
-                                              ₹{row[colIndex].grandTotal || 0}
+                                              ₹{table.grand_total || 0}
                                             </Text>
                                           </Box>
                                         )}
+
                                         <VStack
                                           space={2}
                                           alignItems="center"
@@ -744,22 +768,21 @@ export default function TableSectionsScreen() {
                                             fontSize={18}
                                             fontWeight="bold"
                                             color={
-                                              row[colIndex].is_occupied === 1
+                                              isOccupied
                                                 ? "red.500"
                                                 : "green.500"
                                             }
                                           >
-                                            {row[colIndex].table_number}
+                                            {table.table_number}
                                           </Text>
-                                          <Text
-                                            fontSize={12}
-                                            color="coolGray.600"
-                                          >
-                                            {row[colIndex].is_occupied === 1 &&
-                                              formatTime(
-                                                row[colIndex].occupied_time
-                                              )}
-                                          </Text>
+                                          {isOccupied && (
+                                            <Text
+                                              fontSize={12}
+                                              color="coolGray.600"
+                                            >
+                                              {formatTime(table.occupied_time)}
+                                            </Text>
+                                          )}
                                         </VStack>
                                       </Box>
                                     </Pressable>
