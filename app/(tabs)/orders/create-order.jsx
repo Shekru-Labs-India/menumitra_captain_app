@@ -449,7 +449,7 @@ export default function CreateOrderScreen() {
 
       let currentOrderId = orderId;
 
-      // For new orders, create and set status to placed first
+      // For new orders
       if (!orderId) {
         setLoadingMessage("Creating new order...");
         const createPayload = {
@@ -466,8 +466,6 @@ export default function CreateOrderScreen() {
           })),
         };
 
-        console.log("Create Order Payload:", createPayload);
-
         const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -475,29 +473,36 @@ export default function CreateOrderScreen() {
         });
 
         const createData = await createResponse.json();
-        console.log("Create Order Response:", createData);
 
         if (createData.st !== 1) {
           throw new Error(createData.msg || "Failed to create order");
         }
 
-        currentOrderId = createData.order_id;
-
-        // Set status to placed for new order
-        setLoadingMessage("Setting order status to placed...");
-        const placedPayload = {
-          outlet_id: storedOutletId.toString(),
-          order_id: currentOrderId.toString(),
-          order_status: "placed",
-        };
-
-        await fetch(`${API_BASE_URL}/captain_manage/update_order_status`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(placedPayload),
+        // Show message about waiting period
+        toast.show({
+          description:
+            "New order created. Please wait 90 seconds for kitchen processing before settling.",
+          status: "info",
+          duration: 5000,
         });
+
+        // Clear states before navigation
+        setSelectedItems([]);
+        setSearchQuery("");
+        setOrderDetails({});
+        setServiceCharges(0);
+        setGstAmount(0);
+        setDiscountAmount(0);
+
+        // Navigate back to tables/sections
+        router.replace("/(tabs)/tables/sections");
+
+        setIsProcessing(false);
+        setLoadingMessage("");
+        return;
       }
-      // For existing orders, update first
+
+      // For existing orders, continue with update and settlement
       else {
         setLoadingMessage("Updating order...");
         const updatePayload = {
@@ -515,8 +520,6 @@ export default function CreateOrderScreen() {
           })),
         };
 
-        console.log("Update Order Payload:", updatePayload);
-
         const updateResponse = await fetch(`${API_BASE_URL}/update_order`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -524,79 +527,78 @@ export default function CreateOrderScreen() {
         });
 
         const updateData = await updateResponse.json();
-        console.log("Update Order Response:", updateData);
 
         if (updateData.st !== 1) {
           throw new Error(updateData.msg || "Failed to update order");
         }
-      }
 
-      // Set order status to served first
-      setLoadingMessage("Setting order status to served...");
-      const servedPayload = {
-        outlet_id: storedOutletId.toString(),
-        order_id: currentOrderId.toString(),
-        order_status: "served",
-      };
+        // Continue with served status
+        setLoadingMessage("Setting order status to served...");
+        const servedPayload = {
+          outlet_id: storedOutletId.toString(),
+          order_id: currentOrderId.toString(),
+          order_status: "served",
+        };
 
-      const servedResponse = await fetch(
-        `${API_BASE_URL}/captain_manage/update_order_status`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(servedPayload),
+        const servedResponse = await fetch(
+          `${API_BASE_URL}/captain_manage/update_order_status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(servedPayload),
+          }
+        );
+
+        const servedData = await servedResponse.json();
+        if (servedData.st !== 1) {
+          throw new Error(servedData.msg || "Failed to mark order as served");
         }
-      );
 
-      const servedData = await servedResponse.json();
-      if (servedData.st !== 1) {
-        throw new Error(servedData.msg || "Failed to mark order as served");
-      }
+        // Finally mark as paid
+        setLoadingMessage("Completing payment...");
+        const paidPayload = {
+          outlet_id: storedOutletId.toString(),
+          order_id: currentOrderId.toString(),
+          order_status: "paid",
+        };
 
-      // Finally mark order as paid
-      setLoadingMessage("Completing payment...");
-      const paidPayload = {
-        outlet_id: storedOutletId.toString(),
-        order_id: currentOrderId.toString(),
-        order_status: "paid",
-      };
+        const paidResponse = await fetch(
+          `${API_BASE_URL}/captain_manage/update_order_status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(paidPayload),
+          }
+        );
 
-      const paidResponse = await fetch(
-        `${API_BASE_URL}/captain_manage/update_order_status`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(paidPayload),
+        const paidData = await paidResponse.json();
+        if (paidData.st !== 1) {
+          throw new Error(paidData.msg || "Failed to mark order as paid");
         }
-      );
 
-      const paidData = await paidResponse.json();
-      if (paidData.st !== 1) {
-        throw new Error(paidData.msg || "Failed to mark order as paid");
+        // Clear states and navigate
+        setSelectedItems([]);
+        setSearchQuery("");
+        setOrderDetails({});
+        setServiceCharges(0);
+        setGstAmount(0);
+        setDiscountAmount(0);
+
+        toast.show({
+          description: "Order settled successfully",
+          status: "success",
+          duration: 2000,
+        });
+
+        router.replace({
+          pathname: "/(tabs)/orders",
+          params: {
+            refresh: Date.now().toString(),
+            status: "paid",
+            fromSettle: true,
+          },
+        });
       }
-
-      // Clear all states and navigate
-      setSelectedItems([]);
-      setSearchQuery("");
-      setOrderDetails({});
-      setServiceCharges(0);
-      setGstAmount(0);
-      setDiscountAmount(0);
-
-      toast.show({
-        description: "Order settled successfully",
-        status: "success",
-        duration: 2000,
-      });
-
-      router.replace({
-        pathname: "/(tabs)/orders",
-        params: {
-          refresh: Date.now().toString(),
-          status: "paid",
-          fromSettle: true,
-        },
-      });
     } catch (error) {
       console.error("Settle Error:", error);
       toast.show({
