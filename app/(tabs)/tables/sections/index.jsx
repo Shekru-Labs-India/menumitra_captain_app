@@ -393,6 +393,11 @@ export default function TableSectionsScreen() {
                   order_id: table.order_id,
                   menu_items: menuItems,
                   grand_total: table.grand_total || 0,
+                  table_id: table.table_id,
+                  table_number: table.table_number,
+                  section_id: section.id,
+                  section_name: section.name,
+                  outlet_id: outlet_id,
                 }),
               },
             });
@@ -416,6 +421,11 @@ export default function TableSectionsScreen() {
             orderDetails: JSON.stringify({
               menu_items: [],
               grand_total: 0,
+              table_id: table.table_id,
+              table_number: table.table_number,
+              section_id: section.id,
+              section_name: section.name,
+              outlet_id: outlet_id,
             }),
           },
         });

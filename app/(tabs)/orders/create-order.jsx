@@ -133,6 +133,10 @@ export default function CreateOrderScreen() {
   // Add this at the top of your component
   const [userData, setUserData] = useState(null);
 
+  // Add to your component's state
+  const [gstPercentage, setGstPercentage] = useState(0);
+  const [serviceChargePercentage, setServiceChargePercentage] = useState(0);
+
   // Update the useEffect for session handling
   useEffect(() => {
     const loadUserData = async () => {
@@ -167,79 +171,91 @@ export default function CreateOrderScreen() {
     loadUserData();
   }, []);
 
-  // Update the initialization useEffect
+  // Add this function to fetch order details
+  const fetchOrderDetails = async (orderId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          order_number: orderId,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.st === 1 && data.lists) {
+        return data.lists;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+      return null;
+    }
+  };
+
+  // Add this useEffect for handling order initialization
   useEffect(() => {
     const initializeOrder = async () => {
+      if (!params?.orderId) return;
+
       try {
-        console.log("Initializing order with params:", params);
+        setLoading(true);
+        // First, fetch order details
+        const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            order_number: params.orderNumber,
+          }),
+        });
 
-        // Reset states
-        setSelectedItems([]);
-        setGrandTotal(0);
-        setServiceCharges(0);
-        setGstAmount(0);
-        setDiscountAmount(0);
+        const data = await response.json();
+        console.log("Order details response:", data);
 
-        // Set both current and existing state variables
-        setTableNumber(params.tableNumber);
-        setSectionId(params.sectionId);
-        setSectionName(params.sectionName);
-        setIsOccupied(params.isOccupied);
-        setOrderId(params.orderId);
+        if (data.st === 1 && data.lists) {
+          const orderDetails = data.lists;
 
-        setCurrentTableNumber(params.tableNumber);
-        setCurrentSectionId(params.sectionId);
-        setCurrentSectionName(params.sectionName);
-        setCurrentIsOccupied(params.isOccupied);
-        setCurrentOrderId(params.orderId);
+          // Set the menu items with all necessary details
+          const transformedItems = orderDetails.menu_details.map((item) => ({
+            menu_id: item.menu_id.toString(),
+            menu_name: item.menu_name,
+            price: parseFloat(item.price),
+            quantity: parseInt(item.quantity),
+            portionSize: "Full",
+            specialInstructions: item.comment || "",
+            offer: parseFloat(item.offer) || 0,
+            menu_sub_total: parseFloat(item.menu_sub_total),
+          }));
 
-        // Handle occupied table data
-        if (params.isOccupied === "1" && params.orderDetails) {
-          try {
-            const orderData = JSON.parse(params.orderDetails);
-            console.log("Parsed order data:", orderData);
+          setSelectedItems(transformedItems);
 
-            if (orderData.menu_items && Array.isArray(orderData.menu_items)) {
-              const transformedItems = orderData.menu_items.map((item) => ({
-                menu_id: item.menu_id.toString(),
-                menu_name: item.name,
-                price: parseFloat(item.price),
-                quantity: parseInt(item.quantity),
-                total_price: parseFloat(item.total_price),
-                specialInstructions: "",
-                portionSize: "Full",
-              }));
-
-              setSelectedItems(transformedItems);
-              setGrandTotal(parseFloat(orderData.grand_total) || 0);
-
-              // Update order details
-              setOrderDetails({
-                order_number: params.orderNumber || "",
-                table_number: params.tableNumber || "",
-                total_bill: parseFloat(orderData.grand_total) || 0,
-                datetime: new Date().toLocaleString(),
-                order_type: "dine-in",
-              });
-            }
-          } catch (parseError) {
-            console.error("Error parsing order details:", parseError);
-            console.log("Raw order details:", params.orderDetails);
+          // Set tax details
+          if (orderDetails.order_details) {
+            setServiceChargePercentage(
+              parseFloat(orderDetails.order_details.service_charges_percent)
+            );
+            setGstPercentage(
+              parseFloat(orderDetails.order_details.gst_percent)
+            );
           }
         }
       } catch (error) {
         console.error("Error initializing order:", error);
         toast.show({
-          description: "Error initializing order",
+          description: "Error loading order details",
           status: "error",
         });
+      } finally {
+        setLoading(false);
       }
     };
 
-    if (isFocused) {
-      initializeOrder();
-    }
-  }, [isFocused, params.tableNumber, params.sectionId]);
+    initializeOrder();
+  }, [params?.orderId, params?.orderNumber]);
 
   useEffect(() => {
     const getStoredData = async () => {
@@ -617,7 +633,7 @@ export default function CreateOrderScreen() {
       "keyboardDidHide",
       () => {
         // Don't close search results when keyboard hides
-        // setIsSearchOpen(false); - Remove or comment this
+        // setIsSearchOpen(false); - Remove or comment this`
       }
     );
 
@@ -696,28 +712,56 @@ export default function CreateOrderScreen() {
     );
   };
 
-  const calculateSubtotal = (items) => {
-    return items.reduce((sum, item) => {
+  const calculateSubtotal = (selectedItems) => {
+    return selectedItems.reduce((sum, item) => {
       const itemPrice =
-        item.portionSize === "Half" ? item.price * 0.6 : item.price;
+        item.portionSize?.toLowerCase() === "half"
+          ? item.price * 0.6
+          : item.price;
       return sum + itemPrice * item.quantity;
     }, 0);
   };
 
-  const calculateTotal = (items) => {
-    const subtotal = calculateSubtotal(items);
-    // Only update these states if they've changed
-    const newGst = subtotal * 0.05;
-    const newService = subtotal * 0.05;
+  const calculateDiscount = (selectedItems) => {
+    return selectedItems.reduce((sum, item) => {
+      const itemPrice =
+        item.portionSize?.toLowerCase() === "half"
+          ? item.price * 0.6
+          : item.price;
+      const itemTotal = itemPrice * item.quantity;
+      const discountAmount = (itemTotal * (item.offer || 0)) / 100;
+      return sum + discountAmount;
+    }, 0);
+  };
 
-    if (Math.abs(newGst - gstAmount) > 0.01) {
-      setGstAmount(newGst);
-    }
-    if (Math.abs(newService - serviceCharges) > 0.01) {
-      setServiceCharges(newService);
-    }
+  const calculateTotalAfterDiscount = (selectedItems) => {
+    const subtotal = calculateSubtotal(selectedItems);
+    const discount = calculateDiscount(selectedItems);
+    return subtotal - discount;
+  };
 
-    return (subtotal + newGst + newService - discountAmount).toFixed(2);
+  const calculateServiceCharges = (selectedItems, serviceChargePercentage) => {
+    const totalAfterDiscount = calculateTotalAfterDiscount(selectedItems);
+    return (totalAfterDiscount * serviceChargePercentage) / 100;
+  };
+
+  const calculateGST = (selectedItems, gstPercentage) => {
+    const totalAfterDiscount = calculateTotalAfterDiscount(selectedItems);
+    return (totalAfterDiscount * gstPercentage) / 100;
+  };
+
+  const calculateTotal = (
+    selectedItems,
+    serviceChargePercentage,
+    gstPercentage
+  ) => {
+    const totalAfterDiscount = calculateTotalAfterDiscount(selectedItems);
+    const serviceCharges = calculateServiceCharges(
+      selectedItems,
+      serviceChargePercentage
+    );
+    const gst = calculateGST(selectedItems, gstPercentage);
+    return totalAfterDiscount + serviceCharges + gst;
   };
 
   const handleAssignWaiter = async (waiterId) => {
@@ -750,21 +794,35 @@ export default function CreateOrderScreen() {
             <HStack justifyContent="space-between" alignItems="center">
               <VStack flex={1}>
                 <Text fontWeight="bold">{item.menu_name}</Text>
-                <Text fontSize="sm" color="gray.600">
-                  ₹{item.price?.toFixed(2)} x {item.quantity} = ₹
-                  {item.menu_sub_total?.toFixed(2)}
-                </Text>
+                <HStack space={2} alignItems="center">
+                  <Text fontSize="sm" color="gray.600">
+                    ₹{item.price?.toFixed(2)} x {item.quantity}
+                  </Text>
+                  {item.offer > 0 && (
+                    <Badge colorScheme="red" variant="subtle">
+                      {item.offer}% OFF
+                    </Badge>
+                  )}
+                </HStack>
                 {item.specialInstructions && (
                   <Text fontSize="xs" color="gray.500">
                     Note: {item.specialInstructions}
                   </Text>
                 )}
               </VStack>
-              <Badge
-                colorScheme={item.portionSize === "Half" ? "orange" : "blue"}
-              >
-                {item.portionSize}
-              </Badge>
+              <VStack alignItems="flex-end">
+                <Text fontWeight="bold">
+                  ₹
+                  {(item.menu_sub_total || item.price * item.quantity).toFixed(
+                    2
+                  )}
+                </Text>
+                <Badge
+                  colorScheme={item.portionSize === "Half" ? "orange" : "blue"}
+                >
+                  {item.portionSize}
+                </Badge>
+              </VStack>
             </HStack>
           </Box>
         ))}
@@ -866,20 +924,49 @@ export default function CreateOrderScreen() {
         if (orderData.menu_items) {
           const transformedItems = orderData.menu_items.map((item) => ({
             menu_id: item.menu_id.toString(),
-            name: item.name,
+            menu_name: item.menu_name || item.name,
             price: parseFloat(item.price),
             quantity: parseInt(item.quantity),
-            total_price: parseFloat(item.total_price),
-            portionSize: item.half_or_full || "full",
+            menu_sub_total: parseFloat(item.menu_sub_total || item.total_price),
+            portionSize: item.half_or_full || "Full",
             specialInstructions: item.comment || "",
+            offer: item.offer || 0,
           }));
           setSelectedItems(transformedItems);
+
+          // Load tax configuration if available in the order
+          if (orderData.service_charges_percent) {
+            setServiceChargePercentage(
+              parseFloat(orderData.service_charges_percent)
+            );
+          }
+          if (orderData.gst_percent) {
+            setGstPercentage(parseFloat(orderData.gst_percent));
+          }
         }
       } catch (error) {
         console.error("Error parsing order details:", error);
       }
     }
-  }, []); // Empty dependency array to run only once
+  }, [params?.orderDetails]);
+
+  // Add to your useEffect
+  useEffect(() => {
+    const loadTaxConfig = async () => {
+      try {
+        const [gst, serviceCharge] = await AsyncStorage.multiGet([
+          "gst_percentage",
+          "service_charge_percentage",
+        ]);
+        setGstPercentage(parseFloat(gst[1]) || 0);
+        setServiceChargePercentage(parseFloat(serviceCharge[1]) || 0);
+      } catch (error) {
+        console.error("Error loading tax configuration:", error);
+      }
+    };
+
+    loadTaxConfig();
+  }, []);
 
   return (
     <Box flex={1} bg="white" safeArea>
@@ -1279,7 +1366,6 @@ export default function CreateOrderScreen() {
               borderWidth={1}
               borderColor="coolGray.200"
             >
-              {/* Price Summary Section */}
               <HStack
                 alignItems="center"
                 justifyContent="space-between"
@@ -1290,53 +1376,46 @@ export default function CreateOrderScreen() {
                 {/* Subtotal */}
                 <VStack alignItems="center">
                   <Text fontWeight="bold" fontSize="sm">
-                    ₹
-                    {selectedItems
-                      .reduce((sum, item) => {
-                        const itemPrice =
-                          item.portionSize === "Half"
-                            ? item.price * 0.6
-                            : item.price;
-                        return sum + itemPrice * item.quantity;
-                      }, 0)
-                      .toFixed(2)}
+                    ₹{calculateSubtotal(selectedItems).toFixed(2)}
                   </Text>
                   <Text fontSize="xs" color="gray.500">
-                    Total
+                    Subtotal
                   </Text>
                 </VStack>
 
                 {/* Service Charges */}
                 <VStack alignItems="center">
                   <Text fontWeight="bold" fontSize="sm">
-                    ₹{serviceCharges.toFixed(2)}
+                    ₹
+                    {calculateServiceCharges(
+                      selectedItems,
+                      serviceChargePercentage
+                    ).toFixed(2)}
                   </Text>
                   <Text fontSize="xs" color="gray.500">
-                    Service
+                    Service ({serviceChargePercentage}%)
                   </Text>
                 </VStack>
 
                 {/* GST */}
                 <VStack alignItems="center">
                   <Text fontWeight="bold" fontSize="sm">
-                    ₹{gstAmount.toFixed(2)}
+                    ₹{calculateGST(selectedItems, gstPercentage).toFixed(2)}
                   </Text>
                   <Text fontSize="xs" color="gray.500">
-                    GST
+                    GST ({gstPercentage}%)
                   </Text>
                 </VStack>
 
-                {/* Discount - Only shown if greater than 0 */}
-                {discountAmount > 0 && (
-                  <VStack alignItems="center">
-                    <Text fontWeight="bold" fontSize="sm" color="red.500">
-                      -₹{discountAmount.toFixed(2)}
-                    </Text>
-                    <Text fontSize="xs" color="gray.500">
-                      Discount
-                    </Text>
-                  </VStack>
-                )}
+                {/* Discount */}
+                <VStack alignItems="center">
+                  <Text fontWeight="bold" fontSize="sm" color="red.500">
+                    -₹{calculateDiscount(selectedItems).toFixed(2)}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500">
+                    Discount
+                  </Text>
+                </VStack>
 
                 {/* Divider */}
                 <Box h="70%" w={0.5} bg="gray.200" />
@@ -1344,7 +1423,12 @@ export default function CreateOrderScreen() {
                 {/* Grand Total */}
                 <VStack alignItems="center">
                   <Text fontWeight="bold" fontSize="lg" color="green.600">
-                    ₹{calculateTotal(selectedItems)}
+                    ₹
+                    {calculateTotal(
+                      selectedItems,
+                      serviceChargePercentage,
+                      gstPercentage
+                    ).toFixed(2)}
                   </Text>
                   <Text fontSize="xs" color="gray.500" fontWeight={600}>
                     Total

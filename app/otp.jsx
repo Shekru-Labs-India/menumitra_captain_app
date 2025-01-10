@@ -179,10 +179,12 @@ export default function OtpScreen() {
           // Store all required data from API response with updated keys
           await AsyncStorage.multiSet([
             ["captain_id", data.captain_id.toString()],
-            ["outlet_id", data.outlet_id.toString()], // Changed from restaurant_id
-            ["user_id", data.user_id.toString()], // Now using actual user_id from response
+            ["outlet_id", data.outlet_id.toString()],
+            ["user_id", data.user_id.toString()],
             ["captain_name", data.captain_name],
             ["role", data.role],
+            ["gst_percentage", data.gst.toString()],
+            ["service_charge_percentage", data.service_charges.toString()],
           ]);
 
           // Store session data
