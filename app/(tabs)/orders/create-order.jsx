@@ -290,9 +290,11 @@ export default function CreateOrderScreen() {
       );
 
       const data = await response.json();
-      if (data.st === 1) {
+      console.log("API Response:", data); // Debug log
+
+      if (data.st === 1 && data.data) {
         setMenuCategories(data.data.category);
-        setMenuItems(data.data.menus);
+        setMenuItems(data.data.menus); // Store raw data directly
       }
     } catch (error) {
       console.error("Error fetching menu items:", error);
@@ -712,25 +714,24 @@ export default function CreateOrderScreen() {
     );
   };
 
-  const calculateSubtotal = (selectedItems) => {
-    return selectedItems.reduce((sum, item) => {
-      const itemPrice =
-        item.portionSize?.toLowerCase() === "half"
-          ? item.price * 0.6
-          : item.price;
-      return sum + itemPrice * item.quantity;
+  const calculateSubtotal = (items) => {
+    return items.reduce((sum, item) => {
+      const price =
+        item.portionSize === "Half"
+          ? Number(item.half_price || item.price)
+          : Number(item.full_price || item.price);
+      return sum + price * Number(item.quantity);
     }, 0);
   };
 
-  const calculateDiscount = (selectedItems) => {
-    return selectedItems.reduce((sum, item) => {
-      const itemPrice =
-        item.portionSize?.toLowerCase() === "half"
-          ? item.price * 0.6
-          : item.price;
-      const itemTotal = itemPrice * item.quantity;
-      const discountAmount = (itemTotal * (item.offer || 0)) / 100;
-      return sum + discountAmount;
+  const calculateDiscount = (items) => {
+    return items.reduce((sum, item) => {
+      const price =
+        item.portionSize === "Half"
+          ? Number(item.half_price || item.price)
+          : Number(item.full_price || item.price);
+      const itemTotal = price * Number(item.quantity);
+      return sum + (itemTotal * Number(item.offer)) / 100;
     }, 0);
   };
 
@@ -795,14 +796,10 @@ export default function CreateOrderScreen() {
               <VStack flex={1}>
                 <Text fontWeight="bold">{item.menu_name}</Text>
                 <HStack space={2} alignItems="center">
-                  <Text fontSize="sm" color="gray.600">
-                    ₹{item.price?.toFixed(2)} x {item.quantity}
-                  </Text>
-                  {item.offer > 0 && (
-                    <Badge colorScheme="red" variant="subtle">
-                      {item.offer}% OFF
-                    </Badge>
+                  {item.half_price > 0 && (
+                    <Text fontSize={14}>Half: ₹{item.half_price}</Text>
                   )}
+                  <Text fontSize={14}>Full: ₹{item.full_price}</Text>
                 </HStack>
                 {item.specialInstructions && (
                   <Text fontSize="xs" color="gray.500">
@@ -968,6 +965,82 @@ export default function CreateOrderScreen() {
     loadTaxConfig();
   }, []);
 
+  const handleAddItem = (item, selectedPortion) => {
+    const newItem = {
+      menu_id: item.menu_id,
+      menu_name: item.menu_name,
+      quantity: 1,
+      portionSize: selectedPortion,
+      price:
+        selectedPortion === "Half"
+          ? Number(item.half_price)
+          : Number(item.full_price),
+      half_price: Number(item.half_price),
+      full_price: Number(item.full_price),
+      offer: Number(item.offer || 0),
+      specialInstructions: "",
+      menu_food_type: item.menu_food_type,
+      image: item.image,
+    };
+
+    setSelectedItems((prev) => {
+      // Check if item with same menu_id and portionSize exists
+      const existingItemIndex = prev.findIndex(
+        (i) => i.menu_id === item.menu_id && i.portionSize === selectedPortion
+      );
+
+      if (existingItemIndex !== -1) {
+        // If item exists, increment its quantity
+        const updatedItems = [...prev];
+        if (updatedItems[existingItemIndex].quantity < 20) {
+          updatedItems[existingItemIndex].quantity += 1;
+        }
+        return updatedItems;
+      } else {
+        // If item doesn't exist, add new item
+        return [...prev, newItem];
+      }
+    });
+
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsSearchOpen(false);
+  };
+
+  const initializeOrderDetails = async (orderData) => {
+    if (orderData?.menu_details) {
+      const transformedItems = await Promise.all(
+        orderData.menu_details.map(async (item) => {
+          // Find the full menu item details from menuItems
+          const menuItem = menuItems.find((m) => m.menu_id === item.menu_id);
+
+          return {
+            menu_id: item.menu_id,
+            menu_name: item.menu_name,
+            quantity: Number(item.quantity),
+            portionSize: item.half_or_full === "half" ? "Half" : "Full",
+            price: Number(item.price),
+            half_price: Number(menuItem?.half_price || 0),
+            full_price: Number(menuItem?.full_price || item.price),
+            offer: Number(item.offer || 0),
+            specialInstructions: item.comment || "",
+            menu_sub_total: Number(item.menu_sub_total),
+          };
+        })
+      );
+      setSelectedItems(transformedItems);
+    }
+  };
+
+  const renderSelectedItem = (item) => (
+    <HStack space={4}>
+      {Number(item.half_price) > 0 && (
+        <Text fontSize={14}>Half: ₹{item.half_price}</Text>
+      )}
+      <Text fontSize={14}>Full: ₹{item.full_price || item.price}</Text>
+    </HStack>
+  );
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -1063,42 +1136,29 @@ export default function CreateOrderScreen() {
               keyboardShouldPersistTaps="always"
             >
               {searchResults.map((item) => (
-                <Box
+                <Pressable
                   key={item.menu_id}
-                  borderBottomWidth={1}
-                  borderBottomColor="coolGray.200"
                   bg="white"
                   p={2}
+                  mb={1}
+                  rounded="lg"
+                  borderWidth={1}
+                  borderColor="coolGray.200"
                 >
-                  <HStack alignItems="center" space={2}>
-                    {/* Category Indicator */}
-                    <Box
-                      w={1}
-                      h="80px"
-                      bg={
-                        item.menu_food_type === "veg"
-                          ? "green.500"
-                          : item.menu_food_type === "nonveg"
-                          ? "red.500"
-                          : "gray.300"
-                      }
-                    />
-
+                  <HStack space={2} alignItems="center">
                     {/* Image */}
-                    <Box w="80px" h="80px">
+                    <Box size={16} rounded="md" overflow="hidden">
                       {item.image ? (
                         <Image
                           source={{ uri: item.image }}
                           alt={item.menu_name}
-                          w="full"
-                          h="full"
+                          size="full"
                           resizeMode="cover"
-                          rounded="md"
                         />
                       ) : (
-                        <Center bg="gray.100" w="full" h="full" rounded="md">
+                        <Center bg="gray.200" size="full">
                           <MaterialIcons
-                            name="restaurant"
+                            name="restaurant-menu"
                             size={24}
                             color="gray"
                           />
@@ -1106,62 +1166,57 @@ export default function CreateOrderScreen() {
                       )}
                     </Box>
 
-                    {/* Details */}
+                    {/* Menu Details */}
                     <VStack flex={1} space={1}>
                       <Text fontSize={16} fontWeight="600">
                         {item.menu_name}
                       </Text>
                       <HStack space={4}>
-                        <Text fontSize={14}>
-                          Half: ₹{Math.floor(item.price * 0.6)}
+                        {Number(item.half_price) > 0 && (
+                          <Text fontSize={14} color="gray.600">
+                            Half: ₹{Number(item.half_price)}
+                          </Text>
+                        )}
+                        <Text fontSize={14} color="gray.600">
+                          Full: ₹{Number(item.full_price)}
                         </Text>
-                        <Text fontSize={14}>Full: ₹{item.price}</Text>
                       </HStack>
                     </VStack>
 
-                    {/* Portion Selector */}
-                    <Box>
+                    {/* Right side controls */}
+                    <VStack alignItems="flex-end" space={2}>
                       <Select
-                        w={24}
+                        selectedValue="Full"
+                        minWidth="100"
                         accessibilityLabel="Choose portion"
-                        placeholder="Select"
-                        onValueChange={(value) => {
-                          const newItem = {
-                            ...item,
-                            quantity: 1,
-                            portionSize: value,
-                            price:
-                              value === "half"
-                                ? Math.floor(item.price * 0.6)
-                                : item.price,
-                            specialInstructions: "",
-                          };
-
-                          setSelectedItems((prevItems) => {
-                            const existingIndex = prevItems.findIndex(
-                              (prevItem) => prevItem.menu_id === item.menu_id
-                            );
-
-                            if (existingIndex !== -1) {
-                              const updatedItems = [...prevItems];
-                              updatedItems[existingIndex] = newItem;
-                              return updatedItems;
-                            }
-                            return [...prevItems, newItem];
-                          });
-
-                          // Clear search and close search list
-                          setSearchQuery("");
-                          setSearchResults([]);
-                          setIsSearchOpen(false);
+                        placeholder="Choose portion"
+                        onValueChange={(value) => handleAddItem(item, value)}
+                        _selectedItem={{
+                          endIcon: (
+                            <MaterialIcons
+                              name="check"
+                              size={16}
+                              color="gray"
+                            />
+                          ),
                         }}
+                        dropdownIcon={
+                          <MaterialIcons
+                            name="arrow-drop-down"
+                            size={24}
+                            color="gray"
+                          />
+                        }
+                        bg="white"
                       >
-                        <Select.Item label="Full" value="full" />
-                        <Select.Item label="Half" value="half" />
+                        <Select.Item label="Full" value="Full" />
+                        {Number(item.half_price) > 0 && (
+                          <Select.Item label="Half" value="Half" />
+                        )}
                       </Select>
-                    </Box>
+                    </VStack>
                   </HStack>
-                </Box>
+                </Pressable>
               ))}
             </ScrollView>
           </Box>
@@ -1221,129 +1276,111 @@ export default function CreateOrderScreen() {
                   </HStack>
                 </Box>
                 {selectedItems.map((item, index) => (
-                  <>
-                    <Box
-                      key={index}
-                      bg="white"
-                      p={2}
-                      mb={1}
-                      rounded="lg"
-                      borderWidth={1}
-                      borderColor="coolGray.200"
-                    >
-                      <VStack space={1}>
-                        <HStack
-                          justifyContent="space-between"
-                          alignItems="center"
+                  <Box
+                    key={index}
+                    bg="white"
+                    p={2}
+                    mb={1}
+                    rounded="lg"
+                    borderWidth={1}
+                    borderColor="coolGray.200"
+                  >
+                    <VStack space={1}>
+                      <HStack
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <Text
+                          fontWeight={600}
+                          flex={1}
+                          numberOfLines={1}
+                          fontSize={18}
                         >
-                          <Text
-                            fontWeight={600}
-                            flex={1}
-                            numberOfLines={1}
-                            fontSize={18}
-                          >
-                            {item.menu_name}
-                          </Text>
+                          {item.menu_name}
+                        </Text>
+                        <IconButton
+                          icon={
+                            <MaterialIcons
+                              name="close"
+                              size={16}
+                              color="gray"
+                            />
+                          }
+                          size="xs"
+                          p={1}
+                          onPress={() => {
+                            const newItems = selectedItems.filter(
+                              (_, i) => i !== index
+                            );
+                            setSelectedItems(newItems);
+                          }}
+                        />
+                      </HStack>
+
+                      <HStack
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <HStack space={1} alignItems="center">
                           <IconButton
+                            borderWidth={1}
+                            borderColor="gray.400"
                             icon={
                               <MaterialIcons
-                                name="close"
+                                name="remove"
                                 size={16}
                                 color="gray"
                               />
                             }
                             size="xs"
-                            p={1}
+                            variant="outline"
+                            _pressed={{ bg: "transparent" }}
                             onPress={() => {
-                              const newItems = selectedItems.filter(
-                                (_, i) => i !== index
-                              );
-                              setSelectedItems(newItems);
+                              if (item.quantity > 1) {
+                                const newItems = [...selectedItems];
+                                newItems[index].quantity--;
+                                setSelectedItems(newItems);
+                              }
+                            }}
+                          />
+                          <Text
+                            w="10"
+                            textAlign="center"
+                            fontSize={16}
+                            fontWeight="600"
+                          >
+                            {item.quantity}
+                          </Text>
+                          <IconButton
+                            borderWidth={1}
+                            borderColor="gray.400"
+                            icon={
+                              <MaterialIcons
+                                name="add"
+                                size={16}
+                                color="gray"
+                              />
+                            }
+                            size="xs"
+                            variant="outline"
+                            _pressed={{ bg: "transparent" }}
+                            onPress={() => {
+                              if (item.quantity < 20) {
+                                const newItems = [...selectedItems];
+                                newItems[index].quantity++;
+                                setSelectedItems(newItems);
+                              }
                             }}
                           />
                         </HStack>
 
-                        <HStack
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <HStack space={1} alignItems="center">
-                            <IconButton
-                              borderWidth={1}
-                              borderColor="gray.400"
-                              icon={
-                                <MaterialIcons
-                                  name="remove"
-                                  size={16}
-                                  color="gray"
-                                />
-                              }
-                              size="xs"
-                              variant="outline"
-                              _pressed={{ bg: "transparent" }}
-                              onPress={() => {
-                                if (item.quantity > 1) {
-                                  const newItems = [...selectedItems];
-                                  newItems[index].quantity--;
-                                  setSelectedItems(newItems);
-                                }
-                              }}
-                            />
-                            <Text
-                              w="10"
-                              textAlign="center"
-                              fontSize={16}
-                              fontWeight="600"
-                            >
-                              {item.quantity}
-                            </Text>
-                            <IconButton
-                              borderWidth={1}
-                              borderColor="gray.400"
-                              icon={
-                                <MaterialIcons
-                                  name="add"
-                                  size={16}
-                                  color="gray"
-                                />
-                              }
-                              size="xs"
-                              variant="outline"
-                              _pressed={{ bg: "transparent" }}
-                              onPress={() => {
-                                if (item.quantity < 20) {
-                                  const newItems = [...selectedItems];
-                                  newItems[index].quantity++;
-                                  setSelectedItems(newItems);
-                                }
-                              }}
-                            />
-                          </HStack>
-
-                          <Text
-                            fontSize={16}
-                            fontWeight={600}
-                            color="green.600"
-                            textAlign="right"
-                          >
-                            <Text
-                              fontSize={16}
-                              color="gray.500"
-                              ml={4}
-                              fontWeight={600}
-                            >
-                              {item.portionSize} {" : "}
-                            </Text>
-                            ₹
-                            {(item.portionSize === "Half"
-                              ? item.price * 0.6
-                              : item.price * 1
-                            ).toFixed(2)}
-                          </Text>
-                        </HStack>
-                      </VStack>
-                    </Box>
-                  </>
+                        {/* Show selected portion price */}
+                        <Text fontSize={14} color="gray.600">
+                          {item.portionSize}: ₹{Number(item.price)}
+                        </Text>
+                      </HStack>
+                    </VStack>
+                  </Box>
                 ))}
               </>
             )}
@@ -1365,64 +1402,77 @@ export default function CreateOrderScreen() {
               mb={4}
               borderWidth={1}
               borderColor="coolGray.200"
+              p={3}
             >
-              <HStack
-                alignItems="center"
-                justifyContent="space-between"
-                p={1}
-                borderBottomWidth={1}
-                borderBottomColor="coolGray.200"
-              >
-                {/* Subtotal */}
-                <VStack alignItems="center">
-                  <Text fontWeight="bold" fontSize="sm">
+              {/* Price Details */}
+              <VStack space={2} mb={3}>
+                {/* Total */}
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="sm" color="gray.600">
+                    Total Amount
+                  </Text>
+                  <Text fontSize="sm" fontWeight="600">
                     ₹{calculateSubtotal(selectedItems).toFixed(2)}
                   </Text>
-                  <Text fontSize="xs" color="gray.500">
-                    Subtotal
-                  </Text>
-                </VStack>
+                </HStack>
 
-                {/* Service Charges */}
-                <VStack alignItems="center">
-                  <Text fontWeight="bold" fontSize="sm">
+                {/* Discount */}
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="sm" color="gray.600">
+                    Discount
+                  </Text>
+                  <Text fontSize="sm" fontWeight="600" color="red.500">
+                    -₹{calculateDiscount(selectedItems).toFixed(2)}
+                  </Text>
+                </HStack>
+
+                {/* Total After Discount */}
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="sm" color="gray.600">
+                    Total After Discount
+                  </Text>
+                  <Text fontSize="sm" fontWeight="600">
+                    ₹
+                    {(
+                      calculateSubtotal(selectedItems) -
+                      calculateDiscount(selectedItems)
+                    ).toFixed(2)}
+                  </Text>
+                </HStack>
+
+                {/* Service Charge */}
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="sm" color="gray.600">
+                    Service Charge ({serviceChargePercentage}%)
+                  </Text>
+                  <Text fontSize="sm" fontWeight="600">
                     ₹
                     {calculateServiceCharges(
                       selectedItems,
                       serviceChargePercentage
                     ).toFixed(2)}
                   </Text>
-                  <Text fontSize="xs" color="gray.500">
-                    Service ({serviceChargePercentage}%)
-                  </Text>
-                </VStack>
+                </HStack>
 
                 {/* GST */}
-                <VStack alignItems="center">
-                  <Text fontWeight="bold" fontSize="sm">
-                    ₹{calculateGST(selectedItems, gstPercentage).toFixed(2)}
-                  </Text>
-                  <Text fontSize="xs" color="gray.500">
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="sm" color="gray.600">
                     GST ({gstPercentage}%)
                   </Text>
-                </VStack>
-
-                {/* Discount */}
-                <VStack alignItems="center">
-                  <Text fontWeight="bold" fontSize="sm" color="red.500">
-                    -₹{calculateDiscount(selectedItems).toFixed(2)}
+                  <Text fontSize="sm" fontWeight="600">
+                    ₹{calculateGST(selectedItems, gstPercentage).toFixed(2)}
                   </Text>
-                  <Text fontSize="xs" color="gray.500">
-                    Discount
-                  </Text>
-                </VStack>
+                </HStack>
 
                 {/* Divider */}
-                <Box h="70%" w={0.5} bg="gray.200" />
+                <Divider my={1} />
 
                 {/* Grand Total */}
-                <VStack alignItems="center">
-                  <Text fontWeight="bold" fontSize="lg" color="green.600">
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="md" fontWeight="600">
+                    Grand Total
+                  </Text>
+                  <Text fontSize="lg" fontWeight="700" color="green.600">
                     ₹
                     {calculateTotal(
                       selectedItems,
@@ -1430,14 +1480,11 @@ export default function CreateOrderScreen() {
                       gstPercentage
                     ).toFixed(2)}
                   </Text>
-                  <Text fontSize="xs" color="gray.500" fontWeight={600}>
-                    Total
-                  </Text>
-                </VStack>
-              </HStack>
+                </HStack>
+              </VStack>
 
               {/* Action Buttons Section */}
-              <HStack space={4} justifyContent="space-between" p={3}>
+              <HStack space={4} justifyContent="space-between">
                 <Button
                   bg="gray.400"
                   rounded="lg"
@@ -1445,7 +1492,7 @@ export default function CreateOrderScreen() {
                   isDisabled={loading}
                   _pressed={{ bg: "gray.600" }}
                 >
-                  Hold
+                  Save
                 </Button>
                 <Button
                   flex={1}

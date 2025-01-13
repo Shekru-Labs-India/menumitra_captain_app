@@ -329,7 +329,6 @@ export default function TableSectionsScreen() {
         return;
       }
 
-      // Use the outlet_id from the table data since it's already available
       const outlet_id = table.outlet_id;
 
       if (!outlet_id) {
@@ -348,12 +347,6 @@ export default function TableSectionsScreen() {
       // Handle occupied table with order
       if (table.is_occupied === 1 && table.order_id) {
         try {
-          console.log("Fetching order details for:", {
-            order_id: table.order_id,
-            outlet_id: outlet_id,
-          });
-
-          // Fetch order details for occupied table
           const response = await fetch(
             "https://men4u.xyz/captain_api/order_menu_details",
             {
@@ -372,14 +365,20 @@ export default function TableSectionsScreen() {
           console.log("Order menu details response:", result);
 
           if (result.st === 1 && Array.isArray(result.data)) {
-            // Transform menu items to match expected format
+            // Transform menu items to match expected format with new price structure
             const menuItems = result.data.map((item) => ({
               menu_id: item.menu_id.toString(),
-              name: item.name,
-              price: parseFloat(item.price),
+              menu_name: item.name,
+              price: parseFloat(
+                item.half_or_full === "half" ? item.half_price : item.full_price
+              ),
               quantity: parseInt(item.quantity),
               total_price: parseFloat(item.total_price),
-              half_or_full: item.half_or_full || "full",
+              portionSize: item.half_or_full === "half" ? "Half" : "Full",
+              offer: parseFloat(item.offer || 0),
+              specialInstructions: item.comment || "",
+              full_price: parseFloat(item.full_price),
+              half_price: parseFloat(item.half_price),
             }));
 
             router.push({
@@ -401,8 +400,6 @@ export default function TableSectionsScreen() {
                 }),
               },
             });
-          } else {
-            throw new Error(result.msg || "Failed to fetch order details");
           }
         } catch (error) {
           console.error("Error fetching order details:", error);
@@ -412,7 +409,7 @@ export default function TableSectionsScreen() {
           });
         }
       } else {
-        // Navigate for new order
+        // For new orders, pass empty menu items but with correct structure
         router.push({
           pathname: "/(tabs)/orders/create-order",
           params: {
@@ -426,6 +423,10 @@ export default function TableSectionsScreen() {
               section_id: section.id,
               section_name: section.name,
               outlet_id: outlet_id,
+              price_structure: {
+                supports_half_full: true,
+                price_fields: ["full_price", "half_price"],
+              },
             }),
           },
         });
