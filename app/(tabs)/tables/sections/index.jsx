@@ -932,11 +932,12 @@ export default function TableSectionsScreen() {
           <HStack space={3} alignItems="center">
             <Pressable
               onPress={() =>
-                router.push({
+                router.replace({
                   pathname: "/(tabs)/orders/create-order",
                   params: {
-                    isSpecialOrder: true,
+                    isSpecialOrder: "true",
                     orderType: "parcel",
+                    clearPrevious: "true",
                   },
                 })
               }
@@ -965,11 +966,12 @@ export default function TableSectionsScreen() {
 
             <Pressable
               onPress={() =>
-                router.push({
+                router.replace({
                   pathname: "/(tabs)/orders/create-order",
                   params: {
-                    isSpecialOrder: true,
+                    isSpecialOrder: "true",
                     orderType: "drive-through",
+                    clearPrevious: "true",
                   },
                 })
               }
@@ -998,11 +1000,12 @@ export default function TableSectionsScreen() {
 
             <Pressable
               onPress={() =>
-                router.push({
+                router.replace({
                   pathname: "/(tabs)/orders/create-order",
                   params: {
-                    isSpecialOrder: true,
+                    isSpecialOrder: "true",
                     orderType: "counter",
+                    clearPrevious: "true",
                   },
                 })
               }

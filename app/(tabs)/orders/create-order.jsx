@@ -1041,36 +1041,57 @@ export default function CreateOrderScreen() {
     </HStack>
   );
 
+  // Add useEffect to clear states when navigating from special orders
+  useEffect(() => {
+    // Clear all states if it's a special order
+    if (params.isSpecialOrder === "true") {
+      setSelectedItems([]);
+      setSearchQuery("");
+      setOrderDetails({});
+      setServiceCharges(0);
+      setGstAmount(0);
+      setDiscountAmount(0);
+      setOrderId(null);
+      setSectionId(null);
+      setSectionName("");
+      setTableNumber("");
+    }
+  }, [params.isSpecialOrder]);
+
+  const OrderBadge = () => (
+    <Badge colorScheme="blue" rounded="lg" px={3} py={1}>
+      <HStack space={2} alignItems="center">
+        <Text fontSize="md" fontWeight="600" color="blue.800">
+          {params?.isSpecialOrder
+            ? params.orderType === "parcel"
+              ? "Parcel"
+              : params.orderType === "drive-through"
+              ? "Drive Through"
+              : "Counter"
+            : params.tableNumber
+            ? `T${params.tableNumber}`
+            : ""}
+        </Text>
+        {!params?.isSpecialOrder && params.sectionName && (
+          <HStack space={1} alignItems="center">
+            <Text fontSize="md" fontWeight="600" color="blue.800">
+              •
+            </Text>
+            <Text fontSize="md" fontWeight="600" color="blue.800">
+              {params.sectionName}
+            </Text>
+          </HStack>
+        )}
+      </HStack>
+    </Badge>
+  );
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
         title={isOccupied === "1" ? "Update Order" : "Create Order"}
         onBackPress={() => router.replace("/(tabs)/tables/sections")}
-        rightComponent={
-          <Badge colorScheme="blue" rounded="lg" px={3} py={1}>
-            <HStack space={2} alignItems="center">
-              <Text fontSize="md" fontWeight="600" color="blue.800">
-                {params?.isSpecialOrder
-                  ? params.orderType === "parcel"
-                    ? "Parcel"
-                    : params.orderType === "drive-through"
-                    ? "Drive Through"
-                    : "Counter"
-                  : `T${tableNumber}`}
-              </Text>
-              {!params?.isSpecialOrder && (
-                <HStack space={1} alignItems="center">
-                  <Text fontSize="md" fontWeight="600" color="blue.800">
-                    •
-                  </Text>
-                  <Text fontSize="md" fontWeight="600" color="blue.800">
-                    {sectionName}
-                  </Text>
-                </HStack>
-              )}
-            </HStack>
-          </Badge>
-        }
+        rightComponent={<OrderBadge />}
       />
 
       <Box flex={1} bg="coolGray.100" px={4}>
