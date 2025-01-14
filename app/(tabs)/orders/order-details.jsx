@@ -15,6 +15,7 @@ import {
   Badge,
   FlatList,
   Center,
+  Icon,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Linking } from "react-native";
@@ -83,6 +84,102 @@ export default function OrderDetailsScreen() {
 
     fetchOrderDetails();
   }, [id]);
+
+  const handleStatusUpdate = async (newStatus) => {
+    try {
+      setIsLoading(true);
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+
+      const response = await fetch(
+        `${API_BASE_URL}/captain_manage/update_order_status`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            outlet_id: storedOutletId,
+            order_id: orderDetails.order_id.toString(),
+            order_status: newStatus,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.st === 1) {
+        toast.show({
+          description: `Order ${
+            newStatus === "cancelled" ? "cancelled" : "marked as " + newStatus
+          } successfully`,
+          status: "success",
+          duration: 2000,
+        });
+
+        router.replace({
+          pathname: "/(tabs)/orders",
+          params: {
+            refresh: Date.now().toString(),
+          },
+        });
+      } else {
+        throw new Error(
+          data.msg || `Failed to update order status to ${newStatus}`
+        );
+      }
+    } catch (error) {
+      console.error("Status Update Error:", error);
+      toast.show({
+        description: error.message,
+        status: "error",
+        duration: 3000,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const StatusActionButton = () => {
+    if (!orderDetails) return null;
+
+    switch (orderDetails.order_status?.toLowerCase()) {
+      case "placed":
+        return (
+          <Button
+            colorScheme="red"
+            leftIcon={<Icon as={MaterialIcons} name="cancel" size="sm" />}
+            onPress={() => handleStatusUpdate("cancelled")}
+            isLoading={isLoading}
+          >
+            Cancel Order
+          </Button>
+        );
+      case "cooking":
+        return (
+          <Button
+            colorScheme="orange"
+            leftIcon={<Icon as={MaterialIcons} name="room-service" size="sm" />}
+            onPress={() => handleStatusUpdate("served")}
+            isLoading={isLoading}
+          >
+            Mark as Served
+          </Button>
+        );
+      case "served":
+        return (
+          <Button
+            colorScheme="green"
+            leftIcon={<Icon as={MaterialIcons} name="payment" size="sm" />}
+            onPress={() => handleStatusUpdate("paid")}
+            isLoading={isLoading}
+          >
+            Mark as Paid
+          </Button>
+        );
+      default:
+        return null;
+    }
+  };
 
   if (isLoading) {
     return (
@@ -244,6 +341,11 @@ export default function OrderDetailsScreen() {
               </Text>
             </HStack>
           </VStack>
+        </Box>
+
+        {/* Status Action Button */}
+        <Box px={4} pb={4}>
+          <StatusActionButton />
         </Box>
 
         {/* Invoice Button */}

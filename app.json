@@ -47,7 +47,8 @@
         {
           "microphonePermission": true
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "tsconfigPaths": true
@@ -65,7 +66,8 @@
       "android",
       "web"
     ],
-    "owner": "menumitra"
+    "owner": "menumitra",
+    "sdkVersion": "52.0.0"
   },
   "cli": {
     "version": ">= 5.9.1"

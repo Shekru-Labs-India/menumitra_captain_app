@@ -38,8 +38,7 @@ const ORDER_STATUS_COLORS = {
 
 const ORDER_TYPE_COLORS = {
   "dine-in": "blue",
-  "take-away": "purple",
-  delivery: "green",
+  parsel: "purple",
   "drive-through": "orange",
   counter: "pink",
   DEFAULT: "coolGray",
@@ -47,8 +46,7 @@ const ORDER_TYPE_COLORS = {
 
 const ORDER_TYPE_ICONS = {
   "dine-in": "restaurant",
-  "take-away": "takeout-dining",
-  delivery: "delivery-dining",
+  parsel: "takeout-dining",
   "drive-through": "drive-eta",
   counter: "point-of-sale",
   DEFAULT: "receipt-long",
@@ -62,6 +60,61 @@ const PAYMENT_METHOD_ICONS = {
   DEFAULT: "payment",
 };
 
+// Add EmptyStateAnimation component
+const EmptyStateAnimation = ({ orderStatus, orderType }) => {
+  const getEmptyStateMessage = () => {
+    if (orderStatus !== "all") {
+      switch (orderStatus) {
+        case "placed":
+          return "No Placed Orders";
+        case "cooking":
+          return "No Orders in Cooking";
+        case "served":
+          return "No Served Orders";
+        case "paid":
+          return "No Paid Orders";
+        case "cancelled":
+          return "No Cancelled Orders";
+        default:
+          return "No Orders Found";
+      }
+    } else if (orderType !== "all") {
+      switch (orderType) {
+        case "dine-in":
+          return "No Dine-in Orders";
+        case "parsel":
+          return "No Parcel Orders";
+        case "drive-through":
+          return "No Drive Through Orders";
+        case "counter":
+          return "No Counter Orders";
+        default:
+          return "No Orders Found";
+      }
+    }
+    return "No Orders Found";
+  };
+
+  return (
+    <Center flex={1} px={4}>
+      <Icon
+        as={MaterialIcons}
+        name="receipt-long"
+        size="6xl"
+        color="gray.400"
+      />
+      <Text fontSize="xl" fontWeight="600" color="gray.600" mt={4}>
+        {getEmptyStateMessage()}
+      </Text>
+      <Text fontSize="sm" color="gray.400" mt={3}>
+        {orderStatus !== "all" || orderType !== "all"
+          ? "Try adjusting your filters"
+          : "Check back later for new orders"}
+      </Text>
+    </Center>
+  );
+};
+
 export default function OrdersScreen() {
   const router = useRouter();
   const toast = useToast();
@@ -72,6 +125,7 @@ export default function OrdersScreen() {
   const [sortBy, setSortBy] = useState("date");
   const [orderStatus, setOrderStatus] = useState("cooking");
   const [isAscending, setIsAscending] = useState(false);
+  const [orderType, setOrderType] = useState("all");
 
   // Get current date in required format (DD MMM YYYY)
   const getCurrentDate = () => {
@@ -109,7 +163,6 @@ export default function OrdersScreen() {
         },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
-          order_status: "cooking",
         }),
       });
 
@@ -172,42 +225,44 @@ export default function OrdersScreen() {
   const filteredOrders = React.useMemo(() => {
     return orders
       .filter((order) => {
-        // Status filter
-        if (orderStatus !== "all" && order.order_status !== orderStatus) {
-          return false;
-        }
+        // Status filter - show all if "all" is selected
+        const statusMatch =
+          orderStatus === "all" ||
+          order.order_status?.toLowerCase() === orderStatus.toLowerCase();
+
+        // Type filter - show all if "all" is selected
+        const typeMatch =
+          orderType === "all" ||
+          order.order_type?.toLowerCase() === orderType.toLowerCase();
 
         // Search filter
-        if (searchQuery) {
-          const searchLower = searchQuery.toLowerCase();
-          return (
-            order.order_number?.toLowerCase().includes(searchLower) ||
-            order.table_number?.toString().includes(searchLower) ||
-            order.order_type?.toLowerCase().includes(searchLower) ||
-            order.order_status?.toLowerCase().includes(searchLower)
-          );
-        }
+        const searchMatch =
+          !searchQuery ||
+          order.order_number
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          (order.table_number &&
+            order.table_number.some((table) =>
+              table.toString().toLowerCase().includes(searchQuery.toLowerCase())
+            ));
 
-        return true;
+        return statusMatch && typeMatch && searchMatch;
       })
       .sort((a, b) => {
-        // Sort logic
         switch (sortBy) {
           case "date":
             const dateA = new Date(`${a.date} ${a.time}`);
             const dateB = new Date(`${b.date} ${b.time}`);
             return isAscending ? dateA - dateB : dateB - dateA;
-
           case "amount":
-            const amountA = parseFloat(a.grand_total) || 0;
-            const amountB = parseFloat(b.grand_total) || 0;
-            return isAscending ? amountA - amountB : amountB - amountA;
-
+            return isAscending
+              ? a.grand_total - b.grand_total
+              : b.grand_total - a.grand_total;
           default:
             return 0;
         }
       });
-  }, [orders, orderStatus, searchQuery, sortBy, isAscending]);
+  }, [orders, orderStatus, orderType, searchQuery, sortBy, isAscending]);
 
   if (isLoading) {
     return (
@@ -268,10 +323,8 @@ export default function OrdersScreen() {
         {/* Status Filter */}
         <Select
           flex={1}
-          h="36px"
-          borderRadius="md"
           selectedValue={orderStatus}
-          onValueChange={(value) => setOrderStatus(value)}
+          onValueChange={setOrderStatus}
           _selectedItem={{
             bg: "coolGray.100",
             endIcon: (
@@ -279,6 +332,7 @@ export default function OrdersScreen() {
             ),
           }}
         >
+          <Select.Item label="All Status" value="all" />
           <Select.Item label="Cooking" value="cooking" />
           <Select.Item label="Paid" value="paid" />
           <Select.Item label="Served" value="served" />
@@ -286,13 +340,30 @@ export default function OrdersScreen() {
           <Select.Item label="Cancelled" value="cancelled" />
         </Select>
 
+        {/* Order Type Filter */}
+        <Select
+          flex={1}
+          selectedValue={orderType}
+          onValueChange={setOrderType}
+          _selectedItem={{
+            bg: "coolGray.100",
+            endIcon: (
+              <MaterialIcons name="check" size={20} color="coolGray.600" />
+            ),
+          }}
+        >
+          <Select.Item label="All Types" value="all" />
+          <Select.Item label="Dine-in" value="dine-in" />
+          <Select.Item label="Parcel" value="parsel" />
+          <Select.Item label="Drive Through" value="drive-through" />
+          <Select.Item label="Counter" value="counter" />
+        </Select>
+
         {/* Sort By Filter */}
         <Select
           flex={1}
-          h="36px"
-          borderRadius="md"
           selectedValue={sortBy}
-          onValueChange={(value) => setSortBy(value)}
+          onValueChange={setSortBy}
           _selectedItem={{
             bg: "coolGray.100",
             endIcon: (
@@ -312,12 +383,7 @@ export default function OrdersScreen() {
           <Text mt={2}>Loading orders...</Text>
         </Center>
       ) : filteredOrders.length === 0 ? (
-        <Center flex={1}>
-          <MaterialIcons name="receipt-long" size={48} color="coolGray.300" />
-          <Text mt={2} color="coolGray.600">
-            No orders found
-          </Text>
-        </Center>
+        <EmptyStateAnimation orderStatus={orderStatus} orderType={orderType} />
       ) : (
         <FlatList
           data={filteredOrders}
