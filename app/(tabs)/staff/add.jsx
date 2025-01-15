@@ -140,17 +140,16 @@ export default function AddStaffScreen() {
 
   // Add this function to handle address input validation
   const handleAddressChange = (text) => {
-    // Remove special characters but allow basic punctuation
     const sanitizedText = text.replace(/[^a-zA-Z0-9\s,.-]/g, "");
     setFormData({ ...formData, address: sanitizedText });
 
-    // Validate address
+    // Validate address with 5 char minimum
     if (!sanitizedText.trim()) {
       setErrors((prev) => ({ ...prev, address: "Address is required" }));
-    } else if (sanitizedText.trim().length < 10) {
+    } else if (sanitizedText.trim().length < 5) {
       setErrors((prev) => ({
         ...prev,
-        address: "Address must be at least 10 characters",
+        address: "Address must be at least 5 characters",
       }));
     } else {
       setErrors((prev) => ({ ...prev, address: undefined }));
@@ -183,7 +182,7 @@ export default function AddStaffScreen() {
         newErrors.role = "Role is required";
       }
 
-      // DOB validation
+      // DOB validationthe
       if (!formData.dob) {
         newErrors.dob = "Date of birth is required";
       }
@@ -195,11 +194,11 @@ export default function AddStaffScreen() {
         newErrors.aadharNo = "Enter valid 12-digit Aadhar number";
       }
 
-      // Address validation
+      // Updated address validation
       if (!formData.address?.trim()) {
         newErrors.address = "Address is required";
-      } else if (formData.address.trim().length < 10) {
-        newErrors.address = "Address must be at least 10 characters";
+      } else if (formData.address.trim().length < 5) {
+        newErrors.address = "Address must be at least 5 characters";
       }
 
       setErrors(newErrors);
@@ -223,79 +222,48 @@ export default function AddStaffScreen() {
     if (!validateForm()) return;
 
     try {
-      const formDataApi = new FormData();
+      // Convert IDs to strings and ensure they're not null
+      const staffData = {
+        captain_id: String(captainId || ""),
+        outlet_id: String(outletId || ""),
+        name: formData.name.trim(),
+        mobile: formData.phone,
+        dob: formData.dob,
+        address: formData.address.trim(),
+        role: formData.role.toLowerCase(),
+        aadhar_number: formData.aadharNo,
+      };
 
-      // Use the stored IDs
-      formDataApi.append("captain_id", captainId);
-      formDataApi.append("outlet_id", outletId);
-
-      // Rest of the form data
-      formDataApi.append("name", formData.name.trim());
-      formDataApi.append("mobile", formData.phone);
-      formDataApi.append("dob", formData.dobApi); // Use the API format
-      formDataApi.append("address", formData.address.trim());
-      formDataApi.append("role", formData.role.toLowerCase());
-      formDataApi.append("aadhar_number", formData.aadharNo);
-
-      if (image) {
-        const imageFileName = image.split("/").pop();
-        const match = /\.(\w+)$/.exec(imageFileName);
-        const imageType = match ? `image/${match[1]}` : "image/jpeg";
-
-        formDataApi.append("photo", {
-          uri: Platform.OS === "ios" ? image.replace("file://", "") : image,
-          name: imageFileName || "photo.jpg",
-          type: imageType,
-        });
-      }
-
-      // Debug log to check what we're sending
-      const debugData = {};
-      formDataApi.forEach((value, key) => {
-        debugData[key] = value;
-      });
-      console.log("Sending data:", debugData);
+      // Debug log
+      console.log("Sending staff data:", staffData);
 
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/staff_create`,
         {
           method: "POST",
-          body: formDataApi,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(staffData),
         }
       );
 
-      const responseText = await response.text();
-      console.log("Raw API Response:", responseText);
+      const data = await response.json();
+      console.log("API Response:", data);
 
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error("Failed to parse response:", e);
-        throw new Error("Invalid server response");
-      }
-
-      console.log("Parsed API Response:", data);
-
-      if (data.st === 1 && !data.msg.includes("does not exists")) {
+      if (data.st === 1) {
         toast.show({
           description: "Staff member added successfully",
           status: "success",
         });
-        router.replace({
-          pathname: "/(tabs)/staff",
-          params: { refresh: Date.now() },
-        });
+        router.back();
       } else {
-        toast.show({
-          description: data.msg || "Failed to add staff member",
-          status: "error",
-        });
+        throw new Error(data.msg || "Failed to add staff member");
       }
     } catch (error) {
       console.error("Save Staff Error:", error);
       toast.show({
-        description: "Something went wrong. Please try again",
+        description: error.message || "Something went wrong. Please try again",
         status: "error",
       });
     }
@@ -387,13 +355,11 @@ export default function AddStaffScreen() {
     setShowDatePicker(false);
     if (event.type === "set" && selectedDate) {
       const formattedDate = formatDate(selectedDate);
-      // Also store the YYYY-MM-DD format for API submission
-      const apiDate = selectedDate.toISOString().split("T")[0];
       setFormData({
         ...formData,
         dob: formattedDate,
-        dobApi: apiDate, // Store API format separately
       });
+      setErrors((prev) => ({ ...prev, dob: undefined }));
     }
   };
 
@@ -437,6 +403,13 @@ export default function AddStaffScreen() {
               placeholder="Enter Full Name"
               autoCapitalize="words"
               maxLength={50}
+              borderColor={
+                formData.name && !errors.name ? "green.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor:
+                  formData.name && !errors.name ? "green.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
           </FormControl>
@@ -475,6 +448,13 @@ export default function AddStaffScreen() {
               placeholder="Enter Mobile Number"
               keyboardType="numeric"
               maxLength={10}
+              borderColor={
+                formData.phone && !errors.phone ? "green.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor:
+                  formData.phone && !errors.phone ? "green.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>{errors.phone}</FormControl.ErrorMessage>
           </FormControl>
@@ -546,6 +526,17 @@ export default function AddStaffScreen() {
               placeholder="Enter complete address"
               autoCompleteType={undefined}
               h={20}
+              borderColor={
+                formData.address && !errors.address
+                  ? "green.500"
+                  : "coolGray.200"
+              }
+              _focus={{
+                borderColor:
+                  formData.address && !errors.address
+                    ? "green.500"
+                    : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>
               {errors.address}

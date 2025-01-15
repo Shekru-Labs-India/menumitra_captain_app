@@ -138,38 +138,6 @@ export default function CreateOrderScreen() {
   const [serviceChargePercentage, setServiceChargePercentage] = useState(0);
 
   // Update the useEffect for session handling
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const sessionData = await AsyncStorage.getItem("userSession");
-        if (sessionData) {
-          const parsedData = JSON.parse(sessionData);
-          console.log("Loaded user session:", parsedData);
-
-          if (!parsedData.user_id || !parsedData.outlet_id) {
-            console.error("Invalid session data:", parsedData);
-            toast.show({
-              description: "Session data incomplete",
-              status: "error",
-            });
-            return;
-          }
-
-          setUserData(parsedData);
-        } else {
-          console.error("No session data found");
-        }
-      } catch (error) {
-        console.error("Error loading user data:", error);
-        toast.show({
-          description: "Error loading user data",
-          status: "error",
-        });
-      }
-    };
-
-    loadUserData();
-  }, []);
 
   // Add this function to fetch order details
   const fetchOrderDetails = async (orderId) => {
@@ -869,30 +837,9 @@ export default function CreateOrderScreen() {
   useEffect(() => {
     if (params?.orderDetails) {
       try {
-        console.log("Loading order details:", params.orderDetails);
-        const orderData = JSON.parse(params.orderDetails);
-        if (orderData.menu_items) {
-          const transformedItems = orderData.menu_items.map((item) => ({
-            menu_id: item.menu_id.toString(),
-            menu_name: item.menu_name || item.name,
-            price: parseFloat(item.price),
-            quantity: parseInt(item.quantity),
-            menu_sub_total: parseFloat(item.menu_sub_total || item.total_price),
-            portionSize: item.half_or_full || "Full",
-            specialInstructions: item.comment || "",
-            offer: item.offer || 0,
-          }));
-          setSelectedItems(transformedItems);
-
-          // Load tax configuration if available in the order
-          if (orderData.service_charges_percent) {
-            setServiceChargePercentage(
-              parseFloat(orderData.service_charges_percent)
-            );
-          }
-          if (orderData.gst_percent) {
-            setGstPercentage(parseFloat(orderData.gst_percent));
-          }
+        const orderDetails = JSON.parse(params.orderDetails);
+        if (orderDetails.menu_items) {
+          setSelectedItems(orderDetails.menu_items);
         }
       } catch (error) {
         console.error("Error parsing order details:", error);

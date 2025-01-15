@@ -235,25 +235,84 @@ export default function OrdersScreen() {
           orderType === "all" ||
           order.order_type?.toLowerCase() === orderType.toLowerCase();
 
-        // Search filter
+        // Search filter - enhanced table number search
+        const searchLower = searchQuery.toLowerCase().trim();
+
+        // Improved table number search logic
+        const tableSearch = (tableNum) => {
+          const searchTerms = [
+            tableNum.toString(), // exact number
+            `table ${tableNum}`, // "table 2"
+            `table no ${tableNum}`, // "table no 2"
+            `table number ${tableNum}`, // "table number 2"
+            `t${tableNum}`, // "t2"
+            `${tableNum}`, // just number
+          ].map((term) => term.toLowerCase());
+
+          return searchTerms.some((term) => term.includes(searchLower));
+        };
+
+        const hasMatchingTable =
+          order.table_number &&
+          (Array.isArray(order.table_number)
+            ? order.table_number.some((table) => tableSearch(table))
+            : tableSearch(order.table_number));
+
         const searchMatch =
           !searchQuery ||
-          order.order_number
-            ?.toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          (order.table_number &&
-            order.table_number.some((table) =>
-              table.toString().toLowerCase().includes(searchQuery.toLowerCase())
-            ));
+          order.order_number?.toLowerCase().includes(searchLower) ||
+          hasMatchingTable;
 
         return statusMatch && typeMatch && searchMatch;
       })
       .sort((a, b) => {
         switch (sortBy) {
           case "date":
-            const dateA = new Date(`${a.date} ${a.time}`);
-            const dateB = new Date(`${b.date} ${b.time}`);
+            // Parse date in DD MMM YYYY format and time in HH:mm format
+            const parseDateTime = (dateStr, timeStr) => {
+              const [day, month, year] = dateStr.split(" ");
+              const months = {
+                Jan: 0,
+                Feb: 1,
+                Mar: 2,
+                Apr: 3,
+                May: 4,
+                Jun: 5,
+                Jul: 6,
+                Aug: 7,
+                Sep: 8,
+                Oct: 9,
+                Nov: 10,
+                Dec: 11,
+              };
+
+              // Parse time (handles both 12h and 24h formats)
+              let [hours, minutes] = timeStr.split(":");
+              minutes = minutes.replace(/\s*(am|pm)/i, ""); // Remove AM/PM
+              hours = parseInt(hours);
+
+              // Adjust hours for PM
+              if (timeStr.toLowerCase().includes("pm") && hours !== 12) {
+                hours += 12;
+              }
+              // Adjust hours for AM
+              if (timeStr.toLowerCase().includes("am") && hours === 12) {
+                hours = 0;
+              }
+
+              return new Date(
+                parseInt(year),
+                months[month],
+                parseInt(day),
+                hours,
+                parseInt(minutes)
+              );
+            };
+
+            const dateA = parseDateTime(a.date, a.time);
+            const dateB = parseDateTime(b.date, b.time);
             return isAscending ? dateA - dateB : dateB - dateA;
+
           case "amount":
             return isAscending
               ? a.grand_total - b.grand_total

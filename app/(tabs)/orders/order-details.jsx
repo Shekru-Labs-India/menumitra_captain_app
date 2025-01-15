@@ -26,10 +26,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
 const formatTime = (dateTimeString) => {
-  const timePart = dateTimeString.split(" ")[1];
-  const amPm = dateTimeString.split(" ")[2];
-  const timeWithoutSeconds = timePart.split(":").slice(0, 2).join(":");
-  return `${timeWithoutSeconds} ${amPm}`;
+  if (!dateTimeString) return "";
+  const [date, time, ampm] = dateTimeString.split(" ");
+  const [hours, minutes] = time.split(":").slice(0, 2); // Only take hours and minutes
+  return `${date} • ${hours}:${minutes} ${ampm}`;
 };
 
 export default function OrderDetailsScreen() {
@@ -216,7 +216,7 @@ export default function OrderDetailsScreen() {
               <VStack>
                 <Heading size="md">Order #{orderDetails.order_number}</Heading>
                 <Text fontSize="sm" color="coolGray.600">
-                  {orderDetails.datetime}
+                  {formatTime(orderDetails.datetime)}
                 </Text>
               </VStack>
               <Badge
@@ -286,7 +286,7 @@ export default function OrderDetailsScreen() {
                       ₹{item.menu_sub_total}
                     </Text>
                     <Text fontSize="sm" color="coolGray.600">
-                      @₹{item.price}
+                      ₹{item.price}
                     </Text>
                   </VStack>
                 </HStack>
@@ -301,25 +301,13 @@ export default function OrderDetailsScreen() {
             Bill Details
           </Heading>
           <VStack space={3}>
+            {/* Item Total */}
             <HStack justifyContent="space-between">
               <Text color="coolGray.600">Item Total</Text>
               <Text>₹{orderDetails.total_bill_amount}</Text>
             </HStack>
 
-            <HStack justifyContent="space-between">
-              <Text color="coolGray.600">
-                Service Charge ({orderDetails.service_charges_percent}%)
-              </Text>
-              <Text>₹{orderDetails.service_charges_amount}</Text>
-            </HStack>
-
-            <HStack justifyContent="space-between">
-              <Text color="coolGray.600">
-                GST ({orderDetails.gst_percent}%)
-              </Text>
-              <Text>₹{orderDetails.gst_amount}</Text>
-            </HStack>
-
+            {/* Discount (if applicable) */}
             {orderDetails.discount_amount > 0 && (
               <HStack justifyContent="space-between">
                 <Text color="green.600">
@@ -329,6 +317,31 @@ export default function OrderDetailsScreen() {
               </HStack>
             )}
 
+            {/* Total after discount */}
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">Total after discount</Text>
+              <Text>
+                ₹{orderDetails.total_bill_amount - orderDetails.discount_amount}
+              </Text>
+            </HStack>
+
+            {/* Service Charge */}
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">
+                Service Charge ({orderDetails.service_charges_percent}%)
+              </Text>
+              <Text>₹{orderDetails.service_charges_amount}</Text>
+            </HStack>
+
+            {/* GST */}
+            <HStack justifyContent="space-between">
+              <Text color="coolGray.600">
+                GST ({orderDetails.gst_percent}%)
+              </Text>
+              <Text>₹{orderDetails.gst_amount}</Text>
+            </HStack>
+
+            {/* Grand Total */}
             <HStack
               justifyContent="space-between"
               pt={2}

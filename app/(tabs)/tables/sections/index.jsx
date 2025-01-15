@@ -347,38 +347,31 @@ export default function TableSectionsScreen() {
       // Handle occupied table with order
       if (table.is_occupied === 1 && table.order_id) {
         try {
-          const response = await fetch(
-            "https://men4u.xyz/captain_api/order_menu_details",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                order_id: table.order_id.toString(),
-                outlet_id: outlet_id.toString(),
-              }),
-            }
-          );
+          const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              order_number: table.order_number,
+            }),
+          });
 
           const result = await response.json();
-          console.log("Order menu details response:", result);
+          console.log("Order view response:", result);
 
-          if (result.st === 1 && Array.isArray(result.data)) {
-            // Transform menu items to match expected format with new price structure
-            const menuItems = result.data.map((item) => ({
+          if (result.st === 1 && result.lists) {
+            const orderDetails = result.lists;
+            // Transform menu items from order details
+            const menuItems = orderDetails.menu_details.map((item) => ({
               menu_id: item.menu_id.toString(),
-              menu_name: item.name,
-              price: parseFloat(
-                item.half_or_full === "half" ? item.half_price : item.full_price
-              ),
+              menu_name: item.menu_name,
+              price: parseFloat(item.price),
               quantity: parseInt(item.quantity),
-              total_price: parseFloat(item.total_price),
+              total_price: parseFloat(item.menu_sub_total),
               portionSize: item.half_or_full === "half" ? "Half" : "Full",
               offer: parseFloat(item.offer || 0),
               specialInstructions: item.comment || "",
-              full_price: parseFloat(item.full_price),
-              half_price: parseFloat(item.half_price),
             }));
 
             router.push({
@@ -391,7 +384,7 @@ export default function TableSectionsScreen() {
                 orderDetails: JSON.stringify({
                   order_id: table.order_id,
                   menu_items: menuItems,
-                  grand_total: table.grand_total || 0,
+                  grand_total: orderDetails.order_details.grand_total || 0,
                   table_id: table.table_id,
                   table_number: table.table_number,
                   section_id: section.id,
@@ -409,7 +402,7 @@ export default function TableSectionsScreen() {
           });
         }
       } else {
-        // For new orders, pass empty menu items but with correct structure
+        // For new orders
         router.push({
           pathname: "/(tabs)/orders/create-order",
           params: {
@@ -423,10 +416,6 @@ export default function TableSectionsScreen() {
               section_id: section.id,
               section_name: section.name,
               outlet_id: outlet_id,
-              price_structure: {
-                supports_half_full: true,
-                price_fields: ["full_price", "half_price"],
-              },
             }),
           },
         });
