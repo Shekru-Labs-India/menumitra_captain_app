@@ -296,7 +296,7 @@ export default function AddInventoryItemScreen() {
           status: "success",
         });
         router.push({
-          pathname: "/(tabs)/inventory/inventory-items",
+          pathname: "/screens/inventory/inventory-items",
           params: { refresh: Date.now() },
         });
       } else {

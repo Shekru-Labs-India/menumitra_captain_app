@@ -153,7 +153,7 @@ export default function InventoryItemDetailsScreen() {
         });
         // Navigate back with refresh parameter
         router.push({
-          pathname: "/(tabs)/inventory/inventory-items",
+          pathname: "/screens/inventory/inventory-items",
           params: { refresh: Date.now() },
         });
       } else {
@@ -320,7 +320,7 @@ export default function InventoryItemDetailsScreen() {
             return;
           }
           router.push({
-            pathname: "/(tabs)/inventory/edit-inventory-item",
+            pathname: "/screens/inventory/edit-inventory-item",
             params: { itemId: inventoryId.toString() },
           });
         }}

@@ -154,7 +154,7 @@ export default function SuppliersScreen() {
     <Pressable
       onPress={() => {
         console.log("Navigating to supplier:", item.supplier_id);
-        router.push(`/(tabs)/suppliers/${item.supplier_id}`);
+        router.push(`/screens/suppliers/${item.supplier_id}`);
       }}
     >
       <Box
@@ -209,7 +209,7 @@ export default function SuppliersScreen() {
 
   const renderGridItem = ({ item }) => (
     <Pressable
-      onPress={() => router.push(`/(tabs)/suppliers/${item.supplier_id}`)}
+      onPress={() => router.push(`/screens/suppliers/${item.supplier_id}`)}
       flex={1}
       m={1}
     >
@@ -359,7 +359,7 @@ export default function SuppliersScreen() {
           shadow={2}
           size="sm"
           icon={<MaterialIcons name="add" size={24} color="white" />}
-          onPress={() => router.push("/(tabs)/suppliers/add")}
+          onPress={() => router.push("/screens/suppliers/add")}
           bg="green.500"
           _pressed={{ bg: "green.600" }}
           bottom={85}

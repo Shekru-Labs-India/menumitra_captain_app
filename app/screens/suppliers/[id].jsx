@@ -161,7 +161,7 @@ export default function SupplierDetails() {
 
   const handleInventoryPress = () => {
     router.push({
-      pathname: "/(tabs)/suppliers/suppliers-inventory",
+      pathname: "/screens/suppliers/suppliers-inventory",
       params: { supplierId: id },
     });
   };
@@ -450,7 +450,7 @@ export default function SupplierDetails() {
         shadow={3}
         size="sm"
         icon={<MaterialIcons name="edit" size={24} color="white" />}
-        onPress={() => router.push(`/(tabs)/suppliers/edit/${id}`)}
+        onPress={() => router.push(`/screens/suppliers/edit/${id}`)}
         position="absolute"
         bottom={10}
         right={4}

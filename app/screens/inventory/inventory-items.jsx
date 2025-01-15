@@ -89,7 +89,7 @@ export default function InventoryItemsScreen() {
     <Pressable
       onPress={() =>
         router.push({
-          pathname: "/(tabs)/inventory/inventory-item-details",
+          pathname: "/screens/inventory/inventory-item-details",
           params: { itemId: item.inventory_id },
         })
       }
@@ -159,7 +159,7 @@ export default function InventoryItemsScreen() {
         size="sm"
         colorScheme="green"
         icon={<MaterialIcons name="add" size={24} color="white" />}
-        onPress={() => router.push("/(tabs)/inventory/add-inventory-item")}
+        onPress={() => router.push("/screens/inventory/add-inventory-item")}
         position="absolute"
         bottom={4}
         right={4}
