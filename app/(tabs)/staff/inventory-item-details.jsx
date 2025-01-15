@@ -80,8 +80,7 @@ export default function InventoryItemDetailsScreen() {
           id: data.data.inventory_id,
           name: data.data.name,
           description: data.data.description || "No description available",
-          category: data.data.category_name,
-          category_id: data.data.category_id,
+          category: data.data.category,
           quantity: data.data.quantity,
           unit_price: data.data.unit_price,
           unit_of_measure: data.data.unit_of_measure,
@@ -90,6 +89,7 @@ export default function InventoryItemDetailsScreen() {
           tax_rate: data.data.tax_rate,
           in_or_out: data.data.in_or_out,
           in_date: data.data.in_date,
+          out_date: data.data.out_date,
           expiration_date: data.data.expiration_date,
           supplier_name: data.data.supplier_name,
           supplier_id: data.data.supplier_id,
@@ -289,6 +289,10 @@ export default function InventoryItemDetailsScreen() {
               <HStack justifyContent="space-between">
                 <Text color="coolGray.600">In Date</Text>
                 <Text>{item?.in_date || "N/A"}</Text>
+              </HStack>
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Out Date</Text>
+                <Text>{item?.out_date || "N/A"}</Text>
               </HStack>
               <HStack justifyContent="space-between">
                 <Text color="coolGray.600">Expiration Date</Text>

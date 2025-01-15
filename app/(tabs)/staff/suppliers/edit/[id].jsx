@@ -237,8 +237,10 @@ export default function EditSupplierScreen() {
       }
     }
 
-    // Credit Limit validation
-    if (formData.creditLimit) {
+    // Credit Limit validation (Required)
+    if (!formData.creditLimit?.trim()) {
+      newErrors.creditLimit = "Credit limit is required";
+    } else {
       const creditLimit = parseFloat(formData.creditLimit);
       if (isNaN(creditLimit) || creditLimit < 0) {
         newErrors.creditLimit = "Credit limit must be a positive number";
@@ -260,6 +262,13 @@ export default function EditSupplierScreen() {
       newErrors.ownerName = "Owner name should only contain letters and spaces";
     }
 
+    // Address validation (Required)
+    if (!formData.address?.trim()) {
+      newErrors.address = "Address is required";
+    } else if (formData.address.trim().length < 5) {
+      newErrors.address = "Address must be at least 5 characters";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -268,7 +277,7 @@ export default function EditSupplierScreen() {
   const handleSubmit = async () => {
     if (!validateForm()) {
       toast.show({
-        description: "Please fix the errors before submitting",
+        description: "Please fill all the required fields",
         status: "error",
         duration: 3000,
       });
@@ -518,7 +527,7 @@ export default function EditSupplierScreen() {
                 </Select>
               </FormControl>
 
-              <FormControl isInvalid={"creditLimit" in errors}>
+              <FormControl isRequired isInvalid={"creditLimit" in errors}>
                 <FormControl.Label>Credit Limit</FormControl.Label>
                 <Input
                   value={formData.creditLimit}
@@ -558,18 +567,21 @@ export default function EditSupplierScreen() {
                 />
               </FormControl>
 
-              <FormControl>
+              <FormControl isRequired isInvalid={"address" in errors}>
                 <FormControl.Label>Address</FormControl.Label>
                 <TextArea
                   value={formData.address}
                   onChangeText={(text) =>
                     setFormData({ ...formData, address: text })
                   }
-                  placeholder="Enter complete address"
+                  placeholder="Enter complete address (minimum 5 characters)"
                   autoCompleteType={undefined}
                   h={20}
                   bg="white"
                 />
+                <FormControl.ErrorMessage>
+                  {errors.address}
+                </FormControl.ErrorMessage>
               </FormControl>
 
               <Button

@@ -87,24 +87,24 @@ export default function ProfileScreen() {
   }, []);
 
   const profileMenuItems = [
-    {
-      icon: "person-outline",
-      title: "Personal Information",
-      subtitle: "Update your personal details",
-      route: "/profile/personal-info",
-    },
-    {
-      icon: "history",
-      title: "Order History",
-      subtitle: "View your past orders",
-      route: "/profile/order-history",
-    },
-    {
-      icon: "help-outline",
-      title: "Help & Support",
-      subtitle: "Get help and contact support",
-      route: "/profile/support",
-    },
+    // {
+    //   icon: "person-outline",
+    //   title: "Personal Information",
+    //   subtitle: "Update your personal details",
+    //   route: "/profile/personal-info",
+    // },
+    // {
+    //   icon: "history",
+    //   title: "Order History",
+    //   subtitle: "View your past orders",
+    //   route: "/profile/order-history",
+    // },
+    // {
+    //   icon: "help-outline",
+    //   title: "Help & Support",
+    //   subtitle: "Get help and contact support",
+    //   route: "/profile/support",
+    // },
   ];
 
   const MenuItem = ({ item }) => (

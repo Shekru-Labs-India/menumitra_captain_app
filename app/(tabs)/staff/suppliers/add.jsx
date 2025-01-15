@@ -1,4 +1,4 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect, useRef } from "react";
 import {
   Box,
   ScrollView,
@@ -14,6 +14,7 @@ import {
   Select,
   CheckIcon,
   HStack,
+  Pressable,
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -47,6 +48,9 @@ export default function AddSupplierScreen() {
   const [statusChoices, setStatusChoices] = useState([]);
   const [errors, setErrors] = useState({});
   const [outletId, setOutletId] = useState(null);
+
+  const creditRatingSelect = useRef(null);
+  const statusSelect = useRef(null);
 
   useEffect(() => {
     const getStoredData = async () => {
@@ -157,14 +161,10 @@ export default function AddSupplierScreen() {
 
     switch (field) {
       case "name":
-      case "ownerName":
         isValid = validateName(sanitizedValue);
         if (!isValid && sanitizedValue.length > 0) {
-          // Only show error if there's input
           toast.show({
-            description: `${
-              field === "name" ? "Supplier name" : "Owner name"
-            } should only contain letters`,
+            description: "Supplier name should only contain letters",
             status: "error",
           });
           return;
@@ -301,17 +301,6 @@ export default function AddSupplierScreen() {
         });
         return false;
       }
-    }
-
-    // Validate owner name if provided
-    if (formData.ownerName && !validateName(formData.ownerName)) {
-      toast.show({
-        title: "Invalid Input",
-        description: "Owner name should only contain letters",
-        status: "error",
-        duration: 3000,
-      });
-      return false;
     }
 
     // Validate location if provided
@@ -458,28 +447,32 @@ export default function AddSupplierScreen() {
 
               <FormControl>
                 <FormControl.Label>Status</FormControl.Label>
-                <Select
-                  selectedValue={formData.status}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, status: value })
-                  }
-                  placeholder="Select status"
-                  bg="white"
-                  _selectedItem={{
-                    bg: "coolGray.100",
-                    endIcon: (
-                      <MaterialIcons name="check" size={20} color="green.500" />
-                    ),
+                <Pressable
+                  onPress={() => {
+                    if (statusSelect.current) {
+                      statusSelect.current.focus();
+                    }
                   }}
                 >
-                  {statusChoices.map((choice) => (
-                    <Select.Item
-                      key={choice.value}
-                      label={choice.label}
-                      value={choice.value}
-                    />
-                  ))}
-                </Select>
+                  <Select
+                    ref={statusSelect}
+                    selectedValue={formData.status}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, status: value })
+                    }
+                    placeholder="Select status"
+                    bg="white"
+                    isReadOnly={true}
+                  >
+                    {statusChoices.map((status) => (
+                      <Select.Item
+                        key={status.value}
+                        label={status.label}
+                        value={status.value}
+                      />
+                    ))}
+                  </Select>
+                </Pressable>
               </FormControl>
             </VStack>
           </Box>
@@ -549,28 +542,32 @@ export default function AddSupplierScreen() {
 
               <FormControl>
                 <FormControl.Label>Credit Rating</FormControl.Label>
-                <Select
-                  selectedValue={formData.creditRating}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, creditRating: value })
-                  }
-                  placeholder="Select credit rating"
-                  bg="white"
-                  _selectedItem={{
-                    bg: "coolGray.100",
-                    endIcon: (
-                      <MaterialIcons name="check" size={20} color="green.500" />
-                    ),
+                <Pressable
+                  onPress={() => {
+                    if (creditRatingSelect.current) {
+                      creditRatingSelect.current.focus();
+                    }
                   }}
                 >
-                  {creditRatings.map((rating) => (
-                    <Select.Item
-                      key={rating.value}
-                      label={rating.label}
-                      value={rating.value}
-                    />
-                  ))}
-                </Select>
+                  <Select
+                    ref={creditRatingSelect}
+                    selectedValue={formData.creditRating}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, creditRating: value })
+                    }
+                    placeholder="Select credit rating"
+                    bg="white"
+                    isReadOnly={true}
+                  >
+                    {creditRatings.map((rating) => (
+                      <Select.Item
+                        key={rating.value}
+                        label={rating.label}
+                        value={rating.value}
+                      />
+                    ))}
+                  </Select>
+                </Pressable>
               </FormControl>
 
               <FormControl>
@@ -590,7 +587,9 @@ export default function AddSupplierScreen() {
                 <FormControl.Label>Owner Name</FormControl.Label>
                 <Input
                   value={formData.ownerName}
-                  onChangeText={(text) => handleFormChange("ownerName", text)}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, ownerName: text })
+                  }
                   placeholder="Enter owner name"
                   bg="white"
                 />

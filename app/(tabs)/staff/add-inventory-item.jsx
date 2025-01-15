@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   VStack,
@@ -56,6 +56,9 @@ export default function AddInventoryItemScreen() {
   const [showInDatePicker, setShowInDatePicker] = useState(false);
   const [showExpirationDatePicker, setShowExpirationDatePicker] =
     useState(false);
+  const supplierSelect = useRef(null);
+  const categorySelect = useRef(null);
+  const statusSelect = useRef(null);
 
   useEffect(() => {
     getStoredData();
@@ -422,21 +425,31 @@ export default function AddInventoryItemScreen() {
           {/* Supplier Name */}
           <FormControl isRequired isInvalid={"supplierId" in errors}>
             <FormControl.Label>Supplier Name</FormControl.Label>
-            <Select
-              placeholder="Select supplier"
-              selectedValue={formData.supplierId}
-              onValueChange={(value) =>
-                setFormData({ ...formData, supplierId: value })
-              }
+            <Pressable
+              onPress={() => {
+                if (supplierSelect.current) {
+                  supplierSelect.current.focus();
+                }
+              }}
             >
-              {suppliers.map((supplier) => (
-                <Select.Item
-                  key={supplier.id}
-                  label={supplier.name}
-                  value={supplier.id.toString()}
-                />
-              ))}
-            </Select>
+              <Select
+                ref={supplierSelect}
+                placeholder="Select supplier"
+                selectedValue={formData.supplierId}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, supplierId: value })
+                }
+                isReadOnly={true}
+              >
+                {suppliers.map((supplier) => (
+                  <Select.Item
+                    key={supplier.id}
+                    label={supplier.name}
+                    value={supplier.id.toString()}
+                  />
+                ))}
+              </Select>
+            </Pressable>
             <FormControl.ErrorMessage>
               {errors.supplierId}
             </FormControl.ErrorMessage>
@@ -464,21 +477,31 @@ export default function AddInventoryItemScreen() {
                 onPress={() => setAddCategoryModalOpen(true)}
               />
             </HStack>
-            <Select
-              placeholder="Select category"
-              selectedValue={formData.category_id}
-              onValueChange={(value) =>
-                setFormData({ ...formData, category_id: value })
-              }
+            <Pressable
+              onPress={() => {
+                if (categorySelect.current) {
+                  categorySelect.current.focus();
+                }
+              }}
             >
-              {categories.map((category) => (
-                <Select.Item
-                  key={category.id}
-                  label={category.name}
-                  value={category.id}
-                />
-              ))}
-            </Select>
+              <Select
+                ref={categorySelect}
+                placeholder="Select category"
+                selectedValue={formData.category_id}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, category_id: value })
+                }
+                isReadOnly={true}
+              >
+                {categories.map((category) => (
+                  <Select.Item
+                    key={category.id}
+                    label={category.name}
+                    value={category.id}
+                  />
+                ))}
+              </Select>
+            </Pressable>
             <FormControl.ErrorMessage>
               {errors.category_id}
             </FormControl.ErrorMessage>
@@ -649,20 +672,30 @@ export default function AddInventoryItemScreen() {
           {/* Status */}
           <FormControl flex={1}>
             <FormControl.Label>Status</FormControl.Label>
-            <Select
-              selectedValue={formData.in_or_out}
-              onValueChange={(value) =>
-                setFormData({ ...formData, in_or_out: value })
-              }
+            <Pressable
+              onPress={() => {
+                if (statusSelect.current) {
+                  statusSelect.current.focus();
+                }
+              }}
             >
-              {statusOptions.map((option) => (
-                <Select.Item
-                  key={option.key}
-                  label={option.value}
-                  value={option.key}
-                />
-              ))}
-            </Select>
+              <Select
+                ref={statusSelect}
+                selectedValue={formData.in_or_out}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, in_or_out: value })
+                }
+                isReadOnly={true}
+              >
+                {statusOptions.map((option) => (
+                  <Select.Item
+                    key={option.key}
+                    label={option.value}
+                    value={option.key}
+                  />
+                ))}
+              </Select>
+            </Pressable>
           </FormControl>
 
           {/* Tax Rate Input */}

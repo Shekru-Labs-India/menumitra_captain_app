@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   VStack,
@@ -12,12 +12,14 @@ import {
   Spinner,
   Pressable,
   Text,
+  IconButton,
 } from "native-base";
 import { Platform, StatusBar } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
+import { MaterialIcons } from "@expo/vector-icons";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -32,6 +34,7 @@ export default function EditInventoryItemScreen() {
   const [errors, setErrors] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [currentDateField, setCurrentDateField] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const [formData, setFormData] = useState({
     inventory_id: "",
@@ -52,31 +55,34 @@ export default function EditInventoryItemScreen() {
     expiration_date: "",
   });
 
+  const categorySelect = useRef(null);
+  const supplierSelect = useRef(null);
+
   useEffect(() => {
-    getStoredData();
-    fetchSuppliers();
-    fetchCategories();
+    const initializeData = async () => {
+      try {
+        // Fetch both categories and suppliers
+        const [categoriesData, suppliersData] = await Promise.all([
+          fetchCategories(),
+          fetchSuppliers(),
+        ]);
+
+        // Then get stored data
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        if (storedOutletId) {
+          setOutletId(storedOutletId);
+          // Pass the categories to fetchInventoryDetails
+          await fetchInventoryDetails(storedOutletId, itemId, categoriesData);
+        }
+      } catch (error) {
+        console.error("Error initializing data:", error);
+      }
+    };
+
+    initializeData();
   }, []);
 
-  const getStoredData = async () => {
-    try {
-      const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      if (storedOutletId) {
-        setOutletId(storedOutletId);
-        fetchInventoryDetails(storedOutletId, itemId);
-      } else {
-        toast.show({
-          description: "Please login again",
-          status: "error",
-        });
-        router.replace("/login");
-      }
-    } catch (error) {
-      console.error("Error getting stored data:", error);
-    }
-  };
-
-  const fetchInventoryDetails = async (outId, invId) => {
+  const fetchInventoryDetails = async (outId, invId, availableCategories) => {
     try {
       const response = await fetch(
         `${API_BASE_URL}/captain_manage/inventory_view`,
@@ -94,11 +100,20 @@ export default function EditInventoryItemScreen() {
 
       const data = await response.json();
       if (data.st === 1 && data.data) {
+        // Find the matching category
+        const categoryObj = availableCategories.find(
+          (cat) => cat.name.toLowerCase() === data.data.category?.toLowerCase()
+        );
+
+        console.log("API Category:", data.data.category);
+        console.log("Found Category:", categoryObj);
+        console.log("Available Categories:", availableCategories);
+
         setFormData({
           inventory_id: data.data.inventory_id?.toString() || "",
           outlet_id: data.data.outlet_id?.toString() || "",
           supplier_id: data.data.supplier_id?.toString() || "",
-          category_id: data.data.category_id?.toString() || "",
+          category_id: categoryObj?.id || "",
           name: data.data.name || "",
           description: data.data.description || "",
           unit_price: data.data.unit_price?.toString() || "",
@@ -108,10 +123,11 @@ export default function EditInventoryItemScreen() {
           brand_name: data.data.brand_name || "",
           tax_rate: data.data.tax_rate?.toString() || "",
           in_or_out: data.data.in_or_out || "in",
-          in_date: parseDate(data.data.in_date),
-          out_date: parseDate(data.data.out_date),
-          expiration_date: parseDate(data.data.expiration_date),
+          in_date: data.data.in_date || "",
+          out_date: data.data.out_date || "",
+          expiration_date: data.data.expiration_date || "",
         });
+        setIsInitialized(true);
       }
     } catch (error) {
       console.error("Error fetching inventory details:", error);
@@ -137,10 +153,7 @@ export default function EditInventoryItemScreen() {
       });
 
       const data = await response.json();
-      console.log("Suppliers Response:", data);
-
       if (data.st === 1) {
-        // Convert suppliers_dict to an array of objects
         const suppliersArray = Object.entries(data.suppliers_dict).map(
           ([name, id]) => ({
             name,
@@ -148,8 +161,7 @@ export default function EditInventoryItemScreen() {
           })
         );
         setSuppliers(suppliersArray);
-      } else {
-        throw new Error(data.msg || "Failed to fetch suppliers");
+        return suppliersArray;
       }
     } catch (error) {
       console.error("Error fetching suppliers:", error);
@@ -158,6 +170,7 @@ export default function EditInventoryItemScreen() {
         status: "error",
       });
     }
+    return [];
   };
 
   const fetchCategories = async () => {
@@ -168,7 +181,6 @@ export default function EditInventoryItemScreen() {
       const data = await response.json();
 
       if (data.st === 1) {
-        // Convert the category list from object to array format
         const categoriesArray = Object.entries(
           data.inventory_categorys_list
         ).map(([name, id]) => ({
@@ -176,11 +188,7 @@ export default function EditInventoryItemScreen() {
           id: id.toString(),
         }));
         setCategories(categoriesArray);
-      } else {
-        toast.show({
-          description: data.msg || "Failed to fetch categories",
-          status: "error",
-        });
+        return categoriesArray; // Return the categories array
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -189,6 +197,7 @@ export default function EditInventoryItemScreen() {
         status: "error",
       });
     }
+    return [];
   };
 
   // Add these handlers for name and brand name validation
@@ -528,9 +537,16 @@ export default function EditInventoryItemScreen() {
                 isReadOnly
                 placeholder="Select in date"
                 rightElement={
-                  <Text px={2} color="gray.400">
-                    📅
-                  </Text>
+                  <IconButton
+                    icon={
+                      <MaterialIcons
+                        name="calendar-today"
+                        size={24}
+                        color="gray"
+                      />
+                    }
+                    onPress={() => showDatepicker("in_date")}
+                  />
                 }
               />
             </Pressable>
@@ -544,9 +560,16 @@ export default function EditInventoryItemScreen() {
                 isReadOnly
                 placeholder="Select out date"
                 rightElement={
-                  <Text px={2} color="gray.400">
-                    📅
-                  </Text>
+                  <IconButton
+                    icon={
+                      <MaterialIcons
+                        name="calendar-today"
+                        size={24}
+                        color="gray"
+                      />
+                    }
+                    onPress={() => showDatepicker("out_date")}
+                  />
                 }
               />
             </Pressable>
@@ -560,9 +583,16 @@ export default function EditInventoryItemScreen() {
                 isReadOnly
                 placeholder="Select expiration date"
                 rightElement={
-                  <Text px={2} color="gray.400">
-                    📅
-                  </Text>
+                  <IconButton
+                    icon={
+                      <MaterialIcons
+                        name="calendar-today"
+                        size={24}
+                        color="gray"
+                      />
+                    }
+                    onPress={() => showDatepicker("expiration_date")}
+                  />
                 }
               />
             </Pressable>
@@ -581,23 +611,66 @@ export default function EditInventoryItemScreen() {
           {/* Category Selection */}
           <FormControl isRequired isInvalid={"category_id" in errors}>
             <FormControl.Label>Category</FormControl.Label>
-            <Select
-              selectedValue={formData.category_id}
-              placeholder="Select category"
-              onValueChange={(value) =>
-                setFormData({ ...formData, category_id: value })
-              }
+            <Pressable
+              onPress={() => {
+                if (categorySelect.current) {
+                  categorySelect.current.focus();
+                }
+              }}
             >
-              {categories.map((category) => (
-                <Select.Item
-                  key={category.id}
-                  label={category.name}
-                  value={category.id}
-                />
-              ))}
-            </Select>
+              <Select
+                ref={categorySelect}
+                selectedValue={formData.category_id}
+                placeholder="Select category"
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, category_id: value }))
+                }
+                isReadOnly={true}
+              >
+                {categories.map((category) => (
+                  <Select.Item
+                    key={category.id}
+                    label={category.name}
+                    value={category.id}
+                  />
+                ))}
+              </Select>
+            </Pressable>
             <FormControl.ErrorMessage>
               {errors.category_id}
+            </FormControl.ErrorMessage>
+          </FormControl>
+
+          {/* Supplier Selection */}
+          <FormControl isRequired isInvalid={"supplier_id" in errors}>
+            <FormControl.Label>Supplier</FormControl.Label>
+            <Pressable
+              onPress={() => {
+                if (supplierSelect.current) {
+                  supplierSelect.current.focus();
+                }
+              }}
+            >
+              <Select
+                ref={supplierSelect}
+                selectedValue={formData.supplier_id}
+                placeholder="Select supplier"
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, supplier_id: value }))
+                }
+                isReadOnly={true}
+              >
+                {suppliers.map((supplier) => (
+                  <Select.Item
+                    key={supplier.id}
+                    label={supplier.name}
+                    value={supplier.id.toString()}
+                  />
+                ))}
+              </Select>
+            </Pressable>
+            <FormControl.ErrorMessage>
+              {errors.supplier_id}
             </FormControl.ErrorMessage>
           </FormControl>
 

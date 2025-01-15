@@ -63,16 +63,16 @@ export default function Sidebar({ isOpen, onClose }) {
     { title: "Orders", icon: "receipt", route: "/(tabs)/orders" },
     { title: "Profile", icon: "account-circle", route: "/(tabs)/profile" },
     { title: "Inventory", icon: "inventory", route: "/(tabs)/staff/inventory" },
-    {
-      title: "Inventory Report",
-      icon: "assessment",
-      route: "/(tabs)/staff/inventory-report",
-    },
-    {
-      title: "Order Report",
-      icon: "insert-chart",
-      route: "/(tabs)/staff/order-report",
-    },
+    // {
+    //   title: "Inventory Report",
+    //   icon: "assessment",
+    //   route: "/(tabs)/staff/inventory-report",
+    // },
+    // {
+    //   title: "Order Report",
+    //   icon: "insert-chart",
+    //   route: "/(tabs)/staff/order-report",
+    // },
   ];
 
   const handleNavigation = (route) => {

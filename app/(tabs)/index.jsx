@@ -264,7 +264,7 @@ export default function HomeScreen() {
     {
       title: "Inventory",
       icon: "inventory",
-      route: "/(tabs)/staff/inventory",
+      route: "/(tabs)/staff/inventory-items",
       color: "orange.500",
     },
     {
@@ -273,12 +273,12 @@ export default function HomeScreen() {
       route: "/(tabs)/staff/suppliers",
       color: "pink.500",
     },
-    {
-      title: "Reports",
-      icon: "assessment",
-      route: "/(tabs)",
-      color: "blueGray.500",
-    },
+    // {
+    //   title: "Reports",
+    //   icon: "assessment",
+    //   route: "/(tabs)",
+    //   color: "blueGray.500",
+    // },
   ];
 
   return (
