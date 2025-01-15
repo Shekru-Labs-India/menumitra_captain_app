@@ -159,6 +159,28 @@ export default function StaffDetailsScreen() {
     Linking.openURL(`tel:${phoneNumber}`);
   };
 
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, "0");
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
+
   if (isLoading) {
     return (
       <Box flex={1} justifyContent="center" alignItems="center">
@@ -275,26 +297,38 @@ export default function StaffDetailsScreen() {
             <Heading size="md">Employment Details</Heading>
             <VStack space={4} bg="coolGray.50" p={4} rounded="lg">
               <VStack space={3}>
-                <HStack justifyContent="space-between">
-                  <Text color="coolGray.500">Date of Birth</Text>
-                  <Text>{new Date(staff.dob).toLocaleDateString()}</Text>
-                </HStack>
-                <HStack justifyContent="space-between">
-                  <Text color="coolGray.500">Aadhar Number</Text>
-                  <Text>{staff.aadhar_number}</Text>
-                </HStack>
+                {staff.dob && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Date of Birth</Text>
+                    <Text>{formatDate(staff.dob)}</Text>
+                  </HStack>
+                )}
+
+                {staff.aadhar_number && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Aadhar Number</Text>
+                    <Text>{staff.aadhar_number}</Text>
+                  </HStack>
+                )}
+
                 <Divider />
-                <HStack justifyContent="space-between">
-                  <Text color="coolGray.500">Created By</Text>
-                  <Text>
-                    {staff.created_by?.charAt(0).toUpperCase() +
-                      staff.created_by?.slice(1)}
-                  </Text>
-                </HStack>
-                <HStack justifyContent="space-between">
-                  <Text color="coolGray.500">Created On</Text>
-                  <Text>{new Date(staff.created_on).toLocaleDateString()}</Text>
-                </HStack>
+
+                {staff.created_by && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Created By</Text>
+                    <Text>
+                      {staff.created_by.charAt(0).toUpperCase() +
+                        staff.created_by.slice(1)}
+                    </Text>
+                  </HStack>
+                )}
+
+                {staff.created_on && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Created On</Text>
+                    <Text>{formatDate(staff.created_on)}</Text>
+                  </HStack>
+                )}
               </VStack>
             </VStack>
           </VStack>

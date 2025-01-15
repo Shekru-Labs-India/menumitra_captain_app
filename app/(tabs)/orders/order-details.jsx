@@ -246,9 +246,18 @@ export default function OrderDetailsScreen() {
 
         {/* Menu Items Card */}
         <Box mx={4} mb={4} p={4} bg="white" rounded="lg" shadow={1}>
-          <Heading size="sm" mb={4}>
-            Order Items
-          </Heading>
+          <HStack justifyContent="space-between" alignItems="center" mb={4}>
+            <Heading size="sm">
+              Order Items{" "}
+              <Text color="coolGray.600" fontSize="sm">
+                ({menuItems.length} {menuItems.length === 1 ? "item" : "items"})
+              </Text>
+            </Heading>
+            <Text color="coolGray.600" fontSize="sm">
+              Total Qty:{" "}
+              {menuItems.reduce((sum, item) => sum + Number(item.quantity), 0)}
+            </Text>
+          </HStack>
           <VStack space={4}>
             {menuItems.map((item, index) => (
               <Box
@@ -260,10 +269,12 @@ export default function OrderDetailsScreen() {
                 <HStack justifyContent="space-between" alignItems="flex-start">
                   <VStack flex={1} space={1}>
                     <Text fontSize="md" fontWeight="bold">
-                      {item.menu_name}
+                      {item.menu_name}{" "}
+                      <Text fontSize="sm" color="coolGray.600">
+                        ({item.quantity})
+                      </Text>
                     </Text>
                     <HStack space={2} alignItems="center">
-                      <Text color="coolGray.600">Qty: {item.quantity}</Text>
                       {item.offer > 0 && (
                         <Badge
                           colorScheme="red"

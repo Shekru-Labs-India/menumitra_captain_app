@@ -46,6 +46,7 @@ export default function AddStaffScreen() {
   const [outletId, setOutletId] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState({}); // Add this state for form errors
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const pickImage = async () => {
     try {
@@ -351,15 +352,35 @@ export default function AddStaffScreen() {
     return `${day} ${month} ${year}`;
   };
 
-  const handleDateChange = (event, selectedDate) => {
+  const handleDateChange = (event, date) => {
     setShowDatePicker(false);
-    if (event.type === "set" && selectedDate) {
-      const formattedDate = formatDate(selectedDate);
-      setFormData({
-        ...formData,
+    if (date) {
+      setSelectedDate(date);
+
+      // Format date as "DD Mon YYYY"
+      const day = String(date.getDate()).padStart(2, "0");
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const month = months[date.getMonth()];
+      const year = date.getFullYear();
+      const formattedDate = `${day} ${month} ${year}`;
+
+      setFormData((prev) => ({
+        ...prev,
         dob: formattedDate,
-      });
-      setErrors((prev) => ({ ...prev, dob: undefined }));
+      }));
     }
   };
 
@@ -485,11 +506,11 @@ export default function AddStaffScreen() {
 
           {showDatePicker && (
             <DateTimePicker
-              value={formData.dob ? new Date(formData.dob) : new Date()}
+              value={selectedDate}
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleDateChange}
-              maximumDate={new Date()} // Prevents future dates
+              maximumDate={new Date()}
             />
           )}
 

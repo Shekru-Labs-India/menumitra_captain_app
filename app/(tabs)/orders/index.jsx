@@ -123,7 +123,7 @@ export default function OrdersScreen() {
   const [orders, setOrders] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date");
-  const [orderStatus, setOrderStatus] = useState("cooking");
+  const [orderStatus, setOrderStatus] = useState("all");
   const [isAscending, setIsAscending] = useState(false);
   const [orderType, setOrderType] = useState("all");
 
