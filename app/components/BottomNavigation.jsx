@@ -1,9 +1,29 @@
 import React from "react";
-import { View } from "react-native";
-import { Tabs } from "expo-router";
+import { Tabs, usePathname } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 
 const BottomNavigation = () => {
+  const pathname = usePathname();
+
+  // Function to determine if a tab should be active
+  const isTabActive = (tabPath) => {
+    // For home tab
+    if (tabPath === "index" && pathname === "/(tabs)") return true;
+
+    // For staff tab and its sub-screens
+    if (tabPath === "staff") {
+      // Return false if we're on inventory or supplier related screens
+      if (pathname.includes("inventory") || pathname.includes("suppliers")) {
+        return false;
+      }
+      // Only return true for main staff screen and staff-specific screens
+      return pathname === "/(tabs)/staff";
+    }
+
+    // For other main tabs
+    return pathname === `/(tabs)/${tabPath}`;
+  };
+
   return (
     <Tabs
       screenOptions={{

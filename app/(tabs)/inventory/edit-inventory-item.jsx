@@ -316,7 +316,7 @@ export default function EditInventoryItemScreen() {
           status: "success",
         });
         router.push({
-          pathname: "/(tabs)/staff/inventory-items",
+          pathname: "/(tabs)/inventory/inventory-items",
           params: { refresh: Date.now() },
         });
       } else {

@@ -264,13 +264,13 @@ export default function HomeScreen() {
     {
       title: "Inventory",
       icon: "inventory",
-      route: "/(tabs)/staff/inventory-items",
+      route: "/(tabs)/inventory/inventory-items",
       color: "orange.500",
     },
     {
       title: "Suppliers",
       icon: "local-shipping",
-      route: "/(tabs)/staff/suppliers",
+      route: "/(tabs)/suppliers",
       color: "pink.500",
     },
     // {

@@ -19,10 +19,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Platform, StatusBar } from "react-native";
-import { SupplierContext } from "../../../../context/SupplierContext";
+import { SupplierContext } from "../../../context/SupplierContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Header from "../../../components/Header";
+import Header from "../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
