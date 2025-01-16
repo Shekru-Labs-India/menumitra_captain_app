@@ -315,7 +315,7 @@ export default function OrderDetailsScreen() {
             {/* Item Total */}
             <HStack justifyContent="space-between">
               <Text color="coolGray.600">Item Total</Text>
-              <Text>₹{orderDetails.total_bill_amount}</Text>
+              <Text>₹{Number(orderDetails.total_bill_amount).toFixed(2)}</Text>
             </HStack>
 
             {/* Discount (if applicable) */}
@@ -324,7 +324,9 @@ export default function OrderDetailsScreen() {
                 <Text color="green.600">
                   Discount ({orderDetails.discount_percent}%)
                 </Text>
-                <Text color="green.600">-₹{orderDetails.discount_amount}</Text>
+                <Text color="green.600">
+                  -₹{Number(orderDetails.discount_amount).toFixed(2)}
+                </Text>
               </HStack>
             )}
 
@@ -332,7 +334,10 @@ export default function OrderDetailsScreen() {
             <HStack justifyContent="space-between">
               <Text color="coolGray.600">Total after discount</Text>
               <Text>
-                ₹{orderDetails.total_bill_amount - orderDetails.discount_amount}
+                ₹
+                {Number(
+                  orderDetails.total_bill_amount - orderDetails.discount_amount
+                ).toFixed(2)}
               </Text>
             </HStack>
 
@@ -341,7 +346,9 @@ export default function OrderDetailsScreen() {
               <Text color="coolGray.600">
                 Service Charge ({orderDetails.service_charges_percent}%)
               </Text>
-              <Text>₹{orderDetails.service_charges_amount}</Text>
+              <Text>
+                ₹{Number(orderDetails.service_charges_amount).toFixed(2)}
+              </Text>
             </HStack>
 
             {/* GST */}
@@ -349,7 +356,7 @@ export default function OrderDetailsScreen() {
               <Text color="coolGray.600">
                 GST ({orderDetails.gst_percent}%)
               </Text>
-              <Text>₹{orderDetails.gst_amount}</Text>
+              <Text>₹{Number(orderDetails.gst_amount).toFixed(2)}</Text>
             </HStack>
 
             {/* Grand Total */}
@@ -361,7 +368,7 @@ export default function OrderDetailsScreen() {
             >
               <Text fontWeight="bold">Grand Total</Text>
               <Text fontWeight="bold" fontSize="lg">
-                ₹{orderDetails.grand_total}
+                ₹{Number(orderDetails.grand_total).toFixed(2)}
               </Text>
             </HStack>
           </VStack>
