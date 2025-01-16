@@ -11,6 +11,7 @@ import {
   ScrollView,
   StatusBar as NativeBaseStatusBar,
   useToast,
+  Button,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -29,6 +30,7 @@ export default function HomeScreen() {
     sales: 0,
     revenue: 0,
   });
+  const [deviceToken, setDeviceToken] = useState(null);
   const router = useRouter();
   const toast = useToast();
 
@@ -281,6 +283,52 @@ export default function HomeScreen() {
     // },
   ];
 
+  const checkStoredToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem("devicePushToken");
+      if (token) {
+        toast.show({
+          render: () => (
+            <Box bg="info.500" px="4" py="2" rounded="sm" mb={5}>
+              <VStack space={1}>
+                <Text color="white" fontSize="md" fontWeight="bold">
+                  Device Token
+                </Text>
+                <Text color="white" fontSize="sm" maxW="300">
+                  {token}
+                </Text>
+              </VStack>
+            </Box>
+          ),
+          placement: "top",
+          duration: 5000,
+        });
+      } else {
+        toast.show({
+          description: "No device token found",
+          status: "warning",
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching token:", error);
+    }
+  };
+
+  // Add this effect to fetch the token when component mounts
+  useEffect(() => {
+    const getToken = async () => {
+      try {
+        const token = await AsyncStorage.getItem("devicePushToken");
+        setDeviceToken(token);
+      } catch (error) {
+        console.error("Error fetching token:", error);
+      }
+    };
+
+    getToken();
+  }, []);
+
   return (
     <Box flex={1} bg="white" safeArea>
       <NativeBaseStatusBar backgroundColor="white" barStyle="dark-content" />
@@ -368,6 +416,32 @@ export default function HomeScreen() {
             </Text>
           </VStack>
         </HStack>
+
+        {/* Add this card after the sales card in your JSX */}
+        {/* <Box mx={4} my={4} bg="white" rounded="lg" shadow={2} p={4}>
+          <HStack alignItems="center" space={2} mb={2}>
+            <Icon
+              as={MaterialIcons}
+              name="vpn-key"
+              size="sm"
+              color="coolGray.600"
+            />
+            <Text fontSize="md" fontWeight="bold" color="coolGray.800">
+              Device Token
+            </Text>
+          </HStack>
+          <Box
+            bg="coolGray.50"
+            p={3}
+            rounded="md"
+            borderWidth={1}
+            borderColor="coolGray.200"
+          >
+            <Text fontSize="sm" color="coolGray.600" flexWrap="wrap">
+              {deviceToken || "No token found"}
+            </Text>
+          </Box>
+        </Box> */}
 
         {/* Management Cards */}
         <Box

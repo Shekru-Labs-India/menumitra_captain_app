@@ -1,22 +1,17 @@
 import { db } from "../config/firebase";
-import {
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  where,
-  getDocs,
-} from "@firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "@firebase/firestore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const sendNotificationToWaiter = async (orderDetails) => {
   try {
-    const waiterId = "57"; // Prassanna's waiter_id
-    const outletId = "5"; // Outlet ID
-    const waiterName = "Prassanna"; // Waiter's name
+    // Get the stored device token
+    const deviceToken = await AsyncStorage.getItem("devicePushToken");
+    if (!deviceToken) {
+      throw new Error("Device token not found");
+    }
 
-    console.log(`Sending notification to ${waiterName} (ID: ${waiterId})`);
+    console.log("Using device token:", deviceToken);
 
-    // Send through Expo with custom sound
     const response = await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: {
@@ -25,20 +20,18 @@ export const sendNotificationToWaiter = async (orderDetails) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        to: "ExponentPushToken[jGL2VvJ3tikj_B8kHhfarE]",
+        to: deviceToken,
         title: "🔔 New Order Alert",
         body: `Table ${orderDetails.tableNumber} needs attention`,
         data: {
           screen: "Orders",
           orderId: orderDetails.order_id,
-          waiterId: waiterId,
-          waiterName: waiterName,
           tableNumber: orderDetails.tableNumber,
         },
-        sound: "notification.wav", // Custom sound file
+        sound: "notification.wav",
         priority: "high",
         badge: 1,
-        channelId: "orders", // Android notification channel
+        channelId: "orders",
       }),
     });
 
@@ -51,32 +44,24 @@ export const sendNotificationToWaiter = async (orderDetails) => {
       {
         title: "🔔 New Order Alert",
         body: `Table ${orderDetails.tableNumber} needs attention`,
-        data: {
-          screen: "Orders",
-          orderId: orderDetails.order_id,
-          tableNumber: orderDetails.tableNumber,
-          outletId: outletId,
-        },
+        data: orderDetails,
         isRead: false,
         createdAt: serverTimestamp(),
-        outletId: outletId,
-        waiterId: waiterId,
-        waiterName: waiterName,
+        deviceToken: deviceToken,
         status: "sent",
       }
     );
 
     return {
       success: true,
-      message: `Notification sent to ${waiterName}`,
+      message: "Notification sent successfully",
       notificationId: notificationRef.id,
-      waiterName: waiterName,
     };
   } catch (error) {
     console.error("Error sending notification:", error);
     return {
       success: false,
-      message: `Failed to send notification to waiter`,
+      message: "Failed to send notification",
       error: error.message,
     };
   }

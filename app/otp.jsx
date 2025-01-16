@@ -17,6 +17,7 @@ import { Keyboard } from "react-native";
 import { router } from "expo-router";
 import { Linking } from "react-native";
 import { useVersion } from "../context/VersionContext";
+import { getDeviceToken } from "../services/DeviceTokenService";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -176,6 +177,9 @@ export default function OtpScreen() {
 
       if (data.st === 1) {
         try {
+          // Get and store device token
+          await getDeviceToken();
+
           // Store all required data from API response with updated keys
           await AsyncStorage.multiSet([
             ["captain_id", data.captain_id.toString()],
