@@ -1,0 +1,9 @@
+{
+    "short_name": "MenuMitra",
+    "name": "MenuMitra Captain App",
+    "start_url": ".",
+    "display": "standalone",
+    "theme_color": "#000000",
+    "background_color": "#ffffff",
+    "gcm_sender_id": "851450497367"
+  }

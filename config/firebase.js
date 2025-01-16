@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "@firebase/app";
 import { getFirestore } from "@firebase/firestore";
+import { getMessaging, getToken } from "firebase/messaging";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -23,5 +24,48 @@ if (!getApps().length) {
 // Initialize Firestore
 const db = getFirestore(app);
 
-// Export the initialized db
-export { db };
+// Get FCM Token with detailed logging
+const getFcmToken = async () => {
+  try {
+    console.log("Initializing messaging...");
+    const messaging = getMessaging(app);
+
+    console.log("Requesting notification permission...");
+    const permission = await Notification.requestPermission();
+    console.log("Permission:", permission);
+
+    if (permission === "granted") {
+      console.log("Getting token...");
+      const token = await getToken(messaging, {
+        vapidKey:
+          "BGsWfw7acs_yXMa_bcWfw-49_MQkV8MdSOrCih9OO-v9pQ7AvKA2niL1dvguaHMfObKP8tO7Bq_4aTVEwOyA8x4", // Replace with your actual VAPID key
+      });
+
+      if (token) {
+        console.log("Successfully got FCM token:", token);
+        return token;
+      } else {
+        console.log("No token received");
+      }
+    } else {
+      console.log("Notification permission denied");
+    }
+  } catch (error) {
+    console.error("Error in getFcmToken:", error);
+    throw error;
+  }
+};
+
+// Call getFcmToken immediately and handle the promise
+getFcmToken()
+  .then((token) => {
+    if (token) {
+      console.log("Token in then block:", token);
+    }
+  })
+  .catch((error) => {
+    console.error("Error in token promise:", error);
+  });
+
+// Export the initialized db and getFcmToken function
+export { db, getFcmToken };
