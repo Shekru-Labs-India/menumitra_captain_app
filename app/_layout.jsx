@@ -91,13 +91,28 @@ export default function RootLayout() {
             <ThemeProvider
               value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
             >
-              <Stack screenOptions={{ headerShown: false }}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  presentation: "containedModal",
+                }}
+              >
                 <Stack.Screen name="index" />
                 <Stack.Screen name="login" />
                 <Stack.Screen name="otp" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="inventory" />
-                <Stack.Screen name="suppliers" />
+                <Stack.Screen
+                  name="(tabs)"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="screens"
+                  options={{
+                    headerShown: false,
+                    presentation: "containedModal",
+                  }}
+                />
               </Stack>
             </ThemeProvider>
           </NativeBaseProvider>

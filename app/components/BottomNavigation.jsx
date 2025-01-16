@@ -7,17 +7,13 @@ const BottomNavigation = () => {
 
   // Function to determine if a tab should be active
   const isTabActive = (tabPath) => {
-    // For home tab
-    if (tabPath === "index" && pathname === "/(tabs)") return true;
-
-    // For staff tab and its sub-screens
-    if (tabPath === "staff") {
-      // Return false if we're on inventory or supplier related screens
-      if (pathname.includes("inventory") || pathname.includes("suppliers")) {
-        return false;
-      }
-      // Only return true for main staff screen and staff-specific screens
-      return pathname === "/(tabs)/staff";
+    // For home tab - active on home screen and inventory/suppliers screens
+    if (tabPath === "index") {
+      return (
+        pathname === "/(tabs)" ||
+        pathname.startsWith("/screens/inventory") ||
+        pathname.startsWith("/screens/suppliers")
+      );
     }
 
     // For other main tabs
@@ -38,6 +34,11 @@ const BottomNavigation = () => {
           height: 60,
           paddingBottom: 8,
           paddingTop: 8,
+          display:
+            pathname.startsWith("/screens/inventory") ||
+            pathname.startsWith("/screens/suppliers")
+              ? "flex"
+              : undefined,
         },
       }}
     >
@@ -92,6 +93,18 @@ const BottomNavigation = () => {
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="account-circle" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="inventory"
+        options={{
+          tabBarButton: () => null, // This hides the tab but keeps the screen in the navigation
+        }}
+      />
+      <Tabs.Screen
+        name="suppliers"
+        options={{
+          tabBarButton: () => null, // This hides the tab but keeps the screen in the navigation
         }}
       />
     </Tabs>

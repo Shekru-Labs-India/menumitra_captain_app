@@ -209,40 +209,46 @@ export default function ProfileScreen() {
 
   return (
     <Box flex={1} bg="white" safeArea>
-      <Box
-        bg="white"
+      <HStack
         px={4}
         py={3}
-        flexDirection="row"
-        alignItems="center"
         justifyContent="space-between"
-        safeAreaTop
-        shadow={1}
+        alignItems="center"
+        bg="white"
+        shadow={2}
       >
         <IconButton
-          icon={
-            <MaterialIcons name="arrow-back" size={24} color="coolGray.500" />
-          }
-          onPress={() => router.back()}
+          icon={<MaterialIcons name="arrow-back" size={24} color="gray" />}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)");
+            }
+          }}
+          variant="ghost"
+          _pressed={{
+            bg: "coolGray.100",
+          }}
+          borderRadius="full"
         />
-
-        <Heading
-          size="lg"
-          position="absolute"
-          left={0}
-          right={0}
-          textAlign="center"
-        >
+        <Heading size="md" flex={1} textAlign="center">
           Profile
         </Heading>
-
         <IconButton
           icon={<MaterialIcons name="logout" size={24} color="red.500" />}
-          rounded="full"
-          onPress={handleLogout}
-          _pressed={{ bg: "coolGray.100" }}
+          onPress={() => {
+            // Add your logout logic here
+            AsyncStorage.clear();
+            router.replace("/login");
+          }}
+          variant="ghost"
+          _pressed={{
+            bg: "coolGray.100",
+          }}
+          borderRadius="full"
         />
-      </Box>
+      </HStack>
       {/* Profile Header */}
       <Box px={6} pt={6} pb={8} bg="primary.500">
         <HStack space={4} alignItems="center">

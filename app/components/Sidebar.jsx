@@ -62,7 +62,11 @@ export default function Sidebar({ isOpen, onClose }) {
     { title: "Staff", icon: "people", route: "/(tabs)/staff" },
     { title: "Orders", icon: "receipt", route: "/(tabs)/orders" },
     { title: "Profile", icon: "account-circle", route: "/(tabs)/profile" },
-    { title: "Inventory", icon: "inventory", route: "/(tabs)/staff/inventory" },
+    {
+      title: "Inventory",
+      icon: "inventory",
+      route: "/screens/inventory/inventory-items",
+    },
     // {
     //   title: "Inventory Report",
     //   icon: "assessment",

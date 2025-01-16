@@ -48,11 +48,11 @@ export default function EditStaffScreen() {
     photo: "",
   });
 
-  const formatDate = (date) => {
-    if (!date) return "";
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return "";
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
 
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, "0");
     const months = [
       "Jan",
       "Feb",
@@ -67,18 +67,20 @@ export default function EditStaffScreen() {
       "Nov",
       "Dec",
     ];
-
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = months[d.getMonth()];
-    const year = d.getFullYear();
-
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
     return `${day} ${month} ${year}`;
   };
 
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
-    if (event.type === "set" && selectedDate) {
-      setFormData({ ...formData, dob: formatDate(selectedDate) });
+    if (selectedDate) {
+      const formattedDate = formatDate(selectedDate);
+      setFormData({
+        ...formData,
+        dob: formattedDate,
+        dobForApi: selectedDate.toISOString().split("T")[0],
+      });
     }
   };
 
@@ -150,12 +152,13 @@ export default function EditStaffScreen() {
         console.log("Staff Details Response:", data);
 
         if (data.st === 1 && data.data) {
+          const formattedDate = formatDate(data.data.dob);
           setFormData({
             name: data.data.name || "",
             role: data.data.role || "",
             mobile: data.data.mobile?.toString() || "",
             address: data.data.address || "",
-            dob: data.data.dob || "",
+            dob: formattedDate,
             aadhar_number: data.data.aadhar_number?.toString() || "",
             photo: data.data.photo || "",
           });
