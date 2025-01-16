@@ -114,6 +114,7 @@ export default function CreateOrderScreen() {
   const [orderId, setOrderId] = useState(null);
   const [orderNumber, setOrderNumber] = useState("");
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
+  const [isLoadingRefresh, setIsLoadingRefresh] = useState(false);
 
   // Add these new states for better state management
   const [currentTableNumber, setCurrentTableNumber] = useState(
@@ -433,9 +434,21 @@ export default function CreateOrderScreen() {
         throw new Error("Required data not found");
       }
 
-      // Handle special orders differently
-      if (params?.isSpecialOrder) {
-        // Existing special order logic remains unchanged
+      // For existing orders, show message and navigate to orders screen
+      if (params?.orderId) {
+        toast.show({
+          description: "Please settle this order from the order details screen",
+          status: "info",
+          duration: 3000,
+          placement: "top",
+        });
+
+        router.replace({
+          pathname: "/(tabs)/orders",
+          params: {
+            refresh: Date.now().toString(),
+          },
+        });
         return;
       }
 
@@ -447,10 +460,50 @@ export default function CreateOrderScreen() {
         half_or_full: (item.portionSize || "full").toLowerCase(),
       }));
 
-      // For new orders
-      if (!params?.orderId) {
+      // Handle special orders (counter, parcel, drive-through)
+      if (params?.isSpecialOrder) {
+        setLoadingMessage("Creating special order...");
+        const createPayload = {
+          user_id: storedUserId.toString(),
+          outlet_id: storedOutletId.toString(),
+          order_type: params.orderType.toLowerCase(),
+          order_items: orderItems,
+        };
+
+        // Create the order
+        const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(createPayload),
+        });
+
+        const createResult = await createResponse.json();
+        if (createResult.st !== 1) {
+          throw new Error(createResult.msg || "Failed to create order");
+        }
+
+        // Immediately mark as paid
+        setLoadingMessage("Marking order as paid...");
+        const paidResponse = await fetch(
+          `${API_BASE_URL}/captain_manage/update_order_status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              outlet_id: storedOutletId.toString(),
+              order_id: createResult.order_id.toString(),
+              order_status: "paid",
+            }),
+          }
+        );
+
+        const paidResult = await paidResponse.json();
+        if (paidResult.st !== 1) {
+          throw new Error(paidResult.msg || "Failed to mark as paid");
+        }
+      } else {
+        // Handle regular table orders
         setLoadingMessage("Creating new order...");
-        // First create the order
         const createPayload = {
           user_id: storedUserId.toString(),
           outlet_id: storedOutletId.toString(),
@@ -471,7 +524,7 @@ export default function CreateOrderScreen() {
           throw new Error(createResult.msg || "Failed to create order");
         }
 
-        // Then mark as paid using update status API
+        // Mark as paid
         setLoadingMessage("Marking order as paid...");
         const paidResponse = await fetch(
           `${API_BASE_URL}/captain_manage/update_order_status`,
@@ -481,27 +534,6 @@ export default function CreateOrderScreen() {
             body: JSON.stringify({
               outlet_id: storedOutletId.toString(),
               order_id: createResult.order_id.toString(),
-              order_status: "paid",
-            }),
-          }
-        );
-
-        const paidResult = await paidResponse.json();
-        if (paidResult.st !== 1) {
-          throw new Error(paidResult.msg || "Failed to mark as paid");
-        }
-      }
-      // For existing orders
-      else {
-        setLoadingMessage("Marking order as paid...");
-        const paidResponse = await fetch(
-          `${API_BASE_URL}/captain_manage/update_order_status`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              outlet_id: storedOutletId.toString(),
-              order_id: params.orderId.toString(),
               order_status: "paid",
             }),
           }
@@ -522,9 +554,7 @@ export default function CreateOrderScreen() {
       setDiscountAmount(0);
 
       toast.show({
-        description: params?.orderId
-          ? "Order settled successfully"
-          : "Order created and settled successfully",
+        description: "Order created and settled successfully",
         status: "success",
         duration: 2000,
       });
@@ -1014,31 +1044,73 @@ export default function CreateOrderScreen() {
   }, [params.isSpecialOrder]);
 
   const OrderBadge = () => (
-    <Badge colorScheme="blue" rounded="lg" px={3} py={1}>
-      <HStack space={2} alignItems="center">
-        <Text fontSize="md" fontWeight="600" color="blue.800">
-          {params?.isSpecialOrder
+    <Box
+      position="absolute"
+      right={4}
+      borderWidth={1}
+      borderStyle="dashed"
+      borderColor={
+        params?.isSpecialOrder
+          ? params.orderType === "parcel"
+            ? "amber.500"
+            : params.orderType === "drive-through"
+            ? "purple.500"
+            : "indigo.500"
+          : params?.isOccupied === "1"
+          ? "red.500"
+          : "green.500"
+      }
+      rounded="lg"
+      overflow="hidden"
+    >
+      <Badge
+        bg={
+          params?.isSpecialOrder
             ? params.orderType === "parcel"
-              ? "Parcel"
+              ? "amber.100"
               : params.orderType === "drive-through"
-              ? "Drive Through"
-              : "Counter"
-            : params.tableNumber
-            ? `T${params.tableNumber}`
-            : ""}
-        </Text>
-        {!params?.isSpecialOrder && params.sectionName && (
-          <HStack space={1} alignItems="center">
-            <Text fontSize="md" fontWeight="600" color="blue.800">
-              •
+              ? "purple.100"
+              : "indigo.100"
+            : params?.isOccupied === "1"
+            ? "red.100"
+            : "green.100"
+        }
+        rounded="lg"
+        px={3}
+        py={1}
+      >
+        <VStack alignItems="center">
+          {params?.isSpecialOrder ? (
+            <Text
+              color={
+                params.orderType === "parcel"
+                  ? "amber.800"
+                  : params.orderType === "drive-through"
+                  ? "purple.800"
+                  : "indigo.800"
+              }
+              fontSize="sm"
+              fontWeight="medium"
+              numberOfLines={1}
+            >
+              {params.orderType === "drive-through"
+                ? "Drive Through"
+                : params.orderType.charAt(0).toUpperCase() +
+                  params.orderType.slice(1)}
             </Text>
-            <Text fontSize="md" fontWeight="600" color="blue.800">
-              {params.sectionName}
+          ) : (
+            <Text
+              color={params?.isOccupied === "1" ? "red.800" : "green.800"}
+              fontSize="sm"
+              fontWeight="bold"
+              numberOfLines={1}
+            >
+              {params.sectionName} - {params.tableNumber}
             </Text>
-          </HStack>
-        )}
-      </HStack>
-    </Badge>
+          )}
+        </VStack>
+      </Badge>
+    </Box>
   );
 
   const calculateTotalDiscountPercentage = (items) => {
@@ -1257,18 +1329,43 @@ export default function CreateOrderScreen() {
                 <>
                   <Box>
                     <HStack justifyContent="space-between" alignItems="center">
-                      <Box py={1}>
+                      <HStack space={2} alignItems="center">
+                        {params?.isOccupied === "1" && params?.orderNumber && (
+                          <IconButton
+                            icon={
+                              <MaterialIcons
+                                name="refresh"
+                                size={20}
+                                color="gray"
+                              />
+                            }
+                            size="sm"
+                            variant="ghost"
+                            _pressed={{ bg: "coolGray.100" }}
+                            onPress={async () => {
+                              try {
+                                setIsProcessing(true);
+                                setLoadingMessage(
+                                  "Refreshing order details..."
+                                );
+                                await fetchOrderDetails(params.orderNumber);
+                              } catch (error) {
+                                console.error("Error refreshing order:", error);
+                              } finally {
+                                setIsProcessing(false);
+                                setLoadingMessage("");
+                              }
+                            }}
+                          />
+                        )}
                         <Text fontSize="sm" color="gray.500">
                           {selectedItems.length}{" "}
                           {selectedItems.length === 1 ? "Item" : "Items"}
                         </Text>
-                      </Box>
+                      </HStack>
                       <Button
                         variant="ghost"
                         _text={{ color: "gray.500" }}
-                        leftIcon={
-                          <MaterialIcons name="close" size={16} color="gray" />
-                        }
                         onPress={() => {
                           setSelectedItems([]);
                           setSearchQuery("");
@@ -1505,7 +1602,6 @@ export default function CreateOrderScreen() {
                     bg="gray.400"
                     rounded="lg"
                     onPress={handleHold}
-                    isDisabled={loading}
                     _pressed={{ bg: "gray.600" }}
                   >
                     Save
@@ -1518,7 +1614,6 @@ export default function CreateOrderScreen() {
                       <MaterialIcons name="receipt" size={20} color="white" />
                     }
                     onPress={handleKOT}
-                    isDisabled={loading}
                     _text={{ color: "white" }}
                   >
                     KOT
@@ -1530,10 +1625,9 @@ export default function CreateOrderScreen() {
                       <MaterialIcons name="payment" size={20} color="white" />
                     }
                     onPress={handleSettle}
-                    isDisabled={isProcessing}
                     _pressed={{ bg: "blue.600" }}
                   >
-                    {isProcessing ? "Processing..." : "Settle"}
+                    Settle
                   </Button>
                 </HStack>
               </Box>

@@ -440,6 +440,7 @@ export default function AddStaffScreen() {
             <Select
               selectedValue={formData.role}
               onValueChange={(value) => {
+                console.log("Selected role:", value); // Debug log
                 setFormData({ ...formData, role: value });
                 setErrors((prev) => ({ ...prev, role: undefined }));
               }}
@@ -449,14 +450,21 @@ export default function AddStaffScreen() {
                 bg: "cyan.600",
                 endIcon: <CheckIcon size="5" color="white" />,
               }}
+              borderColor={formData.role ? "green.500" : "coolGray.200"}
+              _focus={{
+                borderColor: formData.role ? "green.500" : "blue.500",
+              }}
             >
-              {roles.map((role) => (
-                <Select.Item
-                  key={role}
-                  label={role.charAt(0).toUpperCase() + role.slice(1)}
-                  value={role}
-                />
-              ))}
+              {roles.map((role) => {
+                console.log("Rendering role option:", role); // Debug log
+                return (
+                  <Select.Item
+                    key={role}
+                    label={role.charAt(0).toUpperCase() + role.slice(1)}
+                    value={role.toLowerCase()} // Ensure value is lowercase
+                  />
+                );
+              })}
             </Select>
             <FormControl.ErrorMessage>{errors.role}</FormControl.ErrorMessage>
           </FormControl>
