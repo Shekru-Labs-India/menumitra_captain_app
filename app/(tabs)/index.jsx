@@ -183,47 +183,47 @@ export default function HomeScreen() {
       });
 
       // Immediately show toast after notification is sent
-      if (result.success) {
-        toast.show({
-          render: () => (
-            <Box bg="emerald.500" px="4" py="2" rounded="sm" mb={5}>
-              <HStack space={2} alignItems="center">
-                <Icon
-                  as={MaterialIcons}
-                  name="notifications-active"
-                  color="white"
-                  size="sm"
-                />
-                <VStack>
-                  <Text color="white" fontSize="md" fontWeight="bold">
-                    Notification Sent Successfully
-                  </Text>
-                  <Text color="white" fontSize="sm">
-                    Sent to Prassanna
-                  </Text>
-                </VStack>
-              </HStack>
-            </Box>
-          ),
-          placement: "top",
-          duration: 3000,
-        });
-      } else {
-        toast.show({
-          render: () => (
-            <Box bg="red.500" px="4" py="2" rounded="sm" mb={5}>
-              <HStack space={2} alignItems="center">
-                <Icon as={MaterialIcons} name="error" color="white" size="sm" />
-                <Text color="white" fontSize="md">
-                  Failed to send notification
-                </Text>
-              </HStack>
-            </Box>
-          ),
-          placement: "top",
-          duration: 3000,
-        });
-      }
+      // if (result.success) {
+      //   toast.show({
+      //     render: () => (
+      //       <Box bg="emerald.500" px="4" py="2" rounded="sm" mb={5}>
+      //         <HStack space={2} alignItems="center">
+      //           <Icon
+      //             as={MaterialIcons}
+      //             name="notifications-active"
+      //             color="white"
+      //             size="sm"
+      //           />
+      //           <VStack>
+      //             <Text color="white" fontSize="md" fontWeight="bold">
+      //               Notification Sent Successfully
+      //             </Text>
+      //             <Text color="white" fontSize="sm">
+      //               Sent to Prassanna
+      //             </Text>
+      //           </VStack>
+      //         </HStack>
+      //       </Box>
+      //     ),
+      //     placement: "top",
+      //     duration: 3000,
+      //   });
+      // } else {
+      //   toast.show({
+      //     render: () => (
+      //       <Box bg="red.500" px="4" py="2" rounded="sm" mb={5}>
+      //         <HStack space={2} alignItems="center">
+      //           <Icon as={MaterialIcons} name="error" color="white" size="sm" />
+      //           <Text color="white" fontSize="md">
+      //             Failed to send notification
+      //           </Text>
+      //         </HStack>
+      //       </Box>
+      //     ),
+      //     placement: "top",
+      //     duration: 3000,
+      //   });
+      // }
     } catch (error) {
       console.error("Error:", error);
       toast.show({

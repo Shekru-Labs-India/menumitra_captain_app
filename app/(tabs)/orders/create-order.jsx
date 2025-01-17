@@ -135,8 +135,8 @@ export default function CreateOrderScreen() {
   const [userData, setUserData] = useState(null);
 
   // Add to your component's state
-  const [gstPercentage, setGstPercentage] = useState(0);
   const [serviceChargePercentage, setServiceChargePercentage] = useState(0);
+  const [gstPercentage, setGstPercentage] = useState(0);
 
   // Update the useEffect for session handling
 
@@ -932,23 +932,26 @@ export default function CreateOrderScreen() {
     }, [params?.orderNumber, params?.isOccupied]) // Dependencies
   );
 
-  // Add to your useEffect
+  // Add useEffect to fetch percentages from AsyncStorage
   useEffect(() => {
-    const loadTaxConfig = async () => {
+    const fetchPercentages = async () => {
       try {
         const [gst, serviceCharge] = await AsyncStorage.multiGet([
-          "gst_percentage",
-          "service_charge_percentage",
+          'gst_percentage',
+          'service_charge_percentage'
         ]);
+        
         setGstPercentage(parseFloat(gst[1]) || 0);
         setServiceChargePercentage(parseFloat(serviceCharge[1]) || 0);
+        
+        console.log('Loaded from storage - GST:', gst[1], 'Service:', serviceCharge[1]);
       } catch (error) {
-        console.error("Error loading tax configuration:", error);
+        console.error('Error fetching percentages from storage:', error);
       }
     };
 
-    loadTaxConfig();
-  }, []);
+    fetchPercentages();
+  }, []); // Run once when component mounts
 
   const handleAddItem = (item, selectedPortion) => {
     const newItem = {
