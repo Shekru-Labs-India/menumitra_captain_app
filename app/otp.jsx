@@ -18,6 +18,7 @@ import { router } from "expo-router";
 import { Linking } from "react-native";
 import { useVersion } from "../context/VersionContext";
 import { getDeviceToken } from "../services/DeviceTokenService";
+import { v4 as uuidv4 } from "uuid";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -160,7 +161,10 @@ export default function OtpScreen() {
     }
 
     try {
+      // Generate a new unique token for this login session
+      const newDeviceToken = uuidv4();
       const enteredOtp = otp.join("");
+
       const response = await fetch(`${API_BASE_URL}/captain_verify_otp`, {
         method: "POST",
         headers: {
@@ -169,6 +173,7 @@ export default function OtpScreen() {
         body: JSON.stringify({
           mobile: mobileNumber,
           otp: enteredOtp,
+          fcm_token: newDeviceToken, // Send the new unique token
         }),
       });
 
@@ -177,8 +182,8 @@ export default function OtpScreen() {
 
       if (data.st === 1) {
         try {
-          // Get and store device token
-          await getDeviceToken();
+          // Store the new device token
+          await AsyncStorage.setItem("deviceToken", newDeviceToken);
 
           // Store all required data from API response with updated keys
           await AsyncStorage.multiSet([

@@ -28,7 +28,13 @@
       "permissions": [
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "notification": {
+        "icon": "./assets/images/icon.png",
+        "color": "#ffffff",
+        "androidMode": "default",
+        "androidCollapsedTitle": "MenuMitra"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -61,11 +67,15 @@
       [
         "expo-notifications",
         {
-          
+          "icon": "./assets/images/icon.png",
           "color": "#ffffff",
-          
+          "sounds": ["./assets/sounds/notification.wav"],
           "androidMode": "default",
           "androidCollapsedTitle": "MenuMitra",
+          "androidImportance": "high",
+          "androidShowBadge": true,
+          "androidChannelId": "default",
+          "androidBadgeIconType": "large",
           "iosDisplayInForeground": true
         }
       ]
