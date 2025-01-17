@@ -1,14 +1,35 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
+
+// Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
+export const setupNotifications = async () => {
+  if (!Device.isDevice) {
+    console.log("Must use physical device for Push Notifications");
+    return null;
+  }
+
+  // Configure notification settings
+  await Notifications.setNotificationChannelAsync("orders", {
+    name: "Orders",
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: "#FF231F7C",
+    sound: "notification.wav",
+  });
+};
 
 export const getDeviceToken = async () => {
   try {
-    if (!Device.isDevice) {
-      console.log("Must use physical device for Push Notifications");
-      return null;
-    }
-
     const { status: existingStatus } =
       await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
@@ -23,6 +44,9 @@ export const getDeviceToken = async () => {
       return null;
     }
 
+    // Ensure notifications are properly setup
+    await setupNotifications();
+
     const token = await Notifications.getExpoPushTokenAsync({
       projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a",
     });
@@ -36,4 +60,15 @@ export const getDeviceToken = async () => {
     console.error("Error getting push token:", error);
     return null;
   }
+};
+
+export const addNotificationListener = (callback) => {
+  const subscription = Notifications.addNotificationReceivedListener(callback);
+  return subscription;
+};
+
+export const addNotificationResponseListener = (callback) => {
+  const subscription =
+    Notifications.addNotificationResponseReceivedListener(callback);
+  return subscription;
 };

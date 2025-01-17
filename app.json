@@ -62,8 +62,11 @@
         "expo-notifications",
         {
           
-          "color": "#ffffff"
+          "color": "#ffffff",
           
+          "androidMode": "default",
+          "androidCollapsedTitle": "MenuMitra",
+          "iosDisplayInForeground": true
         }
       ]
     ],

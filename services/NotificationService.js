@@ -4,13 +4,27 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const sendNotificationToWaiter = async (orderDetails) => {
   try {
-    // Get the stored device token
     const deviceToken = await AsyncStorage.getItem("devicePushToken");
     if (!deviceToken) {
       throw new Error("Device token not found");
     }
 
-    console.log("Using device token:", deviceToken);
+    console.log("Sending notification to token:", deviceToken);
+
+    const notificationData = {
+      to: deviceToken,
+      title: "🔔 New Order Alert",
+      body: `Table ${orderDetails.tableNumber} needs attention`,
+      data: {
+        screen: "Orders",
+        orderId: orderDetails.order_id,
+        tableNumber: orderDetails.tableNumber,
+      },
+      sound: "notification.wav",
+      priority: "high",
+      badge: 1,
+      channelId: "orders",
+    };
 
     const response = await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
@@ -19,20 +33,7 @@ export const sendNotificationToWaiter = async (orderDetails) => {
         "Accept-encoding": "gzip, deflate",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        to: deviceToken,
-        title: "🔔 New Order Alert",
-        body: `Table ${orderDetails.tableNumber} needs attention`,
-        data: {
-          screen: "Orders",
-          orderId: orderDetails.order_id,
-          tableNumber: orderDetails.tableNumber,
-        },
-        sound: "notification.wav",
-        priority: "high",
-        badge: 1,
-        channelId: "orders",
-      }),
+      body: JSON.stringify(notificationData),
     });
 
     const pushResult = await response.json();
@@ -42,13 +43,11 @@ export const sendNotificationToWaiter = async (orderDetails) => {
     const notificationRef = await addDoc(
       collection(db, "waiter_notifications"),
       {
-        title: "🔔 New Order Alert",
-        body: `Table ${orderDetails.tableNumber} needs attention`,
-        data: orderDetails,
+        ...notificationData,
         isRead: false,
         createdAt: serverTimestamp(),
         deviceToken: deviceToken,
-        status: "sent",
+        status: pushResult.data ? "sent" : "failed",
       }
     );
 

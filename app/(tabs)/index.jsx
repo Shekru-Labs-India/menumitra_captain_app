@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Platform, StatusBar, Linking } from "react-native";
+import { Platform, StatusBar, Linking, Alert, Clipboard } from "react-native";
 import {
   Box,
   HStack,
@@ -19,6 +19,11 @@ import Sidebar from "../components/Sidebar";
 import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { sendNotificationToWaiter } from "../../services/NotificationService";
+import {
+  setupNotifications,
+  addNotificationListener,
+  addNotificationResponseListener,
+} from "../../services/DeviceTokenService";
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -327,6 +332,55 @@ export default function HomeScreen() {
     };
 
     getToken();
+  }, []);
+
+  // Add this effect to setup notifications and listeners
+  useEffect(() => {
+    // Setup notifications
+    setupNotifications();
+
+    // Add notification listeners
+    const notificationListener = addNotificationListener((notification) => {
+      console.log("Received notification:", notification);
+      playSound(); // Play sound when notification is received
+    });
+
+    const responseListener = addNotificationResponseListener((response) => {
+      console.log("Notification response:", response);
+      // Handle notification tap
+      if (response.notification.request.content.data.screen) {
+        router.push(response.notification.request.content.data.screen);
+      }
+    });
+
+    // Cleanup
+    return () => {
+      notificationListener.remove();
+      responseListener.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    const showToken = async () => {
+      try {
+        const token = await AsyncStorage.getItem("devicePushToken");
+        console.log("Expo Push Token:", token);
+        Alert.alert("Expo Push Token", token || "No token found", [
+          {
+            text: "Copy",
+            onPress: () => {
+              Clipboard.setString(token);
+              Alert.alert("Copied to clipboard!");
+            },
+          },
+          { text: "OK" },
+        ]);
+      } catch (error) {
+        console.error("Error getting token:", error);
+      }
+    };
+
+    showToken();
   }, []);
 
   return (
