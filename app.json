@@ -28,33 +28,9 @@
       "permissions": [
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.RECORD_AUDIO"
-      ],
-      "notification": {
-        "icon": "./assets/images/icon.png",
-        "color": "#ffffff",
-        "androidMode": "default",
-        "androidCollapsedTitle": "MenuMitra"
-      }
+      ]
+     
     },
-    "web": {
-      "bundler": "metro",
-      "favicon": "./assets/images/favicon.png",
-      "firebase": {
-        "apiKey": "AIzaSyCoPZ3_Ktah8UBBSgh0_OXL5SQwUtL6Wok",
-        "authDomain": "menumitra-83831.firebaseapp.com",
-        "projectId": "menumitra-83831",
-        "storageBucket": "menumitra-83831.appspot.com",
-        "messagingSenderId": "851450497367",
-        "appId": "1:851450497367:web:e2347945f3decce56a9612",
-        "measurementId": "G-Q6V5R4EDYT"
-      }
-    },
-    "fontFamily": [
-      {
-        "asset": "./assets/fonts/boxicons.ttf",
-        "family": "boxicons"
-      }
-    ],
     "plugins": [
       "expo-router",
       [
@@ -68,61 +44,19 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#ffffff",
-          "sounds": ["./assets/sounds/notification.wav"],
+          "color": "#FFFFFF",
+          
           "androidMode": "default",
-          "androidCollapsedTitle": "MenuMitra",
-          "androidImportance": "high",
-          "androidShowBadge": true,
-          "androidChannelId": "default",
-          "androidBadgeIconType": "large",
-          "iosDisplayInForeground": true
+          "androidCollapsedTitle": "MenuMitra"
         }
       ]
     ],
-    "experiments": {
-      "tsconfigPaths": true
-    },
     "extra": {
       "router": {
         "origin": false
       },
       "eas": {
         "projectId": "c58bd2bc-2b46-4518-a238-6e981d88470a"
-      }
-    },
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
-    "owner": "menumitra",
-    "sdkVersion": "52.0.0"
-  },
-  "cli": {
-    "version": ">= 5.9.1"
-  },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      }
-    },
-    "production": {
-      "android": {
-        "buildType": "app-bundle",
-        "credentialsSource": "local",
-        "keystore": {
-          "keystorePath": "./android/app/credentials/upload-key.keystore",
-          "keystorePassword": "menumitra123",
-          "keyAlias": "upload-key",
-          "keyPassword": "menumitra123"
-        }
       }
     }
   }

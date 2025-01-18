@@ -163,6 +163,7 @@ export default function OtpScreen() {
     try {
       // Generate a new unique token for this login session
       const newDeviceToken = uuidv4();
+      await AsyncStorage.setItem("devicePushToken", newDeviceToken);
       const enteredOtp = otp.join("");
 
       const response = await fetch(`${API_BASE_URL}/captain_verify_otp`, {
@@ -173,7 +174,7 @@ export default function OtpScreen() {
         body: JSON.stringify({
           mobile: mobileNumber,
           otp: enteredOtp,
-          fcm_token: newDeviceToken, // Send the new unique token
+          // fcm_token: newDeviceToken,
         }),
       });
 

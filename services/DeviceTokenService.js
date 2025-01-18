@@ -18,13 +18,12 @@ export const setupNotifications = async () => {
     return null;
   }
 
-  // Configure notification settings
+  // Configure notification settings without sound
   await Notifications.setNotificationChannelAsync("orders", {
     name: "Orders",
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: "#FF231F7C",
-    sound: "notification.wav",
   });
 };
 
