@@ -20,9 +20,7 @@ export const sendNotificationToWaiter = async (orderDetails) => {
         orderId: orderDetails.order_id,
         tableNumber: orderDetails.tableNumber,
       },
-      sound: "notification.wav",
       priority: "high",
-      badge: 1,
       channelId: "orders",
     };
 
@@ -47,13 +45,16 @@ export const sendNotificationToWaiter = async (orderDetails) => {
         isRead: false,
         createdAt: serverTimestamp(),
         deviceToken: deviceToken,
-        status: pushResult.data ? "sent" : "failed",
+        status: pushResult.data?.status === "ok" ? "sent" : "failed",
       }
     );
 
     return {
-      success: true,
-      message: "Notification sent successfully",
+      success: pushResult.data?.status === "ok",
+      message:
+        pushResult.data?.status === "ok"
+          ? "Notification sent successfully"
+          : "Failed to send notification",
       notificationId: notificationRef.id,
     };
   } catch (error) {

@@ -18,7 +18,7 @@ import { router } from "expo-router";
 import { Linking } from "react-native";
 import { useVersion } from "../context/VersionContext";
 import { getDeviceToken } from "../services/DeviceTokenService";
-import { v4 as uuidv4 } from "uuid";
+import uuid from "react-native-uuid";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -161,9 +161,13 @@ export default function OtpScreen() {
     }
 
     try {
-      // Generate a new unique token for this login session
-      const newDeviceToken = uuidv4();
-      await AsyncStorage.setItem("devicePushToken", newDeviceToken);
+      // Replace UUID generation with Expo Push Token
+      const deviceToken = await getDeviceToken();
+      if (!deviceToken) {
+        console.warn("Failed to get push token");
+        // Continue with login but without push capabilities
+      }
+
       const enteredOtp = otp.join("");
 
       const response = await fetch(`${API_BASE_URL}/captain_verify_otp`, {
@@ -183,8 +187,9 @@ export default function OtpScreen() {
 
       if (data.st === 1) {
         try {
-          // Store the new device token
-          await AsyncStorage.setItem("deviceToken", newDeviceToken);
+          // Store the device token
+          await AsyncStorage.setItem("devicePushToken", deviceToken.toString());
+          console.log("Token stored in AsyncStorage:", deviceToken);
 
           // Store all required data from API response with updated keys
           await AsyncStorage.multiSet([

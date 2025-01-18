@@ -364,19 +364,28 @@ export default function HomeScreen() {
     const showToken = async () => {
       try {
         const token = await AsyncStorage.getItem("devicePushToken");
-        console.log("Expo Push Token:", token);
-        Alert.alert("Expo Push Token", token || "No token found", [
-          {
-            text: "Copy",
-            onPress: () => {
-              Clipboard.setString(token);
-              Alert.alert("Copied to clipboard!");
+        console.log("Retrieved token from storage:", token);
+
+        if (token) {
+          Alert.alert("Device Token", token, [
+            {
+              text: "Copy Token",
+              onPress: () => {
+                Clipboard.setString(token);
+                toast.show({
+                  description: "Token copied to clipboard!",
+                  status: "success",
+                  duration: 2000,
+                });
+              },
             },
-          },
-          { text: "OK" },
-        ]);
+            { text: "Close" },
+          ]);
+        } else {
+          console.log("No token found in AsyncStorage");
+        }
       } catch (error) {
-        console.error("Error getting token:", error);
+        console.error("Error retrieving token:", error);
       }
     };
 
