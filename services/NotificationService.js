@@ -4,21 +4,26 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const sendNotificationToWaiter = async (orderDetails) => {
   try {
-    const deviceToken = await AsyncStorage.getItem("devicePushToken");
-    if (!deviceToken) {
-      throw new Error("Device token not found");
+    const { pushToken, uniqueToken } = orderDetails;
+
+    if (!pushToken || !uniqueToken) {
+      throw new Error("Both push token and unique token are required");
     }
 
-    console.log("Sending notification to token:", deviceToken);
+    console.log("Sending notification with tokens:", {
+      pushToken,
+      uniqueToken,
+    });
 
     const notificationData = {
-      to: deviceToken,
+      to: pushToken,
       title: "🔔 New Order Alert",
       body: `Table ${orderDetails.tableNumber} needs attention`,
       data: {
         screen: "Orders",
         orderId: orderDetails.order_id,
         tableNumber: orderDetails.tableNumber,
+        deviceIdentifier: uniqueToken,
       },
       priority: "high",
       channelId: "orders",
@@ -44,7 +49,8 @@ export const sendNotificationToWaiter = async (orderDetails) => {
         ...notificationData,
         isRead: false,
         createdAt: serverTimestamp(),
-        deviceToken: deviceToken,
+        pushToken,
+        uniqueToken,
         status: pushResult.data?.status === "ok" ? "sent" : "failed",
       }
     );
@@ -58,11 +64,10 @@ export const sendNotificationToWaiter = async (orderDetails) => {
       notificationId: notificationRef.id,
     };
   } catch (error) {
-    console.error("Error sending notification:", error);
+    console.error("Error in sendNotificationToWaiter:", error);
     return {
       success: false,
-      message: "Failed to send notification",
-      error: error.message,
+      message: error.message || "Failed to send notification",
     };
   }
 };

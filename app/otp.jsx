@@ -18,7 +18,6 @@ import { router } from "expo-router";
 import { Linking } from "react-native";
 import { useVersion } from "../context/VersionContext";
 import { getDeviceToken } from "../services/DeviceTokenService";
-import uuid from "react-native-uuid";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -161,12 +160,12 @@ export default function OtpScreen() {
     }
 
     try {
-      // Replace UUID generation with Expo Push Token
-      const deviceToken = await getDeviceToken();
-      if (!deviceToken) {
-        console.warn("Failed to get push token");
-        // Continue with login but without push capabilities
-      }
+      // Get both tokens
+      const tokens = await getDeviceToken(true);
+
+      // Ensure we always have a uniqueToken
+      const uniqueToken = tokens?.uniqueToken || `fallback-${Date.now()}`;
+      const pushToken = tokens?.pushToken || "";
 
       const enteredOtp = otp.join("");
 
@@ -178,7 +177,7 @@ export default function OtpScreen() {
         body: JSON.stringify({
           mobile: mobileNumber,
           otp: enteredOtp,
-          // fcm_token: newDeviceToken,
+          // device_token: uniqueToken,
         }),
       });
 
@@ -187,9 +186,16 @@ export default function OtpScreen() {
 
       if (data.st === 1) {
         try {
-          // Store the device token
-          await AsyncStorage.setItem("devicePushToken", deviceToken.toString());
-          console.log("Token stored in AsyncStorage:", deviceToken);
+          // Store tokens with guaranteed values
+          await AsyncStorage.multiSet([
+            ["deviceUniqueToken", uniqueToken],
+            ["devicePushToken", pushToken],
+          ]);
+
+          console.log("New tokens stored:", {
+            uniqueToken,
+            pushToken,
+          });
 
           // Store all required data from API response with updated keys
           await AsyncStorage.multiSet([
@@ -216,15 +222,6 @@ export default function OtpScreen() {
             JSON.stringify(sessionData)
           );
 
-          // Log stored data for verification
-          console.log("Stored Data:", {
-            captain_id: data.captain_id,
-            outlet_id: data.outlet_id,
-            user_id: data.user_id,
-            captain_name: data.captain_name,
-            role: data.role,
-          });
-
           router.replace("/(tabs)");
         } catch (error) {
           console.error("Error saving data:", error);
@@ -242,16 +239,6 @@ export default function OtpScreen() {
       otpInputs.current[0].focus();
     }
   };
-
-  //       console.error("Required data missing. Please login again.");
-  //       // Optionally clear storage and redirect to login
-  //       await AsyncStorage.clear();
-  //       router.replace("/");
-  //     }
-  //   };
-
-  //   checkData();
-  // }, []);
 
   return (
     <Box flex={1} bg="white" safeArea>

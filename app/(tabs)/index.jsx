@@ -36,6 +36,7 @@ export default function HomeScreen() {
     revenue: 0,
   });
   const [deviceToken, setDeviceToken] = useState(null);
+  const [pushToken, setPushToken] = useState(null);
   const router = useRouter();
   const toast = useToast();
 
@@ -173,66 +174,92 @@ export default function HomeScreen() {
     }
   };
 
+  // Update useEffect to load both tokens
+  useEffect(() => {
+    const loadTokens = async () => {
+      try {
+        const [uniqueToken, expoPushToken] = await Promise.all([
+          AsyncStorage.getItem("deviceUniqueToken"),
+          AsyncStorage.getItem("devicePushToken"),
+        ]);
+
+        console.log("Loaded tokens:", {
+          uniqueToken,
+          expoPushToken,
+        });
+
+        if (uniqueToken) setDeviceToken(uniqueToken);
+        if (expoPushToken) setPushToken(expoPushToken);
+
+        if (!uniqueToken || !expoPushToken) {
+          console.warn("One or more tokens missing:", {
+            uniqueToken,
+            expoPushToken,
+          });
+        }
+      } catch (error) {
+        console.error("Error loading tokens:", error);
+      }
+    };
+
+    loadTokens();
+  }, []);
+
   const handleNotification = async () => {
     try {
+      if (!deviceToken || !pushToken) {
+        throw new Error("Required tokens not available");
+      }
+
       const result = await sendNotificationToWaiter({
         order_number: Date.now().toString(),
         order_id: Date.now().toString(),
         tableNumber: "1",
         outletId: "5",
+        uniqueToken: deviceToken,
+        pushToken: pushToken, // Pass both tokens
       });
 
-      // Immediately show toast after notification is sent
-      // if (result.success) {
-      //   toast.show({
-      //     render: () => (
-      //       <Box bg="emerald.500" px="4" py="2" rounded="sm" mb={5}>
-      //         <HStack space={2} alignItems="center">
-      //           <Icon
-      //             as={MaterialIcons}
-      //             name="notifications-active"
-      //             color="white"
-      //             size="sm"
-      //           />
-      //           <VStack>
-      //             <Text color="white" fontSize="md" fontWeight="bold">
-      //               Notification Sent Successfully
-      //             </Text>
-      //             <Text color="white" fontSize="sm">
-      //               Sent to Prassanna
-      //             </Text>
-      //           </VStack>
-      //         </HStack>
-      //       </Box>
-      //     ),
-      //     placement: "top",
-      //     duration: 3000,
-      //   });
-      // } else {
-      //   toast.show({
-      //     render: () => (
-      //       <Box bg="red.500" px="4" py="2" rounded="sm" mb={5}>
-      //         <HStack space={2} alignItems="center">
-      //           <Icon as={MaterialIcons} name="error" color="white" size="sm" />
-      //           <Text color="white" fontSize="md">
-      //             Failed to send notification
-      //           </Text>
-      //         </HStack>
-      //       </Box>
-      //     ),
-      //     placement: "top",
-      //     duration: 3000,
-      //   });
-      // }
+      if (result.success) {
+        await playSound();
+
+        toast.show({
+          render: () => (
+            <Box bg="emerald.500" px="4" py="2" rounded="sm" mb={5}>
+              <HStack space={2} alignItems="center">
+                <Icon
+                  as={MaterialIcons}
+                  name="notifications-active"
+                  color="white"
+                  size="sm"
+                />
+                <VStack>
+                  <Text color="white" fontSize="md" fontWeight="bold">
+                    Notification Sent Successfully
+                  </Text>
+                  <Text color="white" fontSize="sm">
+                    ID: {deviceToken.slice(0, 10)}...
+                  </Text>
+                </VStack>
+              </HStack>
+            </Box>
+          ),
+          placement: "top",
+          duration: 3000,
+        });
+      } else {
+        throw new Error(result.message || "Failed to send notification");
+      }
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error sending notification:", error);
+
       toast.show({
         render: () => (
           <Box bg="red.500" px="4" py="2" rounded="sm" mb={5}>
             <HStack space={2} alignItems="center">
               <Icon as={MaterialIcons} name="error" color="white" size="sm" />
               <Text color="white" fontSize="md">
-                Error sending notification
+                {error.message || "Error sending notification"}
               </Text>
             </HStack>
           </Box>
@@ -319,20 +346,6 @@ export default function HomeScreen() {
       console.error("Error fetching token:", error);
     }
   };
-
-  // Add this effect to fetch the token when component mounts
-  useEffect(() => {
-    const getToken = async () => {
-      try {
-        const token = await AsyncStorage.getItem("devicePushToken");
-        setDeviceToken(token);
-      } catch (error) {
-        console.error("Error fetching token:", error);
-      }
-    };
-
-    getToken();
-  }, []);
 
   // Add this effect to setup notifications and listeners
   useEffect(() => {

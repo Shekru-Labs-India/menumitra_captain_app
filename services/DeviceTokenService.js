@@ -2,6 +2,7 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
+import * as Application from "expo-application";
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -27,39 +28,52 @@ export const setupNotifications = async () => {
   });
 };
 
-export const getDeviceToken = async () => {
+export async function getDeviceToken(forceNew = true) {
   try {
-    const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
+    // Get basic device info that works on both platforms
+    const deviceName = (await Device.deviceName) || "";
+    const deviceBrand = Device.brand || "";
+    const timestamp = Date.now();
 
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    // Generate a random component
+    const randomPart = Math.random().toString(36).substring(2, 15);
+
+    // Create a unique identifier that works on both platforms
+    const uniqueToken = `${deviceBrand}-${timestamp}-${randomPart}`;
+
+    // Get push token if possible
+    let pushToken = null;
+    if (Device.isDevice) {
+      try {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status === "granted") {
+          const tokenResponse = await Notifications.getExpoPushTokenAsync({
+            projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a", // Replace with your actual project ID
+          });
+          pushToken = tokenResponse.data;
+        }
+      } catch (notificationError) {
+        console.warn("Push notification error:", notificationError);
+        // Continue without push token
+      }
     }
 
-    if (finalStatus !== "granted") {
-      console.log("Failed to get push token for push notification!");
-      return null;
-    }
-
-    // Ensure notifications are properly setup
-    await setupNotifications();
-
-    const token = await Notifications.getExpoPushTokenAsync({
-      projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a",
-    });
-
-    // Store token in AsyncStorage
-    await AsyncStorage.setItem("devicePushToken", token.data);
-    console.log("Push token:", token.data);
-
-    return token.data;
+    return {
+      uniqueToken,
+      pushToken,
+    };
   } catch (error) {
-    console.error("Error getting push token:", error);
-    return null;
+    console.error("Error generating tokens:", error);
+    // Return a fallback unique token even if there's an error
+    const fallbackToken = `fallback-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 10)}`;
+    return {
+      uniqueToken: fallbackToken,
+      pushToken: null,
+    };
   }
-};
+}
 
 export const addNotificationListener = (callback) => {
   const subscription = Notifications.addNotificationReceivedListener(callback);
