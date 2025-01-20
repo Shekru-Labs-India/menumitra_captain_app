@@ -937,16 +937,21 @@ export default function CreateOrderScreen() {
     const fetchPercentages = async () => {
       try {
         const [gst, serviceCharge] = await AsyncStorage.multiGet([
-          'gst_percentage',
-          'service_charge_percentage'
+          "gst_percentage",
+          "service_charge_percentage",
         ]);
-        
+
         setGstPercentage(parseFloat(gst[1]) || 0);
         setServiceChargePercentage(parseFloat(serviceCharge[1]) || 0);
-        
-        console.log('Loaded from storage - GST:', gst[1], 'Service:', serviceCharge[1]);
+
+        console.log(
+          "Loaded from storage - GST:",
+          gst[1],
+          "Service:",
+          serviceCharge[1]
+        );
       } catch (error) {
-        console.error('Error fetching percentages from storage:', error);
+        console.error("Error fetching percentages from storage:", error);
       }
     };
 
@@ -1129,7 +1134,7 @@ export default function CreateOrderScreen() {
 
     const totalDiscount = calculateDiscount(items);
 
-    return Math.round((totalDiscount / totalAmount) * 100) || 0;
+    return parseFloat(((totalDiscount / totalAmount) * 100).toFixed(2)) || 0;
   };
 
   return (

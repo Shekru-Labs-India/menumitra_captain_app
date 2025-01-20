@@ -562,8 +562,6 @@ export default function TableSectionsScreen() {
       if (diffInMinutes >= 180) {
         // 3 hours or more
         return "3h+";
-      } else if (diffInMinutes < 1) {
-        return "Just now";
       } else if (diffInMinutes < 60) {
         return `${diffInMinutes}m ago`;
       } else {
@@ -822,7 +820,10 @@ export default function TableSectionsScreen() {
                                                     numberOfLines={1}
                                                     adjustsFontSizeToFit
                                                   >
-                                                    ₹{table.grand_total || 0}
+                                                    ₹
+                                                    {(
+                                                      table.grand_total || 0
+                                                    ).toFixed(2)}
                                                   </Text>
                                                 </Box>
                                               )}
@@ -846,6 +847,7 @@ export default function TableSectionsScreen() {
                                                 {isOccupied && (
                                                   <Text
                                                     fontSize={12}
+                                                    mt={-2}
                                                     color="coolGray.600"
                                                   >
                                                     {formatTime(
