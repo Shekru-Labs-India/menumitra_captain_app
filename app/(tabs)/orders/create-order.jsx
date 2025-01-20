@@ -1459,6 +1459,13 @@ export default function CreateOrderScreen() {
                                 if (item.quantity > 1) {
                                   const newItems = [...selectedItems];
                                   newItems[index].quantity--;
+                                  // Update the total price based on portion size
+                                  newItems[index].total_price =
+                                    item.portionSize === "Half"
+                                      ? Number(item.half_price) *
+                                        newItems[index].quantity
+                                      : Number(item.full_price) *
+                                        newItems[index].quantity;
                                   setSelectedItems(newItems);
                                 }
                               }}
@@ -1488,15 +1495,26 @@ export default function CreateOrderScreen() {
                                 if (item.quantity < 20) {
                                   const newItems = [...selectedItems];
                                   newItems[index].quantity++;
+                                  // Update the total price based on portion size
+                                  newItems[index].total_price =
+                                    item.portionSize === "Half"
+                                      ? Number(item.half_price) *
+                                        newItems[index].quantity
+                                      : Number(item.full_price) *
+                                        newItems[index].quantity;
                                   setSelectedItems(newItems);
                                 }
                               }}
                             />
                           </HStack>
 
-                          {/* Show selected portion price */}
+                          {/* Show price based on portion size and quantity */}
                           <Text fontSize={14} color="gray.600">
-                            {item.portionSize}: ₹{Number(item.price)}
+                            {item.portionSize}: ₹
+                            {(item.portionSize === "Half"
+                              ? Number(item.half_price) * item.quantity
+                              : Number(item.full_price) * item.quantity
+                            ).toFixed(2)}
                           </Text>
                         </HStack>
                       </VStack>
