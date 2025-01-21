@@ -17,7 +17,11 @@ import { Keyboard } from "react-native";
 import { router } from "expo-router";
 import { Linking } from "react-native";
 import { useVersion } from "../context/VersionContext";
-import { getDeviceToken } from "../services/DeviceTokenService";
+import {
+  getDeviceToken,
+  generateUniqueToken,
+  invalidateOldSessions,
+} from "../services/DeviceTokenService";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -160,12 +164,17 @@ export default function OtpScreen() {
     }
 
     try {
-      // Get both tokens
-      const tokens = await getDeviceToken(true);
+      // Invalidate any old sessions first
+      await invalidateOldSessions();
 
-      // Ensure we always have a uniqueToken
-      const uniqueToken = tokens?.uniqueToken || `fallback-${Date.now()}`;
-      const pushToken = tokens?.pushToken || "";
+      // Generate new tokens
+      const tokens = await generateUniqueToken();
+      if (!tokens) {
+        throw new Error("Failed to generate tokens");
+      }
+
+      const { pushToken, sessionToken } = tokens;
+      console.log("Generated new tokens:", { pushToken, sessionToken });
 
       const enteredOtp = otp.join("");
 
@@ -188,12 +197,12 @@ export default function OtpScreen() {
         try {
           // Store tokens with guaranteed values
           await AsyncStorage.multiSet([
-            ["deviceUniqueToken", uniqueToken],
+            ["deviceUniqueToken", sessionToken],
             ["devicePushToken", pushToken],
           ]);
 
           console.log("New tokens stored:", {
-            uniqueToken,
+            sessionToken,
             pushToken,
           });
 
@@ -233,7 +242,7 @@ export default function OtpScreen() {
         otpInputs.current[0].focus();
       }
     } catch (error) {
-      console.error("API Error:", error);
+      console.error("Token generation/storage error:", error);
       setError("Something went wrong. Please try again.");
       setOtp(["", "", "", ""]);
       otpInputs.current[0].focus();

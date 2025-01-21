@@ -18,7 +18,10 @@ import { useRouter } from "expo-router";
 import Sidebar from "../components/Sidebar";
 import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { sendNotificationToWaiter } from "../../services/NotificationService";
+import {
+  sendNotificationToWaiter,
+  verifyCurrentDeviceTokens,
+} from "../../services/NotificationService";
 import {
   setupNotifications,
   addNotificationListener,
@@ -373,37 +376,65 @@ export default function HomeScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    const showToken = async () => {
-      try {
-        const token = await AsyncStorage.getItem("devicePushToken");
-        console.log("Retrieved token from storage:", token);
+  const showAndCopyTokens = async () => {
+    try {
+      const [expoPushToken, sessionToken] = await AsyncStorage.multiGet([
+        "expoPushToken",
+        "sessionToken",
+      ]);
 
-        if (token) {
-          Alert.alert("Device Token", token, [
-            {
-              text: "Copy Token",
-              onPress: () => {
-                Clipboard.setString(token);
-                toast.show({
-                  description: "Token copied to clipboard!",
-                  status: "success",
-                  duration: 2000,
-                });
-              },
+      const tokenInfo = {
+        pushToken: expoPushToken[1],
+        uniqueToken: sessionToken[1],
+      };
+
+      // Verify if these are the current device's tokens
+      const verification = await verifyCurrentDeviceTokens(
+        sessionToken[1],
+        expoPushToken[1]
+      );
+
+      const tokenString = JSON.stringify(
+        {
+          ...tokenInfo,
+          isCurrentDevice: verification.isValid,
+          deviceInfo: verification.deviceInfo,
+        },
+        null,
+        2
+      );
+
+      Alert.alert(
+        "Current Device Tokens",
+        `${tokenString}\n\nStatus: ${verification.message}`,
+        [
+          {
+            text: "Copy Tokens",
+            onPress: () => {
+              Clipboard.setString(JSON.stringify(tokenInfo));
+              toast.show({
+                description: "Tokens copied to clipboard!",
+                status: "success",
+                duration: 2000,
+              });
             },
-            { text: "Close" },
-          ]);
-        } else {
-          console.log("No token found in AsyncStorage");
-        }
-      } catch (error) {
-        console.error("Error retrieving token:", error);
-      }
-    };
-
-    showToken();
-  }, []);
+          },
+          {
+            text: "Close",
+            style: "cancel",
+          },
+        ],
+        { cancelable: true }
+      );
+    } catch (error) {
+      console.error("Error showing tokens:", error);
+      toast.show({
+        description: "Error retrieving tokens",
+        status: "error",
+        duration: 2000,
+      });
+    }
+  };
 
   return (
     <Box flex={1} bg="white" safeArea>
@@ -440,6 +471,20 @@ export default function HomeScreen() {
             <Icon
               as={MaterialIcons}
               name="notifications"
+              size={6}
+              color="coolGray.600"
+            />
+          </Pressable>
+
+          <Pressable
+            onPress={showAndCopyTokens}
+            p={2}
+            rounded="full"
+            _pressed={{ bg: "coolGray.100" }}
+          >
+            <Icon
+              as={MaterialIcons}
+              name="vpn-key"
               size={6}
               color="coolGray.600"
             />
