@@ -22,6 +22,7 @@ import {
   generateUniqueToken,
   invalidateOldSessions,
   checkTokenStatus,
+  handleTokens,
 } from "../services/DeviceTokenService";
 import { useToast } from "native-base";
 
@@ -39,6 +40,7 @@ export default function OtpScreen() {
   const { version } = useVersion();
   const [timerKey, setTimerKey] = useState(0);
   const toast = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     checkExistingSession();
@@ -161,125 +163,93 @@ export default function OtpScreen() {
   };
 
   const handleVerifyOtp = async () => {
-    if (otp.some((digit) => !digit)) {
-      setError("Please enter complete OTP");
-      return;
-    }
-
     try {
-      setError(""); // Clear any existing errors
+      setError("");
+      setIsLoading(true);
 
       // Show loading state
       toast.show({
-        description: "Initializing device...",
+        description: "Verifying OTP and initializing device...",
         status: "info",
         duration: 2000,
       });
 
-      // Generate new tokens
-      const tokens = await generateUniqueToken().catch((error) => {
-        console.error("Token generation error:", error);
-        throw new Error(
-          `Device initialization failed. Please ensure notifications are enabled and try again.\n${error.message}`
-        );
-      });
-
-      if (!tokens) {
-        throw new Error(
-          "Failed to initialize device. Please check app permissions and try again."
-        );
-      }
-
-      console.log("Generated tokens:", tokens);
-
-      const { pushToken, sessionToken } = tokens;
-
-      // Verify tokens were stored
-      const tokenStatus = await checkTokenStatus();
-      if (!tokenStatus.hasActiveSession) {
-        throw new Error(
-          "Failed to store session information. Please try again."
-        );
-      }
-
-      const enteredOtp = otp.join("");
-
-      const response = await fetch(`${API_BASE_URL}/captain_verify_otp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          mobile: mobileNumber,
-          otp: enteredOtp,
-          // device_token: uniqueToken,
-        }),
-      });
-
-      const data = await response.json();
-      console.log("Verify OTP Response:", data);
-
-      if (data.st === 1) {
-        try {
-          // Store tokens with guaranteed values
-          await AsyncStorage.multiSet([
-            ["deviceUniqueToken", sessionToken],
-            ["devicePushToken", pushToken],
-          ]);
-
-          console.log("New tokens stored:", {
-            sessionToken,
-            pushToken,
-          });
-
-          // Store all required data from API response with updated keys
-          await AsyncStorage.multiSet([
-            ["captain_id", data.captain_id.toString()],
-            ["outlet_id", data.outlet_id.toString()],
-            ["user_id", data.user_id.toString()],
-            ["captain_name", data.captain_name],
-            ["role", data.role],
-            ["gst_percentage", data.gst.toString()],
-            ["service_charge_percentage", data.service_charges.toString()],
-          ]);
-
-          // Store session data
-          const thirtyDaysFromNow = new Date();
-          thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
-          const sessionData = {
+      // First verify OTP with your API
+      const response = await fetch(
+        "https://men4u.xyz/captain_api/captain_verify_otp",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
             mobile: mobileNumber,
-            expiryDate: thirtyDaysFromNow.toISOString(),
-          };
-
-          await AsyncStorage.setItem(
-            "userSession",
-            JSON.stringify(sessionData)
-          );
-
-          router.replace("/(tabs)");
-        } catch (error) {
-          console.error("Error saving data:", error);
-          setError("Failed to save login data. Please try again.");
+            otp: otp.join(""),
+          }),
         }
-      } else {
-        setError(data.msg || "Invalid OTP. Please try again.");
-        setOtp(["", "", "", ""]);
-        otpInputs.current[0].focus();
-      }
-    } catch (error) {
-      console.error("Detailed error:", error);
-      setError(
-        error.message ||
-          "Something went wrong. Please check permissions and try again."
       );
 
-      // Show a more detailed error toast
+      const data = await response.json();
+      console.log("OTP verification response:", data);
+
+      if (data.st === 1) {
+        // OTP is valid, now handle device tokens
+        console.log("OTP verified, generating tokens...");
+
+        // Check if this is a new installation
+        const activeSession = await AsyncStorage.getItem("activeSession");
+        const isNewInstall = !activeSession;
+
+        // Generate/update tokens
+        const tokens = await handleTokens(isNewInstall);
+        if (!tokens) {
+          throw new Error("Failed to initialize device tokens");
+        }
+
+        console.log("Tokens generated successfully:", tokens);
+
+        // Store user data
+        await AsyncStorage.multiSet([
+          ["outlet_id", data.outlet_id.toString()],
+          ["user_id", data.user_id.toString()],
+          ["mobile", mobileNumber],
+        ]);
+
+        // Show success message
+        toast.show({
+          description: "Login successful!",
+          status: "success",
+          duration: 2000,
+        });
+
+        // Navigate to main screen
+        router.replace("/(tabs)");
+      } else {
+        throw new Error(data.msg || "Invalid OTP");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+
+      // Show appropriate error message
+      let errorMessage = error.message;
+      if (error.message.includes("notification")) {
+        errorMessage = "Please enable notifications to continue";
+      }
+
+      setError(errorMessage);
       toast.show({
-        description: `Login failed: ${error.message}`,
+        description: errorMessage,
         status: "error",
-        duration: 5000,
+        duration: 3000,
       });
+
+      // Clear OTP fields on error
+      setOtp(["", "", "", ""]);
+      if (otpInputs.current[0]) {
+        otpInputs.current[0].focus();
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
