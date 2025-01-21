@@ -21,6 +21,7 @@ import {
   getDeviceToken,
   generateUniqueToken,
   invalidateOldSessions,
+  checkTokenStatus,
 } from "../services/DeviceTokenService";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
@@ -164,17 +165,27 @@ export default function OtpScreen() {
     }
 
     try {
-      // Invalidate any old sessions first
+      // Clear old sessions first
       await invalidateOldSessions();
 
       // Generate new tokens
       const tokens = await generateUniqueToken();
       if (!tokens) {
-        throw new Error("Failed to generate tokens");
+        throw new Error(
+          "Failed to generate device tokens. Please check app permissions and try again."
+        );
       }
 
       const { pushToken, sessionToken } = tokens;
       console.log("Generated new tokens:", { pushToken, sessionToken });
+
+      // Verify tokens were stored
+      const tokenStatus = await checkTokenStatus();
+      if (!tokenStatus.hasActiveSession) {
+        throw new Error(
+          "Failed to store session information. Please try again."
+        );
+      }
 
       const enteredOtp = otp.join("");
 
@@ -242,8 +253,10 @@ export default function OtpScreen() {
         otpInputs.current[0].focus();
       }
     } catch (error) {
-      console.error("Token generation/storage error:", error);
-      setError("Something went wrong. Please try again.");
+      console.error("Login error:", error);
+      setError(
+        error.message || "Something went wrong during login. Please try again."
+      );
       setOtp(["", "", "", ""]);
       otpInputs.current[0].focus();
     }

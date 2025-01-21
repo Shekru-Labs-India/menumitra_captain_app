@@ -31,97 +31,125 @@ export const setupNotifications = async () => {
 export async function generateUniqueToken() {
   try {
     if (!Device.isDevice) {
-      throw new Error("Must use physical device");
+      console.log("Not a physical device");
+      return null;
     }
 
-    // Get the real Expo token (this will always work for notifications)
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== "granted") {
-      throw new Error("Notification permission not granted");
+    // Request notification permissions
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
     }
 
-    const expoPushToken = await Notifications.getExpoPushTokenAsync({
-      projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a",
-    });
+    if (finalStatus !== "granted") {
+      console.log("Failed to get push token for push notification!");
+      return null;
+    }
 
-    // Generate session token with device info and random elements
-    const timestamp = Date.now();
-    const randomPart = Math.random().toString(36).substring(2, 15);
-    const deviceInfo = [
-      Device.modelName || "unknown",
-      Platform.OS,
-      Device.deviceName || "device",
-    ].join("-");
+    // Get Expo Push Token
+    try {
+      const expoPushToken = await Notifications.getExpoPushTokenAsync({
+        projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a",
+      });
 
-    // Create a hash of the device info
-    const deviceHash = Array.from(deviceInfo)
-      .reduce((hash, char) => (hash << 5) - hash + char.charCodeAt(0), 0)
-      .toString(36);
+      // Generate new session token
+      const timestamp = Date.now();
+      const randomPart = Math.random().toString(36).substring(2, 15);
+      const sessionToken = `session-${timestamp}-${randomPart}`;
 
-    const sessionToken = `session-${timestamp}-${randomPart}-${deviceHash}`;
+      // Clear any existing tokens first
+      await AsyncStorage.multiRemove([
+        "expoPushToken",
+        "sessionToken",
+        "activeSession",
+      ]);
 
-    // Store both tokens and their pairing
-    await AsyncStorage.multiSet([
-      ["expoPushToken", expoPushToken.data],
-      ["sessionToken", sessionToken],
-      [`tokenPair_${sessionToken}`, expoPushToken.data], // Store the pairing
-      ["lastLoginTime", timestamp.toString()], // Store login time
-    ]);
+      // Store new tokens
+      await AsyncStorage.multiSet([
+        ["expoPushToken", expoPushToken.data],
+        ["sessionToken", sessionToken],
+      ]);
 
-    // Store the active session info
-    const sessionInfo = {
-      sessionToken,
-      expoPushToken: expoPushToken.data,
-      deviceInfo,
-      loginTime: timestamp,
-    };
-    await AsyncStorage.setItem("activeSession", JSON.stringify(sessionInfo));
+      // Store session info
+      const sessionInfo = {
+        sessionToken,
+        expoPushToken: expoPushToken.data,
+        deviceName: Device.deviceName || "Unknown Device",
+        platform: Platform.OS,
+        timestamp: timestamp,
+      };
 
-    return {
-      pushToken: expoPushToken.data, // For notifications
-      sessionToken: sessionToken, // For session management
-    };
+      await AsyncStorage.setItem("activeSession", JSON.stringify(sessionInfo));
+
+      console.log("Successfully generated tokens:", {
+        pushToken: expoPushToken.data,
+        sessionToken: sessionToken,
+      });
+
+      return {
+        pushToken: expoPushToken.data,
+        sessionToken: sessionToken,
+      };
+    } catch (error) {
+      console.error("Error getting push token:", error);
+      return null;
+    }
   } catch (error) {
-    console.error("Error generating tokens:", error);
+    console.error("Error in generateUniqueToken:", error);
     return null;
   }
 }
 
-// Add a function to verify token pairing
+// Simplified token verification
 export async function verifyTokenPairing(sessionToken, pushToken) {
   try {
-    const storedPushToken = await AsyncStorage.getItem(
-      `tokenPair_${sessionToken}`
-    );
     const activeSession = await AsyncStorage.getItem("activeSession");
+    if (!activeSession) return false;
 
-    if (!storedPushToken || !activeSession) {
-      return false;
-    }
-
-    const sessionInfo = JSON.parse(activeSession);
-
+    const session = JSON.parse(activeSession);
     return (
-      storedPushToken === pushToken &&
-      sessionInfo.sessionToken === sessionToken &&
-      sessionInfo.expoPushToken === pushToken
+      session.sessionToken === sessionToken &&
+      session.expoPushToken === pushToken
     );
   } catch (error) {
-    console.error("Error verifying token pairing:", error);
+    console.error("Error verifying tokens:", error);
     return false;
   }
 }
 
-// Add a function to invalidate old sessions on new login
+// Clear old sessions
 export async function invalidateOldSessions() {
   try {
-    const keys = await AsyncStorage.getAllKeys();
-    const tokenPairKeys = keys.filter((key) => key.startsWith("tokenPair_"));
-
-    await AsyncStorage.multiRemove(tokenPairKeys);
-    await AsyncStorage.removeItem("activeSession");
+    await AsyncStorage.multiRemove([
+      "expoPushToken",
+      "sessionToken",
+      "activeSession",
+    ]);
   } catch (error) {
-    console.error("Error invalidating old sessions:", error);
+    console.error("Error clearing old sessions:", error);
+  }
+}
+
+// Add this helper function to check token status
+export async function checkTokenStatus() {
+  try {
+    const activeSession = await AsyncStorage.getItem("activeSession");
+    const expoPushToken = await AsyncStorage.getItem("expoPushToken");
+    const sessionToken = await AsyncStorage.getItem("sessionToken");
+
+    return {
+      hasActiveSession: !!activeSession,
+      hasExpoPushToken: !!expoPushToken,
+      hasSessionToken: !!sessionToken,
+      sessionInfo: activeSession ? JSON.parse(activeSession) : null,
+    };
+  } catch (error) {
+    console.error("Error checking token status:", error);
+    return null;
   }
 }
 

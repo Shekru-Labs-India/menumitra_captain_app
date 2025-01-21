@@ -177,28 +177,21 @@ export default function HomeScreen() {
     }
   };
 
-  // Update useEffect to load both tokens
+  // Add useEffect to load tokens when screen mounts
   useEffect(() => {
     const loadTokens = async () => {
       try {
-        const [uniqueToken, expoPushToken] = await Promise.all([
-          AsyncStorage.getItem("deviceUniqueToken"),
-          AsyncStorage.getItem("devicePushToken"),
-        ]);
-
-        console.log("Loaded tokens:", {
-          uniqueToken,
-          expoPushToken,
-        });
-
-        if (uniqueToken) setDeviceToken(uniqueToken);
-        if (expoPushToken) setPushToken(expoPushToken);
-
-        if (!uniqueToken || !expoPushToken) {
-          console.warn("One or more tokens missing:", {
-            uniqueToken,
-            expoPushToken,
+        const activeSession = await AsyncStorage.getItem("activeSession");
+        if (activeSession) {
+          const session = JSON.parse(activeSession);
+          setPushToken(session.expoPushToken);
+          setDeviceToken(session.sessionToken);
+          console.log("Loaded tokens from active session:", {
+            pushToken: session.expoPushToken,
+            sessionToken: session.sessionToken,
           });
+        } else {
+          console.log("No active session found");
         }
       } catch (error) {
         console.error("Error loading tokens:", error);
@@ -208,68 +201,74 @@ export default function HomeScreen() {
     loadTokens();
   }, []);
 
+  // Update handleNotification function
   const handleNotification = async () => {
     try {
-      if (!deviceToken || !pushToken) {
-        throw new Error("Required tokens not available");
+      if (!pushToken || !deviceToken) {
+        // Try to load tokens again
+        const activeSession = await AsyncStorage.getItem("activeSession");
+        if (!activeSession) {
+          throw new Error("No active session found. Please log in again.");
+        }
+
+        const session = JSON.parse(activeSession);
+        setPushToken(session.expoPushToken);
+        setDeviceToken(session.sessionToken);
       }
+
+      console.log("Sending notification with tokens:", {
+        pushToken,
+        deviceToken,
+      });
+
+      const outletId = await AsyncStorage.getItem("outlet_id");
 
       const result = await sendNotificationToWaiter({
         order_number: Date.now().toString(),
         order_id: Date.now().toString(),
         tableNumber: "1",
-        outletId: "5",
-        uniqueToken: deviceToken,
-        pushToken: pushToken, // Pass both tokens
+        outletId,
+        token: deviceToken,
+        to: pushToken,
       });
 
       if (result.success) {
         await playSound();
-
         toast.show({
-          render: () => (
-            <Box bg="emerald.500" px="4" py="2" rounded="sm" mb={5}>
-              <HStack space={2} alignItems="center">
-                <Icon
-                  as={MaterialIcons}
-                  name="notifications-active"
-                  color="white"
-                  size="sm"
-                />
-                <VStack>
-                  <Text color="white" fontSize="md" fontWeight="bold">
-                    Notification Sent Successfully
-                  </Text>
-                  <Text color="white" fontSize="sm">
-                    ID: {deviceToken.slice(0, 10)}...
-                  </Text>
-                </VStack>
-              </HStack>
-            </Box>
-          ),
-          placement: "top",
+          description: "Notification sent successfully!",
+          status: "success",
           duration: 3000,
         });
       } else {
-        throw new Error(result.message || "Failed to send notification");
+        throw new Error(result.message);
       }
     } catch (error) {
       console.error("Error sending notification:", error);
-
       toast.show({
-        render: () => (
-          <Box bg="red.500" px="4" py="2" rounded="sm" mb={5}>
-            <HStack space={2} alignItems="center">
-              <Icon as={MaterialIcons} name="error" color="white" size="sm" />
-              <Text color="white" fontSize="md">
-                {error.message || "Error sending notification"}
-              </Text>
-            </HStack>
-          </Box>
-        ),
-        placement: "top",
+        description: error.message || "Error sending notification",
+        status: "error",
         duration: 3000,
       });
+    }
+  };
+
+  // Optional: Add a function to refresh tokens
+  const refreshTokens = async () => {
+    try {
+      const activeSession = await AsyncStorage.getItem("activeSession");
+      if (activeSession) {
+        const session = JSON.parse(activeSession);
+        setPushToken(session.expoPushToken);
+        setDeviceToken(session.sessionToken);
+        console.log("Tokens refreshed:", {
+          pushToken: session.expoPushToken,
+          sessionToken: session.sessionToken,
+        });
+      } else {
+        console.log("No active session found during refresh");
+      }
+    } catch (error) {
+      console.error("Error refreshing tokens:", error);
     }
   };
 
@@ -463,7 +462,10 @@ export default function HomeScreen() {
 
         <HStack space={2}>
           <Pressable
-            onPress={handleNotification}
+            onPress={async () => {
+              await refreshTokens(); // Refresh tokens before sending notification
+              handleNotification();
+            }}
             p={2}
             rounded="full"
             _pressed={{ bg: "coolGray.100" }}
