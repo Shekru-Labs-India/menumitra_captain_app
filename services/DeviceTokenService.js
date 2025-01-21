@@ -16,19 +16,16 @@ Notifications.setNotificationHandler({
 // Add this function to generate session tokens
 export async function generateSessionToken() {
   try {
-    const timestamp = Date.now();
-    const randomPart = Math.random().toString(36).substring(2, 15);
-    const deviceInfo = [
-      Device.brand || "unknown",
-      Device.modelName || "device",
-      Platform.OS,
-    ].join("-");
+    // Generate a random string of numbers and letters
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let token = "";
+    for (let i = 0; i < 20; i++) {
+      token += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
 
-    // Create a unique session token
-    const sessionToken = `session-${timestamp}-${randomPart}-${deviceInfo}`;
-    console.log("Generated new session token:", sessionToken);
-
-    return sessionToken;
+    console.log("Generated new session token:", token);
+    return token;
   } catch (error) {
     console.error("Error generating session token:", error);
     throw new Error("Failed to generate session token");
