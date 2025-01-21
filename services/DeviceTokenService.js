@@ -30,77 +30,133 @@ export const setupNotifications = async () => {
 
 export async function generateUniqueToken() {
   try {
+    console.log("Starting token generation process...");
+
     if (!Device.isDevice) {
       console.log("Not a physical device");
       return null;
     }
 
-    // Request notification permissions
-    const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
+    // Check if we already have a token
+    const existingToken = await AsyncStorage.getItem("expoPushToken");
+    if (existingToken) {
+      console.log("Found existing push token:", existingToken);
+    }
 
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    // Request notification permissions with detailed error handling
+    let finalStatus;
+    try {
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
+      console.log("Current permission status:", existingStatus);
+
+      finalStatus = existingStatus;
+
+      if (existingStatus !== "granted") {
+        console.log("Requesting permissions...");
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+        console.log("New permission status:", status);
+      }
+    } catch (permError) {
+      console.error("Permission request error:", permError);
+      throw new Error(`Permission error: ${permError.message}`);
     }
 
     if (finalStatus !== "granted") {
-      console.log("Failed to get push token for push notification!");
-      return null;
+      console.log("Permission not granted:", finalStatus);
+      throw new Error("Failed to get notification permission");
     }
 
-    // Get Expo Push Token
+    // Get Expo Push Token with retry mechanism
+    let retryCount = 0;
+    let expoPushToken = null;
+
+    while (retryCount < 3 && !expoPushToken) {
+      try {
+        console.log(`Attempting to get push token (attempt ${retryCount + 1})`);
+
+        const tokenResponse = await Notifications.getExpoPushTokenAsync({
+          projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a",
+        });
+
+        expoPushToken = tokenResponse.data;
+        console.log("Successfully got push token:", expoPushToken);
+      } catch (tokenError) {
+        console.error(
+          `Token generation attempt ${retryCount + 1} failed:`,
+          tokenError
+        );
+        retryCount++;
+
+        if (retryCount === 3) {
+          throw new Error(
+            `Failed to get push token after ${retryCount} attempts`
+          );
+        }
+
+        // Wait before retrying
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+
+    // Generate session token
+    const timestamp = Date.now();
+    const randomPart = Math.random().toString(36).substring(2, 15);
+    const sessionToken = `session-${timestamp}-${randomPart}`;
+
+    // Store the tokens
     try {
-      const expoPushToken = await Notifications.getExpoPushTokenAsync({
-        projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a",
-      });
-
-      // Generate new session token
-      const timestamp = Date.now();
-      const randomPart = Math.random().toString(36).substring(2, 15);
-      const sessionToken = `session-${timestamp}-${randomPart}`;
-
-      // Clear any existing tokens first
-      await AsyncStorage.multiRemove([
-        "expoPushToken",
-        "sessionToken",
-        "activeSession",
-      ]);
-
-      // Store new tokens
       await AsyncStorage.multiSet([
-        ["expoPushToken", expoPushToken.data],
+        ["expoPushToken", expoPushToken],
         ["sessionToken", sessionToken],
       ]);
 
       // Store session info
       const sessionInfo = {
         sessionToken,
-        expoPushToken: expoPushToken.data,
+        expoPushToken,
         deviceName: Device.deviceName || "Unknown Device",
         platform: Platform.OS,
         timestamp: timestamp,
+        deviceInfo: {
+          brand: Device.brand,
+          modelName: Device.modelName,
+          osVersion: Device.osVersion,
+        },
       };
 
       await AsyncStorage.setItem("activeSession", JSON.stringify(sessionInfo));
-
-      console.log("Successfully generated tokens:", {
-        pushToken: expoPushToken.data,
-        sessionToken: sessionToken,
-      });
-
-      return {
-        pushToken: expoPushToken.data,
-        sessionToken: sessionToken,
-      };
-    } catch (error) {
-      console.error("Error getting push token:", error);
-      return null;
+      console.log("Successfully stored all tokens and session info");
+    } catch (storageError) {
+      console.error("Storage error:", storageError);
+      throw new Error(`Failed to store tokens: ${storageError.message}`);
     }
+
+    return {
+      pushToken: expoPushToken,
+      sessionToken: sessionToken,
+    };
   } catch (error) {
-    console.error("Error in generateUniqueToken:", error);
-    return null;
+    console.error("Token generation failed:", error);
+    // Include more detailed error information
+    const errorDetails = {
+      message: error.message,
+      deviceInfo: {
+        platform: Platform.OS,
+        version: Platform.Version,
+        brand: Device.brand,
+        model: Device.modelName,
+      },
+      permissionStatus: await Notifications.getPermissionsAsync()
+        .then((result) => result.status)
+        .catch((err) => `Error getting status: ${err.message}`),
+    };
+    console.log("Error details:", errorDetails);
+
+    throw new Error(
+      `Token generation failed: ${error.message}\nDevice: ${Device.brand} ${Device.modelName}`
+    );
   }
 }
 

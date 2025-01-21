@@ -23,6 +23,7 @@ import {
   invalidateOldSessions,
   checkTokenStatus,
 } from "../services/DeviceTokenService";
+import { useToast } from "native-base";
 
 const API_BASE_URL = "https://men4u.xyz/captain_api";
 
@@ -37,6 +38,7 @@ export default function OtpScreen() {
   const navigation = useNavigation();
   const { version } = useVersion();
   const [timerKey, setTimerKey] = useState(0);
+  const toast = useToast();
 
   useEffect(() => {
     checkExistingSession();
@@ -165,19 +167,32 @@ export default function OtpScreen() {
     }
 
     try {
-      // Clear old sessions first
-      await invalidateOldSessions();
+      setError(""); // Clear any existing errors
+
+      // Show loading state
+      toast.show({
+        description: "Initializing device...",
+        status: "info",
+        duration: 2000,
+      });
 
       // Generate new tokens
-      const tokens = await generateUniqueToken();
+      const tokens = await generateUniqueToken().catch((error) => {
+        console.error("Token generation error:", error);
+        throw new Error(
+          `Device initialization failed. Please ensure notifications are enabled and try again.\n${error.message}`
+        );
+      });
+
       if (!tokens) {
         throw new Error(
-          "Failed to generate device tokens. Please check app permissions and try again."
+          "Failed to initialize device. Please check app permissions and try again."
         );
       }
 
+      console.log("Generated tokens:", tokens);
+
       const { pushToken, sessionToken } = tokens;
-      console.log("Generated new tokens:", { pushToken, sessionToken });
 
       // Verify tokens were stored
       const tokenStatus = await checkTokenStatus();
@@ -253,12 +268,18 @@ export default function OtpScreen() {
         otpInputs.current[0].focus();
       }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Detailed error:", error);
       setError(
-        error.message || "Something went wrong during login. Please try again."
+        error.message ||
+          "Something went wrong. Please check permissions and try again."
       );
-      setOtp(["", "", "", ""]);
-      otpInputs.current[0].focus();
+
+      // Show a more detailed error toast
+      toast.show({
+        description: `Login failed: ${error.message}`,
+        status: "error",
+        duration: 5000,
+      });
     }
   };
 
