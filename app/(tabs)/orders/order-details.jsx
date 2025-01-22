@@ -23,7 +23,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 const formatTime = (dateTimeString) => {
   if (!dateTimeString) return "";
@@ -51,7 +51,7 @@ export default function OrderDetailsScreen() {
       try {
         console.log("Fetching order details for:", id);
 
-        const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+        const response = await fetch(`${API_BASE_URL}/order_view`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -90,20 +90,17 @@ export default function OrderDetailsScreen() {
       setIsLoading(true);
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/update_order_status`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: storedOutletId,
-            order_id: orderDetails.order_id.toString(),
-            order_status: newStatus,
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/update_order_status`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: storedOutletId,
+          order_id: orderDetails.order_id.toString(),
+          order_status: newStatus,
+        }),
+      });
 
       const data = await response.json();
 

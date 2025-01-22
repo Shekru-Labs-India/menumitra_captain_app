@@ -21,7 +21,7 @@ import { Platform, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 export default function InventoryItemDetailsScreen() {
   const router = useRouter();
@@ -58,19 +58,16 @@ export default function InventoryItemDetailsScreen() {
 
   const fetchInventoryDetails = async (outId, invId) => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/inventory_view`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outId.toString(),
-            inventory_id: invId.toString(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/inventory_view`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outId.toString(),
+          inventory_id: invId.toString(),
+        }),
+      });
 
       const data = await response.json();
       console.log("Inventory Details Response:", data);
@@ -127,19 +124,16 @@ export default function InventoryItemDetailsScreen() {
         return;
       }
 
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/inventory_delete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outletId.toString(),
-            inventory_id: inventoryId.toString(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/inventory_delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId.toString(),
+          inventory_id: inventoryId.toString(),
+        }),
+      });
 
       const data = await response.json();
       console.log("Delete Response:", data);

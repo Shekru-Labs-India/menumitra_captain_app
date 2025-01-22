@@ -22,7 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../components/Header";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 const toTitleCase = (str) => {
   return str
@@ -67,18 +67,15 @@ export default function SuppliersScreen() {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/supplier/listview`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: storedOutletId.toString(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/supplier_listview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: storedOutletId.toString(),
+        }),
+      });
 
       const data = await response.json();
       console.log("Suppliers List Response:", data);

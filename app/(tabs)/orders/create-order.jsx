@@ -30,7 +30,7 @@ import Header from "../../components/Header";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { sendNotificationToWaiter } from "../../../services/NotificationService";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 const getCurrentDate = () => {
   const date = new Date();
@@ -143,7 +143,7 @@ export default function CreateOrderScreen() {
   // Add this function to fetch order details
   const fetchOrderDetails = async (orderId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+      const response = await fetch(`${API_BASE_URL}/order/view`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -172,7 +172,7 @@ export default function CreateOrderScreen() {
       try {
         setLoading(true);
         // First, fetch order details
-        const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+        const response = await fetch(`${API_BASE_URL}/order_view`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -246,7 +246,7 @@ export default function CreateOrderScreen() {
     setLoading(true);
     try {
       const response = await fetch(
-        "https://men4u.xyz/captain_api/get_all_menu_list_by_category",
+        `${API_BASE_URL}/get_all_menu_list_by_category`,
         {
           method: "POST",
           headers: {
@@ -485,7 +485,7 @@ export default function CreateOrderScreen() {
         // Immediately mark as paid
         setLoadingMessage("Marking order as paid...");
         const paidResponse = await fetch(
-          `${API_BASE_URL}/captain_manage/update_order_status`,
+          `${API_BASE_URL}/update_order_status`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -527,7 +527,7 @@ export default function CreateOrderScreen() {
         // Mark as paid
         setLoadingMessage("Marking order as paid...");
         const paidResponse = await fetch(
-          `${API_BASE_URL}/captain_manage/update_order_status`,
+          `${API_BASE_URL}/update_order_status`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -783,19 +783,16 @@ export default function CreateOrderScreen() {
     const loadExistingOrder = async () => {
       if (params?.isOccupied === "1" && params?.orderId) {
         try {
-          const response = await fetch(
-            "https://men4u.xyz/captain_api/order_menu_details",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                order_id: params.orderId,
-                outlet_id: userData?.outlet_id,
-              }),
-            }
-          );
+          const response = await fetch(`${API_BASE_URL}/order_menu_details`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              order_id: params.orderId,
+              outlet_id: userData?.outlet_id,
+            }),
+          });
 
           const orderData = await response.json();
 

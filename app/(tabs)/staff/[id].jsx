@@ -23,7 +23,7 @@ import { Platform, StatusBar, Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 export default function StaffDetailsScreen() {
   const router = useRouter();
@@ -39,19 +39,16 @@ export default function StaffDetailsScreen() {
   const fetchStaffDetails = async (storedOutletId) => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/staff_view`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            staff_id: parseInt(id),
-            outlet_id: storedOutletId,
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/staff_view`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          staff_id: parseInt(id),
+          outlet_id: storedOutletId,
+        }),
+      });
 
       const data = await response.json();
       console.log("Staff Details Response:", data);
@@ -102,19 +99,16 @@ export default function StaffDetailsScreen() {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/staff_delete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            staff_id: id.toString(),
-            outlet_id: outletId.toString(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/staff_delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          staff_id: id.toString(),
+          outlet_id: outletId.toString(),
+        }),
+      });
 
       const data = await response.json();
       console.log("Delete Response:", data);
@@ -300,7 +294,7 @@ export default function StaffDetailsScreen() {
                 {staff.dob && (
                   <HStack justifyContent="space-between">
                     <Text color="coolGray.500">Date of Birth</Text>
-                    <Text>{formatDate(staff.dob)}</Text>
+                    <Text>{staff.dob}</Text>
                   </HStack>
                 )}
 
@@ -327,6 +321,23 @@ export default function StaffDetailsScreen() {
                   <HStack justifyContent="space-between">
                     <Text color="coolGray.500">Created On</Text>
                     <Text>{formatDate(staff.created_on)}</Text>
+                  </HStack>
+                )}
+
+                {staff.updated_by && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Updated By</Text>
+                    <Text>
+                      {staff.updated_by.charAt(0).toUpperCase() +
+                        staff.updated_by.slice(1)}
+                    </Text>
+                  </HStack>
+                )}
+
+                {staff.updated_on && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Updated On</Text>
+                    <Text>{formatDate(staff.updated_on)}</Text>
                   </HStack>
                 )}
               </VStack>

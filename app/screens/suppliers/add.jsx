@@ -24,7 +24,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 import Header from "../../components/Header";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 export default function AddSupplierScreen() {
   const router = useRouter();
@@ -78,7 +78,7 @@ export default function AddSupplierScreen() {
   const fetchCreditRatings = async () => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/captain_manage/supplier_credit_rating_choices`,
+        `${API_BASE_URL}/supplier_credit_rating_choices`,
         {
           method: "GET",
           headers: {
@@ -108,12 +108,9 @@ export default function AddSupplierScreen() {
 
   const fetchStatusChoices = async () => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/supplier_status_choices`,
-        {
-          method: "GET",
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/supplier_status_choices`, {
+        method: "GET",
+      });
 
       const data = await response.json();
       console.log("Status Choices:", data);
@@ -354,30 +351,27 @@ export default function AddSupplierScreen() {
         return;
       }
 
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/supplier/create`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: storedOutletId.toString(),
-            name: formData.name.trim(),
-            supplier_status: formData.status || "active",
-            credit_rating: formData.creditRating || "",
-            credit_limit: formData.creditLimit
-              ? parseInt(formData.creditLimit)
-              : 0,
-            location: formData.location?.trim() || "",
-            owner_name: formData.ownerName?.trim() || "",
-            website: formData.website?.trim() || "",
-            mobile_number1: formData.mobileNumber1?.trim() || "",
-            mobile_number2: formData.mobileNumber2?.trim() || "",
-            address: formData.address?.trim() || "",
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/supplier_create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: storedOutletId.toString(),
+          name: formData.name.trim(),
+          supplier_status: formData.status || "active",
+          credit_rating: formData.creditRating || "",
+          credit_limit: formData.creditLimit
+            ? parseInt(formData.creditLimit)
+            : 0,
+          location: formData.location?.trim() || "",
+          owner_name: formData.ownerName?.trim() || "",
+          website: formData.website?.trim() || "",
+          mobile_number1: formData.mobileNumber1?.trim() || "",
+          mobile_number2: formData.mobileNumber2?.trim() || "",
+          address: formData.address?.trim() || "",
+        }),
+      });
 
       const data = await response.json();
       console.log("Create Supplier Response:", data);

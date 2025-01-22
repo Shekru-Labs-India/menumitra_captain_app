@@ -24,7 +24,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Header from "../../../components/Header";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 export default function EditStaffScreen() {
   const router = useRouter();
@@ -51,8 +51,11 @@ export default function EditStaffScreen() {
   const formatDate = (dateString) => {
     if (!dateString) return "";
 
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, "0");
+    // Parse the YYYY-MM-DD format
+    const [year, month, day] = dateString.split("-");
+    const date = new Date(year, month - 1, day); // month is 0-based in JS Date
+
+    const formattedDay = String(date.getDate()).padStart(2, "0");
     const months = [
       "Jan",
       "Feb",
@@ -67,19 +70,21 @@ export default function EditStaffScreen() {
       "Nov",
       "Dec",
     ];
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-    return `${day} ${month} ${year}`;
+    const formattedMonth = months[date.getMonth()];
+    const formattedYear = date.getFullYear();
+
+    return `${formattedDay} ${formattedMonth} ${formattedYear}`;
   };
 
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      const formattedDate = formatDate(selectedDate);
+      const formattedDate = formatDate(
+        selectedDate.toISOString().split("T")[0]
+      );
       setFormData({
         ...formData,
         dob: formattedDate,
-        dobForApi: selectedDate.toISOString().split("T")[0],
       });
     }
   };
@@ -134,19 +139,16 @@ export default function EditStaffScreen() {
   useEffect(() => {
     const fetchStaffDetails = async () => {
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/captain_manage/staff_view`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              staff_id: parseInt(id),
-              outlet_id: outletId,
-            }),
-          }
-        );
+        const response = await fetch(`${API_BASE_URL}/staff_view`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            staff_id: parseInt(id),
+            outlet_id: outletId,
+          }),
+        });
 
         const data = await response.json();
         console.log("Staff Details Response:", data);
@@ -283,34 +285,33 @@ export default function EditStaffScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/staff_update`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            captain_id: captainId,
-            staff_id: parseInt(id),
-            outlet_id: outletId,
-            name: formData.name,
-            mobile: formData.mobile,
-            address: formData.address,
-            role: formData.role,
-            dob: formData.dob,
-            aadhar_number: formData.aadhar_number,
-            photo: formData.photo,
-          }),
-        }
-      );
+      const userId = await AsyncStorage.getItem("user_id");
+
+      const response = await fetch(`${API_BASE_URL}/staff_update`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: parseInt(userId),
+          staff_id: parseInt(id),
+          outlet_id: outletId,
+          name: formData.name.trim(),
+          mobile: formData.mobile,
+          address: formData.address.trim(),
+          role: formData.role.toLowerCase(),
+          dob: formData.dob,
+          aadhar_number: formData.aadhar_number,
+          photo: formData.photo || "",
+        }),
+      });
 
       const data = await response.json();
       console.log("Update Response:", data);
 
       if (data.st === 1) {
         toast.show({
-          description: "Staff details updated successfully",
+          description: data.msg || "Staff details updated successfully",
           status: "success",
         });
         router.replace({

@@ -29,7 +29,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../components/Header";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 // Add this function to handle phone calls
 const handlePhonePress = (phoneNumber) => {
@@ -324,18 +324,15 @@ export default function StaffScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/staff_listview`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outletId,
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/staff_listview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId,
+        }),
+      });
 
       const data = await response.json();
       console.log("Staff List Response:", data);

@@ -23,7 +23,7 @@ import { SupplierContext } from "../../../../context/SupplierContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../../components/Header";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 export default function EditSupplierScreen() {
   const router = useRouter();
@@ -52,7 +52,7 @@ export default function EditSupplierScreen() {
   const fetchCreditRatings = async () => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/captain_manage/supplier_credit_rating_choices`,
+        `${API_BASE_URL}/supplier_credit_rating_choices`,
         {
           method: "GET",
           headers: {
@@ -93,19 +93,16 @@ export default function EditSupplierScreen() {
 
         setOutletId(storedOutletId);
 
-        const response = await fetch(
-          `${API_BASE_URL}/captain_manage/supplier/view`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              supplier_id: id.toString(),
-              outlet_id: storedOutletId.toString(),
-            }),
-          }
-        );
+        const response = await fetch(`${API_BASE_URL}/supplier_view`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            supplier_id: id.toString(),
+            outlet_id: storedOutletId.toString(),
+          }),
+        });
 
         const data = await response.json();
         console.log("Supplier Details Response:", data);
@@ -304,35 +301,29 @@ export default function EditSupplierScreen() {
 
       console.log("Update Request Body:", requestBody); // Debug log
 
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/supplier/update`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/supplier_update`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
 
       const data = await response.json();
       console.log("Update Response:", data);
 
       if (data.st === 1) {
         // After successful update, fetch updated details
-        const detailsResponse = await fetch(
-          `${API_BASE_URL}/captain_manage/supplier/view`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              supplier_id: id.toString(),
-              outlet_id: outletId.toString(),
-            }),
-          }
-        );
+        const detailsResponse = await fetch(`${API_BASE_URL}/supplier_view`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            supplier_id: id.toString(),
+            outlet_id: outletId.toString(),
+          }),
+        });
 
         const detailsData = await detailsResponse.json();
 

@@ -61,7 +61,7 @@ export default function HomeScreen() {
 
         // Fetch staff list from API
         const staffResponse = await fetch(
-          "https://men4u.xyz/captain_api/captain_manage/staff_listview",
+          "https://men4u.xyz/common_api/staff_listview",
           {
             method: "POST",
             headers: {
@@ -78,7 +78,7 @@ export default function HomeScreen() {
 
         // Fetch table list from API
         const tableResponse = await fetch(
-          "https://men4u.xyz/captain_api/captain_manage/get_table_list",
+          "https://men4u.xyz/common_api/get_table_list",
           {
             method: "POST",
             headers: {

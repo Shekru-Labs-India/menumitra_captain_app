@@ -26,7 +26,7 @@ import {
 } from "../services/DeviceTokenService";
 import { useToast } from "native-base";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 export default function OtpScreen() {
   const [otp, setOtp] = useState(["1", "2", "3", "4"]);
@@ -128,13 +128,14 @@ export default function OtpScreen() {
     if (!canResend) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/captain_login`, {
+      const response = await fetch(`${API_BASE_URL}/user_login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           mobile: mobileNumber,
+          role: "captain",
         }),
       });
 
@@ -148,11 +149,19 @@ export default function OtpScreen() {
         setTimerKey((prev) => prev + 1); // Force timer reset
         otpInputs.current[0].focus();
 
-        // Extract and store new OTP if present
-        const otpMatch = data.msg.match(/\d{4}/);
-        if (otpMatch) {
-          await AsyncStorage.setItem("currentOtp", otpMatch[0]);
+        // Store temporary data from response if needed
+        if (data.Data) {
+          await AsyncStorage.setItem(
+            "tempOutletData",
+            JSON.stringify(data.Data)
+          );
         }
+
+        toast.show({
+          description: "OTP sent successfully!",
+          status: "success",
+          duration: 2000,
+        });
       } else {
         setError(data.msg || "Failed to resend OTP");
       }
@@ -167,16 +176,14 @@ export default function OtpScreen() {
       setError("");
       setIsLoading(true);
 
-      // Show loading state
       toast.show({
         description: "Verifying OTP and initializing device...",
         status: "info",
         duration: 2000,
       });
 
-      // First verify OTP with your API
       const response = await fetch(
-        "https://men4u.xyz/captain_api/captain_verify_otp",
+        `https://men4u.xyz/captain_api/captain_verify_otp`,
         {
           method: "POST",
           headers: {
@@ -185,6 +192,9 @@ export default function OtpScreen() {
           body: JSON.stringify({
             mobile: mobileNumber,
             otp: otp.join(""),
+            // role: "captain",
+            // fcm_token: tokens.pushToken,
+            // device_sessid: tokens.sessionToken,
           }),
         }
       );
@@ -193,14 +203,11 @@ export default function OtpScreen() {
       console.log("OTP verification response:", data);
 
       if (data.st === 1) {
-        // OTP is valid, now handle device tokens
         console.log("OTP verified, generating tokens...");
 
-        // Check if this is a new installation
         const activeSession = await AsyncStorage.getItem("activeSession");
         const isNewInstall = !activeSession;
 
-        // Generate/update tokens
         const tokens = await handleTokens(isNewInstall);
         if (!tokens) {
           throw new Error("Failed to initialize device tokens");
@@ -208,21 +215,32 @@ export default function OtpScreen() {
 
         console.log("Tokens generated successfully:", tokens);
 
-        // Store user data
-        await AsyncStorage.multiSet([
-          ["outlet_id", data.outlet_id.toString()],
-          ["user_id", data.user_id.toString()],
+        // Store all relevant data from the response structure
+        const dataToStore = [
+          ["outlet_id", data.outlet_id?.toString() || ""],
+          ["user_id", data.user_id?.toString() || ""],
           ["mobile", mobileNumber],
-        ]);
+          ["captain_id", data.captain_id?.toString() || ""],
+          ["captain_name", data.captain_name || ""],
+          ["gst", data.gst?.toString() || ""],
+          ["service_charges", data.service_charges?.toString() || ""],
+        ];
 
-        // Show success message
+        await AsyncStorage.multiSet(dataToStore);
+
+        // Create a session with expiry
+        const sessionData = {
+          ...data,
+          expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days expiry
+        };
+        await AsyncStorage.setItem("userSession", JSON.stringify(sessionData));
+
         toast.show({
           description: "Login successful!",
           status: "success",
           duration: 2000,
         });
 
-        // Navigate to main screen
         router.replace("/(tabs)");
       } else {
         throw new Error(data.msg || "Invalid OTP");
@@ -230,7 +248,6 @@ export default function OtpScreen() {
     } catch (error) {
       console.error("Login error:", error);
 
-      // Show appropriate error message
       let errorMessage = error.message;
       if (error.message.includes("notification")) {
         errorMessage = "Please enable notifications to continue";
@@ -243,7 +260,6 @@ export default function OtpScreen() {
         duration: 3000,
       });
 
-      // Clear OTP fields on error
       setOtp(["", "", "", ""]);
       if (otpInputs.current[0]) {
         otpInputs.current[0].focus();

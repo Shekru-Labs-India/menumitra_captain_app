@@ -21,7 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
 import { MaterialIcons } from "@expo/vector-icons";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 export default function EditInventoryItemScreen() {
   const router = useRouter();
@@ -84,19 +84,16 @@ export default function EditInventoryItemScreen() {
 
   const fetchInventoryDetails = async (outId, invId, availableCategories) => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/inventory_view`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outId.toString(),
-            inventory_id: invId.toString(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/inventory_view`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outId.toString(),
+          inventory_id: invId.toString(),
+        }),
+      });
 
       const data = await response.json();
       if (data.st === 1 && data.data) {
@@ -176,7 +173,7 @@ export default function EditInventoryItemScreen() {
   const fetchCategories = async () => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/captain_manage/get_inventory_category_list`
+        `${API_BASE_URL}/get_inventory_category_list`
       );
       const data = await response.json();
 
@@ -281,33 +278,30 @@ export default function EditInventoryItemScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/inventory_update`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outletId.toString(),
-            inventory_id: formData.inventory_id.toString(),
-            supplier_id: formData.supplier_id.toString(),
-            category_id: formData.category_id.toString(),
-            name: formData.name,
-            description: formData.description,
-            unit_price: formData.unit_price.toString(),
-            quantity: formData.quantity.toString(),
-            unit_of_measure: formData.unit_of_measure,
-            reorder_level: formData.reorder_level.toString(),
-            brand_name: formData.brand_name,
-            tax_rate: formData.tax_rate.toString(),
-            in_or_out: formData.in_or_out,
-            in_date: formData.in_date,
-            out_date: formData.out_date,
-            expiration_date: formData.expiration_date,
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/inventory_update`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId.toString(),
+          inventory_id: formData.inventory_id.toString(),
+          supplier_id: formData.supplier_id.toString(),
+          category_id: formData.category_id.toString(),
+          name: formData.name,
+          description: formData.description,
+          unit_price: formData.unit_price.toString(),
+          quantity: formData.quantity.toString(),
+          unit_of_measure: formData.unit_of_measure,
+          reorder_level: formData.reorder_level.toString(),
+          brand_name: formData.brand_name,
+          tax_rate: formData.tax_rate.toString(),
+          in_or_out: formData.in_or_out,
+          in_date: formData.in_date,
+          out_date: formData.out_date,
+          expiration_date: formData.expiration_date,
+        }),
+      });
 
       const data = await response.json();
       if (data.st === 1) {

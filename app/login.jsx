@@ -18,7 +18,7 @@ import { useState, useEffect, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 export default function LoginScreen() {
   const [mobileNumber, setMobileNumber] = useState("");
@@ -101,13 +101,14 @@ export default function LoginScreen() {
     setApiError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/captain_login`, {
+      const response = await fetch(`${API_BASE_URL}/user_login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           mobile: mobileNumber,
+          role: "captain",
         }),
       });
 

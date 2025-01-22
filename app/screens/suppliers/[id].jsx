@@ -23,7 +23,7 @@ import { Platform, StatusBar, Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 export default function SupplierDetails() {
   const router = useRouter();
@@ -64,19 +64,16 @@ export default function SupplierDetails() {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/supplier/view`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: storedOutletId.toString(),
-            supplier_id: id.toString(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/supplier_view`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: storedOutletId.toString(),
+          supplier_id: id.toString(),
+        }),
+      });
 
       const data = await response.json();
 
@@ -113,19 +110,16 @@ export default function SupplierDetails() {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/supplier/delete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: storedOutletId.toString(),
-            supplier_id: id.toString(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/supplier_delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: storedOutletId.toString(),
+          supplier_id: id.toString(),
+        }),
+      });
 
       const data = await response.json();
       console.log("Delete Response:", data);

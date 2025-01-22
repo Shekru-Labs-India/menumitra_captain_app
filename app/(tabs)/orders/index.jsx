@@ -24,7 +24,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
 import Header from "../../components/Header";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 const ORDER_STATUS_COLORS = {
   COMPLETED: "green",
@@ -156,7 +156,7 @@ export default function OrdersScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/captain_order/listview`, {
+      const response = await fetch(`${API_BASE_URL}/order_listview`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -34,7 +34,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../../components/Header";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api";
 
 export default function TableSectionsScreen() {
   const router = useRouter();
@@ -91,18 +91,15 @@ export default function TableSectionsScreen() {
       const fetchTablesForSection = async () => {
         try {
           const storedOutletId = await AsyncStorage.getItem("outlet_id");
-          const response = await fetch(
-            `${API_BASE_URL}/captain_manage/table_listview`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                outlet_id: storedOutletId,
-              }),
-            }
-          );
+          const response = await fetch(`${API_BASE_URL}/table_listview`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              outlet_id: storedOutletId,
+            }),
+          });
 
           const data = await response.json();
           if (data.st === 1 && data.data) {
@@ -185,18 +182,15 @@ export default function TableSectionsScreen() {
   const fetchSections = async (outletId) => {
     try {
       setLoading(true);
-      const response = await fetch(
-        "https://men4u.xyz/captain_api/captain_manage/table_listview",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outletId.toString(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/table_listview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId.toString(),
+        }),
+      });
 
       const data = await response.json();
       console.log("API Response:", data);
@@ -280,19 +274,16 @@ export default function TableSectionsScreen() {
 
     try {
       setLoading(true);
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/section_create`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outletId.toString(),
-            section_name: newSectionName.trim(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/section_create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId.toString(),
+          section_name: newSectionName.trim(),
+        }),
+      });
 
       const data = await response.json();
       console.log("Create Section Response:", data);
@@ -353,7 +344,7 @@ export default function TableSectionsScreen() {
       // Handle occupied table with order
       if (table.is_occupied === 1 && table.order_id) {
         try {
-          const response = await fetch(`${API_BASE_URL}/captain_order/view`, {
+          const response = await fetch(`${API_BASE_URL}/order/view`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -479,20 +470,16 @@ export default function TableSectionsScreen() {
   const handleDeleteTable = async (sectionId, tableId) => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/table_delete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outletId?.toString() || "",
-            section_id: (sectionId || "").toString(),
-            table_id: (tableId || "").toString(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/table_delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId?.toString() || "",
+          section_id: (sectionId || "").toString(),
+        }),
+      });
 
       const data = await response.json();
       console.log("Delete Table Response:", data);
@@ -1206,20 +1193,17 @@ export default function TableSectionsScreen() {
 
     try {
       setLoading(true);
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/section_update`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outletId.toString(),
-            section_id: editSection.id.toString(),
-            section_name: editSection.name.trim(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/section_update`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId.toString(),
+          section_id: editSection.id.toString(),
+          section_name: editSection.name.trim(),
+        }),
+      });
 
       const data = await response.json();
       if (data.st === 1) {
@@ -1247,19 +1231,16 @@ export default function TableSectionsScreen() {
   const handleDeleteSection = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/section_delete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outletId.toString(),
-            section_id: activeSection.id.toString(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/section_delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId.toString(),
+          section_id: activeSection.id.toString(),
+        }),
+      });
 
       const data = await response.json();
       if (data.st === 1) {
@@ -1287,19 +1268,16 @@ export default function TableSectionsScreen() {
   const handleCreateTable = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/table_create`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: outletId.toString(),
-            section_id: selectedSection.toString(),
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/table_create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId.toString(),
+          section_id: selectedSection.toString(),
+        }),
+      });
 
       const data = await response.json();
       console.log("Create Table Response:", data);

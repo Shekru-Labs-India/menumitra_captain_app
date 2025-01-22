@@ -26,7 +26,7 @@ import Header from "../../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-const API_BASE_URL = "https://men4u.xyz/captain_api";
+const API_BASE_URL = "https://men4u.xyz/common_api"; // Updated base URL
 
 export default function AddStaffScreen() {
   const router = useRouter();
@@ -223,38 +223,61 @@ export default function AddStaffScreen() {
     if (!validateForm()) return;
 
     try {
-      // Convert IDs to strings and ensure they're not null
+      const userId = await AsyncStorage.getItem("user_id");
+
+      // Format date to DD Mon YYYY (without hyphens)
+      const formatDOB = (dateString) => {
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, "0");
+        const months = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
+        ];
+        const month = months[date.getMonth()];
+        const year = date.getFullYear();
+        return `${day} ${month} ${year}`; // Removed hyphens, using spaces instead
+      };
+
+      // Prepare staff data according to new API structure
       const staffData = {
-        captain_id: String(captainId || ""),
-        outlet_id: String(outletId || ""),
+        user_id: parseInt(userId),
         name: formData.name.trim(),
         mobile: formData.phone,
-        dob: formData.dob,
+        dob: formatDOB(selectedDate),
         address: formData.address.trim(),
         role: formData.role.toLowerCase(),
         aadhar_number: formData.aadharNo,
+        outlet_id: parseInt(outletId),
+        photo: image || "",
       };
 
-      // Debug log
-      console.log("Sending staff data:", staffData);
+      // Debug log to verify date format
+      console.log("Staff data being sent:", staffData);
 
-      const response = await fetch(
-        `${API_BASE_URL}/captain_manage/staff_create`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(staffData),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/staff_create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(staffData),
+      });
 
       const data = await response.json();
       console.log("API Response:", data);
 
       if (data.st === 1) {
         toast.show({
-          description: "Staff member added successfully",
+          description: data.msg || "Staff member added successfully",
           status: "success",
         });
         router.back();
