@@ -16,6 +16,7 @@ import {
   FlatList,
   Center,
   Icon,
+  Divider,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Linking } from "react-native";
@@ -62,22 +63,33 @@ export default function OrderDetailsScreen() {
         });
 
         const data = await response.json();
-        console.log("API Response:", data);
+        console.log("Order Details Response:", data);
 
         if (data.st === 1 && data.lists) {
-          setOrderDetails(data.lists.order_details);
-          setMenuItems(data.lists.menu_details || []);
-          setInvoiceUrl(data.lists.invoice_url);
-          setIsLoading(false);
+          // Transform the data to match our UI structure
+          const transformedOrder = {
+            ...data.lists.order_details,
+            menu_items: data.lists.menu_details,
+            invoice_url: data.lists.invoice_url,
+            // Split datetime into date and time
+            date: data.lists.order_details.datetime.split(" ")[0],
+            time:
+              data.lists.order_details.datetime.split(" ")[2] +
+              " " +
+              data.lists.order_details.datetime.split(" ")[3],
+          };
+
+          setOrderDetails(transformedOrder);
         } else {
           throw new Error(data.msg || "Failed to fetch order details");
         }
       } catch (error) {
-        console.error("Error fetching order details:", error);
+        console.error("Fetch Order Details Error:", error);
         toast.show({
-          description: error.message || "Error loading order details",
+          description: "Failed to fetch order details",
           status: "error",
         });
+      } finally {
         setIsLoading(false);
       }
     };
@@ -89,6 +101,7 @@ export default function OrderDetailsScreen() {
     try {
       setIsLoading(true);
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const storedUserId = await AsyncStorage.getItem("user_id");
 
       const response = await fetch(`${API_BASE_URL}/update_order_status`, {
         method: "POST",
@@ -99,6 +112,7 @@ export default function OrderDetailsScreen() {
           outlet_id: storedOutletId,
           order_id: orderDetails.order_id.toString(),
           order_status: newStatus,
+          user_id: storedUserId,
         }),
       });
 
@@ -213,7 +227,7 @@ export default function OrderDetailsScreen() {
               <VStack>
                 <Heading size="md">Order #{orderDetails.order_number}</Heading>
                 <Text fontSize="sm" color="coolGray.600">
-                  {formatTime(orderDetails.datetime)}
+                  {orderDetails.date} • {orderDetails.time}
                 </Text>
               </VStack>
               <Badge
@@ -221,7 +235,7 @@ export default function OrderDetailsScreen() {
                 py={1}
                 rounded="full"
                 colorScheme={
-                  orderDetails.order_status === "ongoing"
+                  orderDetails.order_status === "cooking"
                     ? "orange"
                     : orderDetails.order_status === "paid"
                     ? "green"
@@ -377,8 +391,12 @@ export default function OrderDetailsScreen() {
         </Box>
 
         {/* Invoice Button */}
-        {invoiceUrl && (
-          <Pressable onPress={() => Linking.openURL(invoiceUrl)} mx={4} mb={4}>
+        {orderDetails.invoice_url && (
+          <Pressable
+            onPress={() => Linking.openURL(orderDetails.invoice_url)}
+            mx={4}
+            mb={4}
+          >
             <Box
               bg="blue.50"
               p={4}

@@ -143,7 +143,7 @@ export default function CreateOrderScreen() {
   // Add this function to fetch order details
   const fetchOrderDetails = async (orderId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/order/view`, {
+      const response = await fetch(`${API_BASE_URL}/order_view`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -289,32 +289,36 @@ export default function CreateOrderScreen() {
     try {
       setLoading(true);
 
-      // Get user_id and outlet_id from AsyncStorage
+      // Get both captain_id and user_id from AsyncStorage
+      const storedCaptainId = await AsyncStorage.getItem("captain_id");
       const storedUserId = await AsyncStorage.getItem("user_id");
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
       // Use stored values or params values
+      const captain_id = storedCaptainId || params?.captainId;
       const user_id = storedUserId || params?.userId;
       const outlet_id = storedOutletId || params?.outletId;
 
       console.log("Order creation data:", {
         user_id,
         outlet_id,
+        storedCaptainId,
         storedUserId,
         storedOutletId,
         params,
         selectedItems,
       });
 
-      if (!user_id || !outlet_id) {
+      if (!captain_id || !user_id || !outlet_id) {
         console.error("Missing critical data:", {
           user_id,
           outlet_id,
+          storedCaptainId,
           storedUserId,
           storedOutletId,
           params,
         });
-        throw new Error("Missing user or outlet information");
+        throw new Error("Missing required information");
       }
 
       const orderItems = selectedItems.map((item) => ({
@@ -427,10 +431,10 @@ export default function CreateOrderScreen() {
       setIsProcessing(true);
       setLoadingMessage("Processing order...");
 
-      const storedUserId = await AsyncStorage.getItem("user_id");
+      const storedCaptainId = await AsyncStorage.getItem("captain_id");
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-      if (!storedOutletId || !storedUserId) {
+      if (!storedOutletId || !storedCaptainId) {
         throw new Error("Required data not found");
       }
 
@@ -464,7 +468,7 @@ export default function CreateOrderScreen() {
       if (params?.isSpecialOrder) {
         setLoadingMessage("Creating special order...");
         const createPayload = {
-          user_id: storedUserId.toString(),
+          captain_id: storedCaptainId.toString(),
           outlet_id: storedOutletId.toString(),
           order_type: params.orderType.toLowerCase(),
           order_items: orderItems,
@@ -505,7 +509,7 @@ export default function CreateOrderScreen() {
         // Handle regular table orders
         setLoadingMessage("Creating new order...");
         const createPayload = {
-          user_id: storedUserId.toString(),
+          captain_id: storedCaptainId.toString(),
           outlet_id: storedOutletId.toString(),
           tables: [params.tableNumber.toString()],
           section_id: params.sectionId.toString(),

@@ -344,7 +344,7 @@ export default function TableSectionsScreen() {
       // Handle occupied table with order
       if (table.is_occupied === 1 && table.order_id) {
         try {
-          const response = await fetch(`${API_BASE_URL}/order/view`, {
+          const response = await fetch(`${API_BASE_URL}/order_view`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
