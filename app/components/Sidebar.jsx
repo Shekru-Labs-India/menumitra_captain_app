@@ -19,7 +19,7 @@ import { Box, VStack, HStack, Text, Pressable, Image, Icon } from "native-base";
 const SIDEBAR_WIDTH = 300;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-export default function Sidebar({ isOpen, onClose }) {
+export default function Sidebar({ isOpen, onClose, onCallWaiter }) {
   const { version, appName } = useVersion();
   const { logout } = useAuth();
   const slideAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
@@ -128,6 +128,16 @@ export default function Sidebar({ isOpen, onClose }) {
               <MaterialIcons name="chevron-right" size={24} color="#ccc" />
             </Pressable>
           ))}
+
+          <Pressable
+            style={[styles.sidebarItem, { marginTop: "auto" }]}
+            onPress={onCallWaiter}
+          >
+            <MaterialIcons name="room-service" size={24} color="#333" />
+            <Text style={styles.sidebarText} numberOfLines={1}>
+              Call Waiter
+            </Text>
+          </Pressable>
         </VStack>
 
         <Box borderTopWidth={1} borderTopColor="coolGray.200" p={4}>

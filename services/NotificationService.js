@@ -2,6 +2,8 @@ import { db } from "../config/firebase";
 import { collection, addDoc, serverTimestamp } from "@firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { verifyTokenPairing } from "./DeviceTokenService";
+import * as Notifications from "expo-notifications";
+import { DeviceEventEmitter, Platform } from "react-native";
 
 export const sendNotificationToWaiter = async ({
   order_number,
@@ -119,3 +121,189 @@ export const verifyCurrentDeviceTokens = async (sessionToken, pushToken) => {
     };
   }
 };
+
+export const CALL_WAITER_NOTIFICATION = "CALL_WAITER_NOTIFICATION";
+
+// Hardcoded values for testing
+const WAITER_PUSH_TOKEN = "ExponentPushToken[jGL2VvJ3tikj_B8kHhfarE]";
+const TEST_OUTLET_ID = 1;
+const TEST_USER_ID = 4;
+
+// Skip notification setup on web platform
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async (notification) => {
+      console.log(
+        "🔔 [NotificationHandler] Received:",
+        notification.request.content
+      );
+
+      const data = notification.request.content.data;
+      if (data?.type === "call_waiter") {
+        console.log(
+          "📢 [NotificationHandler] Call waiter notification received"
+        );
+        DeviceEventEmitter.emit(CALL_WAITER_NOTIFICATION, {
+          type: "call_waiter",
+          callerName: data.caller_name || "Captain",
+          message: data.message || "Waiter assistance needed",
+        });
+      }
+
+      return {
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      };
+    },
+  });
+}
+
+class NotificationService {
+  static async registerForPushNotifications() {
+    // Skip registration on web
+    if (Platform.OS === "web") {
+      console.log("📱 Push notifications not supported on web");
+      return null;
+    }
+
+    try {
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== "granted") {
+        console.log("❌ Failed to get push notification permissions!");
+        return null;
+      }
+
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: "menumitra-waiter-app", // Your Expo project ID
+      });
+
+      console.log("📱 Push token generated:", tokenData.data);
+      return tokenData.data;
+    } catch (error) {
+      console.error("❌ Error registering for push notifications:", error);
+      return null;
+    }
+  }
+
+  static async callWaiter() {
+    try {
+      console.log("🚀 Calling waiter API with:", {
+        outlet_id: TEST_OUTLET_ID,
+        user_id: TEST_USER_ID,
+      });
+
+      // First call the API
+      const response = await fetch("https://men4u.xyz/common_api/call_waiter", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: TEST_OUTLET_ID,
+          user_id: TEST_USER_ID,
+        }),
+      });
+
+      const data = await response.json();
+      console.log("✅ API Response:", data);
+
+      if (data.st === 1) {
+        // Send notification to waiter
+        console.log("📤 Sending notification to waiter:", WAITER_PUSH_TOKEN);
+
+        const pushResponse = await fetch(
+          "https://exp.host/--/api/v2/push/send",
+          {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              to: WAITER_PUSH_TOKEN,
+              title: "Table Assistance Required",
+              body: "A table needs your assistance",
+              data: {
+                type: "call_waiter",
+                outlet_id: TEST_OUTLET_ID,
+                user_id: TEST_USER_ID,
+                caller_name: "Captain",
+                message: "Waiter assistance needed",
+              },
+              sound: "default",
+              priority: "high",
+            }),
+          }
+        );
+
+        const pushResult = await pushResponse.json();
+        console.log("📨 Push notification result:", pushResult);
+
+        return {
+          success: true,
+          message: "Waiter has been notified",
+        };
+      }
+
+      return {
+        success: false,
+        message: data.msg || "Failed to call waiter",
+      };
+    } catch (error) {
+      console.error("❌ Error calling waiter:", error);
+      return {
+        success: false,
+        message: "Error calling waiter",
+      };
+    }
+  }
+
+  // Test method to verify notification works
+  static async testNotification() {
+    try {
+      console.log("🧪 Testing notification to:", WAITER_PUSH_TOKEN);
+
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: WAITER_PUSH_TOKEN,
+          title: "Test Notification",
+          body: "This is a test notification",
+          data: {
+            type: "call_waiter",
+            outlet_id: TEST_OUTLET_ID,
+            user_id: TEST_USER_ID,
+            caller_name: "Captain",
+            message: "Test message",
+          },
+          sound: "default",
+          priority: "high",
+        }),
+      });
+
+      const result = await response.json();
+      console.log("✅ Test notification result:", result);
+      return result;
+    } catch (error) {
+      console.error("❌ Test notification error:", error);
+      return null;
+    }
+  }
+}
+
+export { NotificationService };
+// or
+export default NotificationService;

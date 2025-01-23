@@ -1511,8 +1511,14 @@ export default function CreateOrderScreen() {
 
                           {/* Show price based on portion size and quantity */}
                           <Text fontSize={14} color="gray.600">
-                            {item.portionSize}: ₹
-                            {(item.portionSize === "Half"
+                            {item.half_or_full
+                              ? item.half_or_full.charAt(0).toUpperCase() +
+                                item.half_or_full.slice(1)
+                              : item.portionSize}
+                            : ₹
+                            {(item.price
+                              ? Number(item.price) * item.quantity
+                              : item.portionSize === "Half"
                               ? Number(item.half_price) * item.quantity
                               : Number(item.full_price) * item.quantity
                             ).toFixed(2)}

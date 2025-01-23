@@ -27,6 +27,7 @@ import {
   addNotificationListener,
   addNotificationResponseListener,
 } from "../../services/DeviceTokenService";
+import { NotificationService } from "../../services/NotificationService";
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -435,6 +436,32 @@ export default function HomeScreen() {
     }
   };
 
+  const handleCallWaiter = async () => {
+    try {
+      const result = await NotificationService.callWaiter({
+        tableNumber: "1", // Or get this from state/props
+      });
+
+      if (result.success) {
+        toast.show({
+          description: "Waiter has been notified",
+          status: "success",
+        });
+      } else {
+        toast.show({
+          description: result.message,
+          status: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.show({
+        description: "Failed to call waiter",
+        status: "error",
+      });
+    }
+  };
+
   return (
     <Box flex={1} bg="white" safeArea>
       <NativeBaseStatusBar backgroundColor="white" barStyle="dark-content" />
@@ -461,9 +488,10 @@ export default function HomeScreen() {
         </HStack>
 
         <HStack space={2}>
+          {/* Comment out notification icon
           <Pressable
             onPress={async () => {
-              await refreshTokens(); // Refresh tokens before sending notification
+              await refreshTokens();
               handleNotification();
             }}
             p={2}
@@ -477,7 +505,9 @@ export default function HomeScreen() {
               color="coolGray.600"
             />
           </Pressable>
+          */}
 
+          {/* Comment out key icon
           <Pressable
             onPress={showAndCopyTokens}
             p={2}
@@ -491,6 +521,7 @@ export default function HomeScreen() {
               color="coolGray.600"
             />
           </Pressable>
+          */}
 
           <Pressable
             onPress={() => setIsSidebarOpen(true)}
@@ -624,7 +655,11 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Sidebar Component */}
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        onCallWaiter={handleCallWaiter}
+      />
     </Box>
   );
 }

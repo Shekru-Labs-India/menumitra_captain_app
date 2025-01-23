@@ -25,6 +25,7 @@ import {
   handleTokens,
 } from "../services/DeviceTokenService";
 import { useToast } from "native-base";
+import { Platform } from "react-native";
 
 const API_BASE_URL = "https://men4u.xyz/common_api";
 
@@ -177,7 +178,7 @@ export default function OtpScreen() {
       setIsLoading(true);
 
       toast.show({
-        description: "Verifying OTP and initializing device...",
+        description: "Verifying OTP...",
         status: "info",
         duration: 2000,
       });
@@ -192,9 +193,7 @@ export default function OtpScreen() {
           body: JSON.stringify({
             mobile: mobileNumber,
             otp: otp.join(""),
-            // role: "captain",
-            // fcm_token: tokens.pushToken,
-            // device_sessid: tokens.sessionToken,
+            device_sessid: "1",
           }),
         }
       );
@@ -203,19 +202,15 @@ export default function OtpScreen() {
       console.log("OTP verification response:", data);
 
       if (data.st === 1) {
-        console.log("OTP verified, generating tokens...");
-
-        const activeSession = await AsyncStorage.getItem("activeSession");
-        const isNewInstall = !activeSession;
-
-        const tokens = await handleTokens(isNewInstall);
-        if (!tokens) {
-          throw new Error("Failed to initialize device tokens");
+        // Skip token generation on web
+        if (Platform.OS !== "web") {
+          const tokens = await handleTokens(true);
+          if (!tokens) {
+            console.log("Token generation skipped or failed");
+          }
         }
 
-        console.log("Tokens generated successfully:", tokens);
-
-        // Store all relevant data from the response structure
+        // Store data and proceed with login
         const dataToStore = [
           ["outlet_id", data.outlet_id?.toString() || ""],
           ["user_id", data.user_id?.toString() || ""],
@@ -228,10 +223,10 @@ export default function OtpScreen() {
 
         await AsyncStorage.multiSet(dataToStore);
 
-        // Create a session with expiry
+        // Create session
         const sessionData = {
           ...data,
-          expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days expiry
+          expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         };
         await AsyncStorage.setItem("userSession", JSON.stringify(sessionData));
 
@@ -247,19 +242,12 @@ export default function OtpScreen() {
       }
     } catch (error) {
       console.error("Login error:", error);
-
-      let errorMessage = error.message;
-      if (error.message.includes("notification")) {
-        errorMessage = "Please enable notifications to continue";
-      }
-
-      setError(errorMessage);
+      setError(error.message);
       toast.show({
-        description: errorMessage,
+        description: error.message,
         status: "error",
         duration: 3000,
       });
-
       setOtp(["", "", "", ""]);
       if (otpInputs.current[0]) {
         otpInputs.current[0].focus();

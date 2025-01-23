@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   VStack,
@@ -17,13 +17,15 @@ import {
   Badge,
   Icon,
   SectionList,
+  Button,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
+import { RefreshControl } from "react-native";
 import Header from "../../components/Header";
+import { NotificationService } from "../../../services/NotificationService";
 
 const API_BASE_URL = "https://men4u.xyz/common_api";
 
@@ -265,220 +267,261 @@ const OrderCard = ({ order, onPress }) => {
   );
 };
 
-export default function OrdersScreen() {
+const OrdersScreen = () => {
   const router = useRouter();
   const toast = useToast();
-  const [isLoading, setIsLoading] = useState(true);
-  const [outletId, setOutletId] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [orderStatus, setOrderStatus] = useState("all");
   const [isAscending, setIsAscending] = useState(false);
   const [orderType, setOrderType] = useState("all");
+  const [filteredOrders, setFilteredOrders] = useState([]);
 
-  // Get current date in required format (DD MMM YYYY)
-  const getCurrentDate = () => {
-    const date = new Date();
-    return date
-      .toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-      .replace(/ /g, " ");
-  };
-
-  // Add this function to flatten the date-grouped orders
-  const flattenOrders = (ordersData) => {
-    if (!ordersData) return [];
-
-    return Object.entries(ordersData).flatMap(([date, orders]) =>
-      orders.map((order) => ({
-        ...order,
-        date, // Add the date to each order
-      }))
-    );
-  };
-
-  const fetchOrders = async () => {
-    if (!outletId) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/order_listview`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          outlet_id: outletId.toString(),
-        }),
-      });
-
-      const data = await response.json();
-      console.log("Orders Response:", data);
-
-      if (data.st === 1 && data.lists && Array.isArray(data.lists)) {
-        // The data is already in the correct format for SectionList
-        setOrders(data.lists);
-        console.log("Setting orders:", data.lists);
-      } else {
-        console.log("No orders found or error:", data.msg);
-        setOrders([]);
-      }
-    } catch (error) {
-      console.error("Fetch Orders Error:", error);
-      toast.show({
-        description: "Failed to fetch orders",
-        status: "error",
-        duration: 3000,
-      });
-      setOrders([]);
-    } finally {
-      setIsLoading(false);
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "cooking":
+        return "warning";
+      case "served":
+        return "success";
+      case "cancelled":
+        return "error";
+      case "paid":
+        return "info";
+      default:
+        return "gray";
     }
   };
 
-  // Get restaurant_id from AsyncStorage
-  useEffect(() => {
-    const getStoredData = async () => {
-      try {
-        const storedOutletId = await AsyncStorage.getItem("outlet_id");
-        if (storedOutletId) {
-          setOutletId(storedOutletId);
-        }
-      } catch (error) {
-        console.error("Error getting stored data:", error);
-      }
-    };
+  const fetchOrders = async () => {
+    try {
+      setIsLoading(true);
+      const outletId = await AsyncStorage.getItem("outlet_id");
 
-    getStoredData();
+      const response = await fetch(
+        "https://men4u.xyz/common_api/order_listview",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            outlet_id: outletId || "1",
+          }),
+        }
+      );
+
+      const data = await response.json();
+      console.log("Orders response:", data);
+
+      if (data.st === 1 && data.lists) {
+        setOrders(data.lists);
+      }
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
   }, []);
 
-  // Refresh orders when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      if (outletId) {
-        console.log("Fetching orders with status:", orderStatus);
-        fetchOrders();
-      }
-    }, [outletId, orderStatus])
-  );
+  // Filter and sort orders whenever the dependencies change
+  useEffect(() => {
+    if (!orders.length) return;
 
-  // Filter and sort orders
-  const filteredOrders = React.useMemo(() => {
-    return orders
-      .filter((order) => {
-        // Status filter - show all if "all" is selected
+    let result = [...orders];
+
+    // Apply filters to each section's data
+    result = orders.map((section) => ({
+      date: section.date,
+      data: section.data.filter((order) => {
+        // Status filter
         const statusMatch =
           orderStatus === "all" ||
           order.order_status?.toLowerCase() === orderStatus.toLowerCase();
 
-        // Type filter - show all if "all" is selected
+        // Type filter
         const typeMatch =
           orderType === "all" ||
           order.order_type?.toLowerCase() === orderType.toLowerCase();
 
-        // Search filter - enhanced table number search
+        // Search filter
         const searchLower = searchQuery.toLowerCase().trim();
-
-        // Improved table number search logic
-        const tableSearch = (tableNum) => {
-          const searchTerms = [
-            tableNum.toString(), // exact number
-            `table ${tableNum}`, // "table 2"
-            `table no ${tableNum}`, // "table no 2"
-            `table number ${tableNum}`, // "table number 2"
-            `t${tableNum}`, // "t2"
-            `${tableNum}`, // just number
-          ].map((term) => term.toLowerCase());
-
-          return searchTerms.some((term) => term.includes(searchLower));
-        };
-
-        const hasMatchingTable =
-          order.table_number &&
-          (Array.isArray(order.table_number)
-            ? order.table_number.some((table) => tableSearch(table))
-            : tableSearch(order.table_number));
-
         const searchMatch =
           !searchQuery ||
           order.order_number?.toLowerCase().includes(searchLower) ||
-          hasMatchingTable;
+          (Array.isArray(order.table_number) &&
+            order.table_number.some(
+              (table) =>
+                table.toString().toLowerCase().includes(searchLower) ||
+                `table ${table}`.toLowerCase().includes(searchLower) ||
+                `t${table}`.toLowerCase().includes(searchLower)
+            ));
 
         return statusMatch && typeMatch && searchMatch;
-      })
-      .sort((a, b) => {
-        switch (sortBy) {
-          case "date":
-            // Parse date in DD MMM YYYY format and time in HH:mm format
-            const parseDateTime = (dateStr, timeStr) => {
-              const [day, month, year] = dateStr.split(" ");
-              const months = {
-                Jan: 0,
-                Feb: 1,
-                Mar: 2,
-                Apr: 3,
-                May: 4,
-                Jun: 5,
-                Jul: 6,
-                Aug: 7,
-                Sep: 8,
-                Oct: 9,
-                Nov: 10,
-                Dec: 11,
-              };
+      }),
+    }));
 
-              // Parse time (handles both 12h and 24h formats)
-              let [hours, minutes] = timeStr.split(":");
-              minutes = minutes.replace(/\s*(am|pm)/i, ""); // Remove AM/PM
-              hours = parseInt(hours);
-
-              // Adjust hours for PM
-              if (timeStr.toLowerCase().includes("pm") && hours !== 12) {
-                hours += 12;
-              }
-              // Adjust hours for AM
-              if (timeStr.toLowerCase().includes("am") && hours === 12) {
-                hours = 0;
-              }
-
-              return new Date(
-                parseInt(year),
-                months[month],
-                parseInt(day),
-                hours,
-                parseInt(minutes)
-              );
-            };
-
-            const dateA = parseDateTime(a.date, a.time);
-            const dateB = parseDateTime(b.date, b.time);
-            return isAscending ? dateA - dateB : dateB - dateA;
-
-          case "amount":
-            return isAscending
-              ? a.grand_total - b.grand_total
-              : b.grand_total - a.grand_total;
-          default:
-            return 0;
+    // Sort the data within each section
+    result = result.map((section) => ({
+      date: section.date,
+      data: section.data.sort((a, b) => {
+        if (sortBy === "date") {
+          const timeA = new Date(`${section.date} ${a.time}`);
+          const timeB = new Date(`${section.date} ${b.time}`);
+          return isAscending ? timeA - timeB : timeB - timeA;
+        } else if (sortBy === "amount") {
+          const amountA = parseFloat(a.grand_total) || 0;
+          const amountB = parseFloat(b.grand_total) || 0;
+          return isAscending ? amountA - amountB : amountB - amountA;
         }
-      });
+        return 0;
+      }),
+    }));
+
+    // Remove empty sections
+    result = result.filter((section) => section.data.length > 0);
+
+    setFilteredOrders(result);
   }, [orders, orderStatus, orderType, searchQuery, sortBy, isAscending]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchOrders();
+  }, []);
+
+  const renderOrderItem = ({ item }) => (
+    <Pressable
+      onPress={() => {
+        router.push({
+          pathname: "/orders/order-details",
+          params: { id: item.order_number },
+        });
+      }}
+      bg="white"
+      borderRadius="lg"
+      shadow={1}
+      mb={3}
+    >
+      <Box p={4}>
+        <HStack justifyContent="space-between" alignItems="center" mb={2}>
+          <VStack>
+            <Text fontSize="md" fontWeight="bold">
+              Order #{item.order_number}
+            </Text>
+            <Text fontSize="sm" color="gray.600">
+              {item.time}
+            </Text>
+          </VStack>
+          <Badge
+            colorScheme={getStatusColor(item.order_status)}
+            variant="solid"
+            rounded="md"
+          >
+            {item.order_status?.toUpperCase()}
+          </Badge>
+        </HStack>
+
+        <HStack space={4} mb={2}>
+          <VStack flex={1}>
+            <Text fontSize="sm" color="gray.500">
+              Table
+            </Text>
+            <Text fontSize="md">
+              {item.table_number?.length > 0
+                ? item.table_number.join(", ")
+                : "-"}
+            </Text>
+          </VStack>
+          <VStack flex={1}>
+            <Text fontSize="sm" color="gray.500">
+              Type
+            </Text>
+            <Text fontSize="md" textTransform="capitalize">
+              {item.order_type}
+            </Text>
+          </VStack>
+          <VStack flex={1}>
+            <Text fontSize="sm" color="gray.500">
+              Items
+            </Text>
+            <Text fontSize="md">{item.menu_count}</Text>
+          </VStack>
+        </HStack>
+
+        <HStack justifyContent="space-between" alignItems="center">
+          <Text fontSize="sm" color="gray.500">
+            {item.section_name || "-"}
+          </Text>
+          <Text fontSize="lg" fontWeight="bold" color="primary.500">
+            ₹{item.grand_total.toFixed(2)}
+          </Text>
+        </HStack>
+      </Box>
+    </Pressable>
+  );
+
+  const renderSectionHeader = ({ section }) => (
+    <Box bg="gray.100" px={4} py={2} mb={3}>
+      <Text fontSize="md" fontWeight="semibold">
+        {section.date}
+      </Text>
+    </Box>
+  );
+
+  const handleCallWaiter = async () => {
+    try {
+      console.log("🔔 Starting call waiter process...");
+      const outletId = await AsyncStorage.getItem("outlet_id");
+      const userId = await AsyncStorage.getItem("user_id");
+
+      console.log("📱 Using credentials:", { outletId, userId });
+
+      const result = await NotificationService.callWaiter({
+        tableNumber: "1", // Default table number
+      });
+
+      console.log("✅ Call waiter result:", result);
+
+      if (result.success) {
+        toast.show({
+          description: "Waiter has been notified",
+          status: "success",
+          duration: 3000,
+        });
+      } else {
+        toast.show({
+          description: result.message,
+          status: "error",
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Call waiter error:", error);
+      toast.show({
+        description: "Failed to call waiter",
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
 
   if (isLoading) {
     return (
-      <Box flex={1} justifyContent="center" alignItems="center">
+      <Center flex={1}>
         <Spinner size="lg" />
-        <Text mt={2}>Loading orders...</Text>
-      </Box>
+      </Center>
     );
   }
 
   return (
-    <Box flex={1} bg="white" safeArea>
+    <Box flex={1} bg="gray.50" safeArea>
       <Header title="Orders" />
 
       {/* Search and Filters Row */}
@@ -581,37 +624,34 @@ export default function OrdersScreen() {
       </HStack>
 
       {/* Orders List */}
-      {isLoading ? (
-        <Center flex={1}>
-          <Spinner size="lg" />
-        </Center>
-      ) : (
-        <SectionList
-          sections={orders}
-          keyExtractor={(item) => item.order_id?.toString()}
-          renderItem={({ item }) => (
-            <OrderCard
-              order={item}
-              onPress={() => {
-                router.push({
-                  pathname: "/orders/order-details",
-                  params: { id: item.order_number },
-                });
-              }}
-            />
-          )}
-          renderSectionHeader={({ section }) => (
-            <Box bg="gray.100" px={4} py={2}>
-              <Text fontWeight="600">{section.date}</Text>
-            </Box>
-          )}
-          ListEmptyComponent={
-            <Center flex={1} p={4}>
-              <Text color="gray.500">No orders found</Text>
-            </Center>
-          }
-        />
-      )}
+      <SectionList
+        sections={filteredOrders}
+        keyExtractor={(item) => item.order_id?.toString()}
+        renderItem={({ item }) => (
+          <OrderCard
+            order={item}
+            onPress={() => {
+              router.push({
+                pathname: "/orders/order-details",
+                params: { id: item.order_number },
+              });
+            }}
+          />
+        )}
+        renderSectionHeader={({ section }) => (
+          <Box bg="gray.100" px={4} py={2}>
+            <Text fontWeight="600">{section.date}</Text>
+          </Box>
+        )}
+        ListEmptyComponent={
+          <EmptyStateAnimation
+            orderStatus={orderStatus}
+            orderType={orderType}
+          />
+        }
+      />
     </Box>
   );
-}
+};
+
+export default OrdersScreen;
