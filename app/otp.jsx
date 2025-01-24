@@ -202,12 +202,15 @@ export default function OtpScreen() {
       console.log("OTP verification response:", data);
 
       if (data.st === 1) {
-        // Skip token generation on web
-        if (Platform.OS !== "web") {
-          const tokens = await handleTokens(true);
-          if (!tokens) {
-            console.log("Token generation skipped or failed");
+        // Simplified token handling - don't block login if it fails
+        let tokenData = null;
+        try {
+          if (Platform.OS !== "web") {
+            tokenData = await handleTokens(false); // Set to false to avoid initialization checks
+            console.log("Token generation result:", tokenData);
           }
+        } catch (error) {
+          console.log("Token generation failed, continuing with login:", error);
         }
 
         // Store data and proceed with login
@@ -221,12 +224,24 @@ export default function OtpScreen() {
           ["service_charges", data.service_charges?.toString() || ""],
         ];
 
+        // Add token data if available
+        if (tokenData?.sessionToken) {
+          dataToStore.push(["sessionToken", tokenData.sessionToken]);
+        }
+        if (tokenData?.pushToken) {
+          dataToStore.push(["expoPushToken", tokenData.pushToken]);
+        }
+
         await AsyncStorage.multiSet(dataToStore);
 
         // Create session
         const sessionData = {
           ...data,
           expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          ...(tokenData && {
+            sessionToken: tokenData.sessionToken,
+            expoPushToken: tokenData.pushToken,
+          }),
         };
         await AsyncStorage.setItem("userSession", JSON.stringify(sessionData));
 
