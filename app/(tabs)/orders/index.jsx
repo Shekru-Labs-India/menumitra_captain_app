@@ -1,4 +1,3 @@
-import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   VStack,
@@ -22,10 +21,12 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "@react-navigation/native";
+import { useState, useEffect, useCallback } from "react";
 import { RefreshControl } from "react-native";
 import Header from "../../components/Header";
 import { NotificationService } from "../../../services/NotificationService";
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
 
 const API_BASE_URL = "https://men4u.xyz/common_api";
 
@@ -295,10 +296,28 @@ const OrdersScreen = () => {
     }
   };
 
+  // Add notification listener effect
+  useEffect(() => {
+    console.log("🎧 Setting up notification listener");
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      () => {
+        console.log("📱 Notification received, refreshing orders...");
+        fetchOrders();
+      }
+    );
+
+    return () => {
+      console.log("🧹 Cleaning up notification listener");
+      subscription.remove();
+    };
+  }, []);
+
   const fetchOrders = async () => {
+    console.log("🔄 Fetching orders...");
     try {
       setIsLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
+      console.log("📍 Using outlet_id:", outletId);
 
       const response = await fetch(
         "https://men4u.xyz/common_api/order_listview",
@@ -314,13 +333,17 @@ const OrdersScreen = () => {
       );
 
       const data = await response.json();
-      console.log("Orders response:", data);
+      console.log("✅ Orders API Response:", {
+        status: data.st,
+        orderCount: data.lists?.length || 0,
+      });
 
       if (data.st === 1 && data.lists) {
+        console.log("📋 Updating orders list with new data");
         setOrders(data.lists);
       }
     } catch (error) {
-      console.error("Error fetching orders:", error);
+      console.error("❌ Error fetching orders:", error);
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -391,9 +414,32 @@ const OrdersScreen = () => {
     setFilteredOrders(result);
   }, [orders, orderStatus, orderType, searchQuery, sortBy, isAscending]);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    fetchOrders();
+    try {
+      const outletId = await AsyncStorage.getItem("outlet_id");
+      const response = await fetch(
+        "https://men4u.xyz/common_api/order_listview",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            outlet_id: outletId,
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (data.st === 1 && data.lists) {
+        setOrders(data.lists);
+      }
+    } catch (error) {
+      console.error("Error refreshing orders:", error);
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
   const renderOrderItem = ({ item }) => (
@@ -625,6 +671,14 @@ const OrdersScreen = () => {
 
       {/* Orders List */}
       <SectionList
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#0891b2"]} // This matches your app's primary color
+            tintColor="#0891b2"
+          />
+        }
         sections={filteredOrders}
         keyExtractor={(item) => item.order_id?.toString()}
         renderItem={({ item }) => (

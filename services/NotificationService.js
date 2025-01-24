@@ -183,7 +183,7 @@ class NotificationService {
       }
 
       const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: "menumitra-waiter-app", // Your Expo project ID
+        projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a", // Your Expo project ID
       });
 
       console.log("📱 Push token generated:", tokenData.data);
@@ -217,7 +217,7 @@ class NotificationService {
       console.log("✅ API Response:", data);
 
       if (data.st === 1) {
-        // Send notification to waiter
+        // Send notification to waiter with custom sound
         console.log("📤 Sending notification to waiter:", WAITER_PUSH_TOKEN);
 
         const pushResponse = await fetch(
@@ -239,7 +239,7 @@ class NotificationService {
                 caller_name: "Captain",
                 message: "Waiter assistance needed",
               },
-              sound: "default",
+              sound: "notification.mp3", // Specify the custom sound file name
               priority: "high",
             }),
           }
@@ -267,7 +267,7 @@ class NotificationService {
     }
   }
 
-  // Test method to verify notification works
+  // Update test notification method as well
   static async testNotification() {
     try {
       console.log("🧪 Testing notification to:", WAITER_PUSH_TOKEN);
@@ -289,7 +289,7 @@ class NotificationService {
             caller_name: "Captain",
             message: "Test message",
           },
-          sound: "default",
+          sound: "notification.mp3", // Specify the custom sound file name
           priority: "high",
         }),
       });

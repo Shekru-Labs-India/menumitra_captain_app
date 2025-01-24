@@ -45,7 +45,7 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#FFFFFF",
-          
+          "sounds": ["./assets/sounds/notification.mp3"],
           "androidMode": "default",
           "androidCollapsedTitle": "MenuMitra"
         }
