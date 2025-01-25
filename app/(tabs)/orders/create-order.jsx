@@ -138,6 +138,9 @@ export default function CreateOrderScreen() {
   const [serviceChargePercentage, setServiceChargePercentage] = useState(0);
   const [gstPercentage, setGstPercentage] = useState(0);
 
+  // Add this state for tracking fetch attempts
+  const [chargesFetched, setChargesFetched] = useState(false);
+
   // Update the useEffect for session handling
 
   // Add this function to fetch order details
@@ -339,6 +342,7 @@ export default function CreateOrderScreen() {
           (sum, item) => sum + (item.total_price || 0),
           0
         ),
+        action: orderStatus,
       };
 
       // Add table and section details only for dine-in orders
@@ -415,8 +419,8 @@ export default function CreateOrderScreen() {
     }
   };
 
-  const handleHold = () => createOrder("hold");
-  const handleKOT = () => createOrder("kot");
+  const handleHold = () => createOrder("save");
+  const handleKOT = () => createOrder("print");
 
   const handleSettle = async () => {
     if (selectedItems.length === 0) {
@@ -433,8 +437,9 @@ export default function CreateOrderScreen() {
 
       const storedCaptainId = await AsyncStorage.getItem("captain_id");
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const storedUserId = await AsyncStorage.getItem("user_id");
 
-      if (!storedOutletId || !storedCaptainId) {
+      if (!storedOutletId || !storedCaptainId || !storedUserId) {
         throw new Error("Required data not found");
       }
 
@@ -470,8 +475,10 @@ export default function CreateOrderScreen() {
         const createPayload = {
           captain_id: storedCaptainId.toString(),
           outlet_id: storedOutletId.toString(),
+          user_id: storedUserId.toString(),
           order_type: params.orderType.toLowerCase(),
           order_items: orderItems,
+          action: "settle",
         };
 
         // Create the order
@@ -488,16 +495,20 @@ export default function CreateOrderScreen() {
 
         // Immediately mark as paid
         setLoadingMessage("Marking order as paid...");
+        const paidPayload = {
+          outlet_id: storedOutletId.toString(),
+          order_id: createResult.order_id.toString(),
+          order_status: "paid",
+          user_id: storedUserId.toString(),
+          action: "settle",
+        };
+
         const paidResponse = await fetch(
           `${API_BASE_URL}/update_order_status`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              outlet_id: storedOutletId.toString(),
-              order_id: createResult.order_id.toString(),
-              order_status: "paid",
-            }),
+            body: JSON.stringify(paidPayload),
           }
         );
 
@@ -511,10 +522,12 @@ export default function CreateOrderScreen() {
         const createPayload = {
           captain_id: storedCaptainId.toString(),
           outlet_id: storedOutletId.toString(),
+          user_id: storedUserId.toString(),
           tables: [params.tableNumber.toString()],
           section_id: params.sectionId.toString(),
           order_type: "dine-in",
           order_items: orderItems,
+          action: "settle",
         };
 
         const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
@@ -530,16 +543,20 @@ export default function CreateOrderScreen() {
 
         // Mark as paid
         setLoadingMessage("Marking order as paid...");
+        const paidPayload = {
+          outlet_id: storedOutletId.toString(),
+          order_id: createResult.order_id.toString(),
+          order_status: "paid",
+          user_id: storedUserId.toString(),
+          action: "settle",
+        };
+
         const paidResponse = await fetch(
           `${API_BASE_URL}/update_order_status`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              outlet_id: storedOutletId.toString(),
-              order_id: createResult.order_id.toString(),
-              order_status: "paid",
-            }),
+            body: JSON.stringify(paidPayload),
           }
         );
 
@@ -933,31 +950,92 @@ export default function CreateOrderScreen() {
     }, [params?.orderNumber, params?.isOccupied]) // Dependencies
   );
 
-  // Add useEffect to fetch percentages from AsyncStorage
+  // Update the useEffect to fetch stored GST and service charges with correct keys
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchStoredCharges = async () => {
+        try {
+          // First attempt: Get from AsyncStorage
+          let [gst, serviceCharges] = await Promise.all([
+            AsyncStorage.getItem("gst"),
+            AsyncStorage.getItem("service_charges"),
+          ]);
+
+          console.log("Initial fetch from storage:", { gst, serviceCharges });
+
+          // If values are missing, try fetching from OTP response in storage
+          if (!gst || !serviceCharges) {
+            const userSession = await AsyncStorage.getItem("userSession");
+            if (userSession) {
+              const sessionData = JSON.parse(userSession);
+              gst = sessionData.gst;
+              serviceCharges = sessionData.service_charges;
+              console.log("Fetched from session:", { gst, serviceCharges });
+
+              // Store these values in AsyncStorage for future use
+              if (gst) await AsyncStorage.setItem("gst", gst.toString());
+              if (serviceCharges)
+                await AsyncStorage.setItem(
+                  "service_charges",
+                  serviceCharges.toString()
+                );
+            }
+          }
+
+          // Set the values if we have them
+          if (gst) {
+            const gstValue = parseFloat(gst);
+            console.log("Setting GST:", gstValue);
+            setGstPercentage(gstValue);
+          }
+
+          if (serviceCharges) {
+            const serviceValue = parseFloat(serviceCharges);
+            console.log("Setting Service Charge:", serviceValue);
+            setServiceChargePercentage(serviceValue);
+          }
+
+          setChargesFetched(true);
+        } catch (error) {
+          console.error("Error fetching charges:", error);
+        }
+      };
+
+      // Fetch charges when screen comes into focus
+      fetchStoredCharges();
+
+      // Cleanup function
+      return () => {
+        setChargesFetched(false);
+      };
+    }, []) // Empty dependency array for mount-only execution
+  );
+
+  // Add a backup useEffect in case the first one fails
   useEffect(() => {
-    const fetchPercentages = async () => {
-      try {
-        const [gst, serviceCharge] = await AsyncStorage.multiGet([
-          "gst_percentage",
-          "service_charge_percentage",
-        ]);
+    if (!gstPercentage || !serviceChargePercentage) {
+      const retryFetch = async () => {
+        try {
+          const userSession = await AsyncStorage.getItem("userSession");
+          if (userSession) {
+            const sessionData = JSON.parse(userSession);
+            if (sessionData.gst && !gstPercentage) {
+              setGstPercentage(parseFloat(sessionData.gst));
+            }
+            if (sessionData.service_charges && !serviceChargePercentage) {
+              setServiceChargePercentage(
+                parseFloat(sessionData.service_charges)
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Backup fetch error:", error);
+        }
+      };
 
-        setGstPercentage(parseFloat(gst[1]) || 0);
-        setServiceChargePercentage(parseFloat(serviceCharge[1]) || 0);
-
-        console.log(
-          "Loaded from storage - GST:",
-          gst[1],
-          "Service:",
-          serviceCharge[1]
-        );
-      } catch (error) {
-        console.error("Error fetching percentages from storage:", error);
-      }
-    };
-
-    fetchPercentages();
-  }, []); // Run once when component mounts
+      retryFetch();
+    }
+  }, [gstPercentage, serviceChargePercentage]);
 
   const handleAddItem = (item, selectedPortion) => {
     const newItem = {

@@ -20,16 +20,21 @@ export async function generateSessionToken() {
     const chars =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let token = "";
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 10; i++) {
       token += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-
     console.log("Generated new session token:", token);
     return token;
   } catch (error) {
     console.error("Error generating session token:", error);
     throw new Error("Failed to generate session token");
   }
+}
+
+// Add this new function to format push token
+export function formatAlphanumericToken(token) {
+  // Remove any non-alphanumeric characters and take first 20 characters
+  return token.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20);
 }
 
 export const setupNotifications = async () => {

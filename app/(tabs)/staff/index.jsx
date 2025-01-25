@@ -42,7 +42,6 @@ export default function StaffScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [viewType, setViewType] = useState("list");
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterRole, setFilterRole] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
@@ -50,6 +49,8 @@ export default function StaffScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const params = useLocalSearchParams();
   const [outletId, setOutletId] = useState(null);
+  const [roles, setRoles] = useState([]);
+  const [filterRole, setFilterRole] = useState("all");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -324,7 +325,48 @@ export default function StaffScreen() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/staff_listview`, {
+      const response = await fetch(`${API_BASE_URL}/get_staff_list_with_role`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId,
+          staff_role:
+            filterRole === "Role" || filterRole === "All"
+              ? "all"
+              : filterRole.toLowerCase(),
+        }),
+      });
+
+      const data = await response.json();
+      console.log("Staff List Response:", data);
+
+      if (data.st === 1 && Array.isArray(data.lists)) {
+        const sortedList = [...data.lists].sort((a, b) => {
+          if (sortOrder === "asc") {
+            return a.name.localeCompare(b.name);
+          }
+          return b.name.localeCompare(a.name);
+        });
+        setStaffList(sortedList);
+      }
+    } catch (error) {
+      console.error("Fetch Staff Error:", error);
+      toast.show({
+        description: "Failed to fetch staff list",
+        status: "error",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchRoles = async () => {
+    if (!outletId) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/staff_role_list`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -335,47 +377,75 @@ export default function StaffScreen() {
       });
 
       const data = await response.json();
-      console.log("Staff List Response:", data);
+      console.log("Roles Response:", data);
 
-      if (data.st === 1) {
-        const staffWithStatus = (data.lists || []).map((staff) => ({
-          ...staff,
-          status: staff.status || "present",
-        }));
-        setStaffList(staffWithStatus);
-      } else {
-        toast.show({
-          description: data.msg || "Failed to fetch staff list",
-          status: "error",
-        });
+      if (data.st === 1 && Array.isArray(data.role_list)) {
+        // Filter out the "all" role
+        const filteredRoles = data.role_list.filter(
+          (role) => role.role_name.toLowerCase() !== "all"
+        );
+        setRoles(filteredRoles);
+
+        // Set the first role as default if available
+        if (filteredRoles.length > 0) {
+          const firstRole = filteredRoles[0].role_name.toLowerCase();
+          console.log("Setting default role:", firstRole);
+          setFilterRole(firstRole);
+        }
       }
     } catch (error) {
-      console.error("Fetch Staff List Error:", error);
-      toast.show({
-        description: "Failed to fetch staff list",
-        status: "error",
+      console.error("Fetch Roles Error:", error);
+    }
+  };
+
+  const handleRoleSelect = async (role) => {
+    const newRole = role.role_name;
+    setFilterRole(newRole);
+    setIsRolesModalVisible(false);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/get_staff_list_with_role`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId,
+          staff_role:
+            role.role_name.toLowerCase() === "all"
+              ? "all"
+              : role.role_name.toLowerCase(),
+        }),
       });
+
+      const data = await response.json();
+      console.log("Staff List By Role Response:", data);
+
+      if (data.st === 1 && Array.isArray(data.lists)) {
+        const sortedList = [...data.lists].sort((a, b) => {
+          if (sortOrder === "asc") {
+            return a.name.localeCompare(b.name);
+          }
+          return b.name.localeCompare(a.name);
+        });
+        setStaffList(sortedList);
+        setFilteredStaffList([]);
+        setSearchQuery("");
+      }
+    } catch (error) {
+      console.error("Error fetching staff by role:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Replace useEffect with useFocusEffect
-  useFocusEffect(
-    useCallback(() => {
-      if (outletId) {
-        console.log("Screen focused, fetching staff list...");
-        fetchStaffList();
-      }
-    }, [outletId])
-  );
-
-  // Keep existing useEffect for initial load
   useEffect(() => {
     if (outletId) {
+      fetchRoles();
       fetchStaffList();
     }
-  }, [outletId, params.refresh]);
+  }, [outletId]);
 
   useEffect(() => {
     const getStoredData = async () => {
@@ -467,22 +537,11 @@ export default function StaffScreen() {
 
         <VStack px={3} space={4} mt={2}>
           <HStack space={1}>
-            <Select
-              flex={1}
-              selectedValue={filterRole}
-              onValueChange={setFilterRole}
-              placeholder="Filter by role"
-              _selectedItem={{
-                endIcon: <CheckIcon size={4} />,
-              }}
-              fontSize="sm"
-              py={1}
-            >
-              <Select.Item label="All Roles" value="" />
-              {uniqueRoles.map((role) => (
-                <Select.Item key={role} label={role} value={role} />
-              ))}
-            </Select>
+            <RoleFilter
+              filterRole={filterRole}
+              setFilterRole={setFilterRole}
+              roles={roles}
+            />
             <Select
               flex={1}
               selectedValue={filterStatus}
@@ -497,7 +556,6 @@ export default function StaffScreen() {
               <Select.Item label="All Status" value="" />
               <Select.Item label="Present" value="present" />
               <Select.Item label="Absent" value="absent" />
-              <Select.Item label="On Leave" value="on leave" />
             </Select>
           </HStack>
         </VStack>
@@ -540,3 +598,34 @@ export default function StaffScreen() {
     </Box>
   );
 }
+
+const RoleFilter = ({ filterRole, setFilterRole, roles }) => {
+  const handleRoleChange = (value) => {
+    console.log("Selected role value:", value);
+    setFilterRole(value);
+  };
+
+  return (
+    <Select
+      flex={1}
+      selectedValue={filterRole}
+      onValueChange={handleRoleChange}
+      placeholder="Select Role"
+      _selectedItem={{
+        endIcon: <CheckIcon size={4} />,
+      }}
+      fontSize="sm"
+      py={1}
+    >
+      {roles.map((role) => (
+        <Select.Item
+          key={role.role_name}
+          label={
+            role.role_name.charAt(0).toUpperCase() + role.role_name.slice(1)
+          }
+          value={role.role_name.toLowerCase()}
+        />
+      ))}
+    </Select>
+  );
+};

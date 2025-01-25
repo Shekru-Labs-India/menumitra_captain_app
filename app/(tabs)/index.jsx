@@ -29,6 +29,8 @@ import {
 } from "../../services/DeviceTokenService";
 import { NotificationService } from "../../services/NotificationService";
 
+const API_BASE_URL = "https://men4u.xyz/common_api";
+
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sound, setSound] = useState();
@@ -48,10 +50,13 @@ export default function HomeScreen() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch outlet ID from AsyncStorage
+        console.log("Starting fetchData function");
+
         const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        console.log("Stored Outlet ID:", storedOutletId);
 
         if (!storedOutletId) {
+          console.log("No outlet ID found");
           toast.show({
             description: "Please log in again",
             status: "error",
@@ -60,9 +65,10 @@ export default function HomeScreen() {
           return;
         }
 
-        // Fetch staff list from API
-        const staffResponse = await fetch(
-          "https://men4u.xyz/common_api/staff_listview",
+        // Fetch table sections
+        console.log("Fetching table sections...");
+        const tableSectionsResponse = await fetch(
+          `${API_BASE_URL}/table_listview`,
           {
             method: "POST",
             headers: {
@@ -73,48 +79,71 @@ export default function HomeScreen() {
             }),
           }
         );
+
+        const tableSectionsData = await tableSectionsResponse.json();
+        console.log("Raw Table Sections Response:", tableSectionsData);
+
+        // Calculate total tables
+        if (tableSectionsData.st === 1 && tableSectionsData.data) {
+          console.log("Processing table sections data...");
+          let totalTables = 0;
+
+          // Handle the data structure correctly
+          Object.entries(tableSectionsData.data).forEach(
+            ([sectionName, tables]) => {
+              if (Array.isArray(tables)) {
+                const tableCount = tables.length;
+                console.log(`Section "${sectionName}": ${tableCount} tables`);
+                totalTables += tableCount;
+              } else if (tables && typeof tables === "object") {
+                // If tables is an object with a tables property
+                const tableArray = tables.tables || [];
+                const tableCount = tableArray.length;
+                console.log(`Section "${sectionName}": ${tableCount} tables`);
+                totalTables += tableCount;
+              }
+            }
+          );
+
+          console.log("Final Total Tables:", totalTables);
+          setTableCount(totalTables);
+        } else {
+          console.log("Invalid table sections response:", tableSectionsData);
+        }
+
+        // Fetch staff list
+        console.log("Fetching staff list...");
+        const staffResponse = await fetch(`${API_BASE_URL}/staff_listview`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            outlet_id: storedOutletId.toString(),
+          }),
+        });
 
         const staffData = await staffResponse.json();
-        console.log("Staff Data Response:", staffData);
+        console.log("Raw Staff Response:", staffData);
 
-        // Fetch table list from API
-        const tableResponse = await fetch(
-          "https://men4u.xyz/common_api/get_table_list",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              outlet_id: storedOutletId.toString(),
-            }),
-          }
-        );
-
-        const tableData = await tableResponse.json();
-        console.log("Table Data Response:", tableData);
-
-        if (staffData.st === 1) {
-          const staffList = staffData.lists || [];
-          setStaffCount(staffList.length);
-        } else {
-          console.log("Staff Data Error:", staffData.msg);
+        // Update staff count
+        if (staffData.st === 1 && staffData.lists) {
+          const staffCount = staffData.lists.length;
+          console.log("Setting staff count to:", staffCount);
+          setStaffCount(staffCount);
         }
 
-        if (tableData.st === 1) {
-          const tableList = tableData.data || [];
-          setTableCount(tableList.length);
-        } else {
-          console.log("Table Data Error:", tableData.msg);
-        }
-
-        // TODO: Replace with actual API call for sales data
+        // Keep existing sales data
         setTodaysSales({
           sales: 45,
           revenue: 25750,
         });
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Detailed Error in fetchData:", {
+          message: error.message,
+          stack: error.stack,
+          error,
+        });
         toast.show({
           description: "Failed to fetch data",
           status: "error",
@@ -123,8 +152,23 @@ export default function HomeScreen() {
       }
     };
 
+    console.log("useEffect triggered for data fetching");
     fetchData();
+
+    // Log cleanup
+    return () => {
+      console.log("useEffect cleanup triggered");
+    };
   }, []);
+
+  // Add a useEffect to monitor state changes
+  useEffect(() => {
+    console.log("Current tableCount state:", tableCount);
+  }, [tableCount]);
+
+  useEffect(() => {
+    console.log("Current staffCount state:", staffCount);
+  }, [staffCount]);
 
   // Add Audio initialization
   useEffect(() => {

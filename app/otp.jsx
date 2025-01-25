@@ -23,6 +23,7 @@ import {
   invalidateOldSessions,
   checkTokenStatus,
   handleTokens,
+  formatAlphanumericToken,
 } from "../services/DeviceTokenService";
 import { useToast } from "native-base";
 import { Platform } from "react-native";
@@ -177,11 +178,38 @@ export default function OtpScreen() {
       setError("");
       setIsLoading(true);
 
+      // Generate tokens before OTP verification
+      let tokenData = null;
+      try {
+        if (Platform.OS !== "web") {
+          tokenData = await handleTokens(false);
+          console.log("Token generation result:", tokenData);
+
+          if (!tokenData?.sessionToken || !tokenData?.pushToken) {
+            throw new Error("Failed to generate required tokens");
+          }
+        }
+      } catch (error) {
+        console.error("Token generation error:", error);
+        setError("Device token generation failed. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+
       toast.show({
         description: "Verifying OTP...",
         status: "info",
         duration: 2000,
       });
+
+      const requestBody = {
+        mobile: mobileNumber,
+        otp: otp.join(""),
+        device_sessid: tokenData.sessionToken,
+        fcm_token: formatAlphanumericToken(tokenData.pushToken),
+      };
+
+      console.log("Sending request with body:", requestBody);
 
       const response = await fetch(
         `https://men4u.xyz/captain_api/captain_verify_otp`,
@@ -190,27 +218,32 @@ export default function OtpScreen() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            mobile: mobileNumber,
-            otp: otp.join(""),
-            device_sessid: "1",
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
+
+      if (!response.ok) {
+        console.error("API Response not OK:", {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        throw new Error(`API Error: ${response.status}`);
+      }
 
       const data = await response.json();
       console.log("OTP verification response:", data);
 
       if (data.st === 1) {
-        // Simplified token handling - don't block login if it fails
-        let tokenData = null;
-        try {
-          if (Platform.OS !== "web") {
-            tokenData = await handleTokens(false); // Set to false to avoid initialization checks
-            console.log("Token generation result:", tokenData);
-          }
-        } catch (error) {
-          console.log("Token generation failed, continuing with login:", error);
+        // Validate GST and service charges
+        if (
+          typeof data.gst === "undefined" ||
+          typeof data.service_charges === "undefined"
+        ) {
+          console.error("Missing required fields:", {
+            gst: data.gst,
+            service_charges: data.service_charges,
+          });
+          throw new Error("Missing GST or service charge information");
         }
 
         // Store data and proceed with login
@@ -220,17 +253,11 @@ export default function OtpScreen() {
           ["mobile", mobileNumber],
           ["captain_id", data.captain_id?.toString() || ""],
           ["captain_name", data.captain_name || ""],
-          ["gst", data.gst?.toString() || ""],
-          ["service_charges", data.service_charges?.toString() || ""],
+          ["gst", data.gst?.toString() || "0"], // Default to "0" if missing
+          ["service_charges", data.service_charges?.toString() || "0"], // Default to "0" if missing
+          ["sessionToken", tokenData.sessionToken],
+          ["expoPushToken", tokenData.pushToken],
         ];
-
-        // Add token data if available
-        if (tokenData?.sessionToken) {
-          dataToStore.push(["sessionToken", tokenData.sessionToken]);
-        }
-        if (tokenData?.pushToken) {
-          dataToStore.push(["expoPushToken", tokenData.pushToken]);
-        }
 
         await AsyncStorage.multiSet(dataToStore);
 
@@ -238,10 +265,8 @@ export default function OtpScreen() {
         const sessionData = {
           ...data,
           expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          ...(tokenData && {
-            sessionToken: tokenData.sessionToken,
-            expoPushToken: tokenData.pushToken,
-          }),
+          sessionToken: tokenData.sessionToken,
+          expoPushToken: tokenData.pushToken,
         };
         await AsyncStorage.setItem("userSession", JSON.stringify(sessionData));
 
