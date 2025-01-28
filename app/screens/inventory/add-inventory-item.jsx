@@ -359,6 +359,27 @@ export default function AddInventoryItemScreen() {
     }
   };
 
+  const parseDate = (dateString) => {
+    if (!dateString) return new Date();
+
+    const [day, month, year] = dateString.split(" ");
+    const months = {
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
+    };
+    return new Date(year, months[month], parseInt(day));
+  };
+
   const formatDate = (date) => {
     const months = [
       "Jan",
@@ -381,16 +402,24 @@ export default function AddInventoryItemScreen() {
   };
 
   const handleInDateChange = (event, selectedDate) => {
-    setShowInDatePicker(false);
-    if (selectedDate && event.type !== "dismissed") {
-      setFormData({ ...formData, in_date: formatDate(selectedDate) });
+    setShowInDatePicker(Platform.OS === "ios");
+
+    if (event.type === "set" && selectedDate) {
+      setFormData((prev) => ({
+        ...prev,
+        in_date: formatDate(selectedDate),
+      }));
     }
   };
 
   const handleExpirationDateChange = (event, selectedDate) => {
-    setShowExpirationDatePicker(false);
-    if (selectedDate && event.type !== "dismissed") {
-      setFormData({ ...formData, expiration_date: formatDate(selectedDate) });
+    setShowExpirationDatePicker(Platform.OS === "ios");
+
+    if (event.type === "set" && selectedDate) {
+      setFormData((prev) => ({
+        ...prev,
+        expiration_date: formatDate(selectedDate),
+      }));
     }
   };
 
@@ -641,10 +670,17 @@ export default function AddInventoryItemScreen() {
           {/* Date Pickers */}
           {showInDatePicker && (
             <DateTimePicker
-              value={formData.in_date ? new Date(formData.in_date) : new Date()}
+              value={
+                formData.in_date ? parseDate(formData.in_date) : new Date()
+              }
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleInDateChange}
+              maximumDate={
+                formData.expiration_date
+                  ? parseDate(formData.expiration_date)
+                  : undefined
+              }
             />
           )}
 
@@ -652,14 +688,14 @@ export default function AddInventoryItemScreen() {
             <DateTimePicker
               value={
                 formData.expiration_date
-                  ? new Date(formData.expiration_date)
+                  ? parseDate(formData.expiration_date)
                   : new Date()
               }
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleExpirationDateChange}
               minimumDate={
-                formData.in_date ? new Date(formData.in_date) : new Date()
+                formData.in_date ? parseDate(formData.in_date) : new Date()
               }
             />
           )}

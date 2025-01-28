@@ -18,6 +18,7 @@ import {
   Icon,
   SectionList,
   Button,
+  View,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -118,7 +119,78 @@ const EmptyStateAnimation = ({ orderStatus, orderType }) => {
   );
 };
 
-const OrderCard = ({ order, onPress }) => {
+// Add this shared timer utility function at the top level
+const calculateOrderTimer = (orderTime) => {
+  try {
+    if (!orderTime) return 0;
+
+    // Parse the time string (format: "04:33:21 PM")
+    const [time, period] = orderTime.split(" ");
+    const [hours, minutes, seconds] = time.split(":");
+
+    let hour = parseInt(hours);
+    if (period === "PM" && hour !== 12) {
+      hour += 12;
+    } else if (period === "AM" && hour === 12) {
+      hour = 0;
+    }
+
+    const orderDate = new Date();
+    orderDate.setHours(hour);
+    orderDate.setMinutes(parseInt(minutes));
+    orderDate.setSeconds(parseInt(seconds));
+
+    const currentTime = new Date();
+    const elapsedSeconds = Math.floor((currentTime - orderDate) / 1000);
+    return Math.max(0, 90 - elapsedSeconds);
+  } catch (error) {
+    console.error("Error calculating timer:", error);
+    return 0;
+  }
+};
+
+// Update OrderTimer component
+const OrderTimer = ({ orderTime, onEnd, orderId }) => {
+  const [remainingTime, setRemainingTime] = useState(() => 
+    calculateOrderTimer(orderTime)
+  );
+
+  useEffect(() => {
+    if (remainingTime <= 0) {
+      onEnd && onEnd(orderId);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const newTime = calculateOrderTimer(orderTime);
+      setRemainingTime(newTime);
+
+      if (newTime <= 0) {
+        clearInterval(timer);
+        onEnd && onEnd(orderId);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [orderTime, orderId, onEnd]);
+
+  if (remainingTime <= 0) return null;
+
+  return (
+    <HStack bg="red.50" px={2} py={1} rounded="full" alignItems="center" ml={2}>
+      <Icon as={MaterialIcons} name="timer" size="xs" color="red.500" mr={1} />
+      <Text
+        fontSize="xs"
+        color={remainingTime <= 30 ? "red.600" : "red.500"}
+        fontWeight="medium"
+      >
+        {remainingTime} seconds
+      </Text>
+    </HStack>
+  );
+};
+
+const OrderCard = ({ order, onPress, onTimerEnd }) => {
   return (
     <Pressable onPress={() => onPress(order)}>
       <Box
@@ -142,11 +214,19 @@ const OrderCard = ({ order, onPress }) => {
             : `${ORDER_STATUS_COLORS.DEFAULT}.500`
         }
       >
-        {/* Header with Order Number and Status */}
         <HStack justifyContent="space-between" alignItems="center" mb={3}>
-          <Text fontSize="lg" fontWeight="bold">
-            #{order.order_number}
-          </Text>
+          <HStack space={2} alignItems="center">
+            <Text fontSize="md" fontWeight="bold">
+              #{order.order_number}
+            </Text>
+            {order.order_status?.toLowerCase() === "placed" && (
+              <OrderTimer
+                orderTime={order.time}
+                onEnd={onTimerEnd}
+                orderId={order.order_id}
+              />
+            )}
+          </HStack>
           <Badge
             colorScheme={
               order.order_status === "cooking"
@@ -279,6 +359,7 @@ const OrdersScreen = () => {
   const [isAscending, setIsAscending] = useState(false);
   const [orderType, setOrderType] = useState("all");
   const [filteredOrders, setFilteredOrders] = useState([]);
+  const [orderTimers, setOrderTimers] = useState({});
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -295,10 +376,11 @@ const OrdersScreen = () => {
     }
   };
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (isSilentRefresh = false) => {
+    if (!isSilentRefresh) setIsLoading(true);
+
     try {
-      setIsLoading(true);
-      const outletId = await AsyncStorage.getItem("outlet_id");
+      const restaurantId = await AsyncStorage.getItem("outlet_id");
 
       const response = await fetch(
         "https://men4u.xyz/common_api/order_listview",
@@ -308,7 +390,7 @@ const OrdersScreen = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            outlet_id: outletId || "1",
+            outlet_id: restaurantId || "1",
           }),
         }
       );
@@ -318,6 +400,19 @@ const OrdersScreen = () => {
 
       if (data.st === 1 && data.lists) {
         setOrders(data.lists);
+
+        // Initialize timers for placed orders
+        const newTimers = {};
+        data.lists.forEach((section) => {
+          section.data.forEach((order) => {
+            if (order.order_status?.toLowerCase() === "placed") {
+              newTimers[order.order_number] = calculateOrderTimer(
+                order.datetime
+              );
+            }
+          });
+        });
+        setOrderTimers(newTimers);
       }
     } catch (error) {
       console.error("Error fetching orders:", error);
@@ -329,6 +424,40 @@ const OrdersScreen = () => {
 
   useEffect(() => {
     fetchOrders();
+  }, []);
+
+  // Auto-refresh orders when timer ends or every minute
+  useEffect(() => {
+    fetchOrders(); // Initial fetch
+
+    // Refresh every minute
+    const refreshInterval = setInterval(() => {
+      fetchOrders(true); // Silent refresh
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, []);
+
+  // Add a function to handle timer end
+  const handleTimerEnd = useCallback(async (orderId) => {
+    try {
+      // Update the order status in the local state
+      setOrders((prevOrders) =>
+        prevOrders.map((dateGroup) => ({
+          ...dateGroup,
+          data: dateGroup.data.map((order) =>
+            order.order_id === orderId
+              ? { ...order, order_status: "cooking" }
+              : order
+          ),
+        }))
+      );
+
+      // Fetch fresh data from server
+      fetchOrders(true);
+    } catch (error) {
+      console.error("Error handling timer end:", error);
+    }
   }, []);
 
   // Filter and sort orders whenever the dependencies change
@@ -397,74 +526,16 @@ const OrdersScreen = () => {
   }, []);
 
   const renderOrderItem = ({ item }) => (
-    <Pressable
+    <OrderCard
+      order={item}
       onPress={() => {
         router.push({
           pathname: "/orders/order-details",
           params: { id: item.order_number },
         });
       }}
-      bg="white"
-      borderRadius="lg"
-      shadow={1}
-      mb={3}
-    >
-      <Box p={4}>
-        <HStack justifyContent="space-between" alignItems="center" mb={2}>
-          <VStack>
-            <Text fontSize="md" fontWeight="bold">
-              Order #{item.order_number}
-            </Text>
-            <Text fontSize="sm" color="gray.600">
-              {item.time}
-            </Text>
-          </VStack>
-          <Badge
-            colorScheme={getStatusColor(item.order_status)}
-            variant="solid"
-            rounded="md"
-          >
-            {item.order_status?.toUpperCase()}
-          </Badge>
-        </HStack>
-
-        <HStack space={4} mb={2}>
-          <VStack flex={1}>
-            <Text fontSize="sm" color="gray.500">
-              Table
-            </Text>
-            <Text fontSize="md">
-              {item.table_number?.length > 0
-                ? item.table_number.join(", ")
-                : "-"}
-            </Text>
-          </VStack>
-          <VStack flex={1}>
-            <Text fontSize="sm" color="gray.500">
-              Type
-            </Text>
-            <Text fontSize="md" textTransform="capitalize">
-              {item.order_type}
-            </Text>
-          </VStack>
-          <VStack flex={1}>
-            <Text fontSize="sm" color="gray.500">
-              Items
-            </Text>
-            <Text fontSize="md">{item.menu_count}</Text>
-          </VStack>
-        </HStack>
-
-        <HStack justifyContent="space-between" alignItems="center">
-          <Text fontSize="sm" color="gray.500">
-            {item.section_name || "-"}
-          </Text>
-          <Text fontSize="lg" fontWeight="bold" color="primary.500">
-            ₹{item.grand_total.toFixed(2)}
-          </Text>
-        </HStack>
-      </Box>
-    </Pressable>
+      onTimerEnd={handleTimerEnd}
+    />
   );
 
   const renderSectionHeader = ({ section }) => (
@@ -644,6 +715,7 @@ const OrdersScreen = () => {
                 params: { id: item.order_number },
               });
             }}
+            onTimerEnd={handleTimerEnd}
           />
         )}
         renderSectionHeader={({ section }) => (

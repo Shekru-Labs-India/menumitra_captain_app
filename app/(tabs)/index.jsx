@@ -28,6 +28,8 @@ import {
   addNotificationResponseListener,
 } from "../../services/DeviceTokenService";
 import { NotificationService } from "../../services/NotificationService";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 
 const API_BASE_URL = "https://men4u.xyz/common_api";
 
@@ -43,6 +45,10 @@ export default function HomeScreen() {
   });
   const [deviceToken, setDeviceToken] = useState(null);
   const [pushToken, setPushToken] = useState(null);
+  const [salesData, setSalesData] = useState({
+    liveSales: 0,
+    todayTotalSales: 0,
+  });
   const router = useRouter();
   const toast = useToast();
 
@@ -113,21 +119,25 @@ export default function HomeScreen() {
 
         // Fetch staff list
         console.log("Fetching staff list...");
-        const staffResponse = await fetch(`${API_BASE_URL}/staff_listview`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            outlet_id: storedOutletId.toString(),
-          }),
-        });
+        const staffResponse = await fetch(
+          `${API_BASE_URL}/get_staff_list_with_role`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              outlet_id: storedOutletId.toString(),
+              staff_role: "all",
+            }),
+          }
+        );
 
         const staffData = await staffResponse.json();
         console.log("Raw Staff Response:", staffData);
 
-        // Update staff count
-        if (staffData.st === 1 && staffData.lists) {
+        // Update staff count using the correct response structure
+        if (staffData.st === 1 && Array.isArray(staffData.lists)) {
           const staffCount = staffData.lists.length;
           console.log("Setting staff count to:", staffCount);
           setStaffCount(staffCount);
@@ -139,11 +149,7 @@ export default function HomeScreen() {
           revenue: 25750,
         });
       } catch (error) {
-        console.error("Detailed Error in fetchData:", {
-          message: error.message,
-          stack: error.stack,
-          error,
-        });
+        console.error("Error in fetchData:", error);
         toast.show({
           description: "Failed to fetch data",
           status: "error",
@@ -354,12 +360,18 @@ export default function HomeScreen() {
       route: "/screens/suppliers",
       color: "pink.500",
     },
-    // {
-    //   title: "Reports",
-    //   icon: "assessment",
-    //   route: "/(tabs)",
-    //   color: "blueGray.500",
-    // },
+    {
+      title: "Menus",
+      icon: "restaurant",
+      route: "/screens/menus/MenuListView",
+      color: "blue.500",
+    },
+    {
+      title: "Categories",
+      icon: "category",
+      route: "/screens/categories/CategoryListview",
+      color: "red.500",
+    },
   ];
 
   const checkStoredToken = async () => {
@@ -506,6 +518,54 @@ export default function HomeScreen() {
     }
   };
 
+  const fetchLatestSales = async () => {
+    try {
+      const outletId = await AsyncStorage.getItem("outlet_id");
+
+      const response = await fetch(
+        "https://men4u.xyz/common_api/table_listview",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            outlet_id: outletId,
+          }),
+        }
+      );
+
+      const data = await response.json();
+      console.log("Latest sales data:", data);
+
+      if (data.st === 1) {
+        setSalesData({
+          liveSales: data.live_sales || 0,
+          todayTotalSales: data.today_total_sales || 0,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching latest sales:", error);
+    }
+  };
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchLatestSales();
+  }, []);
+
+  // Fetch when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchLatestSales();
+
+      // Set up auto-refresh every 30 seconds
+      const interval = setInterval(fetchLatestSales, 30000);
+
+      return () => clearInterval(interval);
+    }, [])
+  );
+
   return (
     <Box flex={1} bg="white" safeArea>
       <NativeBaseStatusBar backgroundColor="white" barStyle="dark-content" />
@@ -596,10 +656,10 @@ export default function HomeScreen() {
         >
           <VStack alignItems="center" flex={1}>
             <Text fontSize="lg" fontWeight="bold">
-              {todaysSales.sales}
+              ₹{Number(salesData.liveSales).toFixed(2)}
             </Text>
             <Text mt={2} color="coolGray.500">
-              Today's Sales
+              Live Sales
             </Text>
           </VStack>
 
@@ -607,7 +667,7 @@ export default function HomeScreen() {
 
           <VStack alignItems="center" flex={1}>
             <Text fontSize="lg" fontWeight="bold">
-              ₹{todaysSales.revenue.toLocaleString()}
+              ₹{Number(salesData.todayTotalSales).toFixed(2)}
             </Text>
             <Text mt={2} color="coolGray.500">
               Today's Revenue

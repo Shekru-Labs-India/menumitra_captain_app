@@ -310,8 +310,11 @@ export default function EditInventoryItemScreen() {
           status: "success",
         });
         router.push({
-          pathname: "/screens/inventory/inventory-items",
-          params: { refresh: Date.now() },
+          pathname: "/screens/inventory/inventory-item-details",
+          params: {
+            itemId: formData.inventory_id,
+            refresh: Date.now(),
+          },
         });
       } else {
         throw new Error(data.msg || "Failed to update inventory item");
@@ -328,10 +331,6 @@ export default function EditInventoryItemScreen() {
   };
 
   const formatDate = (date) => {
-    if (!date) return "";
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return ""; // Return empty string if invalid date
-
     const months = [
       "Jan",
       "Feb",
@@ -346,31 +345,41 @@ export default function EditInventoryItemScreen() {
       "Nov",
       "Dec",
     ];
-
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = months[d.getMonth()];
-    const year = d.getFullYear();
-
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
     return `${day} ${month} ${year}`;
   };
 
   const parseDate = (dateString) => {
-    if (!dateString) return "";
-    // Handle different date formats that might come from the API
-    const d = new Date(dateString);
-    if (!isNaN(d.getTime())) {
-      return formatDate(d);
-    }
-    return dateString; // Return original string if parsing fails
+    if (!dateString) return new Date();
+
+    const [day, month, year] = dateString.split(" ");
+    const months = {
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
+    };
+    return new Date(year, months[month], parseInt(day));
   };
 
   const onDateChange = (event, selectedDate) => {
-    setShowDatePicker(false);
+    setShowDatePicker(Platform.OS === "ios");
+
     if (event.type === "set" && selectedDate) {
-      setFormData({
-        ...formData,
+      setFormData((prev) => ({
+        ...prev,
         [currentDateField]: formatDate(selectedDate),
-      });
+      }));
     }
   };
 
@@ -595,10 +604,24 @@ export default function EditInventoryItemScreen() {
           {/* Date Picker */}
           {showDatePicker && (
             <DateTimePicker
-              value={new Date(formData[currentDateField] || Date.now())}
+              value={
+                formData[currentDateField]
+                  ? parseDate(formData[currentDateField])
+                  : new Date()
+              }
               mode="date"
-              display="default"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={onDateChange}
+              minimumDate={
+                currentDateField === "expiration_date" && formData.in_date
+                  ? parseDate(formData.in_date)
+                  : undefined
+              }
+              maximumDate={
+                currentDateField === "in_date" && formData.expiration_date
+                  ? parseDate(formData.expiration_date)
+                  : undefined
+              }
             />
           )}
 

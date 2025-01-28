@@ -715,12 +715,16 @@ export default function CreateOrderScreen() {
 
   const calculateServiceCharges = (selectedItems, serviceChargePercentage) => {
     const totalAfterDiscount = calculateTotalAfterDiscount(selectedItems);
-    return (totalAfterDiscount * serviceChargePercentage) / 100;
+    const serviceCharge = (totalAfterDiscount * serviceChargePercentage) / 100;
+    // Truncate to 2 decimal places to match API (0.525 → 0.52)
+    return parseFloat(((serviceCharge * 100) / 100).toFixed(2));
   };
 
   const calculateGST = (selectedItems, gstPercentage) => {
     const totalAfterDiscount = calculateTotalAfterDiscount(selectedItems);
-    return (totalAfterDiscount * gstPercentage) / 100;
+    const gst = (totalAfterDiscount * gstPercentage) / 100;
+    // Truncate to 2 decimal places to match API (0.525 → 0.52)
+    return parseFloat(((gst * 100) / 100).toFixed(2));
   };
 
   const calculateTotal = (
@@ -1170,7 +1174,7 @@ export default function CreateOrderScreen() {
           {params?.isSpecialOrder ? (
             <Text
               color={
-                params.orderType === "parcel"
+                params.orderType === "parsel"
                   ? "amber.800"
                   : params.orderType === "drive-through"
                   ? "purple.800"

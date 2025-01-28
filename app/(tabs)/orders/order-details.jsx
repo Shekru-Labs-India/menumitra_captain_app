@@ -33,6 +33,35 @@ const formatTime = (dateTimeString) => {
   return `${date} • ${hours}:${minutes} ${ampm}`;
 };
 
+const calculateOrderTimer = (orderTime) => {
+  try {
+    if (!orderTime) return 0;
+
+    // Parse the time string (format: "04:33:21 PM")
+    const [time, period] = orderTime.split(" ");
+    const [hours, minutes, seconds] = time.split(":");
+
+    let hour = parseInt(hours);
+    if (period === "PM" && hour !== 12) {
+      hour += 12;
+    } else if (period === "AM" && hour === 12) {
+      hour = 0;
+    }
+
+    const orderDate = new Date();
+    orderDate.setHours(hour);
+    orderDate.setMinutes(parseInt(minutes));
+    orderDate.setSeconds(parseInt(seconds));
+
+    const currentTime = new Date();
+    const elapsedSeconds = Math.floor((currentTime - orderDate) / 1000);
+    return Math.max(0, 90 - elapsedSeconds);
+  } catch (error) {
+    console.error("Error calculating timer:", error);
+    return 0;
+  }
+};
+
 export default function OrderDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -41,6 +70,7 @@ export default function OrderDetailsScreen() {
   const [orderDetails, setOrderDetails] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [invoiceUrl, setInvoiceUrl] = useState(null);
+  const [timeRemaining, setTimeRemaining] = useState(0);
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -66,20 +96,28 @@ export default function OrderDetailsScreen() {
         console.log("Order Details Response:", data);
 
         if (data.st === 1 && data.lists) {
+          // Fix datetime parsing based on actual format "27-Jan-2025 03:53:30 PM"
+          const [date, time, period] =
+            data.lists.order_details.datetime.split(" ");
+
           // Transform the data to match our UI structure
           const transformedOrder = {
             ...data.lists.order_details,
-            menu_items: data.lists.menu_details,
+            menu_items: Array.isArray(data.lists.menu_details)
+              ? data.lists.menu_details
+              : [data.lists.menu_details], // Handle single object case
             invoice_url: data.lists.invoice_url,
-            // Split datetime into date and time
-            date: data.lists.order_details.datetime.split(" ")[0],
-            time:
-              data.lists.order_details.datetime.split(" ")[2] +
-              " " +
-              data.lists.order_details.datetime.split(" ")[3],
+            date: date,
+            time: `${time} ${period}`,
+            total_quantity: data.lists.menu_details?.[0]?.quantity || 0,
           };
 
           setOrderDetails(transformedOrder);
+          setMenuItems(
+            Array.isArray(data.lists.menu_details)
+              ? data.lists.menu_details
+              : [data.lists.menu_details]
+          );
         } else {
           throw new Error(data.msg || "Failed to fetch order details");
         }
@@ -192,6 +230,80 @@ export default function OrderDetailsScreen() {
     }
   };
 
+  const handleTimerEnd = async () => {
+    try {
+      await handleStatusUpdate("cooking");
+    } catch (error) {
+      console.error("Error handling timer end:", error);
+    }
+  };
+
+  useEffect(() => {
+    let timerInterval;
+
+    const initTimer = () => {
+      if (orderDetails?.order_status?.toLowerCase() === "placed") {
+        const remaining = calculateOrderTimer(orderDetails.time);
+        setTimeRemaining(remaining);
+
+        if (remaining > 0) {
+          timerInterval = setInterval(() => {
+            const newTime = calculateOrderTimer(orderDetails.time);
+            setTimeRemaining(newTime);
+
+            if (newTime <= 0) {
+              clearInterval(timerInterval);
+              handleTimerEnd();
+            }
+          }, 1000);
+        } else if (remaining === 0) {
+          handleTimerEnd();
+        }
+      }
+    };
+
+    initTimer();
+
+    return () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    };
+  }, [orderDetails]);
+
+  const renderTimer = () => {
+    if (
+      orderDetails?.order_status?.toLowerCase() !== "placed" ||
+      timeRemaining <= 0
+    ) {
+      return null;
+    }
+
+    return (
+      <HStack
+        bg={timeRemaining <= 30 ? "red.100" : "orange.100"}
+        p={2}
+        rounded="md"
+        alignItems="center"
+        space={2}
+      >
+        <Icon
+          as={MaterialIcons}
+          name="timer"
+          size={5}
+          color={timeRemaining <= 30 ? "red.500" : "orange.500"}
+        />
+        <Text
+          fontSize="lg"
+          color={timeRemaining <= 30 ? "red.500" : "orange.500"}
+          fontWeight="bold"
+        >
+          {timeRemaining} seconds
+        </Text>
+      </HStack>
+    );
+  };
+
   if (isLoading) {
     return (
       <Box flex={1} bg="white" safeArea>
@@ -224,11 +336,12 @@ export default function OrderDetailsScreen() {
         <Box m={4} p={4} bg="white" rounded="lg" shadow={1}>
           <VStack space={3}>
             <HStack justifyContent="space-between" alignItems="center">
-              <VStack>
+              <VStack space={2}>
                 <Heading size="md">Order #{orderDetails.order_number}</Heading>
                 <Text fontSize="sm" color="coolGray.600">
                   {orderDetails.date} • {orderDetails.time}
                 </Text>
+                {renderTimer()}
               </VStack>
               <Badge
                 px={3}
@@ -239,6 +352,8 @@ export default function OrderDetailsScreen() {
                     ? "orange"
                     : orderDetails.order_status === "paid"
                     ? "green"
+                    : orderDetails.order_status === "placed"
+                    ? "purple"
                     : "red"
                 }
               >
@@ -391,7 +506,7 @@ export default function OrderDetailsScreen() {
         </Box>
 
         {/* Invoice Button */}
-        {orderDetails.invoice_url && (
+        {orderDetails.order_status === "paid" && orderDetails.invoice_url && (
           <Pressable
             onPress={() => Linking.openURL(orderDetails.invoice_url)}
             mx={4}

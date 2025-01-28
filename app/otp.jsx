@@ -261,6 +261,13 @@ export default function OtpScreen() {
 
         await AsyncStorage.multiSet(dataToStore);
 
+        // Store sales data
+        const salesData = {
+          liveSales: data.live_sales || 0,
+          todayTotalSales: data.today_total_sales || 0,
+        };
+        await AsyncStorage.setItem("salesData", JSON.stringify(salesData));
+
         // Create session
         const sessionData = {
           ...data,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   ScrollView,
@@ -45,8 +45,9 @@ export default function AddStaffScreen() {
   const [captainId, setCaptainId] = useState(null);
   const [outletId, setOutletId] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [errors, setErrors] = useState({}); // Add this state for form errors
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [errors, setErrors] = useState({}); // Add this state for form errors
+  const selectRef = useRef(null);
 
   const pickImage = async () => {
     try {
@@ -206,7 +207,7 @@ export default function AddStaffScreen() {
 
       if (Object.keys(newErrors).length > 0) {
         toast.show({
-          description: "Please fix all errors before submitting",
+          description: "Please fill all required fields before submitting",
           status: "error",
         });
         return false;
@@ -375,13 +376,36 @@ export default function AddStaffScreen() {
     return `${day} ${month} ${year}`;
   };
 
-  const handleDateChange = (event, date) => {
-    setShowDatePicker(false);
-    if (date) {
-      setSelectedDate(date);
+  // Helper function to parse date string
+  const parseDate = (dateString) => {
+    if (!dateString) return new Date();
 
-      // Format date as "DD Mon YYYY"
-      const day = String(date.getDate()).padStart(2, "0");
+    const [day, month, year] = dateString.split(" ");
+    const months = {
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
+    };
+    return new Date(year, months[month], parseInt(day));
+  };
+
+  // Update handleDateChange function
+  const handleDateChange = (event, selected) => {
+    setShowDatePicker(Platform.OS === "ios");
+
+    if (event.type === "set") {
+      setSelectedDate(selected);
+
+      const day = String(selected.getDate()).padStart(2, "0");
       const months = [
         "Jan",
         "Feb",
@@ -396,14 +420,16 @@ export default function AddStaffScreen() {
         "Nov",
         "Dec",
       ];
-      const month = months[date.getMonth()];
-      const year = date.getFullYear();
+      const month = months[selected.getMonth()];
+      const year = selected.getFullYear();
       const formattedDate = `${day} ${month} ${year}`;
 
       setFormData((prev) => ({
         ...prev,
         dob: formattedDate,
       }));
+    } else {
+      setShowDatePicker(false);
     }
   };
 
@@ -460,35 +486,46 @@ export default function AddStaffScreen() {
 
           <FormControl isRequired isInvalid={"role" in errors}>
             <FormControl.Label>Role</FormControl.Label>
-            <Select
-              selectedValue={formData.role}
-              onValueChange={(value) => {
-                console.log("Selected role:", value); // Debug log
-                setFormData({ ...formData, role: value });
-                setErrors((prev) => ({ ...prev, role: undefined }));
-              }}
-              placeholder="Select role"
-              isDisabled={isLoadingRoles}
-              _selectedItem={{
-                bg: "cyan.600",
-                endIcon: <CheckIcon size="5" color="white" />,
-              }}
-              borderColor={formData.role ? "green.500" : "coolGray.200"}
-              _focus={{
-                borderColor: formData.role ? "green.500" : "blue.500",
+            <Pressable
+              onPress={() => {
+                // Ensure dropdown opens on pressing anywhere in the input area
+                if (roles.length > 0) {
+                  // Programmatically focus the Select
+                  if (selectRef.current) {
+                    selectRef.current.focus();
+                  }
+                }
               }}
             >
-              {roles.map((role) => {
-                console.log("Rendering role option:", role); // Debug log
-                return (
+              <Select
+                ref={selectRef}
+                selectedValue={formData.role}
+                onValueChange={(value) => {
+                  console.log("Selected role:", value);
+                  setFormData({ ...formData, role: value });
+                  setErrors((prev) => ({ ...prev, role: undefined }));
+                }}
+                placeholder="Select role"
+                isDisabled={isLoadingRoles}
+                _selectedItem={{
+                  bg: "cyan.600",
+                  endIcon: <CheckIcon size="5" color="white" />,
+                }}
+                borderColor={formData.role ? "green.500" : "coolGray.200"}
+                _focus={{
+                  borderColor: formData.role ? "green.500" : "blue.500",
+                }}
+                isReadOnly={true} // Prevent keyboard
+              >
+                {roles.map((role) => (
                   <Select.Item
                     key={role}
                     label={role.charAt(0).toUpperCase() + role.slice(1)}
-                    value={role.toLowerCase()} // Ensure value is lowercase
+                    value={role.toLowerCase()}
                   />
-                );
-              })}
-            </Select>
+                ))}
+              </Select>
+            </Pressable>
             <FormControl.ErrorMessage>{errors.role}</FormControl.ErrorMessage>
           </FormControl>
 
@@ -515,7 +552,7 @@ export default function AddStaffScreen() {
             <FormControl.Label>Date of Birth</FormControl.Label>
             <Pressable onPress={() => setShowDatePicker(true)}>
               <Input
-                value={formData.dob}
+                value={formData.dob || ""}
                 isReadOnly
                 placeholder="Select date of birth"
                 rightElement={
@@ -533,17 +570,17 @@ export default function AddStaffScreen() {
               />
             </Pressable>
             <FormControl.ErrorMessage>{errors.dob}</FormControl.ErrorMessage>
-          </FormControl>
 
-          {showDatePicker && (
-            <DateTimePicker
-              value={selectedDate}
-              mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-            />
-          )}
+            {showDatePicker && (
+              <DateTimePicker
+                value={formData.dob ? parseDate(formData.dob) : new Date()}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={handleDateChange}
+                maximumDate={new Date()}
+              />
+            )}
+          </FormControl>
 
           <FormControl isRequired isInvalid={"aadharNo" in errors}>
             <FormControl.Label>Aadhar Number</FormControl.Label>

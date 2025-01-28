@@ -294,7 +294,7 @@ export default function StaffDetailsScreen() {
                 {staff.dob && (
                   <HStack justifyContent="space-between">
                     <Text color="coolGray.500">Date of Birth</Text>
-                    <Text>{staff.dob}</Text>
+                    <Text>{formatDate(staff.dob)}</Text>
                   </HStack>
                 )}
 
