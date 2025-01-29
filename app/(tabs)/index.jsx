@@ -28,13 +28,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   sendNotificationToWaiter,
   verifyCurrentDeviceTokens,
+  NotificationService,
 } from "../../services/NotificationService";
 import {
   setupNotifications,
   addNotificationListener,
   addNotificationResponseListener,
 } from "../../services/DeviceTokenService";
-import { NotificationService } from "../../services/NotificationService";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
 

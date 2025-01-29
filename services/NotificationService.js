@@ -124,11 +124,6 @@ export const verifyCurrentDeviceTokens = async (sessionToken, pushToken) => {
 
 export const CALL_WAITER_NOTIFICATION = "CALL_WAITER_NOTIFICATION";
 
-// Hardcoded values for testing
-const WAITER_PUSH_TOKEN = "ExponentPushToken[jGL2VvJ3tikj_B8kHhfarE]";
-const TEST_OUTLET_ID = 1;
-const TEST_USER_ID = 4;
-
 // Skip notification setup on web platform
 if (Platform.OS !== "web") {
   Notifications.setNotificationHandler({
@@ -159,7 +154,7 @@ if (Platform.OS !== "web") {
   });
 }
 
-class NotificationService {
+export class NotificationService {
   static async registerForPushNotifications() {
     // Skip registration on web
     if (Platform.OS === "web") {
@@ -194,22 +189,21 @@ class NotificationService {
     }
   }
 
-  static async callWaiter() {
+  static async callWaiter({ outletId, userId, waiterPushToken }) {
     try {
       console.log("🚀 Calling waiter API with:", {
-        outlet_id: TEST_OUTLET_ID,
-        user_id: TEST_USER_ID,
+        outlet_id: outletId,
+        user_id: userId,
       });
 
-      // First call the API
       const response = await fetch("https://men4u.xyz/common_api/call_waiter", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          outlet_id: TEST_OUTLET_ID,
-          user_id: TEST_USER_ID,
+          outlet_id: outletId,
+          user_id: userId,
         }),
       });
 
@@ -217,8 +211,7 @@ class NotificationService {
       console.log("✅ API Response:", data);
 
       if (data.st === 1) {
-        // Send notification to waiter with custom sound
-        console.log("📤 Sending notification to waiter:", WAITER_PUSH_TOKEN);
+        console.log("📤 Sending notification to waiter:", waiterPushToken);
 
         const pushResponse = await fetch(
           "https://exp.host/--/api/v2/push/send",
@@ -229,17 +222,17 @@ class NotificationService {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              to: WAITER_PUSH_TOKEN,
+              to: waiterPushToken,
               title: "Table Assistance Required",
               body: "A table needs your assistance",
               data: {
                 type: "call_waiter",
-                outlet_id: TEST_OUTLET_ID,
-                user_id: TEST_USER_ID,
+                outlet_id: outletId,
+                user_id: userId,
                 caller_name: "Captain",
                 message: "Waiter assistance needed",
               },
-              sound: "notification.mp3", // Specify the custom sound file name
+              sound: "notification.mp3",
               priority: "high",
             }),
           }
@@ -266,44 +259,4 @@ class NotificationService {
       };
     }
   }
-
-  // Update test notification method as well
-  static async testNotification() {
-    try {
-      console.log("🧪 Testing notification to:", WAITER_PUSH_TOKEN);
-
-      const response = await fetch("https://exp.host/--/api/v2/push/send", {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: WAITER_PUSH_TOKEN,
-          title: "Test Notification",
-          body: "This is a test notification",
-          data: {
-            type: "call_waiter",
-            outlet_id: TEST_OUTLET_ID,
-            user_id: TEST_USER_ID,
-            caller_name: "Captain",
-            message: "Test message",
-          },
-          sound: "notification.mp3", // Specify the custom sound file name
-          priority: "high",
-        }),
-      });
-
-      const result = await response.json();
-      console.log("✅ Test notification result:", result);
-      return result;
-    } catch (error) {
-      console.error("❌ Test notification error:", error);
-      return null;
-    }
-  }
 }
-
-export { NotificationService };
-// or
-export default NotificationService;

@@ -139,21 +139,28 @@ export async function checkDeviceSettings() {
 }
 
 // Simplified token verification
-export async function verifyTokenPairing(sessionToken, pushToken) {
+export const verifyTokens = async (sessionToken, pushToken) => {
   try {
     const activeSession = await AsyncStorage.getItem("activeSession");
-    if (!activeSession) return false;
+    if (!activeSession) {
+      return {
+        isValid: false,
+        message: "No active session found",
+      };
+    }
 
-    const session = JSON.parse(activeSession);
-    return (
-      session.sessionToken === sessionToken &&
-      session.expoPushToken === pushToken
-    );
+    const sessionInfo = JSON.parse(activeSession);
+    return {
+      isValid:
+        sessionInfo.sessionToken === sessionToken &&
+        sessionInfo.expoPushToken === pushToken,
+      sessionInfo,
+    };
   } catch (error) {
-    console.error("Error verifying tokens:", error);
-    return false;
+    console.error("Token verification error:", error);
+    return { isValid: false, error: error.message };
   }
-}
+};
 
 // Clear old sessions
 export async function invalidateOldSessions() {
