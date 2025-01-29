@@ -154,25 +154,26 @@ export default function StaffDetailsScreen() {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, "0");
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-    return `${day} ${month} ${year}`;
+    if (!dateString) return null;
+
+    // Handle date format like "29 Jan 2025 02:14:20 PM"
+    const fullDateRegex =
+      /(\d{2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})/;
+    const match = dateString.match(fullDateRegex);
+
+    if (match) {
+      const [_, day, month, year] = match;
+      return `${day} ${month} ${year}`;
+    }
+
+    // If the date is already in "DD MMM YYYY" format, return as is
+    const shortDateRegex =
+      /^\d{2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}$/;
+    if (shortDateRegex.test(dateString)) {
+      return dateString;
+    }
+
+    return "Invalid Date";
   };
 
   if (isLoading) {

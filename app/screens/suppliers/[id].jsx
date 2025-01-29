@@ -64,6 +64,11 @@ export default function SupplierDetails() {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
+      console.log("Fetching supplier details with:", {
+        outlet_id: storedOutletId.toString(),
+        supplier_id: id.toString(),
+      });
+
       const response = await fetch(`${API_BASE_URL}/supplier_view`, {
         method: "POST",
         headers: {
@@ -76,9 +81,10 @@ export default function SupplierDetails() {
       });
 
       const data = await response.json();
+      console.log("Supplier View API Response:", data);
 
       if (data.st === 1 && data.data) {
-        setSupplier({
+        const supplierData = {
           id: data.data.supplier_id,
           name: data.data.name,
           status: data.data.supplier_status,
@@ -91,7 +97,14 @@ export default function SupplierDetails() {
           ownerName: data.data.owner_name,
           location: data.data.location,
           address: data.data.address,
-        });
+          createdOn: data.data.created_on,
+          updatedOn: data.data.updated_on,
+          createdBy: data.data.created_by,
+          updatedBy: data.data.updated_by,
+        };
+
+        console.log("Processed Supplier Data:", supplierData);
+        setSupplier(supplierData);
       } else {
         throw new Error(data.msg || "Failed to fetch supplier details");
       }
@@ -430,6 +443,39 @@ export default function SupplierDetails() {
                   <HStack justifyContent="space-between">
                     <Text color="coolGray.500">Credit Limit</Text>
                     <Text>{supplier.creditLimit || "Not specified"}</Text>
+                  </HStack>
+                )}
+              </VStack>
+            </VStack>
+          </VStack>
+
+          <VStack space={4} mt={4}>
+            <Heading size="md">Audit Details</Heading>
+            <VStack space={4} bg="coolGray.50" p={4} rounded="lg">
+              <VStack space={3}>
+                {supplier?.createdOn && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Created On</Text>
+                    <Text>{supplier.createdOn}</Text>
+                  </HStack>
+                )}
+                {supplier?.createdBy && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Created By</Text>
+                    <Text>{supplier.createdBy}</Text>
+                  </HStack>
+                )}
+                <Divider my={2} />
+                {supplier?.updatedOn && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Last Updated</Text>
+                    <Text>{supplier.updatedOn}</Text>
+                  </HStack>
+                )}
+                {supplier?.updatedBy && (
+                  <HStack justifyContent="space-between">
+                    <Text color="coolGray.500">Updated By</Text>
+                    <Text>{supplier.updatedBy}</Text>
                   </HStack>
                 )}
               </VStack>

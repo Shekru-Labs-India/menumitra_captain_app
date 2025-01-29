@@ -210,6 +210,13 @@ export default function EditMenuView() {
       const outletId = await AsyncStorage.getItem("outlet_id");
       const userId = await AsyncStorage.getItem("user_id");
 
+      console.log("Sending update request with:", {
+        menu_id: menuId,
+        outlet_id: outletId,
+        user_id: userId,
+        ...menuDetails,
+      }); // Debug log
+
       const response = await fetch("https://men4u.xyz/common_api/menu_update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -222,19 +229,25 @@ export default function EditMenuView() {
       });
 
       const data = await response.json();
-      if (data.detail === "Menu updated successfully") {
+      console.log("Update Response:", data); // Debug log
+
+      if (data.st === 1) {
+        // Changed from data.detail to data.st
         toast.show({
-          description: "Menu updated successfully",
+          description: data.msg || "Menu updated successfully",
           status: "success",
         });
-        router.back();
+        router.push({
+          pathname: "/screens/menus/MenuListView",
+          params: { refresh: Date.now() },
+        });
       } else {
         throw new Error(data.msg || "Failed to update menu");
       }
     } catch (error) {
       console.error("Update Error:", error);
       toast.show({
-        description: "Failed to update menu",
+        description: error.message || "Failed to update menu",
         status: "error",
       });
     } finally {

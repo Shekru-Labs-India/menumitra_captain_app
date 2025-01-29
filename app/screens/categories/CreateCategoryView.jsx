@@ -29,7 +29,6 @@ export default function CreateCategoryView() {
   const [categoryDetails, setCategoryDetails] = useState({
     category_name: "",
     image: null,
-    food_type: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -64,9 +63,6 @@ export default function CreateCategoryView() {
     if (!categoryDetails.category_name) {
       newErrors.category_name = "Category name is required";
     }
-    if (!categoryDetails.food_type) {
-      newErrors.food_type = "Food type is required";
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -86,7 +82,6 @@ export default function CreateCategoryView() {
       formData.append("outlet_id", outletId);
       formData.append("user_id", userId);
       formData.append("category_name", categoryDetails.category_name);
-      formData.append("food_type", categoryDetails.food_type);
 
       if (categoryDetails.image) {
         const imageUri = categoryDetails.image;
@@ -197,35 +192,6 @@ export default function CreateCategoryView() {
                 />
                 <FormControl.ErrorMessage>
                   {errors.category_name}
-                </FormControl.ErrorMessage>
-              </FormControl>
-
-              <FormControl isRequired isInvalid={"food_type" in errors}>
-                <FormControl.Label>Food Type</FormControl.Label>
-                <Select
-                  selectedValue={categoryDetails.food_type}
-                  minWidth="200"
-                  accessibilityLabel="Choose food type"
-                  placeholder="Choose food type"
-                  _selectedItem={{
-                    bg: "primary.100",
-                    endIcon: <CheckIcon size="5" />,
-                  }}
-                  mt={1}
-                  onValueChange={(value) =>
-                    setCategoryDetails((prev) => ({
-                      ...prev,
-                      food_type: value,
-                    }))
-                  }
-                >
-                  <Select.Item label="Veg" value="veg" />
-                  <Select.Item label="Non-Veg" value="nonveg" />
-                  <Select.Item label="Vegan" value="vegan" />
-                  <Select.Item label="Egg" value="egg" />
-                </Select>
-                <FormControl.ErrorMessage>
-                  {errors.food_type}
                 </FormControl.ErrorMessage>
               </FormControl>
             </VStack>

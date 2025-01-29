@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Platform, StatusBar, Linking, Alert, Clipboard } from "react-native";
+import {
+  Platform,
+  StatusBar,
+  Linking,
+  Alert,
+  Clipboard,
+  RefreshControl,
+} from "react-native";
 import {
   Box,
   HStack,
@@ -8,7 +15,7 @@ import {
   Image,
   Icon,
   Pressable,
-  ScrollView,
+  ScrollView as NativeBaseScrollView,
   StatusBar as NativeBaseStatusBar,
   useToast,
   Button,
@@ -51,113 +58,104 @@ export default function HomeScreen() {
   });
   const router = useRouter();
   const toast = useToast();
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch staff count and sales data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        console.log("Starting fetchData function");
+  // Add this before any useEffect hooks
+  const fetchData = async () => {
+    try {
+      console.log("Starting fetchData function");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-        const storedOutletId = await AsyncStorage.getItem("outlet_id");
-        console.log("Stored Outlet ID:", storedOutletId);
-
-        if (!storedOutletId) {
-          console.log("No outlet ID found");
-          toast.show({
-            description: "Please log in again",
-            status: "error",
-            duration: 3000,
-          });
-          return;
-        }
-
-        // Fetch table sections
-        console.log("Fetching table sections...");
-        const tableSectionsResponse = await fetch(
-          `${API_BASE_URL}/table_listview`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              outlet_id: storedOutletId.toString(),
-            }),
-          }
-        );
-
-        const tableSectionsData = await tableSectionsResponse.json();
-        console.log("Raw Table Sections Response:", tableSectionsData);
-
-        // Calculate total tables
-        if (tableSectionsData.st === 1 && tableSectionsData.data) {
-          console.log("Processing table sections data...");
-          let totalTables = 0;
-
-          // Handle the data structure correctly
-          Object.entries(tableSectionsData.data).forEach(
-            ([sectionName, tables]) => {
-              if (Array.isArray(tables)) {
-                const tableCount = tables.length;
-                console.log(`Section "${sectionName}": ${tableCount} tables`);
-                totalTables += tableCount;
-              } else if (tables && typeof tables === "object") {
-                // If tables is an object with a tables property
-                const tableArray = tables.tables || [];
-                const tableCount = tableArray.length;
-                console.log(`Section "${sectionName}": ${tableCount} tables`);
-                totalTables += tableCount;
-              }
-            }
-          );
-
-          console.log("Final Total Tables:", totalTables);
-          setTableCount(totalTables);
-        } else {
-          console.log("Invalid table sections response:", tableSectionsData);
-        }
-
-        // Fetch staff list
-        console.log("Fetching staff list...");
-        const staffResponse = await fetch(
-          `${API_BASE_URL}/get_staff_list_with_role`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              outlet_id: storedOutletId.toString(),
-              staff_role: "all",
-            }),
-          }
-        );
-
-        const staffData = await staffResponse.json();
-        console.log("Raw Staff Response:", staffData);
-
-        // Update staff count using the correct response structure
-        if (staffData.st === 1 && Array.isArray(staffData.lists)) {
-          const staffCount = staffData.lists.length;
-          console.log("Setting staff count to:", staffCount);
-          setStaffCount(staffCount);
-        }
-
-        // Keep existing sales data
-        setTodaysSales({
-          sales: 45,
-          revenue: 25750,
-        });
-      } catch (error) {
-        console.error("Error in fetchData:", error);
+      if (!storedOutletId) {
+        console.log("No outlet ID found");
         toast.show({
-          description: "Failed to fetch data",
+          description: "Please log in again",
           status: "error",
           duration: 3000,
         });
+        return;
       }
-    };
 
+      // Fetch staff list
+      console.log("Fetching staff list...");
+      const staffResponse = await fetch(
+        `${API_BASE_URL}/get_staff_list_with_role`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            outlet_id: storedOutletId.toString(),
+            staff_role: "all",
+          }),
+        }
+      );
+
+      const staffData = await staffResponse.json();
+      console.log("Raw Staff Response:", staffData);
+
+      if (staffData.st === 1 && Array.isArray(staffData.lists)) {
+        const staffCount = staffData.lists.length;
+        console.log("Setting staff count to:", staffCount);
+        setStaffCount(staffCount);
+      }
+
+      // Fetch table sections
+      console.log("Fetching table sections...");
+      const tableSectionsResponse = await fetch(
+        `${API_BASE_URL}/table_listview`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            outlet_id: storedOutletId.toString(),
+          }),
+        }
+      );
+
+      const tableSectionsData = await tableSectionsResponse.json();
+      console.log("Raw Table Sections Response:", tableSectionsData);
+
+      if (tableSectionsData.st === 1 && tableSectionsData.data) {
+        console.log("Processing table sections data...");
+        let totalTables = 0;
+
+        Object.entries(tableSectionsData.data).forEach(
+          ([sectionName, tables]) => {
+            if (Array.isArray(tables)) {
+              const tableCount = tables.length;
+              console.log(`Section "${sectionName}": ${tableCount} tables`);
+              totalTables += tableCount;
+            } else if (tables && typeof tables === "object") {
+              const tableArray = tables.tables || [];
+              const tableCount = tableArray.length;
+              console.log(`Section "${sectionName}": ${tableCount} tables`);
+              totalTables += tableCount;
+            }
+          }
+        );
+
+        console.log("Final Total Tables:", totalTables);
+        setTableCount(totalTables);
+      }
+
+      // Fetch latest sales
+      await fetchLatestSales();
+    } catch (error) {
+      console.error("Error in fetchData:", error);
+      toast.show({
+        description: "Failed to fetch data",
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
+
+  // Fetch staff count and sales data
+  useEffect(() => {
     console.log("useEffect triggered for data fetching");
     fetchData();
 
@@ -549,20 +547,22 @@ export default function HomeScreen() {
     }
   };
 
-  // Fetch on mount
-  useEffect(() => {
-    fetchLatestSales();
+  // Add onRefresh callback after fetchData declaration
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchData();
+    } catch (error) {
+      console.error("Refresh error:", error);
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
-  // Fetch when screen comes into focus
+  // Add focus effect for auto-refresh when screen is focused
   useFocusEffect(
     useCallback(() => {
-      fetchLatestSales();
-
-      // Set up auto-refresh every 30 seconds
-      const interval = setInterval(fetchLatestSales, 30000);
-
-      return () => clearInterval(interval);
+      fetchData();
     }, [])
   );
 
@@ -643,7 +643,18 @@ export default function HomeScreen() {
         </HStack>
       </HStack>
 
-      <ScrollView>
+      <NativeBaseScrollView
+        flex={1}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#0891b2"]}
+            tintColor="#0891b2"
+          />
+        }
+      >
         {/* Sales Card */}
         <HStack
           mx={4}
@@ -756,7 +767,7 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </Box>
-      </ScrollView>
+      </NativeBaseScrollView>
 
       {/* Sidebar Component */}
       <Sidebar

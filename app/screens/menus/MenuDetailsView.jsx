@@ -156,7 +156,7 @@ export default function MenuDetailsView() {
             color="coolGray.800"
           />
         </Pressable>
-        <Text fontSize="xl" fontWeight="bold">
+        <Text fontSize="xl" textAlign="center" fontWeight="bold">
           Menu Details
         </Text>
       </HStack>
@@ -290,15 +290,70 @@ export default function MenuDetailsView() {
               </VStack>
             )}
 
-            {/* Additional Info */}
-            <VStack space={2} mt={2}>
-              <Text fontSize="sm" color="coolGray.500">
-                Created by {menuDetails.created_by} on {menuDetails.created_on}
-              </Text>
-              <Text fontSize="sm" color="coolGray.500">
-                Last updated by {menuDetails.updated_by} on{" "}
-                {menuDetails.updated_on}
-              </Text>
+            {/* Creation and Update Details */}
+            <VStack space={4} mt={2}>
+              {/* Creation Details */}
+              <VStack
+                space={2}
+                borderBottomWidth={1}
+                borderBottomColor="coolGray.200"
+                pb={2}
+              >
+                <Text fontSize="md" fontWeight="bold" color="coolGray.700">
+                  Creation Details
+                </Text>
+                <HStack space={2} alignItems="center">
+                  <Icon
+                    as={MaterialIcons}
+                    name="person"
+                    size={5}
+                    color="coolGray.500"
+                  />
+                  <Text fontSize="sm" color="coolGray.600">
+                    Created by: {menuDetails.created_by || "N/A"}
+                  </Text>
+                </HStack>
+                <HStack space={2} alignItems="center">
+                  <Icon
+                    as={MaterialIcons}
+                    name="event"
+                    size={5}
+                    color="coolGray.500"
+                  />
+                  <Text fontSize="sm" color="coolGray.600">
+                    Created on: {menuDetails.created_on || "N/A"}
+                  </Text>
+                </HStack>
+              </VStack>
+
+              {/* Update Details */}
+              <VStack space={2}>
+                <Text fontSize="md" fontWeight="bold" color="coolGray.700">
+                  Last Update Details
+                </Text>
+                <HStack space={2} alignItems="center">
+                  <Icon
+                    as={MaterialIcons}
+                    name="person"
+                    size={5}
+                    color="coolGray.500"
+                  />
+                  <Text fontSize="sm" color="coolGray.600">
+                    Updated by: {menuDetails.updated_by || "N/A"}
+                  </Text>
+                </HStack>
+                <HStack space={2} alignItems="center">
+                  <Icon
+                    as={MaterialIcons}
+                    name="update"
+                    size={5}
+                    color="coolGray.500"
+                  />
+                  <Text fontSize="sm" color="coolGray.600">
+                    Updated on: {menuDetails.updated_on || "N/A"}
+                  </Text>
+                </HStack>
+              </VStack>
             </VStack>
           </VStack>
         </Box>

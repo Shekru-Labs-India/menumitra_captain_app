@@ -90,7 +90,10 @@ export default function InventoryItemDetailsScreen() {
           expiration_date: data.data.expiration_date,
           supplier_name: data.data.supplier_name,
           supplier_id: data.data.supplier_id,
-          outlet_id: data.data.outlet_id,
+          createdOn: data.data.created_on,
+          updatedOn: data.data.updated_on,
+          createdBy: data.data.created_by,
+          updatedBy: data.data.updated_by,
         });
       } else {
         toast.show({
@@ -275,7 +278,7 @@ export default function InventoryItemDetailsScreen() {
           </Box>
 
           {/* Time Information */}
-          <Box bg="white" p={4} rounded="lg" mb={20} shadow={1}>
+          <Box bg="white" p={4} rounded="lg" shadow={1}>
             <Text fontSize="lg" fontWeight="semibold" mb={3}>
               Time Information
             </Text>
@@ -292,6 +295,40 @@ export default function InventoryItemDetailsScreen() {
                 <Text color="coolGray.600">Expiration Date</Text>
                 <Text>{item?.expiration_date || "N/A"}</Text>
               </HStack>
+            </VStack>
+          </Box>
+
+          {/* Audit Information */}
+          <Box bg="white" p={4} rounded="lg" mb={20} shadow={1}>
+            <Text fontSize="lg" fontWeight="semibold" mb={3}>
+              Audit Information
+            </Text>
+            <VStack space={3}>
+              {item?.createdOn && (
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.600">Created On</Text>
+                  <Text>{item.createdOn}</Text>
+                </HStack>
+              )}
+              {item?.createdBy && (
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.600">Created By</Text>
+                  <Text>{item.createdBy}</Text>
+                </HStack>
+              )}
+              <Divider my={2} />
+              {item?.updatedOn && (
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.600">Last Updated</Text>
+                  <Text>{item.updatedOn}</Text>
+                </HStack>
+              )}
+              {item?.updatedBy && (
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.600">Updated By</Text>
+                  <Text>{item.updatedBy}</Text>
+                </HStack>
+              )}
             </VStack>
           </Box>
         </VStack>

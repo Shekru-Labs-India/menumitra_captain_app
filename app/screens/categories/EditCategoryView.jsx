@@ -32,7 +32,6 @@ export default function EditCategoryView() {
   const [categoryDetails, setCategoryDetails] = useState({
     category_name: "",
     image: null,
-    food_type: "",
     existing_image: null,
   });
 
@@ -65,7 +64,6 @@ export default function EditCategoryView() {
           category_name: data.data.name,
           image: null,
           existing_image: data.data.image,
-          food_type: data.data.food_type || "",
         });
       } else {
         throw new Error(data.msg || "Failed to fetch category details");
@@ -111,9 +109,6 @@ export default function EditCategoryView() {
     if (!categoryDetails.category_name) {
       newErrors.category_name = "Category name is required";
     }
-    if (!categoryDetails.food_type) {
-      newErrors.food_type = "Food type is required";
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -134,7 +129,6 @@ export default function EditCategoryView() {
       formData.append("user_id", userId);
       formData.append("menu_cat_id", params.categoryId);
       formData.append("category_name", categoryDetails.category_name);
-      formData.append("food_type", categoryDetails.food_type);
 
       if (categoryDetails.image) {
         const imageUri = categoryDetails.image;
@@ -167,7 +161,7 @@ export default function EditCategoryView() {
           status: "success",
         });
         router.push({
-          pathname: "/screens/categories/CategoryListView",
+          pathname: "/screens/categories/CategoryDetailsView",
           params: { refresh: Date.now() },
         });
       } else {
@@ -261,35 +255,6 @@ export default function EditCategoryView() {
                 />
                 <FormControl.ErrorMessage>
                   {errors.category_name}
-                </FormControl.ErrorMessage>
-              </FormControl>
-
-              <FormControl isRequired isInvalid={"food_type" in errors}>
-                <FormControl.Label>Food Type</FormControl.Label>
-                <Select
-                  selectedValue={categoryDetails.food_type}
-                  minWidth="200"
-                  accessibilityLabel="Choose food type"
-                  placeholder="Choose food type"
-                  _selectedItem={{
-                    bg: "primary.100",
-                    endIcon: <CheckIcon size="5" />,
-                  }}
-                  mt={1}
-                  onValueChange={(value) =>
-                    setCategoryDetails((prev) => ({
-                      ...prev,
-                      food_type: value,
-                    }))
-                  }
-                >
-                  <Select.Item label="Veg" value="veg" />
-                  <Select.Item label="Non-Veg" value="nonveg" />
-                  <Select.Item label="Vegan" value="vegan" />
-                  <Select.Item label="Egg" value="egg" />
-                </Select>
-                <FormControl.ErrorMessage>
-                  {errors.food_type}
                 </FormControl.ErrorMessage>
               </FormControl>
             </VStack>

@@ -177,28 +177,51 @@ export default function ProfileScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              // Clear all AsyncStorage data
-              await AsyncStorage.multiRemove([
-                "captain_id",
-                "captain_name",
-                "user_id",
-                "outlet_id",
-                "role",
-                // Add any other keys you need to clear
-              ]);
+              // Get user_id from AsyncStorage
+              const userId = await AsyncStorage.getItem("user_id");
 
-              // Call the logout function from AuthContext
-              await logout();
+              // Call logout API
+              const response = await fetch(
+                "https://men4u.xyz/common_api/logout",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    user_id: parseInt(userId),
+                    role: "captain",
+                    app: "captain",
+                  }),
+                }
+              );
 
-              // Navigate to login screen
-              router.replace("/login");
+              const data = await response.json();
+
+              if (data.st === 1) {
+                // Clear all AsyncStorage data
+                await AsyncStorage.multiRemove([
+                  "captain_id",
+                  "captain_name",
+                  "user_id",
+                  "outlet_id",
+                  "role",
+                  // Add any other keys you need to clear
+                ]);
+
+                // Call the logout function from AuthContext
+                await logout();
+
+                // Navigate to login screen
+                router.replace("/login");
+              } else {
+                throw new Error(data.msg || "Logout failed");
+              }
             } catch (error) {
               console.error("Logout Error:", error);
-              toast.show({
-                description: "Failed to logout. Please try again.",
-                status: "error",
-                duration: 3000,
-              });
+              Alert.alert("Error", "Failed to logout. Please try again.", [
+                { text: "OK" },
+              ]);
             }
           },
         },
@@ -237,11 +260,7 @@ export default function ProfileScreen() {
         </Heading>
         <IconButton
           icon={<MaterialIcons name="logout" size={24} color="red.500" />}
-          onPress={() => {
-            // Add your logout logic here
-            AsyncStorage.clear();
-            router.replace("/login");
-          }}
+          onPress={handleLogout}
           variant="ghost"
           _pressed={{
             bg: "coolGray.100",

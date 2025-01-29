@@ -1731,7 +1731,7 @@ export default function CreateOrderScreen() {
                     onPress={handleKOT}
                     _text={{ color: "white" }}
                   >
-                    KOT
+                    Print
                   </Button>
                   <Button
                     flex={1}
