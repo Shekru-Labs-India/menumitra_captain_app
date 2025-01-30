@@ -44,10 +44,11 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#FFFFFF",
+          "color": "#ffffff",
           "sounds": ["./assets/sounds/notification.mp3"],
           "androidMode": "default",
-          "androidCollapsedTitle": "MenuMitra"
+          "androidCollapsedTitle": "MenuMitra",
+          "iosDisplayInForeground": true
         }
       ]
     ],

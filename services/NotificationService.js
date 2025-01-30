@@ -4,89 +4,105 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { verifyTokenPairing } from "./DeviceTokenService";
 import * as Notifications from "expo-notifications";
 import { DeviceEventEmitter, Platform } from "react-native";
+import * as Device from "expo-device";
+
+// Constants
+export const CALL_WAITER_NOTIFICATION = "CALL_WAITER_NOTIFICATION";
+
+// Initialize Notifications
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async (notification) => {
+      console.log("🔔 Received notification:", notification.request.content);
+      return {
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      };
+    },
+  });
+}
+
+class NotificationServiceClass {
+  static async initialize() {
+    if (!Device.isDevice) {
+      console.log("Must use physical device for Push Notifications");
+      return null;
+    }
+
+    try {
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== "granted") {
+        return null;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error initializing notifications:", error);
+      return null;
+    }
+  }
+
+  static async sendNotification(to, title, body, data = {}) {
+    try {
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to,
+          title,
+          body,
+          data,
+          sound: "default",
+          priority: "high",
+        }),
+      });
+
+      const result = await response.json();
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      return { success: false, error: error.message };
+    }
+  }
+}
 
 export const sendNotificationToWaiter = async ({
   order_number,
   order_id,
   tableNumber,
   outletId,
-  token, // session token
-  to, // push token
+  token,
+  to,
 }) => {
   try {
-    console.log("Verifying token pair:", {
-      sessionToken: token,
-      pushToken: to,
-    });
-
-    // First verify that this is a valid and current token pair
-    const isValidPair = await verifyTokenPairing(token, to);
-    if (!isValidPair) {
-      console.log("Token pair verification failed");
-      throw new Error(
-        "Invalid or expired token pair. Please ensure you're using the current device's tokens."
-      );
-    }
-
-    // Get the active session to double-check
-    const activeSession = await AsyncStorage.getItem("activeSession");
-    if (!activeSession) {
-      throw new Error("No active session found");
-    }
-
-    const sessionInfo = JSON.parse(activeSession);
-    if (
-      sessionInfo.sessionToken !== token ||
-      sessionInfo.expoPushToken !== to
-    ) {
-      console.log("Token mismatch with active session:", {
-        providedSession: token,
-        activeSession: sessionInfo.sessionToken,
-        providedPush: to,
-        activePush: sessionInfo.expoPushToken,
-      });
-      throw new Error("Tokens do not match active session");
-    }
-
-    const response = await fetch("https://exp.host/--/api/v2/push/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        to: to,
-        title: `Order #${order_number}`,
-        body: `New order for Table ${tableNumber}`,
-        sound: "default",
-        priority: "high",
-        data: {
-          order_id,
-          tableNumber,
-          outletId,
-          sessionToken: token,
-          timestamp: Date.now(),
-        },
-      }),
-    });
-
-    const data = await response.json();
-    console.log("Expo notification response:", data);
-
-    if (data.errors) {
-      throw new Error(data.errors[0]?.message || "Failed to send notification");
-    }
-
-    return {
-      success: true,
-      message: "Notification sent successfully",
-    };
+    const response = await NotificationService.sendNotification(
+      to,
+      `Order #${order_number}`,
+      `New order for Table ${tableNumber}`,
+      {
+        order_id,
+        tableNumber,
+        outletId,
+        sessionToken: token,
+        timestamp: Date.now(),
+      }
+    );
+    return response;
   } catch (error) {
-    console.error("Error in sendNotificationToWaiter:", error);
-    return {
-      success: false,
-      message: error.message || "Failed to send notification",
-    };
+    console.error("Error sending waiter notification:", error);
+    return { success: false, error: error.message };
   }
 };
 
@@ -122,43 +138,10 @@ export const verifyCurrentDeviceTokens = async (sessionToken, pushToken) => {
   }
 };
 
-export const CALL_WAITER_NOTIFICATION = "CALL_WAITER_NOTIFICATION";
-
-// Skip notification setup on web platform
-if (Platform.OS !== "web") {
-  Notifications.setNotificationHandler({
-    handleNotification: async (notification) => {
-      console.log(
-        "🔔 [NotificationHandler] Received:",
-        notification.request.content
-      );
-
-      const data = notification.request.content.data;
-      if (data?.type === "call_waiter") {
-        console.log(
-          "📢 [NotificationHandler] Call waiter notification received"
-        );
-        DeviceEventEmitter.emit(CALL_WAITER_NOTIFICATION, {
-          type: "call_waiter",
-          callerName: data.caller_name || "Captain",
-          message: data.message || "Waiter assistance needed",
-        });
-      }
-
-      return {
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-      };
-    },
-  });
-}
-
 export class NotificationService {
   static async registerForPushNotifications() {
-    // Skip registration on web
-    if (Platform.OS === "web") {
-      console.log("📱 Push notifications not supported on web");
+    if (!Device.isDevice) {
+      console.log("Must use physical device for Push Notifications");
       return null;
     }
 
@@ -173,28 +156,28 @@ export class NotificationService {
       }
 
       if (finalStatus !== "granted") {
-        console.log("❌ Failed to get push notification permissions!");
+        console.log("Failed to get push token permissions");
         return null;
       }
 
-      const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a", // Your Expo project ID
+      const token = await Notifications.getExpoPushTokenAsync({
+        projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a",
       });
 
-      console.log("📱 Push token generated:", tokenData.data);
-      return tokenData.data;
+      return token.data;
     } catch (error) {
-      console.error("❌ Error registering for push notifications:", error);
+      console.error("Error registering for push notifications:", error);
       return null;
     }
   }
 
-  static async callWaiter({ outletId, userId, waiterPushToken }) {
+  static async callWaiter({ outletId, userId }) {
     try {
-      console.log("🚀 Calling waiter API with:", {
-        outlet_id: outletId,
-        user_id: userId,
-      });
+      const pushToken = await AsyncStorage.getItem("expoPushToken");
+
+      if (!pushToken) {
+        throw new Error("Push token not found");
+      }
 
       const response = await fetch("https://men4u.xyz/common_api/call_waiter", {
         method: "POST",
@@ -208,11 +191,8 @@ export class NotificationService {
       });
 
       const data = await response.json();
-      console.log("✅ API Response:", data);
 
       if (data.st === 1) {
-        console.log("📤 Sending notification to waiter:", waiterPushToken);
-
         const pushResponse = await fetch(
           "https://exp.host/--/api/v2/push/send",
           {
@@ -222,7 +202,7 @@ export class NotificationService {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              to: waiterPushToken,
+              to: pushToken,
               title: "Table Assistance Required",
               body: "A table needs your assistance",
               data: {

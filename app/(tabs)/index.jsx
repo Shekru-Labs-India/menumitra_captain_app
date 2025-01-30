@@ -26,9 +26,9 @@ import Sidebar from "../components/Sidebar";
 import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  NotificationService,
   sendNotificationToWaiter,
   verifyCurrentDeviceTokens,
-  NotificationService,
 } from "../../services/NotificationService";
 import {
   setupNotifications,
@@ -228,33 +228,28 @@ export default function HomeScreen() {
 
   // Add useEffect to load tokens when screen mounts
   useEffect(() => {
-    const loadTokens = async () => {
+    const initializeNotifications = async () => {
       try {
+        await NotificationService.initialize();
+
+        // Load tokens
         const activeSession = await AsyncStorage.getItem("activeSession");
         if (activeSession) {
           const session = JSON.parse(activeSession);
           setPushToken(session.expoPushToken);
           setDeviceToken(session.sessionToken);
-          console.log("Loaded tokens from active session:", {
-            pushToken: session.expoPushToken,
-            sessionToken: session.sessionToken,
-          });
-        } else {
-          console.log("No active session found");
         }
       } catch (error) {
-        console.error("Error loading tokens:", error);
+        console.error("Error initializing:", error);
       }
     };
 
-    loadTokens();
+    initializeNotifications();
   }, []);
 
-  // Update handleNotification function
   const handleNotification = async () => {
     try {
       if (!pushToken || !deviceToken) {
-        // Try to load tokens again
         const activeSession = await AsyncStorage.getItem("activeSession");
         if (!activeSession) {
           throw new Error("No active session found. Please log in again.");
@@ -264,11 +259,6 @@ export default function HomeScreen() {
         setPushToken(session.expoPushToken);
         setDeviceToken(session.sessionToken);
       }
-
-      console.log("Sending notification with tokens:", {
-        pushToken,
-        deviceToken,
-      });
 
       const outletId = await AsyncStorage.getItem("outlet_id");
 
@@ -289,7 +279,7 @@ export default function HomeScreen() {
           duration: 3000,
         });
       } else {
-        throw new Error(result.message);
+        throw new Error(result.message || "Failed to send notification");
       }
     } catch (error) {
       console.error("Error sending notification:", error);
@@ -298,26 +288,6 @@ export default function HomeScreen() {
         status: "error",
         duration: 3000,
       });
-    }
-  };
-
-  // Optional: Add a function to refresh tokens
-  const refreshTokens = async () => {
-    try {
-      const activeSession = await AsyncStorage.getItem("activeSession");
-      if (activeSession) {
-        const session = JSON.parse(activeSession);
-        setPushToken(session.expoPushToken);
-        setDeviceToken(session.sessionToken);
-        console.log("Tokens refreshed:", {
-          pushToken: session.expoPushToken,
-          sessionToken: session.sessionToken,
-        });
-      } else {
-        console.log("No active session found during refresh");
-      }
-    } catch (error) {
-      console.error("Error refreshing tokens:", error);
     }
   };
 
@@ -565,6 +535,30 @@ export default function HomeScreen() {
       fetchData();
     }, [])
   );
+
+  // Add initialization effect
+  useEffect(() => {
+    const initializeNotifications = async () => {
+      try {
+        await setupNotifications();
+        const notificationListener = addNotificationListener((notification) => {
+          console.log("Received notification:", notification);
+        });
+        const responseListener = addNotificationResponseListener((response) => {
+          console.log("Notification response:", response);
+        });
+
+        return () => {
+          notificationListener.remove();
+          responseListener.remove();
+        };
+      } catch (error) {
+        console.error("Error initializing notifications:", error);
+      }
+    };
+
+    initializeNotifications();
+  }, []);
 
   return (
     <Box flex={1} bg="white" safeArea>
