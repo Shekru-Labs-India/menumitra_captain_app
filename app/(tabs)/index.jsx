@@ -60,7 +60,36 @@ export default function HomeScreen() {
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Add this before any useEffect hooks
+  // Fix the route paths in management cards
+  const managementCards = [
+    {
+      title: "Staff",
+      icon: "people",
+      route: "/(tabs)/staff",
+      color: "cyan.500",
+      count: staffCount,
+    },
+    {
+      title: "Tables",
+      icon: "table-restaurant",
+      route: "/(tabs)/tables",
+      color: "purple.500",
+      count: tableCount,
+    },
+    {
+      title: "Orders",
+      icon: "receipt-long",
+      route: "/(tabs)/orders",
+      color: "orange.500",
+    },
+    {
+      title: "Menu",
+      icon: "restaurant-menu",
+      route: "/(tabs)/menu/menu-items", // Fixed route path
+      color: "emerald.500",
+    },
+  ];
+
   const fetchData = async () => {
     try {
       console.log("Starting fetchData function");
@@ -86,7 +115,7 @@ export default function HomeScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            outlet_id: storedOutletId.toString(),
+            outlet_id: storedOutletId,
             staff_role: "all",
           }),
         }
@@ -96,9 +125,8 @@ export default function HomeScreen() {
       console.log("Raw Staff Response:", staffData);
 
       if (staffData.st === 1 && Array.isArray(staffData.lists)) {
-        const staffCount = staffData.lists.length;
-        console.log("Setting staff count to:", staffCount);
-        setStaffCount(staffCount);
+        console.log("Setting staff count to:", staffData.lists.length);
+        setStaffCount(staffData.lists.length);
       }
 
       // Fetch table sections
@@ -111,7 +139,7 @@ export default function HomeScreen() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            outlet_id: storedOutletId.toString(),
+            outlet_id: storedOutletId,
           }),
         }
       );
@@ -122,22 +150,11 @@ export default function HomeScreen() {
       if (tableSectionsData.st === 1 && tableSectionsData.data) {
         console.log("Processing table sections data...");
         let totalTables = 0;
-
-        Object.entries(tableSectionsData.data).forEach(
-          ([sectionName, tables]) => {
-            if (Array.isArray(tables)) {
-              const tableCount = tables.length;
-              console.log(`Section "${sectionName}": ${tableCount} tables`);
-              totalTables += tableCount;
-            } else if (tables && typeof tables === "object") {
-              const tableArray = tables.tables || [];
-              const tableCount = tableArray.length;
-              console.log(`Section "${sectionName}": ${tableCount} tables`);
-              totalTables += tableCount;
-            }
-          }
-        );
-
+        tableSectionsData.data.forEach((section, index) => {
+          const tableCount = section.tables ? section.tables.length : 0;
+          console.log(`Section "${index}": ${tableCount} tables`);
+          totalTables += tableCount;
+        });
         console.log("Final Total Tables:", totalTables);
         setTableCount(totalTables);
       }
@@ -145,34 +162,15 @@ export default function HomeScreen() {
       // Fetch latest sales
       await fetchLatestSales();
     } catch (error) {
-      console.error("Error in fetchData:", error);
-      toast.show({
-        description: "Failed to fetch data",
-        status: "error",
-        duration: 3000,
-      });
+      console.error("Error fetching data:", error);
     }
   };
 
-  // Fetch staff count and sales data
+  // Single effect for data fetching
   useEffect(() => {
     console.log("useEffect triggered for data fetching");
     fetchData();
-
-    // Log cleanup
-    return () => {
-      console.log("useEffect cleanup triggered");
-    };
   }, []);
-
-  // Add a useEffect to monitor state changes
-  useEffect(() => {
-    console.log("Current tableCount state:", tableCount);
-  }, [tableCount]);
-
-  useEffect(() => {
-    console.log("Current staffCount state:", staffCount);
-  }, [staffCount]);
 
   // Add Audio initialization
   useEffect(() => {
@@ -294,53 +292,6 @@ export default function HomeScreen() {
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
-
-  const managementCards = [
-    {
-      title: "Staff",
-      icon: "group",
-      route: "/(tabs)/staff",
-      color: "green.500",
-      count: staffCount,
-    },
-    {
-      title: "Orders",
-      icon: "receipt",
-      route: "/(tabs)/orders",
-      color: "blue.500",
-    },
-    {
-      title: "Tables",
-      icon: "table-restaurant",
-      route: "/(tabs)/tables/sections",
-      color: "purple.500",
-      count: tableCount,
-    },
-    {
-      title: "Inventory",
-      icon: "inventory",
-      route: "/screens/inventory/inventory-items",
-      color: "orange.500",
-    },
-    {
-      title: "Suppliers",
-      icon: "local-shipping",
-      route: "/screens/suppliers",
-      color: "pink.500",
-    },
-    {
-      title: "Menus",
-      icon: "restaurant",
-      route: "/screens/menus/MenuListView",
-      color: "blue.500",
-    },
-    {
-      title: "Categories",
-      icon: "category",
-      route: "/screens/categories/CategoryListview",
-      color: "red.500",
-    },
-  ];
 
   const checkStoredToken = async () => {
     try {
@@ -517,136 +468,28 @@ export default function HomeScreen() {
     }
   };
 
-  // Add onRefresh callback after fetchData declaration
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await fetchData();
-    } catch (error) {
-      console.error("Refresh error:", error);
     } finally {
       setRefreshing(false);
     }
   }, []);
 
-  // Add focus effect for auto-refresh when screen is focused
+  // Handle screen focus
   useFocusEffect(
-    useCallback(() => {
+    React.useCallback(() => {
       fetchData();
     }, [])
   );
 
-  // Add initialization effect
-  useEffect(() => {
-    const initializeNotifications = async () => {
-      try {
-        await setupNotifications();
-        const notificationListener = addNotificationListener((notification) => {
-          console.log("Received notification:", notification);
-        });
-        const responseListener = addNotificationResponseListener((response) => {
-          console.log("Notification response:", response);
-        });
-
-        return () => {
-          notificationListener.remove();
-          responseListener.remove();
-        };
-      } catch (error) {
-        console.error("Error initializing notifications:", error);
-      }
-    };
-
-    initializeNotifications();
-  }, []);
-
   return (
-    <Box flex={1} bg="white" safeArea>
-      <NativeBaseStatusBar backgroundColor="white" barStyle="dark-content" />
-
-      {/* Header */}
-      <HStack
-        px={4}
-        py={2}
-        alignItems="center"
-        justifyContent="space-between"
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
-      >
-        <HStack alignItems="center" space={2}>
-          <Image
-            source={require("../../assets/images/mm-logo-bg-fill-hat.png")}
-            alt="MenuMitra Logo"
-            size={8}
-            resizeMode="contain"
-          />
-          <Text fontSize="xl" fontWeight="bold" color="coolGray.800">
-            MenuMitra Captain
-          </Text>
-        </HStack>
-
-        <HStack space={2}>
-          {/* Comment out notification icon
-          <Pressable
-            onPress={async () => {
-              await refreshTokens();
-              handleNotification();
-            }}
-            p={2}
-            rounded="full"
-            _pressed={{ bg: "coolGray.100" }}
-          >
-            <Icon
-              as={MaterialIcons}
-              name="notifications"
-              size={6}
-              color="coolGray.600"
-            />
-          </Pressable>
-          */}
-
-          {/* Comment out key icon
-          <Pressable
-            onPress={showAndCopyTokens}
-            p={2}
-            rounded="full"
-            _pressed={{ bg: "coolGray.100" }}
-          >
-            <Icon
-              as={MaterialIcons}
-              name="vpn-key"
-              size={6}
-              color="coolGray.600"
-            />
-          </Pressable>
-          */}
-
-          <Pressable
-            onPress={() => setIsSidebarOpen(true)}
-            p={2}
-            rounded="full"
-            _pressed={{ bg: "coolGray.100" }}
-          >
-            <Icon
-              as={MaterialIcons}
-              name="menu"
-              size={6}
-              color="coolGray.600"
-            />
-          </Pressable>
-        </HStack>
-      </HStack>
-
+    <Box flex={1} bg="gray.50" safeArea>
+      <NativeBaseStatusBar />
       <NativeBaseScrollView
-        flex={1}
-        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#0891b2"]}
-            tintColor="#0891b2"
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
         {/* Sales Card */}
@@ -679,32 +522,6 @@ export default function HomeScreen() {
             </Text>
           </VStack>
         </HStack>
-
-        {/* Add this card after the sales card in your JSX */}
-        {/* <Box mx={4} my={4} bg="white" rounded="lg" shadow={2} p={4}>
-          <HStack alignItems="center" space={2} mb={2}>
-            <Icon
-              as={MaterialIcons}
-              name="vpn-key"
-              size="sm"
-              color="coolGray.600"
-            />
-            <Text fontSize="md" fontWeight="bold" color="coolGray.800">
-              Device Token
-            </Text>
-          </HStack>
-          <Box
-            bg="coolGray.50"
-            p={3}
-            rounded="md"
-            borderWidth={1}
-            borderColor="coolGray.200"
-          >
-            <Text fontSize="sm" color="coolGray.600" flexWrap="wrap">
-              {deviceToken || "No token found"}
-            </Text>
-          </Box>
-        </Box> */}
 
         {/* Management Cards */}
         <Box
@@ -763,7 +580,6 @@ export default function HomeScreen() {
         </Box>
       </NativeBaseScrollView>
 
-      {/* Sidebar Component */}
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}

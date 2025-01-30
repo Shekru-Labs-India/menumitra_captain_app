@@ -151,7 +151,7 @@ const calculateOrderTimer = (orderTime) => {
 
 // Update OrderTimer component
 const OrderTimer = ({ orderTime, onEnd, orderId }) => {
-  const [remainingTime, setRemainingTime] = useState(() => 
+  const [remainingTime, setRemainingTime] = useState(() =>
     calculateOrderTimer(orderTime)
   );
 
@@ -548,17 +548,9 @@ const OrdersScreen = () => {
 
   const handleCallWaiter = async () => {
     try {
-      console.log("🔔 Starting call waiter process...");
-      const outletId = await AsyncStorage.getItem("outlet_id");
-      const userId = await AsyncStorage.getItem("user_id");
-
-      console.log("📱 Using credentials:", { outletId, userId });
-
       const result = await NotificationService.callWaiter({
         tableNumber: "1", // Default table number
       });
-
-      console.log("✅ Call waiter result:", result);
 
       if (result.success) {
         toast.show({
@@ -568,13 +560,13 @@ const OrdersScreen = () => {
         });
       } else {
         toast.show({
-          description: result.message,
+          description: result.message || "Failed to call waiter",
           status: "error",
           duration: 3000,
         });
       }
     } catch (error) {
-      console.error("❌ Call waiter error:", error);
+      console.error("Call waiter error:", error);
       toast.show({
         description: "Failed to call waiter",
         status: "error",
