@@ -86,11 +86,16 @@ export default function CreateMenuView() {
   const fetchCategories = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(
         "https://men4u.xyz/common_api/menu_category_listview",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
           body: JSON.stringify({ outlet_id: outletId }),
         }
       );
@@ -116,8 +121,16 @@ export default function CreateMenuView() {
 
   const fetchVegNonvegList = async () => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(
-        "https://men4u.xyz/common_api/get_food_type_list"
+        "https://men4u.xyz/common_api/get_food_type_list",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
       const data = await response.json();
       if (data.st === 1) {
@@ -145,8 +158,16 @@ export default function CreateMenuView() {
 
   const fetchSpicyIndexList = async () => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(
-        "https://men4u.xyz/common_api/get_spicy_index_list"
+        "https://men4u.xyz/common_api/get_spicy_index_list",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
       const data = await response.json();
       if (data.st === 1) {
@@ -174,7 +195,14 @@ export default function CreateMenuView() {
 
   const fetchRatingList = async () => {
     try {
-      const response = await fetch("https://men4u.xyz/common_api/rating_list");
+      const accessToken = await AsyncStorage.getItem("access");
+      const response = await fetch("https://men4u.xyz/common_api/rating_list", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       const data = await response.json();
       if (data.st === 1) {
         const ratingList = Object.entries(data.rating_list).map(

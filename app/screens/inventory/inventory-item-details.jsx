@@ -58,10 +58,12 @@ export default function InventoryItemDetailsScreen() {
 
   const fetchInventoryDetails = async (outId, invId) => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(`${API_BASE_URL}/inventory_view`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outId.toString(),
@@ -127,10 +129,12 @@ export default function InventoryItemDetailsScreen() {
         return;
       }
 
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(`${API_BASE_URL}/inventory_delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId.toString(),

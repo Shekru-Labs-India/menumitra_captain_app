@@ -253,10 +253,11 @@ export default function OtpScreen() {
           ["mobile", mobileNumber],
           ["captain_id", data.captain_id?.toString() || ""],
           ["captain_name", data.captain_name || ""],
-          ["gst", data.gst?.toString() || "0"], // Default to "0" if missing
-          ["service_charges", data.service_charges?.toString() || "0"], // Default to "0" if missing
+          ["gst", data.gst?.toString() || "0"],
+          ["service_charges", data.service_charges?.toString() || "0"],
           ["sessionToken", tokenData.sessionToken],
           ["expoPushToken", tokenData.pushToken],
+          ["access", data.access || ""],
         ];
 
         await AsyncStorage.multiSet(dataToStore);
@@ -274,6 +275,7 @@ export default function OtpScreen() {
           expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           sessionToken: tokenData.sessionToken,
           expoPushToken: tokenData.pushToken,
+          access: data.access || "",
         };
         await AsyncStorage.setItem("userSession", JSON.stringify(sessionData));
 

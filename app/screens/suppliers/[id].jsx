@@ -63,6 +63,7 @@ export default function SupplierDetails() {
     setLoading(true);
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       console.log("Fetching supplier details with:", {
         outlet_id: storedOutletId.toString(),
@@ -73,6 +74,7 @@ export default function SupplierDetails() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: storedOutletId.toString(),
@@ -122,11 +124,13 @@ export default function SupplierDetails() {
   const handleDelete = async () => {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       const response = await fetch(`${API_BASE_URL}/supplier_delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: storedOutletId.toString(),

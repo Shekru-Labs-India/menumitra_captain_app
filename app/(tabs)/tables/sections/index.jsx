@@ -36,6 +36,68 @@ import Header from "../../../components/Header";
 
 const API_BASE_URL = "https://men4u.xyz/common_api";
 
+// Add this helper function at the top level
+const calculateTimeDifference = (occupiedTime) => {
+  try {
+    if (!occupiedTime) return "";
+
+    // Parse the occupied time string (format: "30 Jan 2025 12:23:55 PM")
+    const [day, month, year, time, period] = occupiedTime.split(" ");
+    const [hours, minutes, seconds] = time.split(":");
+
+    // Convert month abbreviation to month number (0-11)
+    const months = {
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
+    };
+
+    // Create date object for the occupied time
+    const occupiedDate = new Date(
+      parseInt(year),
+      months[month],
+      parseInt(day),
+      period === "PM" && hours !== "12"
+        ? parseInt(hours) + 12
+        : period === "AM" && hours === "12"
+        ? 0
+        : parseInt(hours),
+      parseInt(minutes),
+      parseInt(seconds)
+    );
+
+    // Get current time
+    const now = new Date();
+
+    // Calculate difference in minutes
+    const diffInMinutes = Math.floor((now - occupiedDate) / (1000 * 60));
+
+    // Format the relative time
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes}m ago`;
+    } else if (diffInMinutes < 180) {
+      // Less than 3 hours
+      const hours = Math.floor(diffInMinutes / 60);
+      const mins = diffInMinutes % 60;
+      return `${hours}h ${mins}m ago`;
+    } else {
+      return "3h+";
+    }
+  } catch (error) {
+    console.error("Time calculation error:", error);
+    return ""; // Return empty string if calculation fails
+  }
+};
+
 export default function TableSectionsScreen() {
   const router = useRouter();
   const toast = useToast();
@@ -182,10 +244,13 @@ export default function TableSectionsScreen() {
   const fetchSections = async (outletId) => {
     try {
       setLoading(true);
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(`${API_BASE_URL}/table_listview`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
@@ -201,6 +266,7 @@ export default function TableSectionsScreen() {
           name: section.section_name,
           tables: section.tables.map((table) => ({
             ...table,
+            timeSinceOccupied: calculateTimeDifference(table.occupied_time),
           })),
           totalTables: section.tables.length,
           engagedTables: section.tables.filter(
@@ -274,10 +340,13 @@ export default function TableSectionsScreen() {
 
     try {
       setLoading(true);
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(`${API_BASE_URL}/section_create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
@@ -305,7 +374,7 @@ export default function TableSectionsScreen() {
         throw new Error(data.msg || "Failed to create section");
       }
     } catch (error) {
-      console.error("Create Section Error:", error);
+      console.error("Add Section Error:", error);
       toast.show({
         description: error.message || "Failed to create section",
         placement: "top",
@@ -344,10 +413,12 @@ export default function TableSectionsScreen() {
       // Handle occupied table with order
       if (table.is_occupied === 1 && table.order_id) {
         try {
+          const accessToken = await AsyncStorage.getItem("access");
           const response = await fetch(`${API_BASE_URL}/order_view`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
             },
             body: JSON.stringify({
               order_number: table.order_number,
@@ -470,10 +541,13 @@ export default function TableSectionsScreen() {
   const handleDeleteTable = async (sectionId, tableId) => {
     try {
       setLoading(true);
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(`${API_BASE_URL}/table_delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId?.toString() || "",
@@ -508,57 +582,6 @@ export default function TableSectionsScreen() {
   const getLastTable = (sectionTables) => {
     if (!sectionTables || sectionTables.length === 0) return null;
     return sectionTables[sectionTables.length - 1];
-  };
-
-  // Add this helper function to format time
-  const formatTime = (timeString) => {
-    if (!timeString) return "";
-
-    try {
-      // Parse the time string into a Date object
-      const [time, meridiem] = timeString.split(" ");
-      const [hours, minutes, seconds] = time.split(":");
-
-      // Create date object for the order time
-      const orderDate = new Date();
-      let orderHours = parseInt(hours);
-
-      // Convert to 24-hour format if PM
-      if (meridiem === "PM" && orderHours !== 12) {
-        orderHours += 12;
-      }
-      // Handle 12 AM special case
-      if (meridiem === "AM" && orderHours === 12) {
-        orderHours = 0;
-      }
-
-      orderDate.setHours(orderHours, parseInt(minutes), parseInt(seconds));
-
-      // Get current time
-      const now = new Date();
-
-      // If order time is greater than current time, assume it's from previous day
-      if (orderDate > now) {
-        orderDate.setDate(orderDate.getDate() - 1);
-      }
-
-      // Calculate difference in minutes
-      const diffInMinutes = Math.floor((now - orderDate) / (1000 * 60));
-
-      // Format the relative time
-      if (diffInMinutes >= 180) {
-        // 3 hours or more
-        return "3h+";
-      } else if (diffInMinutes < 60) {
-        return `${diffInMinutes}m ago`;
-      } else {
-        const hours = Math.floor(diffInMinutes / 60);
-        return `${hours}h ago`;
-      }
-    } catch (error) {
-      console.error("Time formatting error:", error);
-      return "3h+"; // Return 3h+ as fallback
-    }
   };
 
   // Add this function for pull to refresh
@@ -837,9 +860,7 @@ export default function TableSectionsScreen() {
                                                     mt={-2}
                                                     color="coolGray.600"
                                                   >
-                                                    {formatTime(
-                                                      table.occupied_time
-                                                    )}
+                                                    {table.timeSinceOccupied}
                                                   </Text>
                                                 )}
                                               </VStack>
@@ -1193,10 +1214,13 @@ export default function TableSectionsScreen() {
 
     try {
       setLoading(true);
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(`${API_BASE_URL}/section_update`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
@@ -1218,7 +1242,7 @@ export default function TableSectionsScreen() {
         throw new Error(data.msg || "Failed to update section");
       }
     } catch (error) {
-      console.error("Update Section Error:", error);
+      console.error("Edit Section Error:", error);
       toast.show({
         description: error.message || "Failed to update section",
         status: "error",
@@ -1231,10 +1255,13 @@ export default function TableSectionsScreen() {
   const handleDeleteSection = async () => {
     try {
       setLoading(true);
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(`${API_BASE_URL}/section_delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
@@ -1268,10 +1295,13 @@ export default function TableSectionsScreen() {
   const handleCreateTable = async () => {
     try {
       setLoading(true);
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(`${API_BASE_URL}/table_create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId.toString(),

@@ -39,12 +39,15 @@ export default function CategoryDetailsView() {
   const fetchCategoryDetails = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(
         "https://men4u.xyz/common_api/menu_category_view",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             outlet_id: outletId,
@@ -83,12 +86,15 @@ export default function CategoryDetailsView() {
   const handleDelete = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(
         "https://men4u.xyz/common_api/menu_category_delete",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             outlet_id: outletId,

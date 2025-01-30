@@ -38,10 +38,13 @@ export default function MenuDetailsView() {
   const fetchMenuDetails = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch("https://men4u.xyz/common_api/menu_view", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId,
@@ -71,10 +74,13 @@ export default function MenuDetailsView() {
   const handleDelete = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch("https://men4u.xyz/common_api/menu_delete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId,

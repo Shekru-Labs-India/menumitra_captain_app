@@ -39,10 +39,13 @@ export default function StaffDetailsScreen() {
   const fetchStaffDetails = async (storedOutletId) => {
     setIsLoading(true);
     try {
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(`${API_BASE_URL}/staff_view`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           staff_id: parseInt(id),
@@ -99,10 +102,13 @@ export default function StaffDetailsScreen() {
 
   const handleDelete = async () => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(`${API_BASE_URL}/staff_delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           staff_id: id.toString(),

@@ -73,6 +73,8 @@ export default function EditMenuView() {
 
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
+
       if (!outletId) {
         throw new Error("Outlet ID not found");
       }
@@ -84,6 +86,7 @@ export default function EditMenuView() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             outlet_id: outletId,
@@ -93,7 +96,7 @@ export default function EditMenuView() {
       );
 
       const menuData = await menuResponse.json();
-      console.log("Menu Data:", menuData); // Debug log
+      console.log("Menu Data:", menuData);
 
       if (menuData.st === 1 && menuData.data) {
         const data = menuData.data;
@@ -130,13 +133,17 @@ export default function EditMenuView() {
   const fetchDropdownData = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       // Fetch Categories
       const categoryResponse = await fetch(
         "https://men4u.xyz/common_api/menu_category_listview",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
           body: JSON.stringify({ outlet_id: outletId }),
         }
       );
@@ -147,7 +154,13 @@ export default function EditMenuView() {
 
       // Fetch Food Types
       const foodTypeResponse = await fetch(
-        "https://men4u.xyz/common_api/get_food_type_list"
+        "https://men4u.xyz/common_api/get_food_type_list",
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
       const foodTypeData = await foodTypeResponse.json();
       if (foodTypeData.st === 1) {
@@ -162,7 +175,13 @@ export default function EditMenuView() {
 
       // Fetch Spicy Levels
       const spicyResponse = await fetch(
-        "https://men4u.xyz/common_api/get_spicy_index_list"
+        "https://men4u.xyz/common_api/get_spicy_index_list",
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
       const spicyData = await spicyResponse.json();
       if (spicyData.st === 1) {
@@ -177,7 +196,13 @@ export default function EditMenuView() {
 
       // Fetch Rating List
       const ratingResponse = await fetch(
-        "https://men4u.xyz/common_api/rating_list"
+        "https://men4u.xyz/common_api/rating_list",
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
       const ratingData = await ratingResponse.json();
       if (ratingData.st === 1) {
@@ -209,17 +234,21 @@ export default function EditMenuView() {
       setSubmitting(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
       const userId = await AsyncStorage.getItem("user_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       console.log("Sending update request with:", {
         menu_id: menuId,
         outlet_id: outletId,
         user_id: userId,
         ...menuDetails,
-      }); // Debug log
+      });
 
       const response = await fetch("https://men4u.xyz/common_api/menu_update", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
           menu_id: menuId,
           outlet_id: outletId,
@@ -229,10 +258,9 @@ export default function EditMenuView() {
       });
 
       const data = await response.json();
-      console.log("Update Response:", data); // Debug log
+      console.log("Update Response:", data);
 
       if (data.st === 1) {
-        // Changed from data.detail to data.st
         toast.show({
           description: data.msg || "Menu updated successfully",
           status: "success",

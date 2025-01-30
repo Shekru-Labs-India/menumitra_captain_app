@@ -46,12 +46,15 @@ export default function MenuListView() {
   const fetchMenus = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(
         "https://men4u.xyz/common_api/menu_listview",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             outlet_id: outletId,

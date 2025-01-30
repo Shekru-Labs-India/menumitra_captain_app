@@ -26,7 +26,6 @@ import Sidebar from "../components/Sidebar";
 import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  NotificationService,
   sendNotificationToWaiter,
   verifyCurrentDeviceTokens,
 } from "../../services/NotificationService";
@@ -60,33 +59,51 @@ export default function HomeScreen() {
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fix the route paths in management cards
+  // Update the management cards array to match the reference
   const managementCards = [
     {
       title: "Staff",
-      icon: "people",
+      icon: "group",
       route: "/(tabs)/staff",
-      color: "cyan.500",
+      color: "green.500",
       count: staffCount,
+    },
+    {
+      title: "Orders",
+      icon: "receipt",
+      route: "/(tabs)/orders",
+      color: "blue.500",
     },
     {
       title: "Tables",
       icon: "table-restaurant",
-      route: "/(tabs)/tables",
+      route: "/(tabs)/tables/sections",
       color: "purple.500",
       count: tableCount,
     },
     {
-      title: "Orders",
-      icon: "receipt-long",
-      route: "/(tabs)/orders",
+      title: "Inventory",
+      icon: "inventory",
+      route: "/screens/inventory/inventory-items",
       color: "orange.500",
     },
     {
-      title: "Menu",
-      icon: "restaurant-menu",
-      route: "/(tabs)/menu/menu-items", // Fixed route path
-      color: "emerald.500",
+      title: "Suppliers",
+      icon: "local-shipping",
+      route: "/screens/suppliers",
+      color: "pink.500",
+    },
+    {
+      title: "Menus",
+      icon: "restaurant",
+      route: "/screens/menus/MenuListView",
+      color: "blue.500",
+    },
+    {
+      title: "Categories",
+      icon: "category",
+      route: "/screens/categories/CategoryListview",
+      color: "red.500",
     },
   ];
 
@@ -94,6 +111,7 @@ export default function HomeScreen() {
     try {
       console.log("Starting fetchData function");
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       if (!storedOutletId) {
         console.log("No outlet ID found");
@@ -106,13 +124,13 @@ export default function HomeScreen() {
       }
 
       // Fetch staff list
-      console.log("Fetching staff list...");
       const staffResponse = await fetch(
         `${API_BASE_URL}/get_staff_list_with_role`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             outlet_id: storedOutletId,
@@ -122,21 +140,19 @@ export default function HomeScreen() {
       );
 
       const staffData = await staffResponse.json();
-      console.log("Raw Staff Response:", staffData);
-
       if (staffData.st === 1 && Array.isArray(staffData.lists)) {
-        console.log("Setting staff count to:", staffData.lists.length);
         setStaffCount(staffData.lists.length);
       }
 
-      // Fetch table sections
-      console.log("Fetching table sections...");
-      const tableSectionsResponse = await fetch(
-        `${API_BASE_URL}/table_listview`,
+      // Fetch table list using new API
+      console.log("Fetching table list...");
+      const tableResponse = await fetch(
+        "https://men4u.xyz/common_api/table_listview",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             outlet_id: storedOutletId,
@@ -144,31 +160,26 @@ export default function HomeScreen() {
         }
       );
 
-      const tableSectionsData = await tableSectionsResponse.json();
-      console.log("Raw Table Sections Response:", tableSectionsData);
+      const tableData = await tableResponse.json();
+      console.log("Raw Table Response:", tableData);
 
-      if (tableSectionsData.st === 1 && tableSectionsData.data) {
-        console.log("Processing table sections data...");
-        let totalTables = 0;
-        tableSectionsData.data.forEach((section, index) => {
-          const tableCount = section.tables ? section.tables.length : 0;
-          console.log(`Section "${index}": ${tableCount} tables`);
-          totalTables += tableCount;
-        });
-        console.log("Final Total Tables:", totalTables);
-        setTableCount(totalTables);
+      if (tableData.st === 1) {
+        setTableCount(tableData.total_tables);
       }
 
       // Fetch latest sales
       await fetchLatestSales();
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error in fetchData:", error);
+      toast.show({
+        description: "Failed to fetch data",
+        status: "error",
+        duration: 3000,
+      });
     }
   };
 
-  // Single effect for data fetching
   useEffect(() => {
-    console.log("useEffect triggered for data fetching");
     fetchData();
   }, []);
 
@@ -224,21 +235,47 @@ export default function HomeScreen() {
     }
   };
 
-  // Add useEffect to load tokens when screen mounts
+  // Update initialization effect
   useEffect(() => {
     const initializeNotifications = async () => {
       try {
-        await NotificationService.initialize();
+        // Setup notifications
+        const token = await setupNotifications();
+        console.log("Notification token:", token);
 
-        // Load tokens
-        const activeSession = await AsyncStorage.getItem("activeSession");
-        if (activeSession) {
-          const session = JSON.parse(activeSession);
-          setPushToken(session.expoPushToken);
-          setDeviceToken(session.sessionToken);
+        // Save token for receiving notifications
+        if (token) {
+          await AsyncStorage.setItem("expoPushToken", token);
         }
+
+        // Add notification listeners
+        const notificationListener = addNotificationListener((notification) => {
+          console.log("Received notification:", notification);
+          playSound();
+
+          // Show toast for received notification
+          toast.show({
+            description:
+              notification.request.content.body || "New notification received",
+            status: "info",
+            duration: 3000,
+          });
+        });
+
+        const responseListener = addNotificationResponseListener((response) => {
+          console.log("Notification response:", response);
+          // Handle notification tap
+          if (response.notification.request.content.data?.screen) {
+            router.push(response.notification.request.content.data.screen);
+          }
+        });
+
+        return () => {
+          notificationListener.remove();
+          responseListener.remove();
+        };
       } catch (error) {
-        console.error("Error initializing:", error);
+        console.error("Error initializing notifications:", error);
       }
     };
 
@@ -260,13 +297,16 @@ export default function HomeScreen() {
 
       const outletId = await AsyncStorage.getItem("outlet_id");
 
-      const result = await sendNotificationToWaiter({
-        order_number: Date.now().toString(),
-        order_id: Date.now().toString(),
-        tableNumber: "1",
-        outletId,
-        token: deviceToken,
+      const result = await NotificationService.sendNotification({
         to: pushToken,
+        title: "Waiter Call",
+        body: "Table 1 needs assistance",
+        data: {
+          type: "waiter_call",
+          tableNumber: "1",
+          outletId: outletId.toString(),
+          token: deviceToken,
+        },
       });
 
       if (result.success) {
@@ -324,32 +364,6 @@ export default function HomeScreen() {
       console.error("Error fetching token:", error);
     }
   };
-
-  // Add this effect to setup notifications and listeners
-  useEffect(() => {
-    // Setup notifications
-    setupNotifications();
-
-    // Add notification listeners
-    const notificationListener = addNotificationListener((notification) => {
-      console.log("Received notification:", notification);
-      playSound(); // Play sound when notification is received
-    });
-
-    const responseListener = addNotificationResponseListener((response) => {
-      console.log("Notification response:", response);
-      // Handle notification tap
-      if (response.notification.request.content.data.screen) {
-        router.push(response.notification.request.content.data.screen);
-      }
-    });
-
-    // Cleanup
-    return () => {
-      notificationListener.remove();
-      responseListener.remove();
-    };
-  }, []);
 
   const showAndCopyTokens = async () => {
     try {
@@ -413,26 +427,56 @@ export default function HomeScreen() {
 
   const handleCallWaiter = async () => {
     try {
-      const result = await NotificationService.callWaiter({
-        tableNumber: "1", // Or get this from state/props
-      });
+      const outletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
-      if (result.success) {
+      if (!outletId) {
+        throw new Error("Outlet ID not found");
+      }
+
+      const waiterPushToken = "ExponentPushToken[7nXNpfwEVd9JrLNkPwRXxx]";
+      const sessionToken = await AsyncStorage.getItem("sessionToken");
+
+      const result = await fetch(
+        "https://men4u.xyz/common_api/send_notification",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            to: waiterPushToken,
+            title: "Waiter Call",
+            body: "Table 1 needs assistance",
+            data: {
+              type: "waiter_call",
+              tableNumber: "1",
+              outletId: outletId.toString(),
+              token: sessionToken,
+            },
+          }),
+        }
+      );
+
+      const responseData = await result.json();
+
+      if (responseData.success) {
+        await playSound();
         toast.show({
           description: "Waiter has been notified",
           status: "success",
+          duration: 3000,
         });
       } else {
-        toast.show({
-          description: result.message,
-          status: "error",
-        });
+        throw new Error(responseData.message || "Failed to send notification");
       }
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error sending waiter notification:", error);
       toast.show({
-        description: "Failed to call waiter",
+        description: "Failed to call waiter. Please try again.",
         status: "error",
+        duration: 3000,
       });
     }
   };
@@ -440,6 +484,7 @@ export default function HomeScreen() {
   const fetchLatestSales = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       const response = await fetch(
         "https://men4u.xyz/common_api/table_listview",
@@ -447,6 +492,7 @@ export default function HomeScreen() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             outlet_id: outletId,
@@ -485,14 +531,41 @@ export default function HomeScreen() {
   );
 
   return (
-    <Box flex={1} bg="gray.50" safeArea>
-      <NativeBaseStatusBar />
+    <Box flex={1} bg="white" safeArea>
+      <NativeBaseStatusBar backgroundColor="white" barStyle="dark-content" />
+      <HStack
+        px={4}
+        py={2}
+        alignItems="center"
+        justifyContent="space-between"
+        borderBottomWidth={1}
+        borderBottomColor="coolGray.200"
+      >
+        <Text fontSize="xl" fontWeight="bold">
+          MenuMitra Captain
+        </Text>
+        <Pressable
+          onPress={() => setIsSidebarOpen(true)}
+          p={2}
+          rounded="full"
+          _pressed={{ bg: "coolGray.100" }}
+        >
+          <Icon as={MaterialIcons} name="menu" size={6} color="gray.600" />
+        </Pressable>
+      </HStack>
+
       <NativeBaseScrollView
+        flex={1}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#0891b2"]}
+            tintColor="#0891b2"
+          />
         }
       >
-        {/* Sales Card */}
         <HStack
           mx={4}
           my={4}
@@ -523,7 +596,6 @@ export default function HomeScreen() {
           </VStack>
         </HStack>
 
-        {/* Management Cards */}
         <Box
           flexDirection="row"
           flexWrap="wrap"

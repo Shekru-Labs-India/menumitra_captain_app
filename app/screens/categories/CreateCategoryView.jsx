@@ -77,6 +77,7 @@ export default function CreateCategoryView() {
       setLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
       const userId = await AsyncStorage.getItem("user_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       const formData = new FormData();
       formData.append("outlet_id", outletId);
@@ -102,6 +103,7 @@ export default function CreateCategoryView() {
           method: "POST",
           headers: {
             "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: formData,
         }

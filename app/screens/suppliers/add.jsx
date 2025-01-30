@@ -77,12 +77,14 @@ export default function AddSupplierScreen() {
 
   const fetchCreditRatings = async () => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(
         `${API_BASE_URL}/supplier_credit_rating_choices`,
         {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
         }
       );
@@ -108,15 +110,19 @@ export default function AddSupplierScreen() {
 
   const fetchStatusChoices = async () => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(`${API_BASE_URL}/supplier_status_choices`, {
         method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       const data = await response.json();
       console.log("Status Choices:", data);
 
       if (data.st === 1 && data.supplier_status_choices) {
-        // Convert the choices object to an array of options
         const choices = Object.entries(data.supplier_status_choices).map(
           ([key]) => ({
             label: key.charAt(0).toUpperCase() + key.slice(1),
@@ -342,7 +348,10 @@ export default function AddSupplierScreen() {
 
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      if (!storedOutletId) {
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      const accessToken = await AsyncStorage.getItem("access");
+
+      if (!storedOutletId || !storedUserId) {
         toast.show({
           description: "Please login again",
           status: "error",
@@ -355,9 +364,11 @@ export default function AddSupplierScreen() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: storedOutletId.toString(),
+          user_id: storedUserId.toString(),
           name: formData.name.trim(),
           supplier_status: formData.status || "active",
           credit_rating: formData.creditRating || "",
@@ -437,36 +448,6 @@ export default function AddSupplierScreen() {
                   placeholder="Enter supplier name"
                   bg="white"
                 />
-              </FormControl>
-
-              <FormControl>
-                <FormControl.Label>Status</FormControl.Label>
-                <Pressable
-                  onPress={() => {
-                    if (statusSelect.current) {
-                      statusSelect.current.focus();
-                    }
-                  }}
-                >
-                  <Select
-                    ref={statusSelect}
-                    selectedValue={formData.status}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, status: value })
-                    }
-                    placeholder="Select status"
-                    bg="white"
-                    isReadOnly={true}
-                  >
-                    {statusChoices.map((status) => (
-                      <Select.Item
-                        key={status.value}
-                        label={status.label}
-                        value={status.value}
-                      />
-                    ))}
-                  </Select>
-                </Pressable>
               </FormControl>
             </VStack>
           </Box>

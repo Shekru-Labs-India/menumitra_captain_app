@@ -51,12 +51,14 @@ export default function EditSupplierScreen() {
 
   const fetchCreditRatings = async () => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(
         `${API_BASE_URL}/supplier_credit_rating_choices`,
         {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
         }
       );
@@ -82,6 +84,8 @@ export default function EditSupplierScreen() {
     const fetchSupplierDetails = async () => {
       try {
         const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        const accessToken = await AsyncStorage.getItem("access");
+
         if (!storedOutletId) {
           toast.show({
             description: "Please login again",
@@ -97,6 +101,7 @@ export default function EditSupplierScreen() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             supplier_id: id.toString(),
@@ -282,6 +287,7 @@ export default function EditSupplierScreen() {
     }
 
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const requestBody = {
         supplier_id: id.toString(),
         outlet_id: outletId.toString(),
@@ -299,12 +305,13 @@ export default function EditSupplierScreen() {
         address: formData.address?.trim() || "",
       };
 
-      console.log("Update Request Body:", requestBody); // Debug log
+      console.log("Update Request Body:", requestBody);
 
       const response = await fetch(`${API_BASE_URL}/supplier_update`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(requestBody),
       });
@@ -318,6 +325,7 @@ export default function EditSupplierScreen() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             supplier_id: id.toString(),
@@ -341,7 +349,6 @@ export default function EditSupplierScreen() {
           });
         }
       } else {
-        // Handle specific error for duplicate mobile number
         if (data.msg?.toLowerCase().includes("mobile number already exists")) {
           toast.show({
             title: "Duplicate Mobile Number",

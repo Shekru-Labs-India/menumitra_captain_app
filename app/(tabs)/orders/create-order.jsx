@@ -146,10 +146,12 @@ export default function CreateOrderScreen() {
   // Add this function to fetch order details
   const fetchOrderDetails = async (orderId) => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(`${API_BASE_URL}/order_view`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           order_number: orderId,
@@ -248,12 +250,14 @@ export default function CreateOrderScreen() {
 
     setLoading(true);
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(
         `${API_BASE_URL}/get_all_menu_list_by_category`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             outlet_id: outletId.toString(),
@@ -375,10 +379,12 @@ export default function CreateOrderScreen() {
         orderData.order_id = params.orderId.toString();
       }
 
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(orderData),
       });
@@ -482,9 +488,13 @@ export default function CreateOrderScreen() {
         };
 
         // Create the order
+        const accessToken = await AsyncStorage.getItem("access");
         const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
           body: JSON.stringify(createPayload),
         });
 
@@ -507,7 +517,10 @@ export default function CreateOrderScreen() {
           `${API_BASE_URL}/update_order_status`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
             body: JSON.stringify(paidPayload),
           }
         );
@@ -530,9 +543,13 @@ export default function CreateOrderScreen() {
           action: "settle",
         };
 
+        const accessToken = await AsyncStorage.getItem("access");
         const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
           body: JSON.stringify(createPayload),
         });
 
@@ -555,7 +572,10 @@ export default function CreateOrderScreen() {
           `${API_BASE_URL}/update_order_status`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
             body: JSON.stringify(paidPayload),
           }
         );

@@ -52,10 +52,12 @@ export default function InventoryItemsScreen() {
 
   const fetchInventoryItems = async (outId) => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(`${API_BASE_URL}/inventory_listview`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outId.toString(),

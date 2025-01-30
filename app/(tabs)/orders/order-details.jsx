@@ -81,11 +81,13 @@ export default function OrderDetailsScreen() {
 
       try {
         console.log("Fetching order details for:", id);
+        const accessToken = await AsyncStorage.getItem("access");
 
         const response = await fetch(`${API_BASE_URL}/order_view`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             order_number: id,
@@ -140,11 +142,13 @@ export default function OrderDetailsScreen() {
       setIsLoading(true);
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       const storedUserId = await AsyncStorage.getItem("user_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       const response = await fetch(`${API_BASE_URL}/update_order_status`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: storedOutletId,

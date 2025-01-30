@@ -109,8 +109,13 @@ export default function EditStaffScreen() {
 
   const fetchRoles = async () => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(`${API_BASE_URL}/get_staff_role`, {
         method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       const data = await response.json();
@@ -139,10 +144,12 @@ export default function EditStaffScreen() {
   useEffect(() => {
     const fetchStaffDetails = async () => {
       try {
+        const accessToken = await AsyncStorage.getItem("access");
         const response = await fetch(`${API_BASE_URL}/staff_view`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             staff_id: parseInt(id),
@@ -286,11 +293,13 @@ export default function EditStaffScreen() {
     setIsLoading(true);
     try {
       const userId = await AsyncStorage.getItem("user_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       const response = await fetch(`${API_BASE_URL}/staff_update`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           user_id: parseInt(userId),

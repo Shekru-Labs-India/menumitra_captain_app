@@ -87,8 +87,16 @@ export default function AddInventoryItemScreen() {
   // Fetch categories from the API
   const fetchCategories = async () => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(
-        `${API_BASE_URL}/get_inventory_category_list`
+        `${API_BASE_URL}/get_inventory_category_list`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
       const data = await response.json();
 
@@ -114,7 +122,14 @@ export default function AddInventoryItemScreen() {
 
   const fetchStatusOptions = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/get_in_or_out_list`);
+      const accessToken = await AsyncStorage.getItem("access");
+      const response = await fetch(`${API_BASE_URL}/get_in_or_out_list`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       const data = await response.json();
 
       if (data.st === 1) {
@@ -142,11 +157,13 @@ export default function AddInventoryItemScreen() {
   const fetchSuppliers = async () => {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       const response = await fetch(`${API_BASE_URL}/get_supplier_list`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: storedOutletId,
@@ -259,10 +276,12 @@ export default function AddInventoryItemScreen() {
 
     setIsLoading(true);
     try {
+      const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(`${API_BASE_URL}/inventory_create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId.toString(),

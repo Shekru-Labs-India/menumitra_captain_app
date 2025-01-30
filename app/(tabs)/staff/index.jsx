@@ -334,10 +334,13 @@ export default function StaffScreen() {
     setIsLoading(true);
     try {
       console.log("Fetching staff with role:", filterRole);
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(`${API_BASE_URL}/get_staff_list_with_role`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId,
@@ -381,10 +384,13 @@ export default function StaffScreen() {
     if (!outletId) return;
 
     try {
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(`${API_BASE_URL}/staff_role_list`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: outletId,

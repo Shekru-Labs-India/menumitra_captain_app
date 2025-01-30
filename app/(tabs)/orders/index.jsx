@@ -381,6 +381,7 @@ const OrdersScreen = () => {
 
     try {
       const restaurantId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       const response = await fetch(
         "https://men4u.xyz/common_api/order_listview",
@@ -388,6 +389,7 @@ const OrdersScreen = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             outlet_id: restaurantId || "1",

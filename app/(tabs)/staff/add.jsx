@@ -225,6 +225,7 @@ export default function AddStaffScreen() {
 
     try {
       const userId = await AsyncStorage.getItem("user_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       // Format date to DD Mon YYYY (without hyphens)
       const formatDOB = (dateString) => {
@@ -269,6 +270,7 @@ export default function AddStaffScreen() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(staffData),
       });
@@ -296,8 +298,14 @@ export default function AddStaffScreen() {
 
   const fetchRoles = async () => {
     try {
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(`${API_BASE_URL}/get_staff_role`, {
         method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       const data = await response.json();

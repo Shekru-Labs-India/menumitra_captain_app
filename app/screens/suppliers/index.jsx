@@ -66,11 +66,13 @@ export default function SuppliersScreen() {
   const fetchSuppliers = async () => {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
       const response = await fetch(`${API_BASE_URL}/supplier_listview`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           outlet_id: storedOutletId.toString(),
