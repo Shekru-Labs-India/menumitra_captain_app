@@ -165,9 +165,20 @@ export default function EditCategoryView() {
           description: "Category updated successfully",
           status: "success",
         });
+
+        // First navigate to list view with refresh parameter
+        router.push({
+          pathname: "/screens/categories/CategoryListview",
+          params: { refresh: Date.now() },
+        });
+
+        // Then navigate to details view
         router.push({
           pathname: "/screens/categories/CategoryDetailsView",
-          params: { refresh: Date.now() },
+          params: {
+            categoryId: params.categoryId,
+            refresh: Date.now(),
+          },
         });
       } else {
         throw new Error(data.msg || "Failed to update category");

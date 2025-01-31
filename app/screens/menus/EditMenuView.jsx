@@ -19,11 +19,13 @@ import {
   Pressable,
   Modal,
   FlatList,
+  IconButton,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, router } from "expo-router";
 import Header from "../../components/Header";
+import * as ImagePicker from "expo-image-picker";
 
 export default function EditMenuView() {
   const params = useLocalSearchParams();
@@ -42,17 +44,19 @@ export default function EditMenuView() {
   // States for data
   const [menuDetails, setMenuDetails] = useState({
     name: "",
-    full_price: "0",
-    half_price: "0",
+    full_price: "",
+    half_price: "",
     food_type: "",
     menu_cat_id: "",
-    spicy_index: "",
-    offer: "0",
+    spicy_index: "1",
+    offer: "",
     description: "",
     ingredients: "",
+    rating: "",
+    images: [],
     is_special: false,
-    rating: "0",
-    image: null,
+    outlet_id: "",
+    category_name: "",
   });
 
   const [categories, setCategories] = useState([]);
@@ -95,27 +99,30 @@ export default function EditMenuView() {
         }
       );
 
-      const menuData = await menuResponse.json();
-      console.log("Menu Data:", menuData);
+      const data = await menuResponse.json();
+      console.log("Menu Data:", data);
 
-      if (menuData.st === 1 && menuData.data) {
-        const data = menuData.data;
+      if (data.st === 1 && data.data) {
+        const menuData = data.data;
         setMenuDetails({
-          name: data.name || "",
-          full_price: data.full_price ? data.full_price.toString() : "0",
-          half_price: data.half_price ? data.half_price.toString() : "0",
-          food_type: data.food_type || "",
-          menu_cat_id: data.menu_cat_id ? data.menu_cat_id.toString() : "",
-          spicy_index: data.spicy_index ? data.spicy_index.toString() : "1",
-          offer: data.offer ? data.offer.toString() : "0",
-          description: data.description || "",
-          ingredients: data.ingredients || "",
-          is_special: Boolean(data.is_special),
-          rating: data.rating ? data.rating.toString() : "0",
-          image: data.image || null,
+          ...menuDetails,
+          name: menuData.name || "",
+          full_price: menuData.full_price?.toString() || "",
+          half_price: menuData.half_price?.toString() || "",
+          food_type: menuData.food_type || "",
+          menu_cat_id: menuData.menu_cat_id?.toString() || "",
+          category_name: menuData.category_name || "",
+          spicy_index: menuData.spicy_index?.toString() || "1",
+          offer: menuData.offer?.toString() || "",
+          description: menuData.description || "",
+          ingredients: menuData.ingredients || "",
+          rating: menuData.rating?.toString() || "",
+          images: menuData.images || [],
+          is_special: Boolean(Number(menuData.is_special)),
+          outlet_id: outletId,
         });
       } else {
-        throw new Error(menuData.msg || "Failed to fetch menu details");
+        throw new Error(data.msg || "Failed to fetch menu details");
       }
     } catch (error) {
       console.error("Error in fetchInitialData:", error);
@@ -285,16 +292,19 @@ export default function EditMenuView() {
 
   // Handle Special/Non-Special Toggle
   const handleSpecialToggle = async () => {
-    if (isSpecialLoading) return;
-
-    setIsSpecialLoading(true);
     try {
+      setIsSpecialLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const accessToken = await AsyncStorage.getItem("access");
+
       const response = await fetch(
         "https://men4u.xyz/common_api/make_menu_special_non_special",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
           body: JSON.stringify({
             outlet_id: outletId,
             menu_id: menuId,
@@ -309,9 +319,7 @@ export default function EditMenuView() {
           is_special: !prev.is_special,
         }));
         toast.show({
-          description: `Menu marked as ${
-            !menuDetails.is_special ? "special" : "non-special"
-          }`,
+          description: data.msg || "Special status updated successfully",
           status: "success",
         });
       } else {
@@ -320,7 +328,7 @@ export default function EditMenuView() {
     } catch (error) {
       console.error("Special toggle error:", error);
       toast.show({
-        description: error.message || "Failed to update special status",
+        description: error.message,
         status: "error",
       });
     } finally {
@@ -357,6 +365,47 @@ export default function EditMenuView() {
     }));
   };
 
+  // Add image picker function
+  const pickImage = async () => {
+    try {
+      if (menuDetails.images.length >= 5) {
+        toast.show({
+          description: "Maximum 5 images allowed",
+          status: "warning",
+        });
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        setMenuDetails((prev) => ({
+          ...prev,
+          images: [...prev.images, result.assets[0].uri],
+        }));
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      toast.show({
+        description: "Failed to pick image",
+        status: "error",
+      });
+    }
+  };
+
+  // Add remove image function
+  const removeImage = (index) => {
+    setMenuDetails((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+  };
+
   if (loading) {
     return (
       <Box flex={1} bg="white" safeArea>
@@ -374,6 +423,69 @@ export default function EditMenuView() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <VStack space={4} p={4}>
+          {/* Image Gallery */}
+          <Box>
+            <Text fontSize="md" mb={2}>
+              Menu Images ({menuDetails.images.length}/5)
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <HStack space={2}>
+                {menuDetails.images.map((uri, index) => (
+                  <Box key={index} position="relative">
+                    <Image
+                      source={{ uri }}
+                      alt={`Menu Image ${index + 1}`}
+                      size="xl"
+                      rounded="lg"
+                    />
+                    <IconButton
+                      position="absolute"
+                      top={1}
+                      right={1}
+                      size="sm"
+                      rounded="full"
+                      bg="red.500"
+                      icon={
+                        <Icon
+                          as={MaterialIcons}
+                          name="close"
+                          color="white"
+                          size="sm"
+                        />
+                      }
+                      onPress={() => removeImage(index)}
+                    />
+                  </Box>
+                ))}
+                {menuDetails.images.length < 5 && (
+                  <Pressable onPress={pickImage}>
+                    <Box
+                      w="32"
+                      h="32"
+                      bg="gray.100"
+                      rounded="lg"
+                      justifyContent="center"
+                      alignItems="center"
+                      borderWidth={1}
+                      borderStyle="dashed"
+                      borderColor="gray.300"
+                    >
+                      <Icon
+                        as={MaterialIcons}
+                        name="add-photo-alternate"
+                        size={8}
+                        color="gray.400"
+                      />
+                      <Text color="gray.400" mt={2}>
+                        Add Photo
+                      </Text>
+                    </Box>
+                  </Pressable>
+                )}
+              </HStack>
+            </ScrollView>
+          </Box>
+
           {/* Basic Information */}
           <Box bg="white" rounded="lg" shadow={1} p={4}>
             <VStack space={4}>
@@ -393,11 +505,7 @@ export default function EditMenuView() {
                 <FormControl isRequired>
                   <FormControl.Label>Category</FormControl.Label>
                   <Input
-                    value={
-                      categories.find(
-                        (cat) => cat.menu_cat_id === menuDetails.menu_cat_id
-                      )?.category_name || ""
-                    }
+                    value={menuDetails.category_name || ""}
                     isReadOnly
                     rightElement={
                       <Icon
@@ -528,7 +636,7 @@ export default function EditMenuView() {
               <HStack
                 alignItems="center"
                 justifyContent="space-between"
-                p={4}
+                py={2}
                 bg="white"
                 rounded="lg"
               >
@@ -562,7 +670,7 @@ export default function EditMenuView() {
         isOpen={categoryModalVisible}
         onClose={() => setCategoryModalVisible(false)}
       >
-        <Modal.Content maxWidth="90%">
+        <Modal.Content maxWidth="400px">
           <Modal.CloseButton />
           <Modal.Header>Select Category</Modal.Header>
           <Modal.Body>
@@ -573,14 +681,15 @@ export default function EditMenuView() {
                 <Pressable
                   p={3}
                   bg={
-                    menuDetails.menu_cat_id === item.menu_cat_id
+                    menuDetails.menu_cat_id === item.menu_cat_id?.toString()
                       ? "primary.100"
                       : "white"
                   }
                   onPress={() => {
                     setMenuDetails((prev) => ({
                       ...prev,
-                      menu_cat_id: item.menu_cat_id,
+                      menu_cat_id: item.menu_cat_id?.toString(),
+                      category_name: item.category_name,
                     }));
                     setCategoryModalVisible(false);
                   }}

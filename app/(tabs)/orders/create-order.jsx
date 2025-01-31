@@ -141,6 +141,12 @@ export default function CreateOrderScreen() {
   // Add this state for tracking fetch attempts
   const [chargesFetched, setChargesFetched] = useState(false);
 
+  // Add this check to determine if it's an existing order
+  const isExistingOrder = params?.orderId ? true : false;
+
+  // Add loading state at the top of your component
+  const [isLoading, setIsLoading] = useState(false);
+
   // Update the useEffect for session handling
 
   // Add this function to fetch order details
@@ -425,199 +431,62 @@ export default function CreateOrderScreen() {
     }
   };
 
-  const handleHold = () => createOrder("save");
-  const handleKOT = () => createOrder("print");
-
-  const handleSettle = async () => {
-    if (selectedItems.length === 0) {
-      toast.show({
-        description: "Please add items to the order",
-        status: "warning",
-      });
-      return;
-    }
+  const handleHold = async () => {
+    if (isLoading) return; // Prevent multiple calls
 
     try {
-      setIsProcessing(true);
-      setLoadingMessage("Processing order...");
+      setIsLoading(true);
+      setLoadingMessage("Saving order...");
 
-      const storedCaptainId = await AsyncStorage.getItem("captain_id");
-      const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      const storedUserId = await AsyncStorage.getItem("user_id");
-
-      if (!storedOutletId || !storedCaptainId || !storedUserId) {
-        throw new Error("Required data not found");
-      }
-
-      // For existing orders, show message and navigate to orders screen
-      if (params?.orderId) {
-        toast.show({
-          description: "Please settle this order from the order details screen",
-          status: "info",
-          duration: 3000,
-          placement: "top",
-        });
-
-        router.replace({
-          pathname: "/(tabs)/orders",
-          params: {
-            refresh: Date.now().toString(),
-          },
-        });
-        return;
-      }
-
-      // Prepare common order items structure
-      const orderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id.toString(),
-        quantity: item.quantity,
-        comment: item.specialInstructions || "",
-        half_or_full: (item.portionSize || "full").toLowerCase(),
-      }));
-
-      // Handle special orders (counter, parcel, drive-through)
-      if (params?.isSpecialOrder) {
-        setLoadingMessage("Creating special order...");
-        const createPayload = {
-          captain_id: storedCaptainId.toString(),
-          outlet_id: storedOutletId.toString(),
-          user_id: storedUserId.toString(),
-          order_type: params.orderType.toLowerCase(),
-          order_items: orderItems,
-          action: "settle",
-        };
-
-        // Create the order
-        const accessToken = await AsyncStorage.getItem("access");
-        const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(createPayload),
-        });
-
-        const createResult = await createResponse.json();
-        if (createResult.st !== 1) {
-          throw new Error(createResult.msg || "Failed to create order");
-        }
-
-        // Immediately mark as paid
-        setLoadingMessage("Marking order as paid...");
-        const paidPayload = {
-          outlet_id: storedOutletId.toString(),
-          order_id: createResult.order_id.toString(),
-          order_status: "paid",
-          user_id: storedUserId.toString(),
-          action: "settle",
-        };
-
-        const paidResponse = await fetch(
-          `${API_BASE_URL}/update_order_status`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify(paidPayload),
-          }
-        );
-
-        const paidResult = await paidResponse.json();
-        if (paidResult.st !== 1) {
-          throw new Error(paidResult.msg || "Failed to mark as paid");
-        }
-      } else {
-        // Handle regular table orders
-        setLoadingMessage("Creating new order...");
-        const createPayload = {
-          captain_id: storedCaptainId.toString(),
-          outlet_id: storedOutletId.toString(),
-          user_id: storedUserId.toString(),
-          tables: [params.tableNumber.toString()],
-          section_id: params.sectionId.toString(),
-          order_type: "dine-in",
-          order_items: orderItems,
-          action: "settle",
-        };
-
-        const accessToken = await AsyncStorage.getItem("access");
-        const createResponse = await fetch(`${API_BASE_URL}/create_order`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(createPayload),
-        });
-
-        const createResult = await createResponse.json();
-        if (createResult.st !== 1) {
-          throw new Error(createResult.msg || "Failed to create order");
-        }
-
-        // Mark as paid
-        setLoadingMessage("Marking order as paid...");
-        const paidPayload = {
-          outlet_id: storedOutletId.toString(),
-          order_id: createResult.order_id.toString(),
-          order_status: "paid",
-          user_id: storedUserId.toString(),
-          action: "settle",
-        };
-
-        const paidResponse = await fetch(
-          `${API_BASE_URL}/update_order_status`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify(paidPayload),
-          }
-        );
-
-        const paidResult = await paidResponse.json();
-        if (paidResult.st !== 1) {
-          throw new Error(paidResult.msg || "Failed to mark as paid");
-        }
-      }
-
-      // Clear states
-      setSelectedItems([]);
-      setSearchQuery("");
-      setOrderDetails({});
-      setServiceCharges(0);
-      setGstAmount(0);
-      setDiscountAmount(0);
-
-      toast.show({
-        description: "Order created and settled successfully",
-        status: "success",
-        duration: 2000,
-      });
-
-      // Navigate back to orders page
-      router.replace({
-        pathname: "/(tabs)/orders",
-        params: {
-          refresh: Date.now().toString(),
-          status: "paid",
-          fromSettle: true,
-        },
-      });
+      await createOrder("save");
     } catch (error) {
-      console.error("Settle Error:", error);
+      console.error("Error saving order:", error);
       toast.show({
-        description: error.message || "Failed to settle order",
+        description: "Failed to save order",
         status: "error",
-        duration: 3000,
       });
     } finally {
-      setIsProcessing(false);
+      setIsLoading(false);
+      setLoadingMessage("");
+    }
+  };
+
+  const handleKOT = async () => {
+    if (isLoading) return;
+
+    try {
+      setIsLoading(true);
+      setLoadingMessage("Printing KOT...");
+
+      await createOrder("print");
+    } catch (error) {
+      console.error("Error printing KOT:", error);
+      toast.show({
+        description: "Failed to print KOT",
+        status: "error",
+      });
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage("");
+    }
+  };
+
+  const handleSettle = async () => {
+    if (isLoading) return;
+
+    try {
+      setIsLoading(true);
+      setLoadingMessage("Settling order...");
+
+      await createOrder("settle");
+    } catch (error) {
+      console.error("Error settling order:", error);
+      toast.show({
+        description: "Failed to settle order",
+        status: "error",
+      });
+    } finally {
+      setIsLoading(false);
       setLoadingMessage("");
     }
   };
@@ -1063,8 +932,7 @@ export default function CreateOrderScreen() {
 
   const handleAddItem = (item, selectedPortion) => {
     const newItem = {
-      menu_id: item.menu_id,
-      menu_name: item.menu_name,
+      ...item,
       quantity: 1,
       portionSize: selectedPortion,
       price:
@@ -1077,30 +945,103 @@ export default function CreateOrderScreen() {
       specialInstructions: "",
       menu_food_type: item.menu_food_type,
       image: item.image,
+      isNewlyAdded: true,
     };
 
-    setSelectedItems((prev) => {
-      // Check if item with same menu_id and portionSize exists
-      const existingItemIndex = prev.findIndex(
-        (i) => i.menu_id === item.menu_id && i.portionSize === selectedPortion
+    setSelectedItems((prevItems) => {
+      // Check if the same menu item with same portion exists in current items
+      const existingItemIndex = prevItems.findIndex(
+        (prevItem) =>
+          String(prevItem.menu_id) === String(item.menu_id) &&
+          String(prevItem.portionSize).toLowerCase() ===
+            String(selectedPortion).toLowerCase()
       );
 
+      // If item exists, update its quantity
       if (existingItemIndex !== -1) {
-        // If item exists, increment its quantity
-        const updatedItems = [...prev];
-        if (updatedItems[existingItemIndex].quantity < 20) {
-          updatedItems[existingItemIndex].quantity += 1;
+        const updatedItems = [...prevItems];
+        const existingItem = updatedItems[existingItemIndex];
+
+        // Check quantity limit
+        if (existingItem.quantity < 20) {
+          existingItem.quantity += 1;
+          existingItem.total_price =
+            selectedPortion === "Half"
+              ? Number(item.half_price) * existingItem.quantity
+              : Number(item.full_price) * existingItem.quantity;
         }
+
         return updatedItems;
-      } else {
-        // If item doesn't exist, add new item
-        return [...prev, newItem];
       }
+
+      // If item doesn't exist, check in orderDetails (for existing orders)
+      if (orderDetails?.menu_items) {
+        const existingOrderItemIndex = orderDetails.menu_items.findIndex(
+          (orderItem) =>
+            String(orderItem.menu_id) === String(item.menu_id) &&
+            String(orderItem.portionSize).toLowerCase() ===
+              String(selectedPortion).toLowerCase()
+        );
+
+        if (existingOrderItemIndex !== -1) {
+          // Item exists in order details, add with increased quantity
+          const existingOrderItem =
+            orderDetails.menu_items[existingOrderItemIndex];
+          return [
+            ...prevItems.filter(
+              (item) =>
+                !(
+                  String(item.menu_id) === String(existingOrderItem.menu_id) &&
+                  String(item.portionSize).toLowerCase() ===
+                    String(selectedPortion).toLowerCase()
+                )
+            ),
+            {
+              ...newItem,
+              quantity: (existingOrderItem.quantity || 0) + 1,
+              total_price:
+                selectedPortion === "Half"
+                  ? Number(item.half_price) * (existingOrderItem.quantity + 1)
+                  : Number(item.full_price) * (existingOrderItem.quantity + 1),
+              specialInstructions: existingOrderItem.specialInstructions || "",
+            },
+          ];
+        }
+      }
+
+      // If item doesn't exist anywhere, add as new
+      return [
+        ...prevItems,
+        {
+          ...newItem,
+          total_price:
+            selectedPortion === "Half"
+              ? Number(item.half_price)
+              : Number(item.full_price),
+        },
+      ];
     });
 
+    // Clear search after adding
     setSearchQuery("");
     setSearchResults([]);
     setIsSearchOpen(false);
+  };
+
+  // Update the removeFromCart function
+  const removeFromCart = (menuId, portionSize) => {
+    setSelectedItems((prevItems) =>
+      prevItems.filter((item) => {
+        // Keep the item if:
+        // 1. It's not the item we want to remove (different menu_id or portionSize)
+        // 2. OR it's an existing item (not newly added)
+        return !(
+          item.menu_id === menuId &&
+          item.portionSize === portionSize &&
+          item.isNewlyAdded
+        );
+      })
+    );
   };
 
   const initializeOrderDetails = async (orderData) => {
@@ -1194,7 +1135,7 @@ export default function CreateOrderScreen() {
           {params?.isSpecialOrder ? (
             <Text
               color={
-                params.orderType === "parsel"
+                params.orderType === "parcel"
                   ? "amber.800"
                   : params.orderType === "drive-through"
                   ? "purple.800"
@@ -1474,21 +1415,24 @@ export default function CreateOrderScreen() {
                           {selectedItems.length === 1 ? "Item" : "Items"}
                         </Text>
                       </HStack>
-                      <Button
-                        variant="ghost"
-                        _text={{ color: "gray.500" }}
-                        onPress={() => {
-                          setSelectedItems([]);
-                          setSearchQuery("");
-                          toast.show({
-                            description: "All items cleared",
-                            status: "info",
-                            duration: 2000,
-                          });
-                        }}
-                      >
-                        Clear All
-                      </Button>
+                      {/* Only show Clear All button if NOT an existing order */}
+                      {!isExistingOrder && (
+                        <Button
+                          variant="ghost"
+                          _text={{ color: "gray.500" }}
+                          onPress={() => {
+                            setSelectedItems([]);
+                            setSearchQuery("");
+                            toast.show({
+                              description: "All items cleared",
+                              status: "info",
+                              duration: 2000,
+                            });
+                          }}
+                        >
+                          Clear All
+                        </Button>
+                      )}
                     </HStack>
                   </Box>
                   {selectedItems.map((item, index) => (
@@ -1521,23 +1465,23 @@ export default function CreateOrderScreen() {
                               )}
                             </Text>
                           </HStack>
-                          <IconButton
-                            icon={
-                              <MaterialIcons
-                                name="close"
-                                size={16}
-                                color="gray"
-                              />
-                            }
-                            size="xs"
-                            p={1}
-                            onPress={() => {
-                              const newItems = selectedItems.filter(
-                                (_, i) => i !== index
-                              );
-                              setSelectedItems(newItems);
-                            }}
-                          />
+                          {/* Show close icon for new items in both new and existing orders */}
+                          {(item.isNewlyAdded || !isExistingOrder) && (
+                            <IconButton
+                              icon={
+                                <MaterialIcons
+                                  name="close"
+                                  size={16}
+                                  color="gray"
+                                />
+                              }
+                              size="xs"
+                              p={1}
+                              onPress={() => {
+                                removeFromCart(item.menu_id, item.portionSize);
+                              }}
+                            />
+                          )}
                         </HStack>
 
                         <HStack
@@ -1738,8 +1682,14 @@ export default function CreateOrderScreen() {
                     rounded="lg"
                     onPress={handleHold}
                     _pressed={{ bg: "gray.600" }}
+                    isDisabled={isLoading}
+                    isLoading={
+                      isLoading && loadingMessage === "Saving order..."
+                    }
                   >
-                    Save
+                    {isLoading && loadingMessage === "Saving order..."
+                      ? "Saving..."
+                      : "Save"}
                   </Button>
                   <Button
                     flex={1}
@@ -1750,8 +1700,14 @@ export default function CreateOrderScreen() {
                     }
                     onPress={handleKOT}
                     _text={{ color: "white" }}
+                    isDisabled={isLoading}
+                    isLoading={
+                      isLoading && loadingMessage === "Printing KOT..."
+                    }
                   >
-                    Print
+                    {isLoading && loadingMessage === "Printing KOT..."
+                      ? "Printing..."
+                      : "Print"}
                   </Button>
                   <Button
                     flex={1}
@@ -1761,8 +1717,14 @@ export default function CreateOrderScreen() {
                     }
                     onPress={handleSettle}
                     _pressed={{ bg: "blue.600" }}
+                    isDisabled={isLoading}
+                    isLoading={
+                      isLoading && loadingMessage === "Settling order..."
+                    }
                   >
-                    Settle
+                    {isLoading && loadingMessage === "Settling order..."
+                      ? "Settling..."
+                      : "Settle"}
                   </Button>
                 </HStack>
               </Box>

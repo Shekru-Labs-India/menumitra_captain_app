@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   Box,
   FlatList,
@@ -28,6 +29,12 @@ export default function CategoryListView() {
   const params = useLocalSearchParams();
   const toast = useToast();
 
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchCategories();
+    }, [])
+  );
+
   useEffect(() => {
     fetchCategories();
   }, [params.refresh]);
@@ -38,6 +45,7 @@ export default function CategoryListView() {
 
   const fetchCategories = async () => {
     try {
+      setLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
@@ -57,11 +65,12 @@ export default function CategoryListView() {
 
       const data = await response.json();
       if (data.st === 1) {
-        // Filter out the "all" category and null menu_cat_id
         const validCategories = data.menucat_details.filter(
-          (cat) => cat.menu_cat_id !== null && cat.category_name !== "all"
+          (cat) =>
+            cat && cat.menu_cat_id !== null && cat.category_name !== "all"
         );
         setCategories(validCategories);
+        setFilteredCategories(validCategories);
       } else {
         throw new Error(data.msg || "Failed to fetch categories");
       }

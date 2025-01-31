@@ -430,7 +430,70 @@ export default function SectionTablesScreen() {
     }
   };
 
-  // Update renderTable function to match the exact design
+  // Add the time formatting function
+  const formatOccupiedTime = (occupiedTimeStr) => {
+    try {
+      if (!occupiedTimeStr) return "";
+
+      // Parse the datetime string (format: "31-Jan-2025 11:34:33 AM")
+      const [datePart, timePart, meridiem] = occupiedTimeStr.split(" ");
+      const [day, month, year] = datePart.split("-");
+      const [hours, minutes, seconds] = timePart.split(":");
+
+      // Convert month name to month number (0-11)
+      const months = {
+        Jan: 0,
+        Feb: 1,
+        Mar: 2,
+        Apr: 3,
+        May: 4,
+        Jun: 5,
+        Jul: 6,
+        Aug: 7,
+        Sep: 8,
+        Oct: 9,
+        Nov: 10,
+        Dec: 11,
+      };
+
+      // Convert to 24-hour format
+      let hour = parseInt(hours);
+      if (meridiem === "PM" && hour !== 12) hour += 12;
+      if (meridiem === "AM" && hour === 12) hour = 0;
+
+      // Create Date object
+      const occupiedDate = new Date(
+        parseInt(year),
+        months[month],
+        parseInt(day),
+        hour,
+        parseInt(minutes),
+        parseInt(seconds)
+      );
+
+      // Get current time
+      const now = new Date();
+      const diffInMilliseconds = now - occupiedDate;
+      const diffInMinutes = Math.floor(diffInMilliseconds / (1000 * 60));
+
+      // Updated time format logic
+      if (diffInMinutes < 1) return "0m ago";
+      if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+
+      const diffInHours = Math.floor(diffInMinutes / 60);
+      if (diffInHours < 3) return `${diffInHours}h ago`;
+
+      return "3h+ ago";
+    } catch (error) {
+      console.error("Error formatting time:", error, {
+        occupiedTimeStr,
+        error: error.message,
+      });
+      return "";
+    }
+  };
+
+  // Update the renderTable component to use the new time formatting
   const renderTable = (table) => (
     <Pressable onPress={() => handleTablePress(table)}>
       <Box
@@ -475,9 +538,11 @@ export default function SectionTablesScreen() {
             {table.table_number}
           </Text>
           {/* Time Display */}
-          <Text fontSize="2xs" color="coolGray.600">
-            {table.is_occupied === 1 ? table.occupiedTime || "00:00" : "--:--"}
-          </Text>
+          {table.is_occupied === 1 && (
+            <Text fontSize="2xs" color="coolGray.600">
+              {formatOccupiedTime(table.occupied_time)}
+            </Text>
+          )}
         </VStack>
       </Box>
     </Pressable>
@@ -1150,7 +1215,8 @@ export default function SectionTablesScreen() {
         )}
       </Box>
       {/* Filter Buttons */}
-      <FilterButtons />l{/* Main Content */}
+      <FilterButtons />
+      {/* Main Content */}
       <ScrollView>
         <Box px={4} py={2}>
           <Center>

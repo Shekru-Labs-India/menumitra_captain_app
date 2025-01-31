@@ -116,7 +116,7 @@ export default function CreateCategoryView() {
           status: "success",
         });
         router.push({
-          pathname: "/screens/categories/CategoryListView",
+          pathname: "/screens/categories/CategoryListview",
           params: { refresh: Date.now() },
         });
       } else {

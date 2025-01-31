@@ -202,11 +202,15 @@ export default function OtpScreen() {
         duration: 2000,
       });
 
+      const cleanPushToken = tokenData.pushToken
+        .replace("ExponentPushToken[", "")
+        .replace("]", "");
+
       const requestBody = {
         mobile: mobileNumber,
         otp: otp.join(""),
         device_sessid: tokenData.sessionToken,
-        fcm_token: formatAlphanumericToken(tokenData.pushToken),
+        fcm_token: cleanPushToken,
       };
 
       console.log("Sending request with body:", requestBody);

@@ -160,23 +160,26 @@ export default function StaffDetailsScreen() {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return null;
+    if (!dateString) return "Not available";
 
-    // Handle date format like "29 Jan 2025 02:14:20 PM"
+    // Handle date format like "31 Jan 2025 05:55:56 PM"
     const fullDateRegex =
-      /(\d{2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})/;
+      /(\d{2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})\s+(\d{2}:\d{2}:\d{2}\s+[AP]M)/;
     const match = dateString.match(fullDateRegex);
 
     if (match) {
-      const [_, day, month, year] = match;
-      return `${day} ${month} ${year}`;
+      const [_, day, month, year, time] = match;
+      return `${day} ${month} ${year}, ${time}`;
     }
 
-    // If the date is already in "DD MMM YYYY" format, return as is
+    // Handle date format like "31 Jan 2025"
     const shortDateRegex =
-      /^\d{2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}$/;
-    if (shortDateRegex.test(dateString)) {
-      return dateString;
+      /(\d{2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})/;
+    const shortMatch = dateString.match(shortDateRegex);
+
+    if (shortMatch) {
+      const [_, day, month, year] = shortMatch;
+      return `${day} ${month} ${year}`;
     }
 
     return "Invalid Date";
@@ -314,39 +317,39 @@ export default function StaffDetailsScreen() {
 
                 <Divider />
 
-                {staff.created_by && (
-                  <HStack justifyContent="space-between">
-                    <Text color="coolGray.500">Created By</Text>
-                    <Text>
-                      {staff.created_by.charAt(0).toUpperCase() +
-                        staff.created_by.slice(1)}
-                    </Text>
-                  </HStack>
-                )}
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.500">Created By</Text>
+                  <Text>
+                    {staff.created_by
+                      ? staff.created_by.charAt(0).toUpperCase() +
+                        staff.created_by.slice(1)
+                      : "Not available"}
+                  </Text>
+                </HStack>
 
-                {staff.created_on && (
-                  <HStack justifyContent="space-between">
-                    <Text color="coolGray.500">Created On</Text>
-                    <Text>{formatDate(staff.created_on)}</Text>
-                  </HStack>
-                )}
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.500">Created On</Text>
+                  <Text>{formatDate(staff.created_on)}</Text>
+                </HStack>
 
-                {staff.updated_by && (
-                  <HStack justifyContent="space-between">
-                    <Text color="coolGray.500">Updated By</Text>
-                    <Text>
-                      {staff.updated_by.charAt(0).toUpperCase() +
-                        staff.updated_by.slice(1)}
-                    </Text>
-                  </HStack>
-                )}
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.500">Updated By</Text>
+                  <Text>
+                    {staff.updated_by
+                      ? staff.updated_by.charAt(0).toUpperCase() +
+                        staff.updated_by.slice(1)
+                      : "Not available"}
+                  </Text>
+                </HStack>
 
-                {staff.updated_on && (
-                  <HStack justifyContent="space-between">
-                    <Text color="coolGray.500">Updated On</Text>
-                    <Text>{formatDate(staff.updated_on)}</Text>
-                  </HStack>
-                )}
+                <HStack justifyContent="space-between">
+                  <Text color="coolGray.500">Updated On</Text>
+                  <Text>
+                    {staff.updated_on
+                      ? formatDate(staff.updated_on)
+                      : "Not available"}
+                  </Text>
+                </HStack>
               </VStack>
             </VStack>
           </VStack>

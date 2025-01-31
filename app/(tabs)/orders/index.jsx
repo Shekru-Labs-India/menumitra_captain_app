@@ -124,19 +124,18 @@ const calculateOrderTimer = (orderTime) => {
   try {
     if (!orderTime) return 0;
 
-    // Parse the time string (format: "04:33:21 PM")
-    const [time, period] = orderTime.split(" ");
+    // Parse the time string (format: "31 Jan 2025 07:54:48 PM")
+    const [date, month, year, time, period] = orderTime.split(" ");
     const [hours, minutes, seconds] = time.split(":");
 
-    let hour = parseInt(hours);
-    if (period === "PM" && hour !== 12) {
-      hour += 12;
-    } else if (period === "AM" && hour === 12) {
-      hour = 0;
-    }
+    // Convert to 24-hour format
+    let hour24 = parseInt(hours);
+    if (period === "PM" && hour24 !== 12) hour24 += 12;
+    if (period === "AM" && hour24 === 12) hour24 = 0;
 
+    // Create date objects
     const orderDate = new Date();
-    orderDate.setHours(hour);
+    orderDate.setHours(hour24);
     orderDate.setMinutes(parseInt(minutes));
     orderDate.setSeconds(parseInt(seconds));
 

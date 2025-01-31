@@ -48,14 +48,86 @@ export default function EditStaffScreen() {
     photo: "",
   });
 
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
   const formatDate = (dateString) => {
     if (!dateString) return "";
 
-    // Parse the YYYY-MM-DD format
-    const [year, month, day] = dateString.split("-");
-    const date = new Date(year, month - 1, day); // month is 0-based in JS Date
+    // Try to parse the API format first (DD MMM YYYY)
+    const apiFormatMatch = dateString.match(/(\d{2}) (\w{3}) (\d{4})/);
+    if (apiFormatMatch) {
+      const [_, day, month, year] = apiFormatMatch;
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const monthIndex = months.indexOf(month);
+      if (monthIndex !== -1) {
+        return `${day} ${month} ${year}`;
+      }
+    }
 
-    const formattedDay = String(date.getDate()).padStart(2, "0");
+    // Try to parse YYYY-MM-DD format
+    const isoFormatMatch = dateString.match(/^\d{4}-\d{2}-\d{2}/);
+    if (isoFormatMatch) {
+      const [year, month, day] = dateString.split("-");
+      const date = new Date(year, month - 1, day);
+      const formattedDay = String(date.getDate()).padStart(2, "0");
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const formattedMonth = months[date.getMonth()];
+      const formattedYear = date.getFullYear();
+      return `${formattedDay} ${formattedMonth} ${formattedYear}`;
+    }
+
+    return dateString; // Return original string if no format matches
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+
+    // If user cancels without selecting a date, keep the existing date
+    if (!selectedDate) {
+      return;
+    }
+
+    // Format the date directly using the date object
+    const day = String(selectedDate.getDate()).padStart(2, "0");
     const months = [
       "Jan",
       "Feb",
@@ -70,23 +142,13 @@ export default function EditStaffScreen() {
       "Nov",
       "Dec",
     ];
-    const formattedMonth = months[date.getMonth()];
-    const formattedYear = date.getFullYear();
+    const month = months[selectedDate.getMonth()];
+    const year = selectedDate.getFullYear();
 
-    return `${formattedDay} ${formattedMonth} ${formattedYear}`;
-  };
-
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      const formattedDate = formatDate(
-        selectedDate.toISOString().split("T")[0]
-      );
-      setFormData({
-        ...formData,
-        dob: formattedDate,
-      });
-    }
+    setFormData({
+      ...formData,
+      dob: `${day} ${month} ${year}`,
+    });
   };
 
   useEffect(() => {
@@ -422,11 +484,19 @@ export default function EditStaffScreen() {
 
           {showDatePicker && (
             <DateTimePicker
-              value={formData.dob ? new Date(formData.dob) : new Date()}
+              value={
+                formData.dob
+                  ? new Date(
+                      formData.dob.split(" ")[2], // year
+                      months.indexOf(formData.dob.split(" ")[1]), // month
+                      parseInt(formData.dob.split(" ")[0]) // day
+                    )
+                  : new Date()
+              }
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleDateChange}
-              maximumDate={new Date()} // Prevents future dates
+              maximumDate={new Date()}
             />
           )}
 

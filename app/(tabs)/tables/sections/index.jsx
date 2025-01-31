@@ -1005,7 +1005,7 @@ export default function TableSectionsScreen() {
                   pathname: "/(tabs)/orders/create-order",
                   params: {
                     isSpecialOrder: "true",
-                    orderType: "parsel",
+                    orderType: "parcel",
                     clearPrevious: "true",
                   },
                 })

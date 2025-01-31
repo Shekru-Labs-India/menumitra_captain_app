@@ -275,7 +275,7 @@ export default function EditSupplierScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Update handleSubmit with the validated data
+  // Update handleSubmit function
   const handleSubmit = async () => {
     if (!validateForm()) {
       toast.show({
@@ -288,7 +288,19 @@ export default function EditSupplierScreen() {
 
     try {
       const accessToken = await AsyncStorage.getItem("access");
+      const userId = await AsyncStorage.getItem("user_id");
+
+      if (!accessToken || !userId) {
+        toast.show({
+          description: "Please login again",
+          status: "error",
+        });
+        router.replace("/login");
+        return;
+      }
+
       const requestBody = {
+        user_id: userId.toString(),
         supplier_id: id.toString(),
         outlet_id: outletId.toString(),
         name: formData.name.trim(),
@@ -328,6 +340,7 @@ export default function EditSupplierScreen() {
             Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
+            user_id: userId.toString(),
             supplier_id: id.toString(),
             outlet_id: outletId.toString(),
           }),

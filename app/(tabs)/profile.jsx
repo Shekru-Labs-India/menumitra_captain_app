@@ -162,7 +162,6 @@ export default function ProfileScreen() {
     }
   };
 
-  // Logout confirmation and handler
   const handleLogout = () => {
     Alert.alert(
       "Logout",
@@ -178,14 +177,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               // Clear all AsyncStorage data
-              await AsyncStorage.multiRemove([
-                "captain_id",
-                "captain_name",
-                "user_id",
-                "outlet_id",
-                "role",
-                // Add any other keys you need to clear
-              ]);
+              await AsyncStorage.clear(); // This will clear everything including tokens
 
               // Call the logout function from AuthContext
               await logout();
@@ -237,11 +229,7 @@ export default function ProfileScreen() {
         </Heading>
         <IconButton
           icon={<MaterialIcons name="logout" size={24} color="red.500" />}
-          onPress={() => {
-            // Add your logout logic here
-            AsyncStorage.clear();
-            router.replace("/login");
-          }}
+          onPress={handleLogout}
           variant="ghost"
           _pressed={{
             bg: "coolGray.100",

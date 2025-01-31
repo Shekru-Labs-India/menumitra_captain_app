@@ -88,10 +88,19 @@ export default function AddInventoryItemScreen() {
   const fetchCategories = async () => {
     try {
       const accessToken = await AsyncStorage.getItem("access");
+      if (!accessToken) {
+        toast.show({
+          description: "Please login again",
+          status: "error",
+        });
+        router.replace("/login");
+        return;
+      }
+
       const response = await fetch(
         `${API_BASE_URL}/get_inventory_category_list`,
         {
-          method: "POST",
+          method: "GET",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
@@ -99,6 +108,7 @@ export default function AddInventoryItemScreen() {
         }
       );
       const data = await response.json();
+      console.log("Categories Response:", data);
 
       if (data.st === 1) {
         const categoriesArray = Object.entries(
@@ -107,7 +117,7 @@ export default function AddInventoryItemScreen() {
         setCategories(categoriesArray);
       } else {
         toast.show({
-          description: "Failed to fetch categories",
+          description: data.msg || "Failed to fetch categories",
           status: "error",
         });
       }
@@ -123,27 +133,44 @@ export default function AddInventoryItemScreen() {
   const fetchStatusOptions = async () => {
     try {
       const accessToken = await AsyncStorage.getItem("access");
+      if (!accessToken) {
+        toast.show({
+          description: "Please login again",
+          status: "error",
+        });
+        router.replace("/login");
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/get_in_or_out_list`, {
-        method: "POST",
+        method: "GET",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
       });
-      const data = await response.json();
 
-      if (data.st === 1) {
-        setStatusOptions(
-          Object.entries(data.in_out_list).map(([key, value]) => ({
-            key,
-            value,
-          }))
+      const data = await response.json();
+      console.log("Status Options Response:", data);
+
+      if (data.st === 1 && data.in_out_list) {
+        // Directly map the in_out_list object to our format
+        const statusArray = Object.entries(data.in_out_list).map(
+          ([key, value]) => ({
+            key: key, // 'in' or 'out'
+            value: value, // 'in' or 'out'
+          })
         );
+
+        setStatusOptions(statusArray);
+
+        // Set default value to 'in'
+        setFormData((prev) => ({
+          ...prev,
+          in_or_out: "in",
+        }));
       } else {
-        toast.show({
-          description: "Failed to fetch status options",
-          status: "error",
-        });
+        throw new Error("Failed to fetch status options");
       }
     } catch (error) {
       console.error("Error fetching status options:", error);
@@ -277,6 +304,17 @@ export default function AddInventoryItemScreen() {
     setIsLoading(true);
     try {
       const accessToken = await AsyncStorage.getItem("access");
+      const userId = await AsyncStorage.getItem("user_id");
+
+      if (!accessToken || !userId) {
+        toast.show({
+          description: "Please login again",
+          status: "error",
+        });
+        router.replace("/login");
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/inventory_create`, {
         method: "POST",
         headers: {
@@ -284,6 +322,7 @@ export default function AddInventoryItemScreen() {
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
+          user_id: userId.toString(),
           outlet_id: outletId.toString(),
           name: formData.name,
           supplier_id: formData.supplierId.toString(),
@@ -337,6 +376,17 @@ export default function AddInventoryItemScreen() {
     }
 
     try {
+      // Get access token from AsyncStorage
+      const accessToken = await AsyncStorage.getItem("access");
+      if (!accessToken) {
+        toast.show({
+          description: "Please login again",
+          status: "error",
+        });
+        router.replace("/login");
+        return;
+      }
+
       // Log the request payload for debugging
       const requestPayload = {
         outlet_id: outletId.toString(),
@@ -350,6 +400,7 @@ export default function AddInventoryItemScreen() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`, // Add access token to headers
           },
           body: JSON.stringify(requestPayload),
         }

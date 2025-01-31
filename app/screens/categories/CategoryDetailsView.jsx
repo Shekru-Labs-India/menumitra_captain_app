@@ -18,7 +18,6 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import Header from "../../components/Header";
 
 export default function CategoryDetailsView() {
   const router = useRouter();
@@ -111,7 +110,7 @@ export default function CategoryDetailsView() {
         });
         // Navigate back to category list with refresh parameter
         router.push({
-          pathname: "/screens/categories/CategoryListView",
+          pathname: "/screens/categories/CategoryListview",
           params: { refresh: Date.now() },
         });
       } else {
@@ -126,10 +125,45 @@ export default function CategoryDetailsView() {
     }
   };
 
+  // Custom Header Component
+  const CustomHeader = () => (
+    <Box
+      px={4}
+      pt={12}
+      pb={3}
+      bg="white"
+      flexDirection="row"
+      alignItems="center"
+      justifyContent="space-between"
+    >
+      <HStack space={3} alignItems="center">
+        <Pressable onPress={() => router.back()}>
+          <Icon
+            as={MaterialIcons}
+            name="arrow-back"
+            size={6}
+            color="coolGray.800"
+          />
+        </Pressable>
+        <Text fontSize="xl" textAlign="center" fontWeight="bold">
+          Category Details
+        </Text>
+      </HStack>
+      <Pressable onPress={() => setIsDeleteDialogOpen(true)}>
+        <Icon
+          as={MaterialIcons}
+          name="delete-outline"
+          size={6}
+          color="red.500"
+        />
+      </Pressable>
+    </Box>
+  );
+
   if (loading || !categoryData) {
     return (
       <Box flex={1} bg="white" safeArea>
-        <Header title="Category Details" showBackButton />
+        <CustomHeader />
         <Box flex={1} justifyContent="center" alignItems="center">
           <Spinner size="lg" />
         </Box>
@@ -139,38 +173,7 @@ export default function CategoryDetailsView() {
 
   return (
     <Box flex={1} bg="coolGray.100" safeArea>
-      <Header
-        title="Category Details"
-        showBackButton
-        rightElements={
-          <HStack space={2} alignItems="center" mr={2}>
-            <IconButton
-              icon={
-                <Icon
-                  as={MaterialIcons}
-                  name="edit"
-                  size="md"
-                  color="coolGray.600"
-                />
-              }
-              variant="ghost"
-              onPress={handleEdit}
-            />
-            <IconButton
-              icon={
-                <Icon
-                  as={MaterialIcons}
-                  name="delete"
-                  size="md"
-                  color="red.500"
-                />
-              }
-              variant="ghost"
-              onPress={() => setIsDeleteDialogOpen(true)}
-            />
-          </HStack>
-        }
-      />
+      <CustomHeader />
 
       <ScrollView>
         <VStack space={4} p={4}>
@@ -178,7 +181,7 @@ export default function CategoryDetailsView() {
           <Box bg="white" rounded="lg" overflow="hidden" shadow={1}>
             {categoryData?.image ? (
               <Image
-                source={{ uri: `https://men4u.xyz${categoryData.image}` }}
+                source={{ uri: categoryData.image }}
                 alt={categoryData.name}
                 h={200}
                 w="100%"
@@ -304,7 +307,7 @@ export default function CategoryDetailsView() {
                     <HStack space={3} alignItems="center">
                       {item.image && (
                         <Image
-                          source={{ uri: `https://men4u.xyz${item.image}` }}
+                          source={{ uri: item.image }}
                           alt={item.menu_name || "Menu Item"}
                           size="md"
                           rounded="md"

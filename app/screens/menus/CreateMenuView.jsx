@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
+  IconButton,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -44,7 +45,7 @@ export default function CreateMenuView() {
     description: "",
     ingredients: "",
     rating: "",
-    image: null,
+    images: [],
     is_special: false,
     outlet_id: "",
   });
@@ -224,16 +225,45 @@ export default function CreateMenuView() {
   };
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
+    try {
+      if (menuDetails.images.length >= 5) {
+        toast.show({
+          description: "Maximum 5 images allowed",
+          status: "warning",
+        });
+        return;
+      }
 
-    if (!result.canceled) {
-      setMenuDetails((prev) => ({ ...prev, image: result.assets[0].uri }));
-      setImageSelected(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        setMenuDetails((prev) => ({
+          ...prev,
+          images: [...prev.images, result.assets[0].uri],
+        }));
+        setImageSelected(true);
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      toast.show({
+        description: "Failed to pick image",
+        status: "error",
+      });
+    }
+  };
+
+  const removeImage = (index) => {
+    setMenuDetails((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+    if (menuDetails.images.length === 1) {
+      setImageSelected(false);
     }
   };
 
@@ -245,71 +275,74 @@ export default function CreateMenuView() {
   };
 
   const handleCreateMenu = async () => {
-    if (
-      !menuDetails.name ||
-      !menuDetails.full_price ||
-      !menuDetails.food_type ||
-      !menuDetails.spicy_index ||
-      !menuDetails.menu_cat_id
-    ) {
-      toast.show({
-        description: "Please fill all required fields",
-        status: "error",
-      });
-      return;
-    }
-
     try {
+      // Validation
+      if (
+        !menuDetails.name ||
+        !menuDetails.full_price ||
+        !menuDetails.menu_cat_id ||
+        !menuDetails.food_type
+      ) {
+        toast.show({
+          description: "Please fill all required fields",
+          status: "error",
+        });
+        return;
+      }
+
       setLoading(true);
       const formData = new FormData();
       const outletId = await AsyncStorage.getItem("outlet_id");
       const userId = await AsyncStorage.getItem("user_id");
+      const accessToken = await AsyncStorage.getItem("access");
 
-      // Append all menu details
-      const menuData = {
-        ...menuDetails,
-        outlet_id: outletId,
-        user_id: userId,
-        is_special: menuDetails.is_special ? 1 : 0, // Convert boolean to number
-      };
+      // Append all required fields with correct field names
+      formData.append("outlet_id", outletId);
+      formData.append("user_id", userId);
+      formData.append("name", menuDetails.name);
+      formData.append("full_price", menuDetails.full_price);
+      formData.append("half_price", menuDetails.half_price || "");
+      formData.append("food_type", menuDetails.food_type);
+      formData.append("menu_cat_id", menuDetails.menu_cat_id);
+      formData.append("spicy_index", menuDetails.spicy_index || "1");
+      formData.append("offer", menuDetails.offer || "");
+      formData.append("description", menuDetails.description || "");
+      formData.append("ingredients", menuDetails.ingredients || "");
+      formData.append("rating", menuDetails.rating || "");
+      formData.append("is_special", menuDetails.is_special ? "1" : "0");
 
-      // Append all fields to formData
-      Object.keys(menuData).forEach((key) => {
-        if (key !== "image") {
-          formData.append(key, menuData[key]);
-        }
-      });
-
-      // Append image if selected
-      if (menuDetails.image) {
-        const imageUri = menuDetails.image;
+      // Append images
+      menuDetails.images.forEach((imageUri, index) => {
         const filename = imageUri.split("/").pop();
         const match = /\.(\w+)$/.exec(filename);
         const type = match ? `image/${match[1]}` : "image/jpeg";
 
-        formData.append("images", {
+        formData.append(`image${index + 1}`, {
           uri: imageUri,
           name: filename,
           type,
         });
-      }
+      });
+
+      console.log("Form Data being sent:", formData._parts);
 
       const response = await fetch("https://men4u.xyz/common_api/menu_create", {
         method: "POST",
         headers: {
           "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: formData,
       });
 
       const data = await response.json();
+      console.log("Create Menu Response:", data);
+
       if (data.st === 1) {
         toast.show({
           description: "Menu created successfully",
           status: "success",
         });
-
-        // Navigate back to MenuListView with refresh parameter
         router.push({
           pathname: "/screens/menus/MenuListView",
           params: { refresh: Date.now() },
@@ -332,38 +365,80 @@ export default function CreateMenuView() {
     <Box flex={1} bg="gray.100">
       <ScrollView>
         <VStack space={4} p={4}>
-          {/* Image Picker */}
-          <Pressable onPress={pickImage}>
-            <Box
-              h={200}
-              bg="white"
-              rounded="lg"
-              justifyContent="center"
-              alignItems="center"
-              overflow="hidden"
-              borderWidth={1}
-              borderColor="gray.200"
-            >
-              {menuDetails.image ? (
-                <Image
-                  source={{ uri: menuDetails.image }}
-                  alt="Menu Image"
-                  size="full"
-                  resizeMode="cover"
-                />
-              ) : (
-                <VStack alignItems="center" space={2}>
+          {/* Image Gallery */}
+          <Box>
+            <HStack mb={2} justifyContent="space-between" alignItems="center">
+              <Text fontSize="md" fontWeight="bold">
+                Menu Images ({menuDetails.images.length}/5)
+              </Text>
+              <Button
+                size="sm"
+                onPress={pickImage}
+                isDisabled={menuDetails.images.length >= 5}
+                leftIcon={
                   <Icon
                     as={MaterialIcons}
                     name="add-photo-alternate"
-                    size={8}
-                    color="coolGray.400"
+                    size="sm"
                   />
-                  <Text color="coolGray.400">Add Photo</Text>
-                </VStack>
-              )}
-            </Box>
-          </Pressable>
+                }
+              >
+                Add Image
+              </Button>
+            </HStack>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <HStack space={2}>
+                {menuDetails.images.map((uri, index) => (
+                  <Box key={index} position="relative">
+                    <Image
+                      source={{ uri }}
+                      alt={`Menu Image ${index + 1}`}
+                      size="xl"
+                      rounded="lg"
+                    />
+                    <IconButton
+                      position="absolute"
+                      top={1}
+                      right={1}
+                      size="sm"
+                      rounded="full"
+                      bg="red.500"
+                      icon={
+                        <Icon
+                          as={MaterialIcons}
+                          name="close"
+                          color="white"
+                          size="sm"
+                        />
+                      }
+                      onPress={() => removeImage(index)}
+                    />
+                  </Box>
+                ))}
+                {menuDetails.images.length === 0 && (
+                  <Box
+                    w="150"
+                    h="150"
+                    bg="gray.200"
+                    rounded="lg"
+                    justifyContent="center"
+                    alignItems="center"
+                  >
+                    <Icon
+                      as={MaterialIcons}
+                      name="add-photo-alternate"
+                      size={8}
+                      color="gray.400"
+                    />
+                    <Text color="gray.400" mt={2}>
+                      Add Photos
+                    </Text>
+                  </Box>
+                )}
+              </HStack>
+            </ScrollView>
+          </Box>
 
           {/* Form Fields */}
           <VStack space={4} bg="white" p={4} rounded="lg">
