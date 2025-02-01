@@ -23,8 +23,7 @@ import { SupplierContext } from "../../../context/SupplierContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 import Header from "../../components/Header";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function AddSupplierScreen() {
   const router = useRouter();
@@ -79,7 +78,7 @@ export default function AddSupplierScreen() {
     try {
       const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(
-        `${API_BASE_URL}/supplier_credit_rating_choices`,
+        `${getBaseUrl()}/supplier_credit_rating_choices`,
         {
           method: "GET",
           headers: {
@@ -111,7 +110,7 @@ export default function AddSupplierScreen() {
   const fetchStatusChoices = async () => {
     try {
       const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${API_BASE_URL}/supplier_status_choices`, {
+      const response = await fetch(`${getBaseUrl()}/supplier_status_choices`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -360,7 +359,7 @@ export default function AddSupplierScreen() {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/supplier_create`, {
+      const response = await fetch(`${getBaseUrl()}/supplier_create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

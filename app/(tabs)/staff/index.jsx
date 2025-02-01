@@ -28,8 +28,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../components/Header";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 // Add this function to handle phone calls
 const handlePhonePress = (phoneNumber) => {
@@ -336,7 +335,7 @@ export default function StaffScreen() {
       console.log("Fetching staff with role:", filterRole);
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/get_staff_list_with_role`, {
+      const response = await fetch(`${getBaseUrl()}/get_staff_list_with_role`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -386,7 +385,7 @@ export default function StaffScreen() {
     try {
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/staff_role_list`, {
+      const response = await fetch(`${getBaseUrl()}/staff_role_list`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -23,6 +23,7 @@ import { useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
 import { router } from "expo-router";
 import { Dimensions } from "react-native";
+import { getBaseUrl } from "../../../config/api.config";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -44,7 +45,7 @@ export default function MenuDetailsView() {
       const outletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch("https://men4u.xyz/common_api/menu_view", {
+      const response = await fetch(`${getBaseUrl()}/menu_view`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -80,7 +81,7 @@ export default function MenuDetailsView() {
       const outletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch("https://men4u.xyz/common_api/menu_delete", {
+      const response = await fetch(`${getBaseUrl()}/menu_delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

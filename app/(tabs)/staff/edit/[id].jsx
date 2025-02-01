@@ -23,8 +23,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Header from "../../../components/Header";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../../config/api.config";
 
 export default function EditStaffScreen() {
   const router = useRouter();
@@ -172,7 +171,7 @@ export default function EditStaffScreen() {
   const fetchRoles = async () => {
     try {
       const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${API_BASE_URL}/get_staff_role`, {
+      const response = await fetch(`${getBaseUrl()}/get_staff_role`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -207,7 +206,7 @@ export default function EditStaffScreen() {
     const fetchStaffDetails = async () => {
       try {
         const accessToken = await AsyncStorage.getItem("access");
-        const response = await fetch(`${API_BASE_URL}/staff_view`, {
+        const response = await fetch(`${getBaseUrl()}/staff_view`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -357,7 +356,7 @@ export default function EditStaffScreen() {
       const userId = await AsyncStorage.getItem("user_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/staff_update`, {
+      const response = await fetch(`${getBaseUrl()}/staff_update`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

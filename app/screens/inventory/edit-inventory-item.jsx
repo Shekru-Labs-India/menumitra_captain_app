@@ -20,8 +20,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
 import { MaterialIcons } from "@expo/vector-icons";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function EditInventoryItemScreen() {
   const router = useRouter();
@@ -85,7 +84,7 @@ export default function EditInventoryItemScreen() {
   const fetchInventoryDetails = async (outId, invId, availableCategories) => {
     try {
       const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${API_BASE_URL}/inventory_view`, {
+      const response = await fetch(`${getBaseUrl()}/inventory_view`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -142,7 +141,7 @@ export default function EditInventoryItemScreen() {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/get_supplier_list`, {
+      const response = await fetch(`${getBaseUrl()}/get_supplier_list`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -178,7 +177,7 @@ export default function EditInventoryItemScreen() {
     try {
       const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(
-        `${API_BASE_URL}/get_inventory_category_list`,
+        `${getBaseUrl()}/get_inventory_category_list`,
         {
           method: "GET",
           headers: {
@@ -301,7 +300,7 @@ export default function EditInventoryItemScreen() {
         throw new Error("User ID not found. Please login again.");
       }
 
-      const response = await fetch(`${API_BASE_URL}/inventory_update`, {
+      const response = await fetch(`${getBaseUrl()}/inventory_update`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

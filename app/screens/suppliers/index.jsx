@@ -21,8 +21,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../components/Header";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 const toTitleCase = (str) => {
   return str
@@ -68,7 +67,7 @@ export default function SuppliersScreen() {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/supplier_listview`, {
+      const response = await fetch(`${getBaseUrl()}/supplier_listview`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

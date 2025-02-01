@@ -27,8 +27,7 @@ import {
 } from "../services/DeviceTokenService";
 import { useToast } from "native-base";
 import { Platform } from "react-native";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../config/api.config";
 
 export default function OtpScreen() {
   const [otp, setOtp] = useState(["1", "2", "3", "4"]);
@@ -130,7 +129,7 @@ export default function OtpScreen() {
     if (!canResend) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/user_login`, {
+      const response = await fetch(`${getBaseUrl()}/user_login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -216,7 +215,8 @@ export default function OtpScreen() {
       console.log("Sending request with body:", requestBody);
 
       const response = await fetch(
-        `https://men4u.xyz/captain_api/captain_verify_otp`,
+        // `https://men4u.xyz/captain_api/captain_verify_otp`,
+        "https://menusmitra.xyz/captain_api/captain_verify_otp",
         {
           method: "POST",
           headers: {

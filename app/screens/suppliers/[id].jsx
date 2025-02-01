@@ -22,8 +22,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar, Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function SupplierDetails() {
   const router = useRouter();
@@ -70,7 +69,7 @@ export default function SupplierDetails() {
         supplier_id: id.toString(),
       });
 
-      const response = await fetch(`${API_BASE_URL}/supplier_view`, {
+      const response = await fetch(`${getBaseUrl()}/supplier_view`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -126,7 +125,7 @@ export default function SupplierDetails() {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/supplier_delete`, {
+      const response = await fetch(`${getBaseUrl()}/supplier_delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

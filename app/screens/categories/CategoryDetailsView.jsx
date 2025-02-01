@@ -18,6 +18,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function CategoryDetailsView() {
   const router = useRouter();
@@ -40,20 +41,17 @@ export default function CategoryDetailsView() {
       const outletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(
-        "https://men4u.xyz/common_api/menu_category_view",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            outlet_id: outletId,
-            menu_cat_id: params.categoryId,
-          }),
-        }
-      );
+      const response = await fetch(`${getBaseUrl()}/menu_category_view`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          outlet_id: outletId,
+          menu_cat_id: params.categoryId,
+        }),
+      });
 
       const data = await response.json();
       console.log("Category Details Response:", data);
@@ -87,20 +85,17 @@ export default function CategoryDetailsView() {
       const outletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(
-        "https://men4u.xyz/common_api/menu_category_delete",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            outlet_id: outletId,
-            menu_cat_id: params.categoryId,
-          }),
-        }
-      );
+      const response = await fetch(`${getBaseUrl()}/menu_category_delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          outlet_id: outletId,
+          menu_cat_id: params.categoryId,
+        }),
+      });
 
       const data = await response.json();
       if (data.st === 1) {

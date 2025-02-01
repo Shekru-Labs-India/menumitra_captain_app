@@ -27,8 +27,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RefreshControl } from "react-native";
 import Header from "../../components/Header";
 import { NotificationService } from "../../../services/NotificationService";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 const ORDER_STATUS_COLORS = {
   COMPLETED: "green",
@@ -382,19 +381,16 @@ const OrdersScreen = () => {
       const restaurantId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(
-        "https://men4u.xyz/common_api/order_listview",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            outlet_id: restaurantId || "1",
-          }),
-        }
-      );
+      const response = await fetch(`${getBaseUrl()}/order_listview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          outlet_id: restaurantId || "1",
+        }),
+      });
 
       const data = await response.json();
       console.log("Orders response:", data);

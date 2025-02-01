@@ -20,7 +20,7 @@ import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
-
+import { getBaseUrl } from "../../../config/api.config";
 export default function EditCategoryView() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -46,20 +46,17 @@ export default function EditCategoryView() {
       const outletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(
-        "https://men4u.xyz/common_api/menu_category_view",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            outlet_id: outletId,
-            menu_cat_id: params.categoryId,
-          }),
-        }
-      );
+      const response = await fetch(`${getBaseUrl()}/menu_category_view`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          outlet_id: outletId,
+          menu_cat_id: params.categoryId,
+        }),
+      });
 
       const data = await response.json();
       if (data.st === 1) {
@@ -147,17 +144,14 @@ export default function EditCategoryView() {
         });
       }
 
-      const response = await fetch(
-        "https://men4u.xyz/common_api/menu_category_update",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: formData,
-        }
-      );
+      const response = await fetch(`${getBaseUrl()}/menu_category_update`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
 
       const data = await response.json();
       if (data.st === 1) {

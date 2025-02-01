@@ -29,6 +29,7 @@ import { useState, useEffect } from "react";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { version } from "../../context/VersionContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getBaseUrl } from "../../config/api.config";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -69,6 +70,18 @@ export default function ProfileScreen() {
           captainId,
           outletId,
         });
+
+        // If you need to fetch additional data from API, use getBaseUrl()
+        // const response = await fetch(`${getBaseUrl()}/your_endpoint`, {
+        //   method: "POST",
+        //   headers: {
+        //     "Content-Type": "application/json",
+        //   },
+        //   body: JSON.stringify({
+        //     captain_id: captainId,
+        //     outlet_id: outletId,
+        //   }),
+        // });
 
         // You can fetch stats from API if needed
         setStats({
@@ -176,14 +189,33 @@ export default function ProfileScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              // Clear all AsyncStorage data
-              await AsyncStorage.clear(); // This will clear everything including tokens
+              // Call logout API
+              const response = await fetch(`${getBaseUrl()}/logout`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  user_id: userData.captainId, // Using captain ID as user ID
+                  role: "captain", // Changed from 'owner' to 'captain'
+                  app: "captain", // Changed from 'owner' to 'captain'
+                }),
+              });
 
-              // Call the logout function from AuthContext
-              await logout();
+              const data = await response.json();
 
-              // Navigate to login screen
-              router.replace("/login");
+              if (data.st === 1) {
+                // Clear all AsyncStorage data
+                await AsyncStorage.clear();
+
+                // Call the logout function from AuthContext
+                await logout();
+
+                // Navigate to login screen
+                router.replace("/login");
+              } else {
+                throw new Error(data.msg || "Logout failed");
+              }
             } catch (error) {
               console.error("Logout Error:", error);
               toast.show({

@@ -33,8 +33,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../../components/Header";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../../config/api.config";
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -153,7 +152,7 @@ export default function TableSectionsScreen() {
       const fetchTablesForSection = async () => {
         try {
           const storedOutletId = await AsyncStorage.getItem("outlet_id");
-          const response = await fetch(`${API_BASE_URL}/table_listview`, {
+          const response = await fetch(`${getBaseUrl()}/table_listview`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -246,7 +245,7 @@ export default function TableSectionsScreen() {
       setLoading(true);
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/table_listview`, {
+      const response = await fetch(`${getBaseUrl()}/table_listview`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -342,7 +341,7 @@ export default function TableSectionsScreen() {
       setLoading(true);
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/section_create`, {
+      const response = await fetch(`${getBaseUrl()}/section_create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -414,7 +413,7 @@ export default function TableSectionsScreen() {
       if (table.is_occupied === 1 && table.order_id) {
         try {
           const accessToken = await AsyncStorage.getItem("access");
-          const response = await fetch(`${API_BASE_URL}/order_view`, {
+          const response = await fetch(`${getBaseUrl()}/order_view`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -543,7 +542,7 @@ export default function TableSectionsScreen() {
       setLoading(true);
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/table_delete`, {
+      const response = await fetch(`${getBaseUrl()}/table_delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1216,7 +1215,7 @@ export default function TableSectionsScreen() {
       setLoading(true);
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/section_update`, {
+      const response = await fetch(`${getBaseUrl()}/section_update`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1257,7 +1256,7 @@ export default function TableSectionsScreen() {
       setLoading(true);
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/section_delete`, {
+      const response = await fetch(`${getBaseUrl()}/section_delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1297,7 +1296,7 @@ export default function TableSectionsScreen() {
       setLoading(true);
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/table_create`, {
+      const response = await fetch(`${getBaseUrl()}/table_create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

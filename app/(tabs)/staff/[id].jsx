@@ -22,8 +22,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar, Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function StaffDetailsScreen() {
   const router = useRouter();
@@ -41,7 +40,7 @@ export default function StaffDetailsScreen() {
     try {
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/staff_view`, {
+      const response = await fetch(`${getBaseUrl()}/staff_view`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -104,7 +103,7 @@ export default function StaffDetailsScreen() {
     try {
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/staff_delete`, {
+      const response = await fetch(`${getBaseUrl()}/staff_delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

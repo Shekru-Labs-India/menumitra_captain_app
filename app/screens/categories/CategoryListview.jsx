@@ -19,6 +19,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function CategoryListView() {
   const [categories, setCategories] = useState([]);
@@ -49,19 +50,16 @@ export default function CategoryListView() {
       const outletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(
-        "https://men4u.xyz/common_api/menu_category_listview",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            outlet_id: outletId,
-          }),
-        }
-      );
+      const response = await fetch(`${getBaseUrl()}/menu_category_listview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          outlet_id: outletId,
+        }),
+      });
 
       const data = await response.json();
       if (data.st === 1) {

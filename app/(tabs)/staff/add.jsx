@@ -25,8 +25,9 @@ import * as ImagePicker from "expo-image-picker";
 import Header from "../../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { getBaseUrl } from "../../../config/api.config";
 
-const API_BASE_URL = "https://men4u.xyz/common_api"; // Updated base URL
+const API_BASE_URL = getBaseUrl();
 
 export default function AddStaffScreen() {
   const router = useRouter();
@@ -266,7 +267,7 @@ export default function AddStaffScreen() {
       // Debug log to verify date format
       console.log("Staff data being sent:", staffData);
 
-      const response = await fetch(`${API_BASE_URL}/staff_create`, {
+      const response = await fetch(`${getBaseUrl()}/staff_create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -300,7 +301,7 @@ export default function AddStaffScreen() {
     try {
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/get_staff_role`, {
+      const response = await fetch(`${getBaseUrl()}/get_staff_role`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

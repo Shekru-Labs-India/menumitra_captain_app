@@ -26,6 +26,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, router } from "expo-router";
 import Header from "../../components/Header";
 import * as ImagePicker from "expo-image-picker";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function EditMenuView() {
   const params = useLocalSearchParams();
@@ -84,20 +85,17 @@ export default function EditMenuView() {
       }
 
       // Fetch menu details
-      const menuResponse = await fetch(
-        "https://men4u.xyz/common_api/menu_view",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            outlet_id: outletId,
-            menu_id: menuId,
-          }),
-        }
-      );
+      const menuResponse = await fetch(`${getBaseUrl()}/menu_view`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          outlet_id: outletId,
+          menu_id: menuId,
+        }),
+      });
 
       const data = await menuResponse.json();
       console.log("Menu Data:", data);
@@ -144,7 +142,7 @@ export default function EditMenuView() {
 
       // Fetch Categories
       const categoryResponse = await fetch(
-        "https://men4u.xyz/common_api/menu_category_listview",
+        `${getBaseUrl()}/menu_category_listview`,
         {
           method: "POST",
           headers: {
@@ -161,7 +159,7 @@ export default function EditMenuView() {
 
       // Fetch Food Types
       const foodTypeResponse = await fetch(
-        "https://men4u.xyz/common_api/get_food_type_list",
+        `${getBaseUrl()}/get_food_type_list`,
         {
           headers: {
             "Content-Type": "application/json",
@@ -182,7 +180,7 @@ export default function EditMenuView() {
 
       // Fetch Spicy Levels
       const spicyResponse = await fetch(
-        "https://men4u.xyz/common_api/get_spicy_index_list",
+        `${getBaseUrl()}/get_spicy_index_list`,
         {
           headers: {
             "Content-Type": "application/json",
@@ -202,15 +200,12 @@ export default function EditMenuView() {
       }
 
       // Fetch Rating List
-      const ratingResponse = await fetch(
-        "https://men4u.xyz/common_api/rating_list",
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+      const ratingResponse = await fetch(`${getBaseUrl()}/rating_list`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       const ratingData = await ratingResponse.json();
       if (ratingData.st === 1) {
         const ratingArray = Object.entries(ratingData.rating_list).map(
@@ -250,7 +245,7 @@ export default function EditMenuView() {
         ...menuDetails,
       });
 
-      const response = await fetch("https://men4u.xyz/common_api/menu_update", {
+      const response = await fetch(`${getBaseUrl()}/menu_update`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -298,7 +293,7 @@ export default function EditMenuView() {
       const accessToken = await AsyncStorage.getItem("access");
 
       const response = await fetch(
-        "https://men4u.xyz/common_api/make_menu_special_non_special",
+        `${getBaseUrl()}/make_menu_special_non_special`,
         {
           method: "POST",
           headers: {

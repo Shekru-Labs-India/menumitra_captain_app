@@ -17,8 +17,7 @@ import { Linking, Alert, Keyboard } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../config/api.config";
 
 export default function LoginScreen() {
   const [mobileNumber, setMobileNumber] = useState("");
@@ -101,7 +100,7 @@ export default function LoginScreen() {
     setApiError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/user_login`, {
+      const response = await fetch(`${getBaseUrl()}/user_login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -115,12 +114,10 @@ export default function LoginScreen() {
       const data = await response.json();
       console.log("Complete API Response:", data);
 
-      // Check if st (status) is 1 which indicates success
       if (data && data.st === 1) {
         console.log("Success condition met, proceeding to OTP screen");
         await AsyncStorage.setItem("tempMobile", mobileNumber);
 
-        // Extract OTP from message if present
         const otpMatch = data.msg.match(/\d{4}/);
         if (otpMatch) {
           await AsyncStorage.setItem("currentOtp", otpMatch[0]);

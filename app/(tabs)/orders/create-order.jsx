@@ -34,8 +34,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { sendNotificationToWaiter } from "../../../services/NotificationService";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 const getCurrentDate = () => {
   const date = new Date();
@@ -158,7 +157,7 @@ export default function CreateOrderScreen() {
   const fetchOrderDetails = async (orderId) => {
     try {
       const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${API_BASE_URL}/order_view`, {
+      const response = await fetch(`${getBaseUrl()}/order_view`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -188,7 +187,7 @@ export default function CreateOrderScreen() {
       try {
         setLoading(true);
         // First, fetch order details
-        const response = await fetch(`${API_BASE_URL}/order_view`, {
+        const response = await fetch(`${getBaseUrl()}/order_view`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -263,7 +262,7 @@ export default function CreateOrderScreen() {
     try {
       const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(
-        `${API_BASE_URL}/get_all_menu_list_by_category`,
+        `${getBaseUrl()}/get_all_menu_list_by_category`,
         {
           method: "POST",
           headers: {
@@ -378,8 +377,8 @@ export default function CreateOrderScreen() {
         params?.isOccupied === "1";
 
       const endpoint = isUpdate
-        ? `${API_BASE_URL}/update_order`
-        : `${API_BASE_URL}/create_order`;
+        ? `${getBaseUrl()}/update_order`
+        : `${getBaseUrl()}/create_order`;
 
       console.log(
         `${isUpdate ? "Updating" : "Creating"} order with data:`,
@@ -702,7 +701,7 @@ export default function CreateOrderScreen() {
     const loadExistingOrder = async () => {
       if (params?.isOccupied === "1" && params?.orderId) {
         try {
-          const response = await fetch(`${API_BASE_URL}/order_menu_details`, {
+          const response = await fetch(`${getBaseUrl()}/order_menu_details`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

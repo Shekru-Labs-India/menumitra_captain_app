@@ -16,8 +16,7 @@ import { Platform, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function InventoryItemsScreen() {
   const router = useRouter();
@@ -53,7 +52,7 @@ export default function InventoryItemsScreen() {
   const fetchInventoryItems = async (outId) => {
     try {
       const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${API_BASE_URL}/inventory_listview`, {
+      const response = await fetch(`${getBaseUrl()}/inventory_listview`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -19,6 +19,7 @@ import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import Header from "../../components/Header";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function CreateCategoryView() {
   const router = useRouter();
@@ -97,17 +98,14 @@ export default function CreateCategoryView() {
         });
       }
 
-      const response = await fetch(
-        "https://men4u.xyz/common_api/menu_category_create",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: formData,
-        }
-      );
+      const response = await fetch(`${getBaseUrl()}/menu_category_create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
 
       const data = await response.json();
       if (data.st === 1) {

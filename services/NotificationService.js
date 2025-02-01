@@ -5,6 +5,7 @@ import { verifyTokenPairing } from "./DeviceTokenService";
 import * as Notifications from "expo-notifications";
 import { DeviceEventEmitter, Platform } from "react-native";
 import * as Device from "expo-device";
+import { getBaseUrl } from "../config/api.config";
 
 // Constants
 export const CALL_WAITER_NOTIFICATION = "CALL_WAITER_NOTIFICATION";
@@ -179,7 +180,7 @@ export class NotificationService {
         throw new Error("Push token not found");
       }
 
-      const response = await fetch("https://men4u.xyz/common_api/call_waiter", {
+      const response = await fetch(`${getBaseUrl()}/call_waiter`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

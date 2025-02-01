@@ -20,8 +20,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function InventoryItemDetailsScreen() {
   const router = useRouter();
@@ -59,7 +58,7 @@ export default function InventoryItemDetailsScreen() {
   const fetchInventoryDetails = async (outId, invId) => {
     try {
       const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${API_BASE_URL}/inventory_view`, {
+      const response = await fetch(`${getBaseUrl()}/inventory_view`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -130,7 +129,7 @@ export default function InventoryItemDetailsScreen() {
       }
 
       const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${API_BASE_URL}/inventory_delete`, {
+      const response = await fetch(`${getBaseUrl()}/inventory_delete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -22,8 +22,7 @@ import { Platform, StatusBar } from "react-native";
 import { SupplierContext } from "../../../../context/SupplierContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../../components/Header";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../../config/api.config";
 
 export default function EditSupplierScreen() {
   const router = useRouter();
@@ -53,7 +52,7 @@ export default function EditSupplierScreen() {
     try {
       const accessToken = await AsyncStorage.getItem("access");
       const response = await fetch(
-        `${API_BASE_URL}/supplier_credit_rating_choices`,
+        `${getBaseUrl()}/supplier_credit_rating_choices`,
         {
           method: "GET",
           headers: {
@@ -97,7 +96,7 @@ export default function EditSupplierScreen() {
 
         setOutletId(storedOutletId);
 
-        const response = await fetch(`${API_BASE_URL}/supplier_view`, {
+        const response = await fetch(`${getBaseUrl()}/supplier_view`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -319,7 +318,7 @@ export default function EditSupplierScreen() {
 
       console.log("Update Request Body:", requestBody);
 
-      const response = await fetch(`${API_BASE_URL}/supplier_update`, {
+      const response = await fetch(`${getBaseUrl()}/supplier_update`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -333,7 +332,7 @@ export default function EditSupplierScreen() {
 
       if (data.st === 1) {
         // After successful update, fetch updated details
-        const detailsResponse = await fetch(`${API_BASE_URL}/supplier_view`, {
+        const detailsResponse = await fetch(`${getBaseUrl()}/supplier_view`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

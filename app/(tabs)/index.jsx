@@ -36,8 +36,7 @@ import {
 } from "../../services/DeviceTokenService";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../config/api.config";
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -125,7 +124,7 @@ export default function HomeScreen() {
 
       // Fetch staff list
       const staffResponse = await fetch(
-        `${API_BASE_URL}/get_staff_list_with_role`,
+        `${getBaseUrl()}/get_staff_list_with_role`,
         {
           method: "POST",
           headers: {
@@ -146,19 +145,16 @@ export default function HomeScreen() {
 
       // Fetch table list using new API
       console.log("Fetching table list...");
-      const tableResponse = await fetch(
-        "https://men4u.xyz/common_api/table_listview",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            outlet_id: storedOutletId,
-          }),
-        }
-      );
+      const tableResponse = await fetch(`${getBaseUrl()}/table_listview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          outlet_id: storedOutletId,
+        }),
+      });
 
       const tableData = await tableResponse.json();
       console.log("Raw Table Response:", tableData);
@@ -428,27 +424,19 @@ export default function HomeScreen() {
   const handleCallWaiter = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
-
-      if (!outletId) {
-        throw new Error("Outlet ID not found");
-      }
-
-      const waiterPushToken = "ExponentPushToken[7nXNpfwEVd9JrLNkPwRXxx]";
-      const sessionToken = await AsyncStorage.getItem("sessionToken");
+      const sessionToken = await AsyncStorage.getItem("session_token");
 
       const result = await fetch(
-        "https://men4u.xyz/common_api/send_notification",
+        `${getBaseUrl().replace(
+          "common_api",
+          "captain_api"
+        )}/send_notification`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            to: waiterPushToken,
-            title: "Waiter Call",
-            body: "Table 1 needs assistance",
             data: {
               type: "waiter_call",
               tableNumber: "1",
@@ -486,19 +474,16 @@ export default function HomeScreen() {
       const outletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(
-        "https://men4u.xyz/common_api/table_listview",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            outlet_id: outletId,
-          }),
-        }
-      );
+      const response = await fetch(`${getBaseUrl()}/table_listview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          outlet_id: outletId,
+        }),
+      });
 
       const data = await response.json();
       console.log("Latest sales data:", data);
@@ -655,7 +640,7 @@ export default function HomeScreen() {
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        onCallWaiter={handleCallWaiter}
+        // onCallWaiter={handleCallWaiter}
       />
     </Box>
   );

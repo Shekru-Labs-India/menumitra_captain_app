@@ -25,6 +25,7 @@ import { useRouter } from "expo-router";
 
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function CreateMenuView() {
   const router = useRouter();
@@ -89,17 +90,14 @@ export default function CreateMenuView() {
       const outletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(
-        "https://men4u.xyz/common_api/menu_category_listview",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ outlet_id: outletId }),
-        }
-      );
+      const response = await fetch(`${getBaseUrl()}/menu_category_listview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ outlet_id: outletId }),
+      });
       const data = await response.json();
       if (data.st === 1) {
         setCategories(
@@ -123,16 +121,13 @@ export default function CreateMenuView() {
   const fetchVegNonvegList = async () => {
     try {
       const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(
-        "https://men4u.xyz/common_api/get_food_type_list",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+      const response = await fetch(`${getBaseUrl()}/get_food_type_list`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       const data = await response.json();
       if (data.st === 1) {
         const foodTypeArray = Object.entries(data.food_type_list).map(
@@ -160,16 +155,13 @@ export default function CreateMenuView() {
   const fetchSpicyIndexList = async () => {
     try {
       const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(
-        "https://men4u.xyz/common_api/get_spicy_index_list",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+      const response = await fetch(`${getBaseUrl()}/get_spicy_index_list`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       const data = await response.json();
       if (data.st === 1) {
         const spicyArray = Object.entries(data.spicy_index_list).map(
@@ -197,7 +189,7 @@ export default function CreateMenuView() {
   const fetchRatingList = async () => {
     try {
       const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch("https://men4u.xyz/common_api/rating_list", {
+      const response = await fetch(`${getBaseUrl()}/rating_list`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -326,7 +318,7 @@ export default function CreateMenuView() {
 
       console.log("Form Data being sent:", formData._parts);
 
-      const response = await fetch("https://men4u.xyz/common_api/menu_create", {
+      const response = await fetch(`${getBaseUrl()}/menu_create`, {
         method: "POST",
         headers: {
           "Content-Type": "multipart/form-data",

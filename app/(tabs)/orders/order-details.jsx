@@ -23,8 +23,7 @@ import { Linking } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 const formatTime = (dateTimeString) => {
   if (!dateTimeString) return "";
@@ -83,7 +82,7 @@ export default function OrderDetailsScreen() {
         console.log("Fetching order details for:", id);
         const accessToken = await AsyncStorage.getItem("access");
 
-        const response = await fetch(`${API_BASE_URL}/order_view`, {
+        const response = await fetch(`${getBaseUrl()}/order_view`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -144,7 +143,7 @@ export default function OrderDetailsScreen() {
       const storedUserId = await AsyncStorage.getItem("user_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/update_order_status`, {
+      const response = await fetch(`${getBaseUrl()}/update_order_status`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

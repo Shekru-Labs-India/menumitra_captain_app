@@ -23,8 +23,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header"; // Adjust the import path as necessary
 import DateTimePicker from "@react-native-community/datetimepicker";
-
-const API_BASE_URL = "https://men4u.xyz/common_api";
+import { getBaseUrl } from "../../../config/api.config";
 
 export default function AddInventoryItemScreen() {
   const router = useRouter();
@@ -98,7 +97,7 @@ export default function AddInventoryItemScreen() {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/get_inventory_category_list`,
+        `${getBaseUrl()}/get_inventory_category_list`,
         {
           method: "GET",
           headers: {
@@ -142,7 +141,7 @@ export default function AddInventoryItemScreen() {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/get_in_or_out_list`, {
+      const response = await fetch(`${getBaseUrl()}/get_in_or_out_list`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -186,7 +185,7 @@ export default function AddInventoryItemScreen() {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${API_BASE_URL}/get_supplier_list`, {
+      const response = await fetch(`${getBaseUrl()}/get_supplier_list`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -315,7 +314,7 @@ export default function AddInventoryItemScreen() {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/inventory_create`, {
+      const response = await fetch(`${getBaseUrl()}/inventory_create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -395,7 +394,7 @@ export default function AddInventoryItemScreen() {
       console.log("Category Create Request:", requestPayload);
 
       const response = await fetch(
-        `${API_BASE_URL}/inventory_category_create`,
+        `${getBaseUrl()}/inventory_category_create`,
         {
           method: "POST",
           headers: {
