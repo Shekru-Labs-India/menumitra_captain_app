@@ -22,6 +22,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
 import { router } from "expo-router";
+import { Dimensions } from "react-native";
+
+const screenWidth = Dimensions.get("window").width;
 
 export default function MenuDetailsView() {
   const [menuDetails, setMenuDetails] = useState(null);
@@ -30,6 +33,7 @@ export default function MenuDetailsView() {
   const { menuId } = useLocalSearchParams();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const cancelRef = React.useRef(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   useEffect(() => {
     fetchMenuDetails();
@@ -182,16 +186,73 @@ export default function MenuDetailsView() {
       <CustomHeader />
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Menu Image or Placeholder */}
+        {/* Image Gallery */}
         <Box bg="white" w="full" h="200px">
           {menuDetails?.images?.length > 0 ? (
-            <Image
-              source={{ uri: menuDetails.images[0] }}
-              alt={menuDetails.name}
-              w="full"
-              h="full"
-              resizeMode="cover"
-            />
+            <VStack>
+              {/* Main Image Scroll */}
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(e) => {
+                  const newIndex = Math.round(
+                    e.nativeEvent.contentOffset.x / screenWidth
+                  );
+                  setActiveImageIndex(newIndex);
+                }}
+              >
+                {menuDetails.images.map((imageUrl, index) => (
+                  <Image
+                    key={index}
+                    source={{ uri: imageUrl }}
+                    alt={`${menuDetails.name}-${index + 1}`}
+                    w={screenWidth}
+                    h="200px"
+                    resizeMode="cover"
+                  />
+                ))}
+              </ScrollView>
+
+              {/* Image Indicators */}
+              {menuDetails.images.length > 1 && (
+                <HStack
+                  space={2}
+                  justifyContent="center"
+                  position="absolute"
+                  bottom={2}
+                  w="full"
+                >
+                  {menuDetails.images.map((_, index) => (
+                    <Box
+                      key={index}
+                      w={2}
+                      h={2}
+                      rounded="full"
+                      bg={
+                        index === activeImageIndex
+                          ? "white"
+                          : "rgba(255,255,255,0.5)"
+                      }
+                    />
+                  ))}
+                </HStack>
+              )}
+
+              {/* Image Counter Badge */}
+              <Badge
+                position="absolute"
+                top={2}
+                right={2}
+                bg="rgba(0,0,0,0.7)"
+                rounded="lg"
+                px={2}
+                py={1}
+                _text={{ color: "white" }}
+              >
+                {`${activeImageIndex + 1}/${menuDetails.images.length}`}
+              </Badge>
+            </VStack>
           ) : (
             <Center flex={1} bg="coolGray.100">
               <Icon

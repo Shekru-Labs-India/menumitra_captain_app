@@ -180,7 +180,7 @@ export default function EditInventoryItemScreen() {
       const response = await fetch(
         `${API_BASE_URL}/get_inventory_category_list`,
         {
-          method: "POST",
+          method: "GET",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
@@ -290,7 +290,17 @@ export default function EditInventoryItemScreen() {
 
     setIsLoading(true);
     try {
-      const accessToken = await AsyncStorage.getItem("access");
+      // Get both access token and user_id
+      const [accessToken, userId] = await Promise.all([
+        AsyncStorage.getItem("access"),
+        AsyncStorage.getItem("user_id"),
+      ]);
+
+      // Check if user_id exists
+      if (!userId) {
+        throw new Error("User ID not found. Please login again.");
+      }
+
       const response = await fetch(`${API_BASE_URL}/inventory_update`, {
         method: "POST",
         headers: {
@@ -314,6 +324,7 @@ export default function EditInventoryItemScreen() {
           in_date: formData.in_date,
           out_date: formData.out_date,
           expiration_date: formData.expiration_date,
+          user_id: userId.toString(), // Add user_id to the request
         }),
       });
 

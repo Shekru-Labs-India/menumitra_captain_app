@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { TouchableWithoutFeedback, Keyboard, BackHandler } from "react-native";
+import {
+  TouchableWithoutFeedback,
+  Keyboard,
+  BackHandler,
+  Platform,
+} from "react-native";
 import {
   Box,
   VStack,
@@ -1197,247 +1202,76 @@ export default function CreateOrderScreen() {
           </VStack>
         </Center>
       ) : (
-        <Box flex={1} bg="coolGray.100" px={4}>
-          {isOccupied === "1" && orderNumber && <OrderSummary />}
+        <KeyboardAvoidingView
+          flex={1}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <VStack flex={1} bg="coolGray.100" px={4}>
+            {isOccupied === "1" && orderNumber && <OrderSummary />}
 
-          <Box>
-            <Input
-              placeholder="Search menu items..."
-              value={searchQuery}
-              mt={2}
-              rounded="lg"
-              borderWidth={1}
-              borderColor="coolGray.400"
-              bg="white"
-              fontSize={18}
-              h={12}
-              py={3}
-              InputLeftElement={
-                <MaterialIcons
-                  name="search"
-                  size={24}
-                  color="gray"
-                  style={{ marginLeft: 10 }}
-                />
-              }
-              InputRightElement={
-                searchQuery ? (
-                  <IconButton
-                    icon={<MaterialIcons name="close" size={24} color="gray" />}
-                    size="md"
-                    rounded="full"
-                    mr={1}
-                    onPress={() => {
-                      setSearchQuery("");
-                      setSearchResults([]);
-                      setIsSearchOpen(false);
-                    }}
+            <Box mb={2}>
+              <Input
+                placeholder="Search menu items..."
+                value={searchQuery}
+                mt={2}
+                rounded="lg"
+                borderWidth={1}
+                borderColor="coolGray.400"
+                bg="white"
+                fontSize={18}
+                h={12}
+                py={3}
+                InputLeftElement={
+                  <MaterialIcons
+                    name="search"
+                    size={24}
+                    color="gray"
+                    style={{ marginLeft: 10 }}
                   />
-                ) : null
-              }
-              onChangeText={handleSearch}
-            />
-          </Box>
-
-          {/* Search Results */}
-          {isSearchOpen && searchResults.length > 0 && (
-            <Box
-              position="absolute"
-              top={16}
-              left={4}
-              right={4}
-              bg="white"
-              rounded="lg"
-              shadow={3}
-              zIndex={2000}
-              maxH="60%"
-              borderWidth={1}
-              borderColor="coolGray.200"
-              overflow="hidden"
-            >
-              <ScrollView
-                nestedScrollEnabled={true}
-                keyboardShouldPersistTaps="always"
-              >
-                {searchResults.map((item) => (
-                  <Pressable
-                    key={item.menu_id}
-                    bg="white"
-                    p={2}
-                    mb={1}
-                    rounded="lg"
-                    borderWidth={1}
-                    borderColor="coolGray.200"
-                  >
-                    <HStack space={2} alignItems="center">
-                      {/* Image */}
-                      <Box size={16} rounded="md" overflow="hidden">
-                        {item.image ? (
-                          <Image
-                            source={{ uri: item.image }}
-                            alt={item.menu_name}
-                            size="full"
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <Center bg="gray.200" size="full">
-                            <MaterialIcons
-                              name="restaurant-menu"
-                              size={24}
-                              color="gray"
-                            />
-                          </Center>
-                        )}
-                      </Box>
-
-                      {/* Menu Details */}
-                      <VStack flex={1} space={1}>
-                        <HStack space={2} alignItems="center">
-                          <Text fontSize={16} fontWeight="600">
-                            {item.menu_name}
-                            {item.offer > 0 && (
-                              <Text color="green.600" fontSize={14}>
-                                {" "}
-                                ({item.offer}% off)
-                              </Text>
-                            )}
-                          </Text>
-                        </HStack>
-                        <HStack space={4}>
-                          {Number(item.half_price) > 0 && (
-                            <Text fontSize={14} color="gray.600">
-                              Half: ₹{Number(item.half_price)}
-                            </Text>
-                          )}
-                          <Text fontSize={14} color="gray.600">
-                            Full: ₹{Number(item.full_price)}
-                          </Text>
-                        </HStack>
-                      </VStack>
-
-                      {/* Right side controls */}
-                      <VStack alignItems="flex-end" space={2}>
-                        <Select
-                          selectedValue="Full"
-                          minWidth="100"
-                          accessibilityLabel="Choose portion"
-                          placeholder="Choose portion"
-                          onValueChange={(value) => handleAddItem(item, value)}
-                          _selectedItem={{
-                            endIcon: (
-                              <MaterialIcons
-                                name="check"
-                                size={16}
-                                color="gray"
-                              />
-                            ),
-                          }}
-                          dropdownIcon={
-                            <MaterialIcons
-                              name="arrow-drop-down"
-                              size={24}
-                              color="gray"
-                            />
-                          }
-                          bg="white"
-                        >
-                          <Select.Item label="Full" value="Full" />
-                          {Number(item.half_price) > 0 && (
-                            <Select.Item label="Half" value="Half" />
-                          )}
-                        </Select>
-                      </VStack>
-                    </HStack>
-                  </Pressable>
-                ))}
-              </ScrollView>
+                }
+                InputRightElement={
+                  searchQuery ? (
+                    <IconButton
+                      icon={
+                        <MaterialIcons name="close" size={24} color="gray" />
+                      }
+                      size="md"
+                      rounded="full"
+                      mr={1}
+                      onPress={() => {
+                        setSearchQuery("");
+                        setSearchResults([]);
+                        setIsSearchOpen(false);
+                      }}
+                    />
+                  ) : null
+                }
+                onChangeText={handleSearch}
+              />
             </Box>
-          )}
 
-          <ScrollView
-            flex={1}
-            mt={2}
-            showsVerticalScrollIndicator={false}
-            mb={selectedItems.length > 0 ? 32 : 20}
-          >
-            <VStack space={2}>
-              {selectedItems.length === 0 ? (
-                <Box
-                  flex={1}
-                  justifyContent="center"
-                  alignItems="center"
-                  py={10}
-                  bg="white"
-                  rounded="lg"
-                  borderWidth={1}
-                  borderColor="coolGray.200"
+            {isSearchOpen && searchResults.length > 0 && (
+              <Box
+                position="absolute"
+                top={16}
+                left={4}
+                right={4}
+                bg="white"
+                rounded="lg"
+                shadow={3}
+                zIndex={2000}
+                maxH="60%"
+                borderWidth={1}
+                borderColor="coolGray.200"
+                overflow="hidden"
+              >
+                <ScrollView
+                  nestedScrollEnabled={true}
+                  keyboardShouldPersistTaps="always"
                 >
-                  <MaterialIcons name="restaurant" size={48} color="gray" />
-                  <Text color="coolGray.400" mt={2}>
-                    No items added to order
-                  </Text>
-                </Box>
-              ) : (
-                <>
-                  <Box>
-                    <HStack justifyContent="space-between" alignItems="center">
-                      <HStack space={2} alignItems="center">
-                        {params?.isOccupied === "1" && params?.orderNumber && (
-                          <IconButton
-                            icon={
-                              <MaterialIcons
-                                name="refresh"
-                                size={20}
-                                color="gray"
-                              />
-                            }
-                            size="sm"
-                            variant="ghost"
-                            _pressed={{ bg: "coolGray.100" }}
-                            onPress={async () => {
-                              try {
-                                setIsProcessing(true);
-                                setLoadingMessage(
-                                  "Refreshing order details..."
-                                );
-                                await fetchOrderDetails(params.orderNumber);
-                              } catch (error) {
-                                console.error("Error refreshing order:", error);
-                              } finally {
-                                setIsProcessing(false);
-                                setLoadingMessage("");
-                              }
-                            }}
-                          />
-                        )}
-                        <Text fontSize="sm" color="gray.500">
-                          {selectedItems.length}{" "}
-                          {selectedItems.length === 1 ? "Item" : "Items"}
-                        </Text>
-                      </HStack>
-                      {/* Only show Clear All button if NOT an existing order */}
-                      {!isExistingOrder && (
-                        <Button
-                          variant="ghost"
-                          _text={{ color: "gray.500" }}
-                          onPress={() => {
-                            setSelectedItems([]);
-                            setSearchQuery("");
-                            toast.show({
-                              description: "All items cleared",
-                              status: "info",
-                              duration: 2000,
-                            });
-                          }}
-                        >
-                          Clear All
-                        </Button>
-                      )}
-                    </HStack>
-                  </Box>
-                  {selectedItems.map((item, index) => (
-                    <Box
-                      key={index}
+                  {searchResults.map((item) => (
+                    <Pressable
+                      key={item.menu_id}
                       bg="white"
                       p={2}
                       mb={1}
@@ -1445,17 +1279,29 @@ export default function CreateOrderScreen() {
                       borderWidth={1}
                       borderColor="coolGray.200"
                     >
-                      <VStack space={1}>
-                        <HStack
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <HStack space={2} flex={1} alignItems="center">
-                            <Text
-                              fontWeight={600}
-                              numberOfLines={1}
-                              fontSize={18}
-                            >
+                      <HStack space={2} alignItems="center">
+                        <Box size={16} rounded="md" overflow="hidden">
+                          {item.image ? (
+                            <Image
+                              source={{ uri: item.image }}
+                              alt={item.menu_name}
+                              size="full"
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <Center bg="gray.200" size="full">
+                              <MaterialIcons
+                                name="restaurant-menu"
+                                size={24}
+                                color="gray"
+                              />
+                            </Center>
+                          )}
+                        </Box>
+
+                        <VStack flex={1} space={1}>
+                          <HStack space={2} alignItems="center">
+                            <Text fontSize={16} fontWeight="600">
                               {item.menu_name}
                               {item.offer > 0 && (
                                 <Text color="green.600" fontSize={14}>
@@ -1465,139 +1311,316 @@ export default function CreateOrderScreen() {
                               )}
                             </Text>
                           </HStack>
-                          {/* Show close icon for new items in both new and existing orders */}
-                          {(item.isNewlyAdded || !isExistingOrder) && (
-                            <IconButton
-                              icon={
+                          <HStack space={4}>
+                            {Number(item.half_price) > 0 && (
+                              <Text fontSize={14} color="gray.600">
+                                Half: ₹{Number(item.half_price)}
+                              </Text>
+                            )}
+                            <Text fontSize={14} color="gray.600">
+                              Full: ₹{Number(item.full_price)}
+                            </Text>
+                          </HStack>
+                        </VStack>
+
+                        <VStack alignItems="flex-end" space={2}>
+                          <Select
+                            selectedValue="Full"
+                            minWidth="100"
+                            accessibilityLabel="Choose portion"
+                            placeholder="Choose portion"
+                            onValueChange={(value) =>
+                              handleAddItem(item, value)
+                            }
+                            _selectedItem={{
+                              endIcon: (
                                 <MaterialIcons
-                                  name="close"
+                                  name="check"
                                   size={16}
                                   color="gray"
                                 />
-                              }
-                              size="xs"
-                              p={1}
-                              onPress={() => {
-                                removeFromCart(item.menu_id, item.portionSize);
-                              }}
-                            />
-                          )}
-                        </HStack>
+                              ),
+                            }}
+                            dropdownIcon={
+                              <MaterialIcons
+                                name="arrow-drop-down"
+                                size={24}
+                                color="gray"
+                              />
+                            }
+                            bg="white"
+                          >
+                            <Select.Item label="Full" value="Full" />
+                            {Number(item.half_price) > 0 && (
+                              <Select.Item label="Half" value="Half" />
+                            )}
+                          </Select>
+                        </VStack>
+                      </HStack>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </Box>
+            )}
 
+            <Box flex={1}>
+              <ScrollView
+                flex={1}
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={{
+                  paddingBottom: selectedItems.length > 0 ? 30 : 20,
+                }}
+                nestedScrollEnabled={true}
+              >
+                <VStack space={2} mb={selectedItems.length > 0 ? 300 : 0}>
+                  {selectedItems.length === 0 ? (
+                    <Box
+                      flex={1}
+                      justifyContent="center"
+                      alignItems="center"
+                      py={10}
+                      bg="white"
+                      rounded="lg"
+                      borderWidth={1}
+                      borderColor="coolGray.200"
+                    >
+                      <MaterialIcons name="restaurant" size={48} color="gray" />
+                      <Text color="coolGray.400" mt={2}>
+                        No items added to order
+                      </Text>
+                    </Box>
+                  ) : (
+                    <>
+                      <Box>
                         <HStack
                           justifyContent="space-between"
                           alignItems="center"
                         >
-                          <HStack space={1} alignItems="center">
-                            <IconButton
-                              borderWidth={1}
-                              borderColor="gray.400"
-                              icon={
-                                <MaterialIcons
-                                  name="remove"
-                                  size={16}
-                                  color="gray"
+                          <HStack space={2} alignItems="center">
+                            {params?.isOccupied === "1" &&
+                              params?.orderNumber && (
+                                <IconButton
+                                  icon={
+                                    <MaterialIcons
+                                      name="refresh"
+                                      size={20}
+                                      color="gray"
+                                    />
+                                  }
+                                  size="sm"
+                                  variant="ghost"
+                                  _pressed={{ bg: "coolGray.100" }}
+                                  onPress={async () => {
+                                    try {
+                                      setIsProcessing(true);
+                                      setLoadingMessage(
+                                        "Refreshing order details..."
+                                      );
+                                      await fetchOrderDetails(
+                                        params.orderNumber
+                                      );
+                                    } catch (error) {
+                                      console.error(
+                                        "Error refreshing order:",
+                                        error
+                                      );
+                                    } finally {
+                                      setIsProcessing(false);
+                                      setLoadingMessage("");
+                                    }
+                                  }}
                                 />
-                              }
-                              size="xs"
-                              variant="outline"
-                              _pressed={{ bg: "transparent" }}
-                              onPress={() => {
-                                if (item.quantity > 1) {
-                                  const newItems = [...selectedItems];
-                                  newItems[index].quantity--;
-                                  // Update the total price based on portion size
-                                  newItems[index].total_price =
-                                    item.portionSize === "Half"
-                                      ? Number(item.half_price) *
-                                        newItems[index].quantity
-                                      : Number(item.full_price) *
-                                        newItems[index].quantity;
-                                  setSelectedItems(newItems);
-                                }
-                              }}
-                            />
-                            <Text
-                              w="10"
-                              textAlign="center"
-                              fontSize={16}
-                              fontWeight="600"
-                            >
-                              {item.quantity}
+                              )}
+                            <Text fontSize="sm" color="gray.500">
+                              {selectedItems.length}{" "}
+                              {selectedItems.length === 1 ? "Item" : "Items"}
                             </Text>
-                            <IconButton
-                              borderWidth={1}
-                              borderColor="gray.400"
-                              icon={
-                                <MaterialIcons
-                                  name="add"
-                                  size={16}
-                                  color="gray"
-                                />
-                              }
-                              size="xs"
-                              variant="outline"
-                              _pressed={{ bg: "transparent" }}
-                              onPress={() => {
-                                if (item.quantity < 20) {
-                                  const newItems = [...selectedItems];
-                                  newItems[index].quantity++;
-                                  // Update the total price based on portion size
-                                  newItems[index].total_price =
-                                    item.portionSize === "Half"
-                                      ? Number(item.half_price) *
-                                        newItems[index].quantity
-                                      : Number(item.full_price) *
-                                        newItems[index].quantity;
-                                  setSelectedItems(newItems);
-                                }
-                              }}
-                            />
                           </HStack>
-
-                          {/* Show price based on portion size and quantity */}
-                          <Text fontSize={14} color="gray.600">
-                            {item.half_or_full
-                              ? item.half_or_full.charAt(0).toUpperCase() +
-                                item.half_or_full.slice(1)
-                              : item.portionSize}
-                            : ₹
-                            {(item.price
-                              ? Number(item.price) * item.quantity
-                              : item.portionSize === "Half"
-                              ? Number(item.half_price) * item.quantity
-                              : Number(item.full_price) * item.quantity
-                            ).toFixed(2)}
-                          </Text>
+                          {!isExistingOrder && (
+                            <Button
+                              variant="ghost"
+                              _text={{ color: "gray.500" }}
+                              onPress={() => {
+                                setSelectedItems([]);
+                                setSearchQuery("");
+                                toast.show({
+                                  description: "All items cleared",
+                                  status: "info",
+                                  duration: 2000,
+                                });
+                              }}
+                            >
+                              Clear All
+                            </Button>
+                          )}
                         </HStack>
-                      </VStack>
-                    </Box>
-                  ))}
-                </>
-              )}
-            </VStack>
-          </ScrollView>
+                      </Box>
+                      {selectedItems.map((item, index) => (
+                        <Box
+                          key={index}
+                          bg="white"
+                          p={2}
+                          mb={1}
+                          rounded="lg"
+                          borderWidth={1}
+                          borderColor="coolGray.200"
+                        >
+                          <VStack space={1}>
+                            <HStack
+                              justifyContent="space-between"
+                              alignItems="center"
+                            >
+                              <HStack space={2} flex={1} alignItems="center">
+                                <Text
+                                  fontWeight={600}
+                                  numberOfLines={1}
+                                  fontSize={18}
+                                >
+                                  {item.menu_name}
+                                  {item.offer > 0 && (
+                                    <Text color="green.600" fontSize={14}>
+                                      {" "}
+                                      ({item.offer}% off)
+                                    </Text>
+                                  )}
+                                </Text>
+                              </HStack>
+                              {(item.isNewlyAdded || !isExistingOrder) && (
+                                <IconButton
+                                  icon={
+                                    <MaterialIcons
+                                      name="close"
+                                      size={16}
+                                      color="gray"
+                                    />
+                                  }
+                                  size="xs"
+                                  p={1}
+                                  onPress={() => {
+                                    removeFromCart(
+                                      item.menu_id,
+                                      item.portionSize
+                                    );
+                                  }}
+                                />
+                              )}
+                            </HStack>
 
-          <Box
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            bg="transparent"
-            px={4}
-          >
+                            <HStack
+                              justifyContent="space-between"
+                              alignItems="center"
+                            >
+                              <HStack space={1} alignItems="center">
+                                <IconButton
+                                  borderWidth={1}
+                                  borderColor="gray.400"
+                                  icon={
+                                    <MaterialIcons
+                                      name="remove"
+                                      size={16}
+                                      color="gray"
+                                    />
+                                  }
+                                  size="xs"
+                                  variant="outline"
+                                  _pressed={{ bg: "transparent" }}
+                                  onPress={() => {
+                                    if (item.quantity > 1) {
+                                      const newItems = [...selectedItems];
+                                      newItems[index].quantity--;
+                                      newItems[index].total_price =
+                                        item.portionSize === "Half"
+                                          ? Number(item.half_price) *
+                                            newItems[index].quantity
+                                          : Number(item.full_price) *
+                                            newItems[index].quantity;
+                                      setSelectedItems(newItems);
+                                    }
+                                  }}
+                                />
+                                <Text
+                                  w="10"
+                                  textAlign="center"
+                                  fontSize={16}
+                                  fontWeight="600"
+                                >
+                                  {item.quantity}
+                                </Text>
+                                <IconButton
+                                  borderWidth={1}
+                                  borderColor="gray.400"
+                                  icon={
+                                    <MaterialIcons
+                                      name="add"
+                                      size={16}
+                                      color="gray"
+                                    />
+                                  }
+                                  size="xs"
+                                  variant="outline"
+                                  _pressed={{ bg: "transparent" }}
+                                  onPress={() => {
+                                    if (item.quantity < 20) {
+                                      const newItems = [...selectedItems];
+                                      newItems[index].quantity++;
+                                      newItems[index].total_price =
+                                        item.portionSize === "Half"
+                                          ? Number(item.half_price) *
+                                            newItems[index].quantity
+                                          : Number(item.full_price) *
+                                            newItems[index].quantity;
+                                      setSelectedItems(newItems);
+                                    }
+                                  }}
+                                />
+                              </HStack>
+
+                              <Text fontSize={14} color="gray.600">
+                                {item.half_or_full
+                                  ? item.half_or_full.charAt(0).toUpperCase() +
+                                    item.half_or_full.slice(1)
+                                  : item.portionSize}
+                                : ₹
+                                {(item.price
+                                  ? Number(item.price) * item.quantity
+                                  : item.portionSize === "Half"
+                                  ? Number(item.half_price) * item.quantity
+                                  : Number(item.full_price) * item.quantity
+                                ).toFixed(2)}
+                              </Text>
+                            </HStack>
+                          </VStack>
+                        </Box>
+                      ))}
+                    </>
+                  )}
+                </VStack>
+              </ScrollView>
+            </Box>
+
             {selectedItems.length > 0 && (
               <Box
+                position="absolute"
+                bottom={0}
+                left={0}
+                right={0}
                 bg="white"
-                rounded="lg"
-                mb={4}
-                borderWidth={1}
-                borderColor="coolGray.200"
-                p={3}
+                px={4}
+                py={2}
+                borderTopWidth={1}
+                borderTopColor="coolGray.200"
+                style={{
+                  shadowColor: "#000",
+                  shadowOffset: {
+                    width: 0,
+                    height: -2,
+                  },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 3,
+                  elevation: 5,
+                }}
               >
-                {/* Price Details */}
                 <VStack space={2} mb={3}>
-                  {/* Total */}
                   <HStack justifyContent="space-between" alignItems="center">
                     <Text fontSize="sm" color="gray.600">
                       Total Amount
@@ -1607,7 +1630,6 @@ export default function CreateOrderScreen() {
                     </Text>
                   </HStack>
 
-                  {/* Discount */}
                   <HStack justifyContent="space-between" alignItems="center">
                     <Text fontSize="sm" color="gray.600">
                       Discount (
@@ -1618,7 +1640,6 @@ export default function CreateOrderScreen() {
                     </Text>
                   </HStack>
 
-                  {/* Total After Discount */}
                   <HStack justifyContent="space-between" alignItems="center">
                     <Text fontSize="sm" color="gray.600">
                       Total After Discount
@@ -1632,7 +1653,6 @@ export default function CreateOrderScreen() {
                     </Text>
                   </HStack>
 
-                  {/* Service Charge */}
                   <HStack justifyContent="space-between" alignItems="center">
                     <Text fontSize="sm" color="gray.600">
                       Service Charge ({serviceChargePercentage}%)
@@ -1646,7 +1666,6 @@ export default function CreateOrderScreen() {
                     </Text>
                   </HStack>
 
-                  {/* GST */}
                   <HStack justifyContent="space-between" alignItems="center">
                     <Text fontSize="sm" color="gray.600">
                       GST ({gstPercentage}%)
@@ -1656,10 +1675,8 @@ export default function CreateOrderScreen() {
                     </Text>
                   </HStack>
 
-                  {/* Divider */}
                   <Divider my={1} />
 
-                  {/* Grand Total */}
                   <HStack justifyContent="space-between" alignItems="center">
                     <Text fontSize="md" fontWeight="600">
                       Grand Total
@@ -1675,7 +1692,6 @@ export default function CreateOrderScreen() {
                   </HStack>
                 </VStack>
 
-                {/* Action Buttons Section */}
                 <HStack space={4} justifyContent="space-between">
                   <Button
                     bg="gray.400"
@@ -1729,8 +1745,8 @@ export default function CreateOrderScreen() {
                 </HStack>
               </Box>
             )}
-          </Box>
-        </Box>
+          </VStack>
+        </KeyboardAvoidingView>
       )}
 
       {isProcessing && (
