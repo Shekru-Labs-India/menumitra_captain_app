@@ -53,69 +53,98 @@ export const setupNotifications = async () => {
 };
 
 export async function getOrGenerateExpoPushToken() {
-  try {
-    console.log("Getting push token...");
-    const tokenResult = await Notifications.getExpoPushTokenAsync({
-      projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a",
-    });
+  let retryCount = 0;
+  const maxRetries = 3;
 
-    if (tokenResult?.data) {
-      console.log("Successfully generated push token");
+  while (retryCount < maxRetries) {
+    try {
+      if (!Device.isDevice) {
+        throw new Error("Must use physical device for Push Notifications");
+      }
+
+      // Request permission first
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== "granted") {
+        throw new Error("Permission not granted for notifications");
+      }
+
+      // Get push token with retry mechanism
+      const tokenResult = await Notifications.getExpoPushTokenAsync({
+        projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a", // Your project ID
+      });
+
+      if (!tokenResult?.data) {
+        throw new Error("Token generation returned empty result");
+      }
+
+      console.log("Push token generated successfully:", tokenResult.data);
       return tokenResult.data;
-    }
+    } catch (error) {
+      console.error(
+        `Token generation attempt ${retryCount + 1} failed:`,
+        error
+      );
+      retryCount++;
 
-    return null; // Return null if token generation fails
-  } catch (error) {
-    console.error("Error getting push token:", error);
-    return null; // Return null on error instead of throwing
+      if (retryCount === maxRetries) {
+        throw new Error(
+          `Failed to generate push token after ${maxRetries} attempts: ${error.message}`
+        );
+      }
+
+      // Wait before retrying (exponential backoff)
+      await new Promise((resolve) =>
+        setTimeout(resolve, 1000 * Math.pow(2, retryCount))
+      );
+    }
   }
 }
 
-// Simplified token handling
+// Update handleTokens to be more resilient
 export async function handleTokens(isNewInstall = false) {
   try {
-    let pushToken = null;
+    // Setup notifications first
+    await setupNotifications();
 
-    // Try to get push token but don't block login if it fails
-    try {
-      pushToken = await getOrGenerateExpoPushToken();
-    } catch (error) {
-      console.log("Push token generation failed, continuing with login");
+    // Try to get push token with retries
+    const pushToken = await getOrGenerateExpoPushToken();
+    if (!pushToken) {
+      throw new Error("Failed to generate required push token");
     }
 
-    // Generate new session token
+    // Generate session token
     const sessionToken = await generateSessionToken();
 
-    // Store tokens (only if push token was successfully generated)
-    if (pushToken) {
-      await AsyncStorage.multiSet([
-        ["expoPushToken", pushToken],
-        ["sessionToken", sessionToken],
-      ]);
+    // Store tokens
+    await AsyncStorage.multiSet([
+      ["expoPushToken", pushToken],
+      ["sessionToken", sessionToken],
+    ]);
 
-      // Store session info
-      const sessionInfo = {
-        sessionToken,
-        expoPushToken: pushToken,
-        lastUpdated: Date.now(),
-      };
+    // Store session info
+    const sessionInfo = {
+      sessionToken,
+      expoPushToken: pushToken,
+      lastUpdated: Date.now(),
+    };
 
-      await AsyncStorage.setItem("activeSession", JSON.stringify(sessionInfo));
-    } else {
-      // Store only session token if push token failed
-      await AsyncStorage.setItem("sessionToken", sessionToken);
-    }
+    await AsyncStorage.setItem("activeSession", JSON.stringify(sessionInfo));
 
     return {
-      pushToken: pushToken || null,
-      sessionToken: sessionToken || null,
+      pushToken,
+      sessionToken,
     };
   } catch (error) {
     console.error("Token handling error:", error);
-    return {
-      pushToken: null,
-      sessionToken: null,
-    };
+    throw error; // Propagate error to prevent login without tokens
   }
 }
 

@@ -47,6 +47,7 @@
     "expo-notifications": "~0.29.13",
     "expo-router": "~4.0.16",
     "expo-sms": "~13.0.1",
+    "expo-sms-retriever": "^0.1.1",
     "expo-splash-screen": "~0.29.20",
     "expo-status-bar": "~2.0.1",
     "expo-symbols": "~0.2.0",
