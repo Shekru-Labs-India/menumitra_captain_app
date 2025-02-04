@@ -19,6 +19,8 @@ import {
   TouchableWithoutFeedback,
   View,
   IconButton,
+  StatusBar,
+  Spinner,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -26,6 +28,7 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBaseUrl } from "../../../config/api.config";
+import Header from "../../components/Header";
 
 export default function CreateMenuView() {
   const router = useRouter();
@@ -233,12 +236,15 @@ export default function CreateMenuView() {
         quality: 1,
       });
 
-      if (!result.canceled) {
-        setMenuDetails((prev) => ({
-          ...prev,
-          images: [...prev.images, result.assets[0].uri],
-        }));
-        setImageSelected(true);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedImage = result.assets[0];
+        if (selectedImage.uri) {
+          setMenuDetails((prev) => ({
+            ...prev,
+            images: [...prev.images, selectedImage.uri],
+          }));
+          setImageSelected(true);
+        }
       }
     } catch (error) {
       console.error("Error picking image:", error);
@@ -288,7 +294,7 @@ export default function CreateMenuView() {
       const userId = await AsyncStorage.getItem("user_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      // Append all required fields with correct field names
+      // Append all required fields
       formData.append("outlet_id", outletId);
       formData.append("user_id", userId);
       formData.append("name", menuDetails.name);
@@ -303,18 +309,17 @@ export default function CreateMenuView() {
       formData.append("rating", menuDetails.rating || "");
       formData.append("is_special", menuDetails.is_special ? "1" : "0");
 
-      // Append images
-      menuDetails.images.forEach((imageUri, index) => {
-        const filename = imageUri.split("/").pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : "image/jpeg";
-
-        formData.append(`image${index + 1}`, {
-          uri: imageUri,
-          name: filename,
-          type,
+      // Handle multiple images with sequential numbering
+      if (menuDetails.images.length > 0) {
+        menuDetails.images.forEach((imageUri, index) => {
+          const filename = imageUri.split("/").pop();
+          formData.append(`images`, {
+            uri: imageUri,
+            type: "image/jpeg",
+            name: filename,
+          });
         });
-      });
+      }
 
       console.log("Form Data being sent:", formData._parts);
 
@@ -328,17 +333,13 @@ export default function CreateMenuView() {
       });
 
       const data = await response.json();
-      console.log("Create Menu Response:", data);
 
       if (data.st === 1) {
         toast.show({
           description: "Menu created successfully",
           status: "success",
         });
-        router.push({
-          pathname: "/screens/menus/MenuListView",
-          params: { refresh: Date.now() },
-        });
+        router.push("/screens/menus/MenuListView");
       } else {
         throw new Error(data.msg || "Failed to create menu");
       }
@@ -354,8 +355,10 @@ export default function CreateMenuView() {
   };
 
   return (
-    <Box flex={1} bg="gray.100">
-      <ScrollView>
+    <Box flex={1} bg="coolGray.100" safeArea>
+      <Header title="Create Menu" showBackButton />
+
+      <ScrollView flex={1} bg="white">
         <VStack space={4} p={4}>
           {/* Image Gallery */}
           <Box>

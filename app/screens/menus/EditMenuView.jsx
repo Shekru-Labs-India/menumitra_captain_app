@@ -238,25 +238,48 @@ export default function EditMenuView() {
       const userId = await AsyncStorage.getItem("user_id");
       const accessToken = await AsyncStorage.getItem("access");
 
-      console.log("Sending update request with:", {
-        menu_id: menuId,
-        outlet_id: outletId,
-        user_id: userId,
-        ...menuDetails,
-      });
+      // Create FormData instance
+      const formData = new FormData();
+
+      // Append basic fields
+      formData.append("menu_id", menuId);
+      formData.append("outlet_id", outletId);
+      formData.append("user_id", userId);
+      formData.append("name", menuDetails.name);
+      formData.append("full_price", menuDetails.full_price);
+      formData.append("half_price", menuDetails.half_price || "");
+      formData.append("food_type", menuDetails.food_type);
+      formData.append("menu_cat_id", menuDetails.menu_cat_id);
+      formData.append("spicy_index", menuDetails.spicy_index || "1");
+      formData.append("offer", menuDetails.offer || "0");
+      formData.append("description", menuDetails.description || "");
+      formData.append("ingredients", menuDetails.ingredients || "");
+      formData.append("rating", menuDetails.rating || "0");
+      formData.append("is_special", menuDetails.is_special ? "1" : "0");
+
+      // Handle images
+      if (menuDetails.images.length > 0) {
+        menuDetails.images.forEach((imageUri) => {
+          // Extract filename from URI
+          const filename = imageUri.split("/").pop();
+          formData.append("images", {
+            uri: imageUri,
+            type: "image/jpeg",
+            name: filename,
+          });
+        });
+      }
+
+      console.log("Sending update request with FormData");
 
       const response = await fetch(`${getBaseUrl()}/menu_update`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          Accept: "application/json",
           Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "multipart/form-data",
         },
-        body: JSON.stringify({
-          menu_id: menuId,
-          outlet_id: outletId,
-          user_id: userId,
-          ...menuDetails,
-        }),
+        body: formData,
       });
 
       const data = await response.json();
@@ -268,8 +291,11 @@ export default function EditMenuView() {
           status: "success",
         });
         router.push({
-          pathname: "/screens/menus/MenuListView",
-          params: { refresh: Date.now() },
+          pathname: "/screens/menus/MenuDetailsView",
+          params: {
+            menuId: menuId,
+            refresh: Date.now(),
+          },
         });
       } else {
         throw new Error(data.msg || "Failed to update menu");

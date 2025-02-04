@@ -476,21 +476,181 @@ export default function CreateOrderScreen() {
   };
 
   const handleSettle = async () => {
-    if (isLoading) return;
+    if (selectedItems.length === 0) {
+      toast.show({
+        description: "Please add items to the order",
+        status: "warning",
+      });
+      return;
+    }
 
     try {
-      setIsLoading(true);
-      setLoadingMessage("Settling order...");
+      setIsProcessing(true);
+      setLoadingMessage("Processing order...");
 
-      await createOrder("settle");
-    } catch (error) {
-      console.error("Error settling order:", error);
+      const storedCaptainId = await AsyncStorage.getItem("captain_id");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const storedUserId = await AsyncStorage.getItem("user_id");
+
+      if (!storedOutletId || !storedCaptainId || !storedUserId) {
+        throw new Error("Required data not found");
+      }
+
+      // For existing orders, show message and navigate to orders screen
+      if (params?.orderId) {
+        toast.show({
+          description: "Please settle this order from the order details screen",
+          status: "info",
+          duration: 3000,
+          placement: "top",
+        });
+
+        router.replace({
+          pathname: "/(tabs)/orders",
+          params: {
+            refresh: Date.now().toString(),
+          },
+        });
+        return;
+      }
+
+      // Prepare common order items structure
+      const orderItems = selectedItems.map((item) => ({
+        menu_id: item.menu_id.toString(),
+        quantity: item.quantity,
+        comment: item.specialInstructions || "",
+        half_or_full: (item.portionSize || "full").toLowerCase(),
+      }));
+
+      // Handle special orders (counter, parcel, drive-through)
+      if (params?.isSpecialOrder) {
+        setLoadingMessage("Creating special order...");
+        const createPayload = {
+          captain_id: storedCaptainId.toString(),
+          outlet_id: storedOutletId.toString(),
+          user_id: storedUserId.toString(),
+          order_type: params.orderType.toLowerCase(),
+          order_items: orderItems,
+          action: "settle",
+        };
+
+        // Create the order
+        const createResponse = await fetch(`${getBaseUrl()}/create_order`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(createPayload),
+        });
+
+        const createResult = await createResponse.json();
+        if (createResult.st !== 1) {
+          throw new Error(createResult.msg || "Failed to create order");
+        }
+
+        // Immediately mark as paid
+        setLoadingMessage("Marking order as paid...");
+        const paidPayload = {
+          outlet_id: storedOutletId.toString(),
+          order_id: createResult.order_id.toString(),
+          order_status: "paid",
+          user_id: storedUserId.toString(),
+          action: "settle",
+        };
+
+        const paidResponse = await fetch(
+          `${getBaseUrl()}/update_order_status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(paidPayload),
+          }
+        );
+
+        const paidResult = await paidResponse.json();
+        if (paidResult.st !== 1) {
+          throw new Error(paidResult.msg || "Failed to mark as paid");
+        }
+      } else {
+        // Handle regular table orders
+        setLoadingMessage("Creating new order...");
+        const createPayload = {
+          captain_id: storedCaptainId.toString(),
+          outlet_id: storedOutletId.toString(),
+          user_id: storedUserId.toString(),
+          tables: [params.tableNumber.toString()],
+          section_id: params.sectionId.toString(),
+          order_type: "dine-in",
+          order_items: orderItems,
+          action: "settle",
+        };
+
+        const createResponse = await fetch(`${getBaseUrl()}/create_order`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(createPayload),
+        });
+
+        const createResult = await createResponse.json();
+        if (createResult.st !== 1) {
+          throw new Error(createResult.msg || "Failed to create order");
+        }
+
+        // Mark as paid
+        setLoadingMessage("Marking order as paid...");
+        const paidPayload = {
+          outlet_id: storedOutletId.toString(),
+          order_id: createResult.order_id.toString(),
+          order_status: "paid",
+          user_id: storedUserId.toString(),
+          action: "settle",
+        };
+
+        const paidResponse = await fetch(
+          `${getBaseUrl()}/update_order_status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(paidPayload),
+          }
+        );
+
+        const paidResult = await paidResponse.json();
+        if (paidResult.st !== 1) {
+          throw new Error(paidResult.msg || "Failed to mark as paid");
+        }
+      }
+
+      // Clear states
+      setSelectedItems([]);
+      setSearchQuery("");
+      setOrderDetails({});
+      setServiceCharges(0);
+      setGstAmount(0);
+      setDiscountAmount(0);
+
       toast.show({
-        description: "Failed to settle order",
+        description: "Order created and settled successfully",
+        status: "success",
+        duration: 2000,
+      });
+
+      // Navigate back to orders page
+      router.replace({
+        pathname: "/(tabs)/orders",
+        params: {
+          refresh: Date.now().toString(),
+          status: "paid",
+          fromSettle: true,
+        },
+      });
+    } catch (error) {
+      console.error("Settle Error:", error);
+      toast.show({
+        description: error.message || "Failed to settle order",
         status: "error",
+        duration: 3000,
       });
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
       setLoadingMessage("");
     }
   };

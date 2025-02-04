@@ -28,6 +28,8 @@ import { RefreshControl } from "react-native";
 import Header from "../../components/Header";
 import { NotificationService } from "../../../services/NotificationService";
 import { getBaseUrl } from "../../../config/api.config";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Platform } from "react-native";
 
 const ORDER_STATUS_COLORS = {
   COMPLETED: "green",
@@ -358,6 +360,7 @@ const OrdersScreen = () => {
   const [orderType, setOrderType] = useState("all");
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [orderTimers, setOrderTimers] = useState({});
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -611,18 +614,6 @@ const OrdersScreen = () => {
         />
 
         {/* Only Sort Direction Toggle */}
-        <IconButton
-          variant="outline"
-          borderColor="coolGray.300"
-          icon={
-            <MaterialIcons
-              name={isAscending ? "arrow-upward" : "arrow-downward"}
-              size={22}
-              color="coolGray.500"
-            />
-          }
-          onPress={() => setIsAscending(!isAscending)}
-        />
       </HStack>
 
       {/* Filters Row */}
@@ -666,22 +657,55 @@ const OrdersScreen = () => {
           <Select.Item label="Counter" value="counter" />
         </Select>
 
-        {/* Sort By Filter */}
-        <Select
+        {/* Date Picker */}
+        <Pressable
           flex={1}
-          selectedValue={sortBy}
-          onValueChange={setSortBy}
-          _selectedItem={{
-            bg: "coolGray.100",
-            endIcon: (
-              <MaterialIcons name="check" size={20} color="coolGray.600" />
-            ),
+          h="36px"
+          borderWidth={1}
+          borderColor="coolGray.300"
+          borderRadius="md"
+          justifyContent="center"
+          onPress={() => {
+            if (Platform.OS === "android") {
+              // Show date picker for Android
+              setShowDatePicker(true);
+            }
           }}
         >
-          <Select.Item label="Date" value="date" />
-          <Select.Item label="Amount" value="amount" />
-        </Select>
+          <HStack px={2} alignItems="center" space={1}>
+            <MaterialIcons
+              name="calendar-today"
+              size={16}
+              color="coolGray.600"
+            />
+            <Text fontSize="sm" color="coolGray.600">
+              Select Date
+            </Text>
+          </HStack>
+        </Pressable>
       </HStack>
+
+      {/* Render DateTimePicker when showDatePicker is true */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={new Date()}
+          mode="date"
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false); // Hide date picker
+            if (event.type !== "dismissed" && selectedDate) {
+              const formattedDate = selectedDate.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              });
+              const dateOrders = orders.filter(
+                (order) => order.date === formattedDate
+              );
+              setFilteredOrders(dateOrders);
+            }
+          }}
+        />
+      )}
 
       {/* Orders List */}
       <SectionList

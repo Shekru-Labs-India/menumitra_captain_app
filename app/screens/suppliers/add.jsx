@@ -359,28 +359,30 @@ export default function AddSupplierScreen() {
         return;
       }
 
+      const requestBody = {
+        outlet_id: storedOutletId.toString(),
+        user_id: storedUserId.toString(),
+        name: formData.name.trim(),
+        supplier_status: formData.status || "active",
+        credit_rating: formData.creditRating || "",
+        credit_limit: formData.creditLimit ? parseInt(formData.creditLimit) : 0,
+        location: formData.location?.trim() || "",
+        owner_name: formData.ownerName?.trim() || "",
+        website: formData.website?.trim() || "",
+        mobile_number1: formData.mobileNumber1?.trim() || "",
+        mobile_number2: formData.mobileNumber2?.trim() || "", // Send empty string if no value
+        address: formData.address?.trim() || "",
+      };
+
+      console.log("Request Body:", requestBody);
+
       const response = await fetch(`${getBaseUrl()}/supplier_create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({
-          outlet_id: storedOutletId.toString(),
-          user_id: storedUserId.toString(),
-          name: formData.name.trim(),
-          supplier_status: formData.status || "active",
-          credit_rating: formData.creditRating || "",
-          credit_limit: formData.creditLimit
-            ? parseInt(formData.creditLimit)
-            : 0,
-          location: formData.location?.trim() || "",
-          owner_name: formData.ownerName?.trim() || "",
-          website: formData.website?.trim() || "",
-          mobile_number1: formData.mobileNumber1?.trim() || "",
-          mobile_number2: formData.mobileNumber2?.trim() || "",
-          address: formData.address?.trim() || "",
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -394,7 +396,6 @@ export default function AddSupplierScreen() {
         });
         router.back();
       } else {
-        // Handle specific error for duplicate mobile number
         if (data.msg?.toLowerCase().includes("mobile number already exists")) {
           toast.show({
             title: "Duplicate Mobile Number",
@@ -545,7 +546,7 @@ export default function AddSupplierScreen() {
               </FormControl>
 
               <FormControl>
-                <FormControl.Label>Credit Limit</FormControl.Label>
+                <FormControl.Label isRequired>Credit Limit</FormControl.Label>
                 <Input
                   value={formData.creditLimit}
                   onChangeText={(text) =>

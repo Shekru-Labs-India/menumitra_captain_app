@@ -213,9 +213,8 @@ export default function EditCategoryView() {
                 <Box alignItems="center">
                   <Image
                     source={{
-                      uri: categoryDetails.image
-                        ? categoryDetails.image
-                        : `https://men4u.xyz${categoryDetails.existing_image}`,
+                      uri:
+                        categoryDetails.image || categoryDetails.existing_image,
                     }}
                     alt="Category Image"
                     size="2xl"

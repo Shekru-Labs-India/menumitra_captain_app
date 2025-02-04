@@ -111,7 +111,7 @@ export default function CategoryListView() {
             {item.image ? (
               <Image
                 source={{
-                  uri: `https://men4u.xyz${item.image}`,
+                  uri: `https://menusmitra.xyz${item.image}`,
                 }}
                 alt={item.category_name}
                 size="sm"

@@ -99,16 +99,24 @@ export default function MenuDetailsView() {
           description: "Menu deleted successfully",
           status: "success",
         });
-        router.back();
+        router.push({
+          pathname: "/screens/menus/MenuListView",
+          params: { refresh: Date.now() },
+        });
       } else {
-        throw new Error(data.msg || "Failed to delete menu");
+        toast.show({
+          description: data.msg || "Failed to delete menu",
+          status: "error",
+        });
+        setIsDeleteDialogOpen(false);
       }
     } catch (error) {
       console.error("Delete Menu Error:", error);
       toast.show({
-        description: "Failed to delete menu",
+        description: error.message || "Failed to delete menu",
         status: "error",
       });
+      setIsDeleteDialogOpen(false);
     }
   };
 

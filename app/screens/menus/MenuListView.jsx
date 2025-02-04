@@ -20,6 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function MenuListView() {
   const [menus, setMenus] = useState([]);
@@ -30,9 +31,11 @@ export default function MenuListView() {
   const toast = useToast();
   const params = useLocalSearchParams();
 
-  useEffect(() => {
-    fetchMenus();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchMenus();
+    }, [params?.refresh])
+  );
 
   useEffect(() => {
     filterMenus();
@@ -46,6 +49,7 @@ export default function MenuListView() {
 
   const fetchMenus = async () => {
     try {
+      setLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
       const accessToken = await AsyncStorage.getItem("access");
 
@@ -63,6 +67,7 @@ export default function MenuListView() {
       const data = await response.json();
       if (data.st === 1) {
         setMenus(data.lists);
+        setFilteredMenus(data.lists);
       } else {
         throw new Error(data.msg || "Failed to fetch menus");
       }

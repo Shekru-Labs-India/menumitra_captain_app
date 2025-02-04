@@ -251,7 +251,9 @@ export default function AddStaffScreen() {
         return `${day} ${month} ${year}`; // Removed hyphens, using spaces instead
       };
 
-      // Prepare staff data according to new API structure
+      // Create FormData instance
+      const formDataToSend = new FormData();
+
       const staffData = {
         user_id: parseInt(userId),
         name: formData.name.trim(),
@@ -261,19 +263,29 @@ export default function AddStaffScreen() {
         role: formData.role.toLowerCase(),
         aadhar_number: formData.aadharNo,
         outlet_id: parseInt(outletId),
-        photo: image || "",
       };
 
-      // Debug log to verify date format
-      console.log("Staff data being sent:", staffData);
+      // Add all fields to FormData
+      Object.keys(staffData).forEach((key) => {
+        formDataToSend.append(key, staffData[key]);
+      });
+
+      // Add the image if it exists
+      if (image) {
+        const fileName = image.split("/").pop();
+        formDataToSend.append("photo", {
+          uri: Platform.OS === "android" ? image : image.replace("file://", ""),
+          type: "image/jpeg",
+          name: fileName,
+        });
+      }
 
       const response = await fetch(`${getBaseUrl()}/staff_create`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify(staffData),
+        body: formDataToSend,
       });
 
       const data = await response.json();
