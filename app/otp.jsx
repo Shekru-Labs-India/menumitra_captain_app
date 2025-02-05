@@ -50,7 +50,6 @@ export default function OtpScreen() {
 
   useEffect(() => {
     checkExistingSession();
-    autoFillOtp();
   }, []);
 
   const checkExistingSession = async () => {
@@ -141,23 +140,7 @@ export default function OtpScreen() {
     return token;
   };
 
-  const autoFillOtp = async () => {
-    try {
-      const storedOtp = await AsyncStorage.getItem("currentOtp");
-      if (storedOtp && storedOtp.length === 4) {
-        const otpArray = storedOtp.split("");
-        setOtp(otpArray);
-
-        setTimeout(() => {
-          handleVerifyOtp(storedOtp);
-        }, 500);
-      }
-    } catch (error) {
-      console.error("Error auto-filling OTP:", error);
-    }
-  };
-
-  const handleVerifyOtp = async (directOtp = null) => {
+  const handleVerifyOtp = async () => {
     try {
       setError("");
       setIsLoading(true);
@@ -169,12 +152,11 @@ export default function OtpScreen() {
 
       const tokenData = await handleTokens(false);
       const cleanPushToken = tokenData.pushToken;
-      console.log("cleanPushToken", cleanPushToken);
 
       setLoadingMessage("Connecting to server...");
       const requestBody = {
         mobile: mobileNumber,
-        otp: directOtp || otp.join(""),
+        otp: otp.join(""),
         device_sessid: tokenData.sessionToken,
         fcm_token: cleanPushToken,
       };
@@ -193,7 +175,6 @@ export default function OtpScreen() {
       const data = await response.json();
 
       if (data.st === 1) {
-        await AsyncStorage.removeItem("currentOtp");
         setLoadingMessage("Login successful! Redirecting...");
 
         // Store session data
@@ -270,15 +251,6 @@ export default function OtpScreen() {
       const data = await response.json();
 
       if (data && data.st === 1) {
-        // Extract and store new OTP if present in response
-        const otpMatch = data.msg.match(/\d{4}/);
-        if (otpMatch) {
-          const newOtp = otpMatch[0];
-          await AsyncStorage.setItem("currentOtp", newOtp);
-          const otpArray = newOtp.split("");
-          setOtp(otpArray);
-        }
-
         setOtp(["", "", "", ""]);
         setError("");
         setTimer(15);
@@ -370,13 +342,25 @@ export default function OtpScreen() {
                 onKeyPress={(e) => handleKeyPress(e, index)}
                 borderWidth={1.5}
                 borderColor={otp[index] ? "#007AFF" : "#ddd"}
-                bg={otp[index] ? "#F0F8FF" : "#fff"}
+                color="black"
                 _focus={{
                   borderColor: "#007AFF",
-                  bg: "transparent",
+                  backgroundColor: "transparent",
+                }}
+                _pressed={{
+                  backgroundColor: "transparent",
+                }}
+                _hover={{
+                  backgroundColor: "transparent",
                 }}
                 cursorColor="#007AFF"
-                selectTextOnFocus
+                selectTextOnFocus={false}
+                selectionColor="transparent"
+                style={{
+                  backgroundColor: "transparent",
+                }}
+                variant="unstyled"
+                bgColor="transparent"
               />
             ))}
           </HStack>

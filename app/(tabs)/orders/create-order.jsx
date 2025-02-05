@@ -35,6 +35,7 @@ import Header from "../../components/Header";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { sendNotificationToWaiter } from "../../../services/NotificationService";
 import { getBaseUrl } from "../../../config/api.config";
+import * as Print from "expo-print";
 
 const getCurrentDate = () => {
   const date = new Date();
@@ -70,6 +71,13 @@ const formatTime = (dateTimeStr) => {
     console.error("Date formatting error:", error);
     return dateTimeStr; // Return original string if formatting fails
   }
+};
+
+const orderTypeMap = {
+  parcel: "Parcel",
+  "drive-through": "Drive Through",
+  counter: "Counter",
+  "dine-in": "Dine In",
 };
 
 export default function CreateOrderScreen() {
@@ -460,19 +468,205 @@ export default function CreateOrderScreen() {
 
     try {
       setIsLoading(true);
-      setLoadingMessage("Printing KOT...");
+      setLoadingMessage("Processing KOT...");
 
+      // First create/update the order
       await createOrder("print");
+
+      // Generate and print receipt
+      try {
+        await Print.printAsync({
+          html: generateKOTHTML(),
+          orientation: "portrait",
+        });
+
+        // Close any existing toasts before showing new one
+        toast.closeAll();
+        toast.show({
+          description: "KOT printed successfully",
+          status: "success",
+          duration: 1500,
+          isClosable: true, // Allow manual closing
+          onCloseComplete: () => toast.closeAll(), // Ensure toast is removed
+        });
+      } catch (printError) {
+        console.error("Printing failed:", printError);
+        toast.closeAll();
+        toast.show({
+          description: "Failed to print KOT. Please check printer connection.",
+          status: "error",
+          duration: 2000,
+          isClosable: true,
+          onCloseComplete: () => toast.closeAll(),
+        });
+      }
     } catch (error) {
-      console.error("Error printing KOT:", error);
+      console.error("Error processing KOT:", error);
+      toast.closeAll();
       toast.show({
-        description: "Failed to print KOT",
+        description: "Failed to process KOT",
         status: "error",
+        duration: 2000,
+        isClosable: true,
+        onCloseComplete: () => toast.closeAll(),
       });
     } finally {
       setIsLoading(false);
       setLoadingMessage("");
     }
+  };
+
+  const generateKOTHTML = () => {
+    // Generate HTML for KOT receipt
+    const items = selectedItems
+      .map(
+        (item) => `
+        <tr>
+          <td style="width: 35%; text-align: left;">${item.menu_name}</td>
+          <td style="width: 15%; text-align: center;">${item.quantity}</td>
+          <td style="width: 15%; text-align: right;">₹${
+            item.portionSize === "Half" ? item.half_price : item.full_price
+          }</td>
+          <td style="width: 20%; text-align: right;">₹${(
+            (item.portionSize === "Half" ? item.half_price : item.full_price) *
+            item.quantity
+          ).toFixed(2)}</td>
+          <td style="width: 15%; text-align: left;">${
+            item.specialInstructions || "-"
+          }</td>
+        </tr>
+      `
+      )
+      .join("");
+
+    const subtotal = calculateSubtotal(selectedItems);
+    const discount = calculateDiscount(selectedItems);
+    const serviceChargesAmount = calculateServiceCharges(
+      selectedItems,
+      serviceChargePercentage
+    );
+    const gstAmount = calculateGST(selectedItems, gstPercentage);
+    const grandTotal = calculateTotal(
+      selectedItems,
+      serviceChargePercentage,
+      gstPercentage
+    );
+
+    return `
+      <html>
+        <head>
+          <style>
+            body { 
+              font-family: 'Helvetica'; 
+              padding: 20px;
+              max-width: 300px;
+              margin: 0 auto;
+            }
+            h1 { font-size: 24px; text-align: center; margin-bottom: 20px; }
+            h2 { font-size: 18px; text-align: center; margin-bottom: 15px; }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-bottom: 20px;
+              font-size: 14px;
+            }
+            th, td { padding: 8px; text-align: left; }
+            th { background-color: #f8f9fa; }
+            .total-section {
+              border-top: 1px dashed #000;
+              margin-top: 20px;
+              padding-top: 10px;
+            }
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              margin: 5px 0;
+              font-size: 14px;
+            }
+            .grand-total {
+              border-top: 1px dashed #000;
+              border-bottom: 1px dashed #000;
+              margin-top: 10px;
+              padding: 10px 0;
+              font-weight: bold;
+            }
+            .header-info {
+              text-align: center;
+              margin-bottom: 20px;
+              font-size: 14px;
+            }
+            .footer-info {
+              text-align: center;
+              margin-top: 30px;
+              font-size: 12px;
+              color: #666;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>MenuMitra</h1>
+          <h2>Kitchen Order Ticket</h2>
+          
+          <div class="header-info">
+            ${
+              !params?.isSpecialOrder
+                ? `<p>Table: ${params.sectionName} - ${params.tableNumber}</p>`
+                : `<p>Order Type: ${orderTypeMap[params.orderType]}</p>`
+            }
+            <p>Order Date: ${new Date().toLocaleString()}</p>
+            ${params?.orderId ? `<p>Order ID: ${params.orderId}</p>` : ""}
+          </div>
+
+          <table>
+            <thead>
+              <tr style="border-top: 1px dashed #000; border-bottom: 1px dashed #000;">
+                <th style="width: 35%; text-align: left;">Item</th>
+                <th style="width: 15%; text-align: center;">Qty</th>
+                <th style="width: 15%; text-align: right;">Rate</th>
+                <th style="width: 20%; text-align: right;">Amount</th>
+                <th style="width: 15%; text-align: left;">Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items}
+            </tbody>
+          </table>
+
+          <div class="total-section">
+            <div class="total-row">
+              <span>Subtotal:</span>
+              <span>₹${subtotal.toFixed(2)}</span>
+            </div>
+            
+            <div class="total-row">
+              <span>Discount:</span>
+              <span>-₹${discount.toFixed(2)}</span>
+            </div>
+
+            <div class="total-row">
+              <span>Service Charge (${serviceChargePercentage}%):</span>
+              <span>₹${serviceChargesAmount.toFixed(2)}</span>
+            </div>
+
+            <div class="total-row">
+              <span>GST (${gstPercentage}%):</span>
+              <span>₹${gstAmount.toFixed(2)}</span>
+            </div>
+
+            <div class="total-row grand-total">
+              <span>Grand Total:</span>
+              <span>₹${grandTotal.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div class="footer-info">
+            <p>Thank you for your order!</p>
+            <p>Powered by MenuMitra</p>
+            <p>${new Date().toLocaleString()}</p>
+          </div>
+        </body>
+      </html>
+    `;
   };
 
   const handleSettle = async () => {
@@ -1907,12 +2101,12 @@ export default function CreateOrderScreen() {
                     _text={{ color: "white" }}
                     isDisabled={isLoading}
                     isLoading={
-                      isLoading && loadingMessage === "Printing KOT..."
+                      isLoading && loadingMessage === "Processing KOT..."
                     }
                   >
-                    {isLoading && loadingMessage === "Printing KOT..."
-                      ? "Printing..."
-                      : "Print"}
+                    {isLoading && loadingMessage === "Processing KOT..."
+                      ? "Processing..."
+                      : "Print "}
                   </Button>
                   <Button
                     flex={1}
