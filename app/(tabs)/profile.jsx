@@ -44,7 +44,7 @@ export default function ProfileScreen() {
 
   const [stats, setStats] = useState({
     todayOrders: 0,
-    rating: "0%",
+    liveSales: 0,
     monthsActive: 0,
   });
 
@@ -54,41 +54,42 @@ export default function ProfileScreen() {
     const fetchData = async () => {
       try {
         setLoading(true);
-
-        // Fetch data using the correct AsyncStorage keys
-        const [[, captainName], [, role], [, captainId], [, outletId]] =
-          await AsyncStorage.multiGet([
-            "captain_name",
-            "role",
-            "captain_id",
-            "outlet_id",
-          ]);
+        // Fetch all relevant data stored during OTP verification
+        const [
+          [, captainName],
+          [, userId],
+          [, mobile],
+          [, captainId],
+          [, outletId],
+          [, access],
+        ] = await AsyncStorage.multiGet([
+          "captain_name",
+          "user_id",
+          "mobile",
+          "captain_id",
+          "outlet_id",
+          "access",
+        ]);
 
         setUserData({
           captainName: captainName || "Captain",
-          role: role || "Staff",
-          captainId,
-          outletId,
+          role: "Captain", // This is fixed as it's a captain app
+          mobile: mobile || "",
+          captainId: captainId || "",
+          outletId: outletId || "",
+          userId: userId || "",
         });
 
-        // If you need to fetch additional data from API, use getBaseUrl()
-        // const response = await fetch(`${getBaseUrl()}/your_endpoint`, {
-        //   method: "POST",
-        //   headers: {
-        //     "Content-Type": "application/json",
-        //   },
-        //   body: JSON.stringify({
-        //     captain_id: captainId,
-        //     outlet_id: outletId,
-        //   }),
-        // });
-
-        // You can fetch stats from API if needed
-        setStats({
-          todayOrders: 0,
-          rating: "0%",
-          monthsActive: 0,
-        });
+        // Fetch sales data if stored
+        const salesDataString = await AsyncStorage.getItem("salesData");
+        if (salesDataString) {
+          const salesData = JSON.parse(salesDataString);
+          setStats({
+            todayOrders: salesData.todayTotalSales || 0,
+            liveSales: salesData.liveSales || 0,
+            monthsActive: 0, // You can calculate this if you have a joining date
+          });
+        }
       } catch (error) {
         console.error("Error fetching profile data:", error);
       } finally {
@@ -272,35 +273,6 @@ export default function ProfileScreen() {
       {/* Profile Header */}
       <Box px={6} pt={6} pb={8} bg="primary.500">
         <HStack space={4} alignItems="center">
-          <TouchableOpacity onPress={pickImage}>
-            {profileImage ? (
-              <Avatar
-                size="xl"
-                source={{ uri: profileImage }}
-                borderWidth={4}
-                borderColor="white"
-              />
-            ) : (
-              <Box
-                size="80px"
-                borderWidth={4}
-                borderColor="white"
-                bg="coolGray.200"
-                alignItems="center"
-                justifyContent="center"
-                rounded="full"
-              >
-                <HStack space={2} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="add-a-photo"
-                    size={6}
-                    color="primary.600"
-                  />
-                </HStack>
-              </Box>
-            )}
-          </TouchableOpacity>
           <VStack flex={1}>
             <Text color="white" fontSize="2xl" fontWeight="bold">
               {userData.captainName}
@@ -308,55 +280,20 @@ export default function ProfileScreen() {
             <Text color="white" fontSize="md">
               {userData.role}
             </Text>
-            <HStack space={2} mt={1}>
-              <Icon
-                as={MaterialIcons}
-                name="verified-user"
-                size={4}
-                color="white"
-              />
-              <Text color="white" fontSize="sm">
-                Active
-              </Text>
-            </HStack>
+
+            {userData.mobile && (
+              <HStack space={2} mt={2} alignItems="center">
+                <Icon as={MaterialIcons} name="phone" size={4} color="white" />
+                <Text color="white" fontSize="sm">
+                  {userData.mobile}
+                </Text>
+              </HStack>
+            )}
           </VStack>
         </HStack>
       </Box>
 
       {/* Stats Section */}
-      <HStack
-        bg="white"
-        py={4}
-        px={6}
-        justifyContent="space-between"
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
-      >
-        <VStack alignItems="center">
-          <Text fontSize="xl" fontWeight="bold" color="primary.500">
-            {stats.todayOrders}
-          </Text>
-          <Text fontSize="sm" color="coolGray.500">
-            Orders Today
-          </Text>
-        </VStack>
-        <VStack alignItems="center">
-          <Text fontSize="xl" fontWeight="bold" color="primary.500">
-            {stats.rating}
-          </Text>
-          <Text fontSize="sm" color="coolGray.500">
-            Rating
-          </Text>
-        </VStack>
-        <VStack alignItems="center">
-          <Text fontSize="xl" fontWeight="bold" color="primary.500">
-            {stats.monthsActive}
-          </Text>
-          <Text fontSize="sm" color="coolGray.500">
-            Months
-          </Text>
-        </VStack>
-      </HStack>
 
       {/* Menu Items */}
       <ScrollView showsVerticalScrollIndicator={false}>

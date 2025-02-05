@@ -44,37 +44,9 @@ export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     boxicons: require("../assets/fonts/boxicons.ttf"),
   });
-  const router = useRouter();
-
-  useEffect(() => {
-    checkSession();
-  }, []);
-
-  const checkSession = async () => {
-    try {
-      const sessionData = await AsyncStorage.getItem("userSession");
-      if (!sessionData) {
-        router.replace("/login");
-        return;
-      }
-
-      const { expiryDate } = JSON.parse(sessionData);
-      if (new Date(expiryDate) > new Date()) {
-        router.replace("/(tabs)");
-      } else {
-        await AsyncStorage.removeItem("userSession");
-        await AsyncStorage.removeItem("authToken");
-        router.replace("/login");
-      }
-    } catch (error) {
-      console.error("Error checking session:", error);
-      router.replace("/login");
-    }
-  };
 
   useEffect(() => {
     if (fontsLoaded) {
-      // Hide splash screen once fonts are loaded
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
@@ -91,28 +63,11 @@ export default function RootLayout() {
             <ThemeProvider
               value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
             >
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  presentation: "containedModal",
-                }}
-              >
+              <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="login" />
                 <Stack.Screen name="otp" />
-                <Stack.Screen
-                  name="(tabs)"
-                  options={{
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="screens"
-                  options={{
-                    headerShown: false,
-                    presentation: "containedModal",
-                  }}
-                />
+                <Stack.Screen name="(tabs)" />
               </Stack>
             </ThemeProvider>
           </NativeBaseProvider>

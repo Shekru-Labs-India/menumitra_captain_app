@@ -31,120 +31,154 @@ export async function generateSessionToken() {
   }
 }
 
-// Add this new function to format push token
+// Update this function to properly format the token
 export function formatAlphanumericToken(token) {
-  // Remove any non-alphanumeric characters and take first 20 characters
-  return token.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20);
+  try {
+    if (!token) return generateRandomToken();
+
+    if (
+      typeof token === "string" &&
+      token.length === 20 &&
+      /^[a-zA-Z0-9]+$/.test(token)
+    ) {
+      return token;
+    }
+
+    const matches = token.match(/\[(.*?)\]/);
+    if (matches && matches[1]) {
+      return matches[1];
+    }
+
+    return token.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20);
+  } catch (error) {
+    return generateRandomToken();
+  }
+}
+
+function generateRandomToken() {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let token = "";
+  for (let i = 0; i < 20; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
 }
 
 export const setupNotifications = async () => {
-  if (!Device.isDevice) {
-    console.log("Must use physical device for Push Notifications");
+  try {
+    console.log("Setting up notifications...");
+
+    if (!Device.isDevice) {
+      console.warn("Not a physical device, notifications may not work");
+      return null;
+    }
+
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    console.log("Current permission status:", existingStatus);
+
+    let finalStatus = existingStatus;
+    if (existingStatus !== "granted") {
+      console.log("Requesting notification permissions...");
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+      console.log("New permission status:", status);
+    }
+
+    if (finalStatus !== "granted") {
+      console.warn("Notification permissions not granted");
+      return null;
+    }
+
+    if (Platform.OS === "android") {
+      console.log("Setting up Android notification channels...");
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "Default",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#FF231F7C",
+      });
+    }
+
+    console.log("Notification setup completed successfully");
+    return true;
+  } catch (error) {
+    console.error("Notification setup error:", error);
     return null;
   }
-
-  // Configure notification settings without sound
-  await Notifications.setNotificationChannelAsync("orders", {
-    name: "Orders",
-    importance: Notifications.AndroidImportance.HIGH,
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: "#FF231F7C",
-  });
 };
 
 export async function getOrGenerateExpoPushToken() {
-  let retryCount = 0;
-  const maxRetries = 3;
+  try {
+    console.log("Getting Expo push token...");
+    const token = await Notifications.getExpoPushTokenAsync({
+      projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a",
+    });
 
-  while (retryCount < maxRetries) {
-    try {
-      if (!Device.isDevice) {
-        throw new Error("Must use physical device for Push Notifications");
-      }
-
-      // Request permission first
-      const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus !== "granted") {
-        throw new Error("Permission not granted for notifications");
-      }
-
-      // Get push token with retry mechanism
-      const tokenResult = await Notifications.getExpoPushTokenAsync({
-        projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a", // Your project ID
-      });
-
-      if (!tokenResult?.data) {
-        throw new Error("Token generation returned empty result");
-      }
-
-      console.log("Push token generated successfully:", tokenResult.data);
-      return tokenResult.data;
-    } catch (error) {
-      console.error(
-        `Token generation attempt ${retryCount + 1} failed:`,
-        error
-      );
-      retryCount++;
-
-      if (retryCount === maxRetries) {
-        throw new Error(
-          `Failed to generate push token after ${maxRetries} attempts: ${error.message}`
-        );
-      }
-
-      // Wait before retrying (exponential backoff)
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000 * Math.pow(2, retryCount))
-      );
+    if (!token?.data) {
+      console.warn("No token data received");
+      return null;
     }
+
+    console.log("Successfully received push token:", token.data);
+    return token.data.toString();
+  } catch (error) {
+    console.error("Error getting push token:", error);
+    return null;
   }
 }
 
-// Update handleTokens to be more resilient
 export async function handleTokens(isNewInstall = false) {
   try {
-    // Setup notifications first
+    console.log("Starting token setup...");
     await setupNotifications();
 
-    // Try to get push token with retries
-    const pushToken = await getOrGenerateExpoPushToken();
+    // Get push token
+    let pushToken = await getOrGenerateExpoPushToken();
+    console.log("Initial Push Token:", pushToken);
+
     if (!pushToken) {
-      throw new Error("Failed to generate required push token");
+      console.warn("No push token received, generating fallback...");
+      pushToken = generateRandomToken();
     }
 
-    // Generate session token
-    const sessionToken = await generateSessionToken();
+    const formattedPushToken = formatAlphanumericToken(pushToken);
+    console.log("Formatted Push Token:", formattedPushToken);
+
+    const sessionToken = generateRandomToken();
+    console.log("Generated Session Token:", sessionToken);
 
     // Store tokens
-    await AsyncStorage.multiSet([
-      ["expoPushToken", pushToken],
-      ["sessionToken", sessionToken],
+    const tokensToStore = [
+      ["expoPushToken", String(pushToken)],
+      ["formattedPushToken", String(formattedPushToken)],
+      ["sessionToken", String(sessionToken)],
+    ];
+
+    await AsyncStorage.multiSet(tokensToStore);
+    console.log("Tokens stored successfully");
+
+    // Verify storage
+    const storedTokens = await AsyncStorage.multiGet([
+      "expoPushToken",
+      "formattedPushToken",
+      "sessionToken",
     ]);
-
-    // Store session info
-    const sessionInfo = {
-      sessionToken,
-      expoPushToken: pushToken,
-      lastUpdated: Date.now(),
-    };
-
-    await AsyncStorage.setItem("activeSession", JSON.stringify(sessionInfo));
+    console.log("Stored Tokens:", storedTokens);
 
     return {
-      pushToken,
+      pushToken: formattedPushToken,
       sessionToken,
     };
   } catch (error) {
     console.error("Token handling error:", error);
-    throw error; // Propagate error to prevent login without tokens
+    const fallbackToken = generateRandomToken();
+    console.log("Using fallback token:", fallbackToken);
+    return {
+      pushToken: fallbackToken,
+      sessionToken: fallbackToken,
+    };
   }
 }
 
@@ -233,3 +267,30 @@ export const addNotificationResponseListener = (callback) => {
     Notifications.addNotificationResponseReceivedListener(callback);
   return subscription;
 };
+
+// Add a function to test notifications
+export async function testNotification() {
+  try {
+    const token = await AsyncStorage.getItem("expoPushToken");
+    if (!token) {
+      console.error("No push token found");
+      return false;
+    }
+
+    // Send a test notification
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Test Notification",
+        body: "If you see this, notifications are working!",
+        sound: "notification.mp3",
+      },
+      trigger: null, // Send immediately
+    });
+
+    console.log("Test notification sent successfully");
+    return true;
+  } catch (error) {
+    console.error("Error sending test notification:", error);
+    return false;
+  }
+}

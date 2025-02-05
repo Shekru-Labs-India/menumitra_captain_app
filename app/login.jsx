@@ -36,13 +36,32 @@ export default function LoginScreen() {
 
   const checkExistingSession = async () => {
     try {
-      const sessionData = await AsyncStorage.getItem("userSession");
-      if (sessionData) {
-        const { expiryDate } = JSON.parse(sessionData);
-        if (new Date(expiryDate) > new Date()) {
-          router.replace("/(tabs)");
+      const [sessionData, userSession] = await AsyncStorage.multiGet([
+        "userSession",
+        "access",
+      ]);
+
+      if (sessionData[1] && userSession[1]) {
+        const session = JSON.parse(sessionData[1]);
+        if (new Date(session.expiryDate) > new Date()) {
+          setTimeout(() => {
+            router.replace("/(tabs)");
+          }, 100);
         } else {
-          await AsyncStorage.removeItem("userSession");
+          // Clear expired session data
+          await AsyncStorage.multiRemove([
+            "userSession",
+            "access",
+            "outlet_id",
+            "user_id",
+            "mobile",
+            "captain_id",
+            "captain_name",
+            "gst",
+            "service_charges",
+            "sessionToken",
+            "expoPushToken",
+          ]);
         }
       }
     } catch (error) {

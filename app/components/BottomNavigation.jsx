@@ -16,6 +16,13 @@ const BottomNavigation = () => {
       );
     }
 
+    // For orders tab - only active on orders index screen
+    if (tabPath === "orders") {
+      return (
+        pathname === "/(tabs)/orders" || pathname === "/(tabs)/orders/index"
+      );
+    }
+
     // For other main tabs
     return pathname === `/(tabs)/${tabPath}`;
   };
@@ -67,12 +74,16 @@ const BottomNavigation = () => {
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="receipt" size={size} color={color} />
           ),
-          href: "/orders",
+          href: null,
           unmountOnBlur: true,
           listeners: ({ navigation }) => ({
             tabPress: (e) => {
               e.preventDefault();
-              navigation.navigate("orders", { screen: "index" });
+              // Reset the orders stack and navigate to index
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "/(tabs)/orders" }],
+              });
             },
           }),
         }}

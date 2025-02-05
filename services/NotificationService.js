@@ -6,6 +6,7 @@ import * as Notifications from "expo-notifications";
 import { DeviceEventEmitter, Platform } from "react-native";
 import * as Device from "expo-device";
 import { getBaseUrl } from "../config/api.config";
+import { formatAlphanumericToken } from "./DeviceTokenService";
 
 // Constants
 export const CALL_WAITER_NOTIFICATION = "CALL_WAITER_NOTIFICATION";
@@ -88,21 +89,101 @@ export const sendNotificationToWaiter = async ({
   to,
 }) => {
   try {
-    const response = await NotificationService.sendNotification(
-      to,
-      `Order #${order_number}`,
-      `New order for Table ${tableNumber}`,
-      {
+    console.log("Sending notification with params:", {
+      order_number,
+      tableNumber,
+      outletId,
+      token: token?.substring(0, 10) + "...", // Log partial token for security
+    });
+
+    const formattedTo = formatAlphanumericToken(to);
+    console.log("Formatted destination token:", formattedTo);
+
+    const message = {
+      to: formattedTo,
+      sound: "default",
+      title: `Order #${order_number}`,
+      body: `New order for Table ${tableNumber}`,
+      data: {
+        type: "new_order",
         order_id,
         tableNumber,
         outletId,
         sessionToken: token,
         timestamp: Date.now(),
-      }
-    );
-    return response;
+      },
+    };
+
+    console.log("Sending notification payload:", message);
+
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(message),
+    });
+
+    const result = await response.json();
+    console.log("Notification send result:", result);
+
+    if (result.data?.status === "ok") {
+      console.log("Notification sent successfully");
+    } else {
+      console.warn("Notification might not have been sent:", result);
+    }
+
+    return result;
   } catch (error) {
-    console.error("Error sending waiter notification:", error);
+    console.error("Error sending notification:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+    });
+    return { success: false, error: error.message };
+  }
+};
+
+export const sendCallWaiterNotification = async ({
+  tableNumber,
+  outletId,
+  token,
+  to,
+}) => {
+  try {
+    const formattedTo = formatAlphanumericToken(to);
+
+    const message = {
+      to: formattedTo,
+      sound: "default",
+      title: "Call Waiter",
+      body: `Table ${tableNumber} needs assistance`,
+      data: {
+        type: "call_waiter",
+        tableNumber,
+        outletId,
+        sessionToken: token,
+        timestamp: Date.now(),
+      },
+    };
+
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(message),
+    });
+
+    const result = await response.json();
+    console.log("Call waiter notification result:", result);
+    return result;
+  } catch (error) {
+    console.error("Error sending call waiter notification:", error);
     return { success: false, error: error.message };
   }
 };
@@ -174,9 +255,10 @@ export class NotificationService {
 
   static async callWaiter({ outletId, userId }) {
     try {
-      const pushToken = await AsyncStorage.getItem("expoPushToken");
-
-      if (!pushToken) {
+      const formattedPushToken = await AsyncStorage.getItem(
+        "formattedPushToken"
+      );
+      if (!formattedPushToken) {
         throw new Error("Push token not found");
       }
 
@@ -188,52 +270,19 @@ export class NotificationService {
         body: JSON.stringify({
           outlet_id: outletId,
           user_id: userId,
+          token: formattedPushToken, // Send formatted token
         }),
       });
 
       const data = await response.json();
-
-      if (data.st === 1) {
-        const pushResponse = await fetch(
-          "https://exp.host/--/api/v2/push/send",
-          {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              to: pushToken,
-              title: "Table Assistance Required",
-              body: "A table needs your assistance",
-              data: {
-                type: "call_waiter",
-                outlet_id: outletId,
-                user_id: userId,
-                caller_name: "Captain",
-                message: "Waiter assistance needed",
-              },
-              sound: "notification.mp3",
-              priority: "high",
-            }),
-          }
-        );
-
-        const pushResult = await pushResponse.json();
-        console.log("📨 Push notification result:", pushResult);
-
-        return {
-          success: true,
-          message: "Waiter has been notified",
-        };
-      }
+      console.log("Call waiter response:", data);
 
       return {
-        success: false,
-        message: data.msg || "Failed to call waiter",
+        success: data.st === 1,
+        message: data.msg || "Request processed",
       };
     } catch (error) {
-      console.error("❌ Error calling waiter:", error);
+      console.error("Error calling waiter:", error);
       return {
         success: false,
         message: "Error calling waiter",

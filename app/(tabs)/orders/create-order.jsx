@@ -496,24 +496,6 @@ export default function CreateOrderScreen() {
         throw new Error("Required data not found");
       }
 
-      // For existing orders, show message and navigate to orders screen
-      if (params?.orderId) {
-        toast.show({
-          description: "Please settle this order from the order details screen",
-          status: "info",
-          duration: 3000,
-          placement: "top",
-        });
-
-        router.replace({
-          pathname: "/(tabs)/orders",
-          params: {
-            refresh: Date.now().toString(),
-          },
-        });
-        return;
-      }
-
       // Prepare common order items structure
       const orderItems = selectedItems.map((item) => ({
         menu_id: item.menu_id.toString(),
@@ -521,6 +503,54 @@ export default function CreateOrderScreen() {
         comment: item.specialInstructions || "",
         half_or_full: (item.portionSize || "full").toLowerCase(),
       }));
+
+      // For existing orders
+      if (params?.orderId) {
+        setLoadingMessage("Marking order as paid...");
+        const paidResponse = await fetch(
+          `${getBaseUrl()}/update_order_status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              outlet_id: storedOutletId.toString(),
+              order_id: params.orderId.toString(),
+              order_status: "paid",
+              user_id: storedUserId.toString(),
+              action: "settle",
+            }),
+          }
+        );
+
+        const paidResult = await paidResponse.json();
+        if (paidResult.st !== 1) {
+          throw new Error(paidResult.msg || "Failed to mark as paid");
+        }
+
+        // Clear states and navigate
+        setSelectedItems([]);
+        setSearchQuery("");
+        setOrderDetails({});
+        setServiceCharges(0);
+        setGstAmount(0);
+        setDiscountAmount(0);
+
+        toast.show({
+          description: "Order settled successfully",
+          status: "success",
+          duration: 2000,
+        });
+
+        router.replace({
+          pathname: "/(tabs)/orders",
+          params: {
+            refresh: Date.now().toString(),
+            status: "paid",
+            fromSettle: true,
+          },
+        });
+        return;
+      }
 
       // Handle special orders (counter, parcel, drive-through)
       if (params?.isSpecialOrder) {

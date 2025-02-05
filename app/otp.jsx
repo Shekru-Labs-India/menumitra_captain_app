@@ -24,10 +24,12 @@ import {
   checkTokenStatus,
   handleTokens,
   formatAlphanumericToken,
+  testNotification,
 } from "../services/DeviceTokenService";
 import { useToast } from "native-base";
 import { Platform } from "react-native";
 import { getBaseUrl } from "../config/api.config";
+import { useAuth } from "../context/AuthContext";
 
 export default function OtpScreen() {
   const [otp, setOtp] = useState(["", "", "", ""]);
@@ -44,9 +46,11 @@ export default function OtpScreen() {
   const { version } = useVersion();
   const [timerKey, setTimerKey] = useState(0);
   const toast = useToast();
+  const { login } = useAuth();
 
   useEffect(() => {
     checkExistingSession();
+    autoFillOtp();
   }, []);
 
   const checkExistingSession = async () => {
@@ -137,6 +141,22 @@ export default function OtpScreen() {
     return token;
   };
 
+  const autoFillOtp = async () => {
+    try {
+      const storedOtp = await AsyncStorage.getItem("currentOtp");
+      if (storedOtp && storedOtp.length === 4) {
+        const otpArray = storedOtp.split("");
+        setOtp(otpArray);
+
+        setTimeout(() => {
+          handleVerifyOtp(storedOtp);
+        }, 500);
+      }
+    } catch (error) {
+      console.error("Error auto-filling OTP:", error);
+    }
+  };
+
   const handleVerifyOtp = async (directOtp = null) => {
     try {
       setError("");
@@ -144,27 +164,14 @@ export default function OtpScreen() {
       setIsVerifying(true);
       setLoadingMessage("Verifying OTP...");
 
-      // Try to generate tokens, but use fallback if it fails
-      let tokenData = null;
-      try {
-        setLoadingMessage("Generating device tokens...");
-        tokenData = await handleTokens(false);
-      } catch (error) {
-        console.warn("Token generation failed, using fallback tokens:", error);
-        // Generate fallback tokens
-        const fallbackSessionToken = generateFallbackToken();
-        const fallbackPushToken = generateFallbackToken();
-        tokenData = {
-          sessionToken: fallbackSessionToken,
-          pushToken: `ExponentPushToken[${fallbackPushToken}]`,
-        };
-      }
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      setLoadingMessage("Generating device tokens...");
+
+      const tokenData = await handleTokens(false);
+      const cleanPushToken = tokenData.pushToken;
+      console.log("cleanPushToken", cleanPushToken);
 
       setLoadingMessage("Connecting to server...");
-      const cleanPushToken = tokenData.pushToken
-        .replace("ExponentPushToken[", "")
-        .replace("]", "");
-
       const requestBody = {
         mobile: mobileNumber,
         otp: directOtp || otp.join(""),
@@ -173,7 +180,6 @@ export default function OtpScreen() {
       };
 
       const response = await fetch(
-        // `https://men4u.xyz/captain_api/captain_verify_otp`,
         "https://menusmitra.xyz/captain_api/captain_verify_otp",
         {
           method: "POST",
@@ -187,21 +193,19 @@ export default function OtpScreen() {
       const data = await response.json();
 
       if (data.st === 1) {
+        await AsyncStorage.removeItem("currentOtp");
         setLoadingMessage("Login successful! Redirecting...");
 
-        // Validate GST and service charges
-        if (
-          typeof data.gst === "undefined" ||
-          typeof data.service_charges === "undefined"
-        ) {
-          console.error("Missing required fields:", {
-            gst: data.gst,
-            service_charges: data.service_charges,
-          });
-          throw new Error("Missing GST or service charge information");
-        }
+        // Store session data
+        const sessionData = {
+          expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+          userId: data.user_id,
+          captainId: data.captain_id,
+          outletId: data.outlet_id,
+        };
+        await AsyncStorage.setItem("userSession", JSON.stringify(sessionData));
 
-        // Store data and proceed with login
+        // Store the tokens and other data
         const dataToStore = [
           ["outlet_id", data.outlet_id?.toString() || ""],
           ["user_id", data.user_id?.toString() || ""],
@@ -210,29 +214,15 @@ export default function OtpScreen() {
           ["captain_name", data.captain_name || ""],
           ["gst", data.gst?.toString() || "0"],
           ["service_charges", data.service_charges?.toString() || "0"],
-          ["sessionToken", tokenData.sessionToken],
-          ["expoPushToken", tokenData.pushToken],
+          ["sessionToken", tokenData.sessionToken.toString()],
+          ["expoPushToken", tokenData.pushToken.toString()],
           ["access", data.access || ""],
         ];
 
         await AsyncStorage.multiSet(dataToStore);
 
-        // Store sales data
-        const salesData = {
-          liveSales: data.live_sales || 0,
-          todayTotalSales: data.today_total_sales || 0,
-        };
-        await AsyncStorage.setItem("salesData", JSON.stringify(salesData));
-
-        // Create session
-        const sessionData = {
-          ...data,
-          expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          sessionToken: tokenData.sessionToken,
-          expoPushToken: tokenData.pushToken,
-          access: data.access || "",
-        };
-        await AsyncStorage.setItem("userSession", JSON.stringify(sessionData));
+        // Call auth context login
+        await login(data);
 
         toast.show({
           description: "Login successful!",
@@ -259,7 +249,6 @@ export default function OtpScreen() {
     }
   };
 
-  // Update handleResendOtp to properly restart the listener
   const handleResendOtp = async () => {
     if (!canResend) return;
 
@@ -281,6 +270,15 @@ export default function OtpScreen() {
       const data = await response.json();
 
       if (data && data.st === 1) {
+        // Extract and store new OTP if present in response
+        const otpMatch = data.msg.match(/\d{4}/);
+        if (otpMatch) {
+          const newOtp = otpMatch[0];
+          await AsyncStorage.setItem("currentOtp", newOtp);
+          const otpArray = newOtp.split("");
+          setOtp(otpArray);
+        }
+
         setOtp(["", "", "", ""]);
         setError("");
         setTimer(15);
@@ -377,6 +375,7 @@ export default function OtpScreen() {
                   borderColor: "#007AFF",
                   bg: "transparent",
                 }}
+                cursorColor="#007AFF"
                 selectTextOnFocus
               />
             ))}
