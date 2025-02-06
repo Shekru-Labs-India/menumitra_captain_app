@@ -517,31 +517,24 @@ export default function CreateOrderScreen() {
   };
 
   const generateKOTHTML = () => {
-    // Generate HTML for KOT receipt
     const items = selectedItems
       .map(
         (item) => `
-        <tr>
-          <td style="width: 35%; text-align: left;">${item.menu_name}</td>
-          <td style="width: 15%; text-align: center;">${item.quantity}</td>
-          <td style="width: 15%; text-align: right;">₹${
-            // For existing orders, use price from API response
-            item.price ||
+      <tr>
+        <td style="text-align: left;">${item.menu_name}</td>
+        <td style="text-align: center;">${item.quantity}</td>
+        <td style="text-align: right;">₹${
+          item.price ||
+          (item.portionSize === "Half" ? item.half_price : item.full_price) ||
+          0
+        }.00</td>
+        <td style="text-align: right;">₹${(
+          (item.price ||
             (item.portionSize === "Half" ? item.half_price : item.full_price) ||
-            0
-          }</td>
-          <td style="width: 20%; text-align: right;">₹${(
-            (item.price ||
-              (item.portionSize === "Half"
-                ? item.half_price
-                : item.full_price) ||
-              0) * item.quantity
-          ).toFixed(2)}</td>
-          <td style="width: 15%; text-align: left;">${
-            item.specialInstructions || "-"
-          }</td>
-        </tr>
-      `
+            0) * item.quantity
+        ).toFixed(2)}</td>
+      </tr>
+    `
       )
       .join("");
 
@@ -558,121 +551,177 @@ export default function CreateOrderScreen() {
       gstPercentage
     );
 
+    // Generate QR code data URL - you'll need to implement this
+    // const qrCodeUrl = await generateQRCode(`https://menumitra.com/pay/${orderId}/${grandTotal}`);
+
     return `
-      <html>
-        <head>
-          <style>
-            body { 
-              font-family: 'Helvetica'; 
-              padding: 20px;
-              max-width: 300px;
-              margin: 0 auto;
-            }
-            h1 { font-size: 24px; text-align: center; margin-bottom: 20px; }
-            h2 { font-size: 18px; text-align: center; margin-bottom: 15px; }
-            table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin-bottom: 20px;
-              font-size: 14px;
-            }
-            th, td { padding: 8px; text-align: left; }
-            th { background-color: #f8f9fa; }
-            .total-section {
-              border-top: 1px dashed #000;
-              margin-top: 20px;
-              padding-top: 10px;
-            }
-            .total-row {
-              display: flex;
-              justify-content: space-between;
-              margin: 5px 0;
-              font-size: 14px;
-            }
-            .grand-total {
-              border-top: 1px dashed #000;
-              border-bottom: 1px dashed #000;
-              margin-top: 10px;
-              padding: 10px 0;
-              font-weight: bold;
-            }
-            .header-info {
-              text-align: center;
-              margin-bottom: 20px;
-              font-size: 14px;
-            }
-            .footer-info {
-              text-align: center;
-              margin-top: 30px;
-              font-size: 12px;
-              color: #666;
-            }
-          </style>
-        </head>
-        <body>
-          <h1>MenuMitra</h1>
-          <h2>Kitchen Order Ticket</h2>
-          
-          <div class="header-info">
-            ${
-              !params?.isSpecialOrder
-                ? `<p>Table: ${params.sectionName} - ${params.tableNumber}</p>`
-                : `<p>Order Type: ${orderTypeMap[params.orderType]}</p>`
-            }
-            <p>Order Date: ${new Date().toLocaleString()}</p>
-            ${params?.orderId ? `<p>Order ID: ${params.orderId}</p>` : ""}
+    <html>
+      <head>
+        <style>
+          @page {
+            margin: 0;
+            size: 80mm 297mm;
+          }
+          body { 
+            font-family: monospace;
+            padding: 10px;
+            width: 80mm;
+            margin: 0 auto;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 10px;
+          }
+          .restaurant-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+          .restaurant-address {
+            font-size: 14px;
+            margin-bottom: 5px;
+          }
+          .order-info {
+            margin-bottom: 10px;
+            font-size: 14px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 14px;
+          }
+          th, td {
+            padding: 3px 0;
+          }
+          .dotted-line {
+            border-top: 1px dotted black;
+            margin: 5px 0;
+          }
+          .total-section {
+            font-size: 14px;
+          }
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+          }
+          .payment-methods {
+            text-align: center;
+            margin: 15px 0;
+          }
+          .payment-icons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px 0;
+          }
+          .qr-section {
+            text-align: center;
+            margin: 15px 0;
+          }
+          .qr-code {
+            width: 150px;
+            height: 150px;
+            margin: 10px auto;
+          }
+          .website {
+            text-align: center;
+            font-size: 12px;
+            margin-top: 10px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="restaurant-name">Cafe Deliciaa</div>
+          <div class="restaurant-address">Swargate, Near Bus Stand, Pune</div>
+        </div>
+
+        <div class="order-info">
+          Order: #${params?.orderId || "New Order"}<br>
+          Table: ${
+            params?.isSpecialOrder
+              ? orderTypeMap[params.orderType]
+              : `Dinning - ${params.tableNumber}`
+          }<br>
+          DateTime: ${new Date().toLocaleString("en-US", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true,
+          })}
+        </div>
+
+        <div class="dotted-line"></div>
+
+        <table>
+          <tr>
+            <th style="text-align: left;">Item</th>
+            <th style="text-align: center;">Qty</th>
+            <th style="text-align: right;">Rate</th>
+            <th style="text-align: right;">Amt</th>
+          </tr>
+          ${items}
+        </table>
+
+        <div class="dotted-line"></div>
+
+        <div class="total-section">
+          <div class="total-row">
+            <span>Subtotal:</span>
+            <span>₹${subtotal.toFixed(2)}</span>
           </div>
-
-          <table>
-            <thead>
-              <tr style="border-top: 1px dashed #000; border-bottom: 1px dashed #000;">
-                <th style="width: 35%; text-align: left;">Item</th>
-                <th style="width: 15%; text-align: center;">Qty</th>
-                <th style="width: 15%; text-align: right;">Rate</th>
-                <th style="width: 20%; text-align: right;">Amount</th>
-                <th style="width: 15%; text-align: left;">Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${items}
-            </tbody>
-          </table>
-
-          <div class="total-section">
-            <div class="total-row">
-              <span>Subtotal:</span>
-              <span>₹${subtotal.toFixed(2)}</span>
-            </div>
-            
-            <div class="total-row">
-              <span>Discount:</span>
-              <span>-₹${discount.toFixed(2)}</span>
-            </div>
-
-            <div class="total-row">
-              <span>Service Charge (${serviceChargePercentage}%):</span>
-              <span>₹${serviceChargesAmount.toFixed(2)}</span>
-            </div>
-
-            <div class="total-row">
-              <span>GST (${gstPercentage}%):</span>
-              <span>₹${gstAmount.toFixed(2)}</span>
-            </div>
-
-            <div class="total-row grand-total">
-              <span>Grand Total:</span>
-              <span>₹${grandTotal.toFixed(2)}</span>
-            </div>
+          <div class="total-row">
+            <span>Discount(0%):</span>
+            <span>-₹${discount.toFixed(2)}</span>
           </div>
-
-          <div class="footer-info">
-            <p>Thank you for your order!</p>
-            <p>Powered by MenuMitra</p>
-            <p>${new Date().toLocaleString()}</p>
+          <div class="total-row">
+            <span>Service Charges(${serviceChargePercentage}%):</span>
+            <span>+₹${serviceChargesAmount.toFixed(2)}</span>
           </div>
-        </body>
-      </html>
-    `;
+          <div class="total-row">
+            <span>GST(${gstPercentage}%):</span>
+            <span>+₹${gstAmount.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div class="dotted-line"></div>
+
+        <div class="total-row" style="font-weight: bold;">
+          <span>Total:</span>
+          <span>₹${grandTotal.toFixed(2)}</span>
+        </div>
+
+        <div class="payment-methods">
+          <div class="payment-icons">
+            <img src="data:image/png;base64,PHONEPAY_ICON_BASE64" height="30" />
+            <img src="data:image/png;base64,GOOGLEPAY_ICON_BASE64" height="30" />
+            <img src="data:image/png;base64,PAYTM_ICON_BASE64" height="30" />
+            <img src="data:image/png;base64,AMAZONPAY_ICON_BASE64" height="30" />
+            <img src="data:image/png;base64,UPI_ICON_BASE64" height="30" />
+          </div>
+        </div>
+
+        <div class="qr-section">
+          <div>Scan to Pay ₹${grandTotal.toFixed(2)}</div>
+          <img 
+            src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=merchant@upi&pn=CafeDeliciaa&am=${grandTotal.toFixed(
+              2
+            )}&cu=INR" 
+            class="qr-code"
+          />
+        </div>
+
+        <div class="website">
+          https://menumitra.com
+        </div>
+      </body>
+    </html>
+  `;
   };
 
   const handleSettle = async () => {
@@ -706,197 +755,136 @@ export default function CreateOrderScreen() {
         throw new Error("Required data not found");
       }
 
-      // Common headers for all requests
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      };
-
-      // Prepare common order items structure with prices
+      // Format order items with proper string conversion
       const orderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id.toString(),
-        quantity: item.quantity,
-        comment: item.specialInstructions || "",
+        menu_id: item.menu_id?.toString() || "",
+        quantity: item.quantity?.toString() || "1",
+        comment: item.specialInstructions?.toString() || "",
         half_or_full: (item.portionSize || "full").toLowerCase(),
-        price:
+        price: (
           item.price ||
-          (item.portionSize === "Half" ? item.half_price : item.full_price),
-        total_price:
+          (item.portionSize === "Half" ? item.half_price : item.full_price) ||
+          0
+        ).toString(),
+        total_price: (
           (item.price ||
-            (item.portionSize === "Half" ? item.half_price : item.full_price)) *
-          item.quantity,
+            (item.portionSize === "Half" ? item.half_price : item.full_price) ||
+            0) * (item.quantity || 1)
+        ).toString(),
       }));
 
-      // Calculate total amount
+      // Calculate total with proper string conversion
       const grandTotal = calculateTotal(
         selectedItems,
         serviceChargePercentage,
         gstPercentage
-      );
+      ).toString();
+
+      // Base request body for all order types
+      const baseRequestBody = {
+        user_id: storedUserId.toString(),
+        outlet_id: storedOutletId.toString(),
+        order_items: orderItems,
+        grand_total: grandTotal,
+        service_charges_percent: serviceChargePercentage?.toString() || "0",
+        gst_percent: gstPercentage?.toString() || "0",
+        action: "settle",
+      };
 
       // For existing orders
       if (params?.orderId) {
-        setLoadingMessage("Marking order as paid...");
-        const paidResponse = await fetch(
-          `${getBaseUrl()}/update_order_status`,
-          {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              outlet_id: storedOutletId.toString(),
-              order_id: params.orderId.toString(),
-              order_status: "paid",
-              user_id: storedUserId.toString(),
-              action: "settle",
-              grand_total: grandTotal.toFixed(2),
-              service_charges_percent: serviceChargePercentage,
-              gst_percent: gstPercentage,
+        try {
+          // Step 1: Update the order first
+          setLoadingMessage("Updating order...");
+          const updateRequestBody = {
+            ...baseRequestBody,
+            order_id: params.orderId.toString(),
+            order_type: "dine-in",
+            ...(params?.tableNumber && {
+              tables: [params.tableNumber.toString()],
+              section_id: params.sectionId?.toString() || "",
             }),
-          }
-        );
+          };
 
-        const paidResult = await paidResponse.json();
-        console.log("Paid Result:", paidResult); // Debug log
-
-        if (paidResult.st !== 1) {
-          throw new Error(paidResult.msg || "Failed to mark as paid");
-        }
-
-        // Clear states and navigate
-        setSelectedItems([]);
-        setSearchQuery("");
-        setOrderDetails({});
-        setServiceCharges(0);
-        setGstAmount(0);
-        setDiscountAmount(0);
-
-        toast.show({
-          description: "Order settled successfully",
-          status: "success",
-          duration: 2000,
-        });
-
-        router.replace({
-          pathname: "/(tabs)/orders",
-          params: {
-            refresh: Date.now().toString(),
-            status: "paid",
-            fromSettle: true,
-          },
-        });
-        return;
-      } else if (params?.isSpecialOrder) {
-        setLoadingMessage("Creating special order...");
-        const createPayload = {
-          captain_id: storedCaptainId.toString(),
-          outlet_id: storedOutletId.toString(),
-          user_id: storedUserId.toString(),
-          order_type: params.orderType.toLowerCase(),
-          order_items: orderItems,
-          action: "settle",
-          grand_total: grandTotal.toFixed(2),
-          service_charges_percent: serviceChargePercentage,
-          gst_percent: gstPercentage,
-        };
-
-        const createResponse = await fetch(`${getBaseUrl()}/create_order`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(createPayload),
-        });
-
-        const createResult = await createResponse.json();
-        console.log("Create Result:", createResult); // Debug log
-
-        if (createResult.st !== 1) {
-          throw new Error(createResult.msg || "Failed to create order");
-        }
-
-        // Mark as paid with the same headers
-        setLoadingMessage("Marking order as paid...");
-        const paidPayload = {
-          outlet_id: storedOutletId.toString(),
-          order_id: createResult.order_id.toString(),
-          order_status: "paid",
-          user_id: storedUserId.toString(),
-          action: "settle",
-          grand_total: grandTotal.toFixed(2),
-          service_charges_percent: serviceChargePercentage,
-          gst_percent: gstPercentage,
-        };
-
-        const paidResponse = await fetch(
-          `${getBaseUrl()}/update_order_status`,
-          {
+          const updateResponse = await fetch(`${getBaseUrl()}/update_order`, {
             method: "POST",
-            headers,
-            body: JSON.stringify(paidPayload),
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify(updateRequestBody),
+          });
+
+          const updateResult = await updateResponse.json();
+          if (updateResult.st !== 1) {
+            throw new Error(updateResult.msg || "Failed to update order");
           }
-        );
 
-        const paidResult = await paidResponse.json();
-        console.log("Paid Result:", paidResult); // Debug log
+          // Step 2: Mark as paid with simplified payload
+          const settleRequestBody = {
+            outlet_id: storedOutletId.toString(),
+            order_id: params.orderId.toString(),
+            order_status: "paid",
+            user_id: storedUserId.toString(),
+          };
 
-        if (paidResult.st !== 1) {
-          throw new Error(paidResult.msg || "Failed to mark as paid");
+          console.log(
+            "Settle Request Body:",
+            JSON.stringify(settleRequestBody, null, 2)
+          );
+
+          const settleResponse = await fetch(
+            `${getBaseUrl()}/update_order_status`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify(settleRequestBody),
+            }
+          );
+
+          const settleResult = await settleResponse.json();
+          if (settleResult.st !== 1) {
+            throw new Error(settleResult.msg || "Failed to mark as paid");
+          }
+        } catch (error) {
+          throw new Error(error.message || "Failed to settle order");
         }
       } else {
-        // Handle regular table orders
-        setLoadingMessage("Creating new order...");
-        const createPayload = {
+        // For new orders (both special and regular)
+        const createRequestBody = {
+          ...baseRequestBody,
           captain_id: storedCaptainId.toString(),
-          outlet_id: storedOutletId.toString(),
-          user_id: storedUserId.toString(),
-          tables: [params.tableNumber.toString()],
-          section_id: params.sectionId.toString(),
-          order_type: "dine-in",
-          order_items: orderItems,
-          action: "settle",
-          grand_total: grandTotal.toFixed(2),
-          service_charges_percent: serviceChargePercentage,
-          gst_percent: gstPercentage,
+          order_type: params?.isSpecialOrder
+            ? (params.orderType || "").toLowerCase()
+            : "dine-in",
+          ...(params?.isSpecialOrder
+            ? { tables: [] }
+            : {
+                tables: [params.tableNumber?.toString() || ""],
+                section_id: params.sectionId?.toString() || "",
+              }),
         };
+
+        console.log(
+          "Create Request Body:",
+          JSON.stringify(createRequestBody, null, 2)
+        );
 
         const createResponse = await fetch(`${getBaseUrl()}/create_order`, {
           method: "POST",
-          headers,
-          body: JSON.stringify(createPayload),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(createRequestBody),
         });
 
         const createResult = await createResponse.json();
-        console.log("Create Result:", createResult); // Debug log
-
         if (createResult.st !== 1) {
           throw new Error(createResult.msg || "Failed to create order");
-        }
-
-        // Mark as paid with the same headers
-        setLoadingMessage("Marking order as paid...");
-        const paidPayload = {
-          outlet_id: storedOutletId.toString(),
-          order_id: createResult.order_id.toString(),
-          order_status: "paid",
-          user_id: storedUserId.toString(),
-          action: "settle",
-          grand_total: grandTotal.toFixed(2),
-          service_charges_percent: serviceChargePercentage,
-          gst_percent: gstPercentage,
-        };
-
-        const paidResponse = await fetch(
-          `${getBaseUrl()}/update_order_status`,
-          {
-            method: "POST",
-            headers,
-            body: JSON.stringify(paidPayload),
-          }
-        );
-
-        const paidResult = await paidResponse.json();
-        console.log("Paid Result:", paidResult); // Debug log
-
-        if (paidResult.st !== 1) {
-          throw new Error(paidResult.msg || "Failed to mark as paid");
         }
       }
 
@@ -909,12 +897,11 @@ export default function CreateOrderScreen() {
       setDiscountAmount(0);
 
       toast.show({
-        description: "Order created and settled successfully",
+        description: "Order settled successfully",
         status: "success",
         duration: 2000,
       });
 
-      // Navigate back to orders page
       router.replace({
         pathname: "/(tabs)/orders",
         params: {
@@ -1072,7 +1059,7 @@ export default function CreateOrderScreen() {
       serviceChargePercentage
     );
     const gst = calculateGST(selectedItems, gstPercentage);
-    return totalAfterDiscount + serviceCharges + gst;
+    return totalAfterDiscount + serviceCharges + parseFloat(gst);
   };
 
   const handleAssignWaiter = async (waiterId) => {
@@ -1163,7 +1150,7 @@ export default function CreateOrderScreen() {
               price: item.price,
               quantity: item.quantity,
               total_price: item.total_price,
-              portionSize: item.half_or_full || "full",
+              portionSize: item.half_or_full === "half" ? "Half" : "Full",
               specialInstructions: "",
             }));
 
