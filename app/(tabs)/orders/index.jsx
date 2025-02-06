@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   VStack,
@@ -409,9 +409,9 @@ const OrdersScreen = () => {
   const [orderStatus, setOrderStatus] = useState("all");
   const [isAscending, setIsAscending] = useState(false);
   const [orderType, setOrderType] = useState("all");
-  const [filteredOrders, setFilteredOrders] = useState([]);
   const [orderTimers, setOrderTimers] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState(new Date());
   const [date, setDate] = useState(() => {
     const today = new Date();
     return formatDateString(today);
@@ -422,11 +422,27 @@ const OrdersScreen = () => {
   const onDateChange = (event, selectedDate) => {
     setShowPicker(false);
     if (selectedDate) {
+      setPickerDate(selectedDate);
       const formattedDate = formatDateString(selectedDate);
       console.log("Selected and formatted date:", formattedDate);
       setDate(formattedDate);
       fetchOrders(true);
     }
+  };
+
+  const handleOpenPicker = () => {
+    try {
+      const [day, month, year] = date.split(" ");
+      const monthIndex = new Date(`${month} 1, 2000`).getMonth();
+      const dateObj = new Date(year, monthIndex, parseInt(day));
+
+      if (!isNaN(dateObj.getTime())) {
+        setPickerDate(dateObj);
+      }
+    } catch (error) {
+      console.error("Error parsing date:", error);
+    }
+    setShowPicker(true);
   };
 
   const getStatusColor = (status) => {
@@ -445,6 +461,7 @@ const OrdersScreen = () => {
   };
 
   const fetchOrders = async (isSilentRefresh = false) => {
+    console.log("Fetching orders for date:", date); // Debug log
     if (!isSilentRefresh) setIsLoading(true);
 
     try {
@@ -458,28 +475,31 @@ const OrdersScreen = () => {
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          outlet_id: restaurantId || "1",
+          outlet_id: restaurantId,
         }),
       });
 
       const data = await response.json();
 
       if (data.st === 1 && data.lists) {
-        const filteredByDate = data.lists.filter(
+        // Store all orders but filter display based on selected date
+        setOrders(data.lists);
+
+        // Filter orders for timers based on selected date
+        const currentDateOrders = data.lists.find(
           (section) => section.date === date
         );
-        setOrders(filteredByDate);
 
         const newTimers = {};
-        filteredByDate.forEach((section) => {
-          section.data.forEach((order) => {
+        if (currentDateOrders) {
+          currentDateOrders.data.forEach((order) => {
             if (order.order_status?.toLowerCase() === "placed") {
               newTimers[order.order_number] = calculateOrderTimer(
                 order.datetime
               );
             }
           });
-        });
+        }
         setOrderTimers(newTimers);
       }
     } catch (error) {
@@ -492,17 +512,14 @@ const OrdersScreen = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
-
-  useEffect(() => {
-    fetchOrders();
 
     const refreshInterval = setInterval(() => {
+      console.log("Auto-refreshing orders for date:", date); // Debug log
       fetchOrders(true);
     }, 60000);
 
     return () => clearInterval(refreshInterval);
-  }, [date]);
+  }, [date]); // Keep date in dependencies to re-fetch when date changes
 
   const handleTimerEnd = useCallback(async (orderId) => {
     try {
@@ -523,34 +540,49 @@ const OrdersScreen = () => {
     }
   }, []);
 
-  const processOrders = useCallback(
-    (data) => {
-      if (!data || !data.lists) return [];
+  // Update the filtered orders calculation
+  const filteredOrders = useMemo(() => {
+    if (!orders || !orders.length) return [];
 
-      const dateSection = data.lists.find((section) => {
-        return section.date === date;
-      });
+    // First filter by selected date
+    const dateSection = orders.find((section) => section.date === date);
+    if (!dateSection) return [];
 
-      if (dateSection && dateSection.data) {
-        return [
-          {
-            date: dateSection.date,
-            data: dateSection.data,
-          },
-        ];
-      }
-
-      return [];
-    },
-    [date]
-  );
-
-  useEffect(() => {
-    if (orders) {
-      const filteredOrders = processOrders(orders);
-      setFilteredOrders(filteredOrders);
-    }
-  }, [orders, date, processOrders]);
+    // Create a section with the selected date
+    return [
+      {
+        date: date,
+        data: dateSection.data
+          .filter((order) => {
+            // Then apply status filter
+            if (orderStatus !== "all") {
+              return (
+                order.order_status?.toLowerCase() === orderStatus.toLowerCase()
+              );
+            }
+            return true;
+          })
+          .filter((order) => {
+            // Then apply order type filter
+            if (orderType !== "all") {
+              return (
+                order.order_type?.toLowerCase() === orderType.toLowerCase()
+              );
+            }
+            return true;
+          })
+          .filter((order) => {
+            // Then apply search filter
+            if (searchQuery) {
+              return order.order_number
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase());
+            }
+            return true;
+          }),
+      },
+    ];
+  }, [orders, date, orderStatus, orderType, searchQuery]);
 
   const handleDateChange = (event, date) => {
     if (date) {
@@ -565,64 +597,6 @@ const OrdersScreen = () => {
       setShowDatePicker(false);
     }
   };
-
-  useEffect(() => {
-    if (!orders.length) return;
-
-    let result = [...orders];
-
-    result = orders.map((section) => ({
-      date: section.date,
-      data: section.data.filter((order) => {
-        const statusMatch =
-          orderStatus === "all" ||
-          order.order_status?.toLowerCase() === orderStatus.toLowerCase();
-
-        const typeMatch =
-          orderType === "all" ||
-          order.order_type?.toLowerCase() === orderType.toLowerCase();
-
-        const searchLower = searchQuery.toLowerCase().trim();
-        const searchMatch =
-          !searchQuery ||
-          order.order_number?.toLowerCase().includes(searchLower) ||
-          (Array.isArray(order.table_number) &&
-            order.table_number.some(
-              (table) =>
-                table.toString().toLowerCase().includes(searchLower) ||
-                `table ${table}`.toLowerCase().includes(searchLower) ||
-                `t${table}`.toLowerCase().includes(searchLower)
-            ));
-
-        return statusMatch && typeMatch && searchMatch;
-      }),
-    }));
-
-    result = result.map((section) => ({
-      date: section.date,
-      data: section.data.sort((a, b) => {
-        if (sortBy === "date") {
-          const timeA = new Date(`${section.date} ${a.time}`);
-          const timeB = new Date(`${section.date} ${b.time}`);
-          return isAscending ? timeA - timeB : timeB - timeA;
-        } else if (sortBy === "amount") {
-          const amountA = parseFloat(a.grand_total) || 0;
-          const amountB = parseFloat(b.grand_total) || 0;
-          return isAscending ? amountA - amountB : amountB - amountA;
-        }
-        return 0;
-      }),
-    }));
-
-    result = result.filter((section) => section.data.length > 0);
-
-    setFilteredOrders(result);
-  }, [orders, orderStatus, orderType, searchQuery, sortBy, isAscending]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchOrders();
-  }, []);
 
   const handleOrderPress = useCallback(
     (orderData) => {
@@ -767,11 +741,7 @@ const OrdersScreen = () => {
           borderColor="coolGray.300"
           borderRadius="md"
           justifyContent="center"
-          onPress={() => {
-            if (Platform.OS === "android") {
-              setShowDatePicker(true);
-            }
-          }}
+          onPress={handleOpenPicker}
         >
           <HStack px={2} alignItems="center" space={1}>
             <MaterialIcons
@@ -786,11 +756,12 @@ const OrdersScreen = () => {
         </Pressable>
       </HStack>
 
-      {showDatePicker && (
+      {showPicker && (
         <DateTimePicker
-          value={new Date()}
+          value={pickerDate}
           mode="date"
-          onChange={handleDateChange}
+          display="default"
+          onChange={onDateChange}
         />
       )}
 
@@ -798,7 +769,7 @@ const OrdersScreen = () => {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={onRefresh}
+            onRefresh={fetchOrders}
             colors={["#0891b2"]}
             tintColor="#0891b2"
           />
