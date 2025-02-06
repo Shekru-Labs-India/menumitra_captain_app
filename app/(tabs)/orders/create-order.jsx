@@ -525,11 +525,17 @@ export default function CreateOrderScreen() {
           <td style="width: 35%; text-align: left;">${item.menu_name}</td>
           <td style="width: 15%; text-align: center;">${item.quantity}</td>
           <td style="width: 15%; text-align: right;">₹${
-            item.portionSize === "Half" ? item.half_price : item.full_price
+            // For existing orders, use price from API response
+            item.price ||
+            (item.portionSize === "Half" ? item.half_price : item.full_price) ||
+            0
           }</td>
           <td style="width: 20%; text-align: right;">₹${(
-            (item.portionSize === "Half" ? item.half_price : item.full_price) *
-            item.quantity
+            (item.price ||
+              (item.portionSize === "Half"
+                ? item.half_price
+                : item.full_price) ||
+              0) * item.quantity
           ).toFixed(2)}</td>
           <td style="width: 15%; text-align: left;">${
             item.specialInstructions || "-"
@@ -682,21 +688,51 @@ export default function CreateOrderScreen() {
       setIsProcessing(true);
       setLoadingMessage("Processing order...");
 
-      const storedCaptainId = await AsyncStorage.getItem("captain_id");
-      const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      const storedUserId = await AsyncStorage.getItem("user_id");
+      // Get all required stored values
+      const [storedCaptainId, storedOutletId, storedUserId, accessToken] =
+        await Promise.all([
+          AsyncStorage.getItem("captain_id"),
+          AsyncStorage.getItem("outlet_id"),
+          AsyncStorage.getItem("user_id"),
+          AsyncStorage.getItem("access"),
+        ]);
 
-      if (!storedOutletId || !storedCaptainId || !storedUserId) {
+      if (
+        !storedOutletId ||
+        !storedCaptainId ||
+        !storedUserId ||
+        !accessToken
+      ) {
         throw new Error("Required data not found");
       }
 
-      // Prepare common order items structure
+      // Common headers for all requests
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      };
+
+      // Prepare common order items structure with prices
       const orderItems = selectedItems.map((item) => ({
         menu_id: item.menu_id.toString(),
         quantity: item.quantity,
         comment: item.specialInstructions || "",
         half_or_full: (item.portionSize || "full").toLowerCase(),
+        price:
+          item.price ||
+          (item.portionSize === "Half" ? item.half_price : item.full_price),
+        total_price:
+          (item.price ||
+            (item.portionSize === "Half" ? item.half_price : item.full_price)) *
+          item.quantity,
       }));
+
+      // Calculate total amount
+      const grandTotal = calculateTotal(
+        selectedItems,
+        serviceChargePercentage,
+        gstPercentage
+      );
 
       // For existing orders
       if (params?.orderId) {
@@ -705,18 +741,23 @@ export default function CreateOrderScreen() {
           `${getBaseUrl()}/update_order_status`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({
               outlet_id: storedOutletId.toString(),
               order_id: params.orderId.toString(),
               order_status: "paid",
               user_id: storedUserId.toString(),
               action: "settle",
+              grand_total: grandTotal.toFixed(2),
+              service_charges_percent: serviceChargePercentage,
+              gst_percent: gstPercentage,
             }),
           }
         );
 
         const paidResult = await paidResponse.json();
+        console.log("Paid Result:", paidResult); // Debug log
+
         if (paidResult.st !== 1) {
           throw new Error(paidResult.msg || "Failed to mark as paid");
         }
@@ -744,10 +785,7 @@ export default function CreateOrderScreen() {
           },
         });
         return;
-      }
-
-      // Handle special orders (counter, parcel, drive-through)
-      if (params?.isSpecialOrder) {
+      } else if (params?.isSpecialOrder) {
         setLoadingMessage("Creating special order...");
         const createPayload = {
           captain_id: storedCaptainId.toString(),
@@ -756,21 +794,25 @@ export default function CreateOrderScreen() {
           order_type: params.orderType.toLowerCase(),
           order_items: orderItems,
           action: "settle",
+          grand_total: grandTotal.toFixed(2),
+          service_charges_percent: serviceChargePercentage,
+          gst_percent: gstPercentage,
         };
 
-        // Create the order
         const createResponse = await fetch(`${getBaseUrl()}/create_order`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(createPayload),
         });
 
         const createResult = await createResponse.json();
+        console.log("Create Result:", createResult); // Debug log
+
         if (createResult.st !== 1) {
           throw new Error(createResult.msg || "Failed to create order");
         }
 
-        // Immediately mark as paid
+        // Mark as paid with the same headers
         setLoadingMessage("Marking order as paid...");
         const paidPayload = {
           outlet_id: storedOutletId.toString(),
@@ -778,18 +820,23 @@ export default function CreateOrderScreen() {
           order_status: "paid",
           user_id: storedUserId.toString(),
           action: "settle",
+          grand_total: grandTotal.toFixed(2),
+          service_charges_percent: serviceChargePercentage,
+          gst_percent: gstPercentage,
         };
 
         const paidResponse = await fetch(
           `${getBaseUrl()}/update_order_status`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify(paidPayload),
           }
         );
 
         const paidResult = await paidResponse.json();
+        console.log("Paid Result:", paidResult); // Debug log
+
         if (paidResult.st !== 1) {
           throw new Error(paidResult.msg || "Failed to mark as paid");
         }
@@ -805,20 +852,25 @@ export default function CreateOrderScreen() {
           order_type: "dine-in",
           order_items: orderItems,
           action: "settle",
+          grand_total: grandTotal.toFixed(2),
+          service_charges_percent: serviceChargePercentage,
+          gst_percent: gstPercentage,
         };
 
         const createResponse = await fetch(`${getBaseUrl()}/create_order`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(createPayload),
         });
 
         const createResult = await createResponse.json();
+        console.log("Create Result:", createResult); // Debug log
+
         if (createResult.st !== 1) {
           throw new Error(createResult.msg || "Failed to create order");
         }
 
-        // Mark as paid
+        // Mark as paid with the same headers
         setLoadingMessage("Marking order as paid...");
         const paidPayload = {
           outlet_id: storedOutletId.toString(),
@@ -826,18 +878,23 @@ export default function CreateOrderScreen() {
           order_status: "paid",
           user_id: storedUserId.toString(),
           action: "settle",
+          grand_total: grandTotal.toFixed(2),
+          service_charges_percent: serviceChargePercentage,
+          gst_percent: gstPercentage,
         };
 
         const paidResponse = await fetch(
           `${getBaseUrl()}/update_order_status`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify(paidPayload),
           }
         );
 
         const paidResult = await paidResponse.json();
+        console.log("Paid Result:", paidResult); // Debug log
+
         if (paidResult.st !== 1) {
           throw new Error(paidResult.msg || "Failed to mark as paid");
         }

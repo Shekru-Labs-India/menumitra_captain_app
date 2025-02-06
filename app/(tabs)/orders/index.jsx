@@ -191,11 +191,32 @@ const OrderTimer = ({ orderTime, onEnd, orderId }) => {
 };
 
 const OrderCard = ({ order, onPress, onTimerEnd }) => {
+  const [isPressed, setIsPressed] = useState(false);
+
+  const handlePress = useCallback(() => {
+    const essentialData = {
+      orderId: order.order_id,
+      orderNumber: order.order_number,
+      orderStatus: order.order_status,
+      orderType: order.order_type,
+      tableNumber: order.table_number,
+      sectionName: order.section_name,
+      totalAmount: order.grand_total,
+      date: order.date,
+      time: order.time,
+    };
+    onPress(essentialData);
+  }, [order, onPress]);
+
   return (
-    <Pressable onPress={() => onPress(order)}>
+    <Pressable
+      onPress={handlePress}
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
+    >
       <Box
         bg="white"
-        shadow={2}
+        shadow={isPressed ? 4 : 2}
         rounded="lg"
         m={2}
         p={4}
@@ -213,6 +234,10 @@ const OrderCard = ({ order, onPress, onTimerEnd }) => {
             ? `${ORDER_STATUS_COLORS.CANCELLED}.500`
             : `${ORDER_STATUS_COLORS.DEFAULT}.500`
         }
+        style={{
+          transform: [{ scale: isPressed ? 0.98 : 1 }],
+          transition: "all 0.2s",
+        }}
       >
         <HStack justifyContent="space-between" alignItems="center" mb={3}>
           <HStack space={2} alignItems="center">
@@ -347,6 +372,32 @@ const OrderCard = ({ order, onPress, onTimerEnd }) => {
   );
 };
 
+// Define formatDate as a utility function outside the component
+const formatDateString = (inputDate) => {
+  try {
+    if (!inputDate) return "";
+
+    const date = new Date(inputDate);
+    if (isNaN(date.getTime())) {
+      // If it's already in the API format (e.g. "06 Feb 2024"), return as is
+      if (typeof inputDate === "string") {
+        return inputDate;
+      }
+      return "";
+    }
+
+    // Format to match API format exactly: "DD MMM YYYY"
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = date.toLocaleString("en-US", { month: "long" }).slice(0, 3);
+    const year = date.getFullYear();
+
+    return `${day} ${month} ${year}`;
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return "";
+  }
+};
+
 const OrdersScreen = () => {
   const router = useRouter();
   const toast = useToast();
@@ -361,6 +412,22 @@ const OrdersScreen = () => {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [orderTimers, setOrderTimers] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [date, setDate] = useState(() => {
+    const today = new Date();
+    return formatDateString(today);
+  });
+
+  const [showPicker, setShowPicker] = useState(false);
+
+  const onDateChange = (event, selectedDate) => {
+    setShowPicker(false);
+    if (selectedDate) {
+      const formattedDate = formatDateString(selectedDate);
+      console.log("Selected and formatted date:", formattedDate);
+      setDate(formattedDate);
+      fetchOrders(true);
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -396,14 +463,15 @@ const OrdersScreen = () => {
       });
 
       const data = await response.json();
-      console.log("Orders response:", data);
 
       if (data.st === 1 && data.lists) {
-        setOrders(data.lists);
+        const filteredByDate = data.lists.filter(
+          (section) => section.date === date
+        );
+        setOrders(filteredByDate);
 
-        // Initialize timers for placed orders
         const newTimers = {};
-        data.lists.forEach((section) => {
+        filteredByDate.forEach((section) => {
           section.data.forEach((order) => {
             if (order.order_status?.toLowerCase() === "placed") {
               newTimers[order.order_number] = calculateOrderTimer(
@@ -426,22 +494,18 @@ const OrdersScreen = () => {
     fetchOrders();
   }, []);
 
-  // Auto-refresh orders when timer ends or every minute
   useEffect(() => {
-    fetchOrders(); // Initial fetch
+    fetchOrders();
 
-    // Refresh every minute
     const refreshInterval = setInterval(() => {
-      fetchOrders(true); // Silent refresh
-    }, 60000); // 60 seconds
+      fetchOrders(true);
+    }, 60000);
 
     return () => clearInterval(refreshInterval);
-  }, []);
+  }, [date]);
 
-  // Add a function to handle timer end
   const handleTimerEnd = useCallback(async (orderId) => {
     try {
-      // Update the order status in the local state
       setOrders((prevOrders) =>
         prevOrders.map((dateGroup) => ({
           ...dateGroup,
@@ -453,34 +517,71 @@ const OrdersScreen = () => {
         }))
       );
 
-      // Fetch fresh data from server
       fetchOrders(true);
     } catch (error) {
       console.error("Error handling timer end:", error);
     }
   }, []);
 
-  // Filter and sort orders whenever the dependencies change
+  const processOrders = useCallback(
+    (data) => {
+      if (!data || !data.lists) return [];
+
+      const dateSection = data.lists.find((section) => {
+        return section.date === date;
+      });
+
+      if (dateSection && dateSection.data) {
+        return [
+          {
+            date: dateSection.date,
+            data: dateSection.data,
+          },
+        ];
+      }
+
+      return [];
+    },
+    [date]
+  );
+
+  useEffect(() => {
+    if (orders) {
+      const filteredOrders = processOrders(orders);
+      setFilteredOrders(filteredOrders);
+    }
+  }, [orders, date, processOrders]);
+
+  const handleDateChange = (event, date) => {
+    if (date) {
+      const formattedDate = date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+      setDate(formattedDate);
+    }
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+  };
+
   useEffect(() => {
     if (!orders.length) return;
 
     let result = [...orders];
 
-    // Apply filters to each section's data
     result = orders.map((section) => ({
       date: section.date,
       data: section.data.filter((order) => {
-        // Status filter
         const statusMatch =
           orderStatus === "all" ||
           order.order_status?.toLowerCase() === orderStatus.toLowerCase();
 
-        // Type filter
         const typeMatch =
           orderType === "all" ||
           order.order_type?.toLowerCase() === orderType.toLowerCase();
 
-        // Search filter
         const searchLower = searchQuery.toLowerCase().trim();
         const searchMatch =
           !searchQuery ||
@@ -497,7 +598,6 @@ const OrdersScreen = () => {
       }),
     }));
 
-    // Sort the data within each section
     result = result.map((section) => ({
       date: section.date,
       data: section.data.sort((a, b) => {
@@ -514,7 +614,6 @@ const OrdersScreen = () => {
       }),
     }));
 
-    // Remove empty sections
     result = result.filter((section) => section.data.length > 0);
 
     setFilteredOrders(result);
@@ -525,17 +624,28 @@ const OrdersScreen = () => {
     fetchOrders();
   }, []);
 
-  const renderOrderItem = ({ item }) => (
-    <OrderCard
-      order={item}
-      onPress={() => {
-        router.push({
-          pathname: "/orders/order-details",
-          params: { id: item.order_number },
-        });
-      }}
-      onTimerEnd={handleTimerEnd}
-    />
+  const handleOrderPress = useCallback(
+    (orderData) => {
+      router.push({
+        pathname: "/orders/order-details",
+        params: {
+          id: orderData.orderNumber,
+          initialData: JSON.stringify(orderData),
+        },
+      });
+    },
+    [router]
+  );
+
+  const renderOrderItem = useCallback(
+    ({ item }) => (
+      <OrderCard
+        order={item}
+        onPress={handleOrderPress}
+        onTimerEnd={handleTimerEnd}
+      />
+    ),
+    [handleOrderPress, handleTimerEnd]
   );
 
   const renderSectionHeader = ({ section }) => (
@@ -549,7 +659,7 @@ const OrdersScreen = () => {
   const handleCallWaiter = async () => {
     try {
       const result = await NotificationService.callWaiter({
-        tableNumber: "1", // Default table number
+        tableNumber: "1",
       });
 
       if (result.success) {
@@ -587,7 +697,6 @@ const OrdersScreen = () => {
     <Box flex={1} bg="gray.50" safeArea>
       <Header title="Orders" />
 
-      {/* Search and Filters Row */}
       <HStack
         px={4}
         py={3}
@@ -596,7 +705,6 @@ const OrdersScreen = () => {
         borderBottomWidth={1}
         borderBottomColor="coolGray.200"
       >
-        {/* Search Bar */}
         <Input
           flex={1}
           h="36px"
@@ -612,13 +720,9 @@ const OrdersScreen = () => {
             </Box>
           }
         />
-
-        {/* Only Sort Direction Toggle */}
       </HStack>
 
-      {/* Filters Row */}
       <HStack px={4} py={2} space={3}>
-        {/* Status Filter */}
         <Select
           flex={1}
           selectedValue={orderStatus}
@@ -638,7 +742,6 @@ const OrdersScreen = () => {
           <Select.Item label="Cancelled" value="cancelled" />
         </Select>
 
-        {/* Order Type Filter */}
         <Select
           flex={1}
           selectedValue={orderType}
@@ -657,7 +760,6 @@ const OrdersScreen = () => {
           <Select.Item label="Counter" value="counter" />
         </Select>
 
-        {/* Date Picker */}
         <Pressable
           flex={1}
           h="36px"
@@ -667,7 +769,6 @@ const OrdersScreen = () => {
           justifyContent="center"
           onPress={() => {
             if (Platform.OS === "android") {
-              // Show date picker for Android
               setShowDatePicker(true);
             }
           }}
@@ -679,69 +780,43 @@ const OrdersScreen = () => {
               color="coolGray.600"
             />
             <Text fontSize="sm" color="coolGray.600">
-              Select Date
+              {date}
             </Text>
           </HStack>
         </Pressable>
       </HStack>
 
-      {/* Render DateTimePicker when showDatePicker is true */}
       {showDatePicker && (
         <DateTimePicker
           value={new Date()}
           mode="date"
-          onChange={(event, selectedDate) => {
-            setShowDatePicker(false); // Hide date picker
-            if (event.type !== "dismissed" && selectedDate) {
-              const formattedDate = selectedDate.toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              });
-              const dateOrders = orders.filter(
-                (order) => order.date === formattedDate
-              );
-              setFilteredOrders(dateOrders);
-            }
-          }}
+          onChange={handleDateChange}
         />
       )}
 
-      {/* Orders List */}
       <SectionList
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#0891b2"]} // This matches your app's primary color
+            colors={["#0891b2"]}
             tintColor="#0891b2"
           />
         }
         sections={filteredOrders}
         keyExtractor={(item) => item.order_id?.toString()}
-        renderItem={({ item }) => (
-          <OrderCard
-            order={item}
-            onPress={() => {
-              router.push({
-                pathname: "/orders/order-details",
-                params: { id: item.order_number },
-              });
-            }}
-            onTimerEnd={handleTimerEnd}
-          />
-        )}
-        renderSectionHeader={({ section }) => (
-          <Box bg="gray.100" px={4} py={2}>
-            <Text fontWeight="600">{section.date}</Text>
-          </Box>
-        )}
+        renderItem={renderOrderItem}
+        renderSectionHeader={renderSectionHeader}
         ListEmptyComponent={
           <EmptyStateAnimation
             orderStatus={orderStatus}
             orderType={orderType}
           />
         }
+        windowSize={5}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        removeClippedSubviews={true}
       />
     </Box>
   );
