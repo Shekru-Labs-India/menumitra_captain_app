@@ -101,8 +101,16 @@ export const setupNotifications = async () => {
       });
     }
 
-    console.log("Notification setup completed successfully");
-    return true;
+    // Get the actual token instead of returning true
+    const token = await Notifications.getExpoPushTokenAsync({
+      projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a",
+    });
+
+    console.log(
+      "Notification setup completed successfully with token:",
+      token.data
+    );
+    return token.data; // Return the actual token string
   } catch (error) {
     console.error("Notification setup error:", error);
     return null;

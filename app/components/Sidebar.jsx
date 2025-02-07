@@ -8,6 +8,7 @@ import {
   Linking,
   Animated,
   Dimensions,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -15,15 +16,20 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useVersion } from "../../context/VersionContext";
 import { useAuth } from "../../context/AuthContext";
 import { Box, VStack, HStack, Text, Pressable, Image, Icon } from "native-base";
+import { NotificationService } from "../../services/NotificationService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useToast } from "native-base";
+import * as Notifications from "expo-notifications";
 
 const SIDEBAR_WIDTH = 300;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-export default function Sidebar({ isOpen, onClose, onCallWaiter }) {
+export default function Sidebar({ isOpen, onClose }) {
   const { version, appName } = useVersion();
-  const { logout } = useAuth();
+  const { logout, user, accessToken } = useAuth();
   const slideAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const toast = useToast();
 
   useEffect(() => {
     if (isOpen) {
@@ -84,6 +90,60 @@ export default function Sidebar({ isOpen, onClose, onCallWaiter }) {
     onClose();
   };
 
+  const onCallWaiter = async () => {
+    try {
+      // Get outlet_id from AsyncStorage
+      const outletData = await AsyncStorage.getItem("selectedOutlet");
+      const outlet = outletData ? JSON.parse(outletData) : null;
+      const userId = await AsyncStorage.getItem("userId");
+
+      if (!outlet?.id || !userId) {
+        Alert.alert("Error", "Missing outlet or user information");
+        return;
+      }
+
+      const response = await NotificationService.callWaiter({
+        outletId: outlet.id,
+        userId: parseInt(userId),
+        accessToken,
+      });
+
+      if (response.success) {
+        Alert.alert("Success", "Waiter has been called");
+      } else {
+        Alert.alert("Error", response.message || "Failed to call waiter");
+      }
+    } catch (error) {
+      console.error("Error calling waiter:", error);
+      Alert.alert("Error", "Something went wrong while calling waiter");
+    }
+  };
+
+  const sendTestNotification = async () => {
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Test Notification",
+          body:
+            "This is a test notification " + new Date().toLocaleTimeString(),
+        },
+        trigger: null,
+      });
+      toast.show({
+        description: "Test notification sent",
+        status: "success",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Error sending test notification:", error);
+      toast.show({
+        description: "Failed to send test notification",
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -131,13 +191,58 @@ export default function Sidebar({ isOpen, onClose, onCallWaiter }) {
 
           <Pressable
             style={[styles.sidebarItem, { marginTop: "auto" }]}
-            onPress={onCallWaiter}
+            onPress={async () => {
+              try {
+                const outletId = await AsyncStorage.getItem("outlet_id");
+                const userId = await AsyncStorage.getItem("user_id");
+                const accessToken = await AsyncStorage.getItem("access");
+
+                const response = await NotificationService.callWaiter({
+                  outletId: parseInt(outletId),
+                  userId: parseInt(userId),
+                  accessToken: accessToken,
+                });
+
+                if (response.success) {
+                  toast.show({
+                    description: "Waiter has been called successfully",
+                    status: "success",
+                    duration: 3000,
+                    placement: "top",
+                  });
+                } else {
+                  toast.show({
+                    description: response.message || "Failed to call waiter",
+                    status: "error",
+                    duration: 3000,
+                    placement: "top",
+                  });
+                }
+              } catch (error) {
+                toast.show({
+                  description: "Something went wrong while calling waiter",
+                  status: "error",
+                  duration: 3000,
+                  placement: "top",
+                });
+              }
+            }}
           >
             <MaterialIcons name="room-service" size={24} color="#333" />
             <Text style={styles.sidebarText} numberOfLines={1}>
               Call Waiter
             </Text>
           </Pressable>
+
+          {/* <Pressable
+            style={[styles.sidebarItem]}
+            onPress={sendTestNotification}
+          >
+            <MaterialIcons name="notifications" size={24} color="#333" />
+            <Text style={styles.sidebarText} numberOfLines={1}>
+              Test Notification
+            </Text>
+          </Pressable> */}
         </VStack>
 
         <Box borderTopWidth={1} borderTopColor="coolGray.200" p={4}>
