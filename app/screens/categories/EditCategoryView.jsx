@@ -104,6 +104,25 @@ export default function EditCategoryView() {
     }
   };
 
+  const handleCategoryNameChange = (text) => {
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
+    setCategoryDetails((prev) => ({ ...prev, category_name: sanitizedText }));
+
+    if (!sanitizedText.trim()) {
+      setErrors((prev) => ({
+        ...prev,
+        category_name: "Category name is required",
+      }));
+    } else if (sanitizedText.length < 2) {
+      setErrors((prev) => ({
+        ...prev,
+        category_name: "Category name must be at least 2 characters",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, category_name: undefined }));
+    }
+  };
+
   const validate = () => {
     const newErrors = {};
     if (!categoryDetails.category_name) {
@@ -254,12 +273,7 @@ export default function EditCategoryView() {
                 <FormControl.Label>Category Name</FormControl.Label>
                 <Input
                   value={categoryDetails.category_name}
-                  onChangeText={(value) =>
-                    setCategoryDetails((prev) => ({
-                      ...prev,
-                      category_name: value,
-                    }))
-                  }
+                  onChangeText={handleCategoryNameChange}
                   placeholder="Enter category name"
                 />
                 <FormControl.ErrorMessage>

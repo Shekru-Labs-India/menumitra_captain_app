@@ -26,6 +26,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Center,
+  Actionsheet,
 } from "native-base";
 
 import { MaterialIcons } from "@expo/vector-icons";
@@ -158,6 +159,16 @@ export default function CreateOrderScreen() {
 
   // Add loading state at the top of your component
   const [isLoading, setIsLoading] = useState(false);
+
+  // Add this at component level, outside of the render
+  const selectRef = React.useRef();
+
+  // Add this state at component level
+  const [openSelectId, setOpenSelectId] = useState(null);
+
+  // Add this state at component level
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   // Update the useEffect for session handling
 
@@ -612,9 +623,13 @@ export default function CreateOrderScreen() {
           }
           .payment-icons {
             display: flex;
-            justify-content: center;
-            gap: 10px;
+            justify-content: space-around;
             margin: 10px 0;
+          }
+          .payment-icons span {
+            font-size: 12px;
+            color: #666;
+            padding: 4px 8px;
           }
           .qr-section {
             text-align: center;
@@ -675,10 +690,10 @@ export default function CreateOrderScreen() {
             <span>Subtotal:</span>
             <span>₹${subtotal.toFixed(2)}</span>
           </div>
-          <div class="total-row">
-            <span>Discount(0%):</span>
-            <span>-₹${discount.toFixed(2)}</span>
-          </div>
+         <div class="total-row">
+  <span>Discount(${calculateTotalDiscountPercentage(selectedItems)}%):</span>
+  <span>-₹${discount.toFixed(2)}</span>
+</div>
           <div class="total-row">
             <span>Service Charges(${serviceChargePercentage}%):</span>
             <span>+₹${serviceChargesAmount.toFixed(2)}</span>
@@ -698,11 +713,11 @@ export default function CreateOrderScreen() {
 
         <div class="payment-methods">
           <div class="payment-icons">
-            <img src="data:image/png;base64,PHONEPAY_ICON_BASE64" height="30" />
-            <img src="data:image/png;base64,GOOGLEPAY_ICON_BASE64" height="30" />
-            <img src="data:image/png;base64,PAYTM_ICON_BASE64" height="30" />
-            <img src="data:image/png;base64,AMAZONPAY_ICON_BASE64" height="30" />
-            <img src="data:image/png;base64,UPI_ICON_BASE64" height="30" />
+            <span>PhonePe</span>
+            <span>Google Pay</span>
+            <span>Paytm</span>
+            
+            <span>UPI</span>
           </div>
         </div>
 
@@ -1705,6 +1720,10 @@ export default function CreateOrderScreen() {
                       rounded="lg"
                       borderWidth={1}
                       borderColor="coolGray.200"
+                      onPress={() => {
+                        setSelectedItem(item);
+                        setShowActionSheet(true);
+                      }}
                     >
                       <HStack space={2} alignItems="center">
                         <Box size={16} rounded="md" overflow="hidden">
@@ -1748,40 +1767,6 @@ export default function CreateOrderScreen() {
                               Full: ₹{Number(item.full_price)}
                             </Text>
                           </HStack>
-                        </VStack>
-
-                        <VStack alignItems="flex-end" space={2}>
-                          <Select
-                            selectedValue="Full"
-                            minWidth="100"
-                            accessibilityLabel="Choose portion"
-                            placeholder="Choose portion"
-                            onValueChange={(value) =>
-                              handleAddItem(item, value)
-                            }
-                            _selectedItem={{
-                              endIcon: (
-                                <MaterialIcons
-                                  name="check"
-                                  size={16}
-                                  color="gray"
-                                />
-                              ),
-                            }}
-                            dropdownIcon={
-                              <MaterialIcons
-                                name="arrow-drop-down"
-                                size={24}
-                                color="gray"
-                              />
-                            }
-                            bg="white"
-                          >
-                            <Select.Item label="Full" value="Full" />
-                            {Number(item.half_price) > 0 && (
-                              <Select.Item label="Half" value="Half" />
-                            )}
-                          </Select>
                         </VStack>
                       </HStack>
                     </Pressable>
@@ -2125,12 +2110,12 @@ export default function CreateOrderScreen() {
                     rounded="lg"
                     onPress={handleHold}
                     _pressed={{ bg: "gray.600" }}
-                    isDisabled={isLoading}
-                    isLoading={
-                      isLoading && loadingMessage === "Saving order..."
+                    isDisabled={
+                      loadingMessage && loadingMessage !== "Saving order..."
                     }
+                    isLoading={loadingMessage === "Saving order..."}
                   >
-                    {isLoading && loadingMessage === "Saving order..."
+                    {loadingMessage === "Saving order..."
                       ? "Saving..."
                       : "Save"}
                   </Button>
@@ -2143,14 +2128,14 @@ export default function CreateOrderScreen() {
                     }
                     onPress={handleKOT}
                     _text={{ color: "white" }}
-                    isDisabled={isLoading}
-                    isLoading={
-                      isLoading && loadingMessage === "Processing KOT..."
+                    isDisabled={
+                      loadingMessage && loadingMessage !== "Processing KOT..."
                     }
+                    isLoading={loadingMessage === "Processing KOT..."}
                   >
-                    {isLoading && loadingMessage === "Processing KOT..."
+                    {loadingMessage === "Processing KOT..."
                       ? "Processing..."
-                      : "Print "}
+                      : "Print"}
                   </Button>
                   <Button
                     flex={1}
@@ -2160,12 +2145,12 @@ export default function CreateOrderScreen() {
                     }
                     onPress={handleSettle}
                     _pressed={{ bg: "blue.600" }}
-                    isDisabled={isLoading}
-                    isLoading={
-                      isLoading && loadingMessage === "Settling order..."
+                    isDisabled={
+                      loadingMessage && loadingMessage !== "Settling order..."
                     }
+                    isLoading={loadingMessage === "Settling order..."}
                   >
-                    {isLoading && loadingMessage === "Settling order..."
+                    {loadingMessage === "Settling order..."
                       ? "Settling..."
                       : "Settle"}
                   </Button>
@@ -2196,6 +2181,32 @@ export default function CreateOrderScreen() {
           </Box>
         </Box>
       )}
+
+      <Actionsheet
+        isOpen={showActionSheet}
+        onClose={() => setShowActionSheet(false)}
+      >
+        <Actionsheet.Content>
+          <Actionsheet.Item
+            onPress={() => {
+              handleAddItem(selectedItem, "Full");
+              setShowActionSheet(false);
+            }}
+          >
+            Full
+          </Actionsheet.Item>
+          {selectedItem && Number(selectedItem.half_price) > 0 && (
+            <Actionsheet.Item
+              onPress={() => {
+                handleAddItem(selectedItem, "Half");
+                setShowActionSheet(false);
+              }}
+            >
+              Half
+            </Actionsheet.Item>
+          )}
+        </Actionsheet.Content>
+      </Actionsheet>
     </Box>
   );
 }

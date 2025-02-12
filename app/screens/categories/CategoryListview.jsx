@@ -111,13 +111,14 @@ export default function CategoryListView() {
             {item.image ? (
               <Image
                 source={{
-                  uri: `https://menusmitra.xyz${item.image}`,
+                  uri: item.image,
                 }}
                 alt={item.category_name}
                 size="sm"
                 w="70px"
                 h="70px"
                 rounded="md"
+                resizeMode="cover"
                 fallbackElement={
                   <Box
                     w="70px"

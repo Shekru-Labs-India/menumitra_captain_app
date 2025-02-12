@@ -245,7 +245,7 @@ export default function AddInventoryItemScreen() {
   const validateForm = () => {
     const newErrors = {};
 
-    // Updated name validation
+    // Required field validations
     if (!formData.name?.trim()) {
       newErrors.name = "Name is required";
     } else if (!/^[a-zA-Z\s]+$/.test(formData.name.trim())) {
@@ -254,7 +254,6 @@ export default function AddInventoryItemScreen() {
       newErrors.name = "Name must be at least 2 characters";
     }
 
-    // Required field validations
     if (!formData.supplierId) newErrors.supplierId = "Supplier is required";
     if (!formData.category_id) newErrors.category_id = "Category is required";
 
@@ -270,28 +269,27 @@ export default function AddInventoryItemScreen() {
       newErrors.unit_price = "Please enter a valid price";
     }
 
-    if (!formData.unit_of_measure)
+    if (!formData.unit_of_measure) {
       newErrors.unit_of_measure = "Unit of measure is required";
-    if (!formData.reorder_level) {
-      newErrors.reorder_level = "Reorder level is required";
-    } else if (
-      isNaN(formData.reorder_level) ||
-      Number(formData.reorder_level) < 0
+    }
+
+    // Optional field validations (only validate if value is provided)
+    if (
+      formData.reorder_level &&
+      (isNaN(formData.reorder_level) || Number(formData.reorder_level) < 0)
     ) {
       newErrors.reorder_level = "Please enter a valid reorder level";
     }
 
-    if (!formData.brand_name) newErrors.brand_name = "Brand name is required";
+    if (formData.brand_name && formData.brand_name.length < 2) {
+      newErrors.brand_name = "Brand name must be at least 2 characters";
+    }
 
     if (!formData.tax_rate) {
       newErrors.tax_rate = "Tax rate is required";
     } else if (isNaN(formData.tax_rate) || Number(formData.tax_rate) < 0) {
       newErrors.tax_rate = "Please enter a valid tax rate";
     }
-
-    if (!formData.in_date) newErrors.in_date = "In date is required";
-    if (!formData.expiration_date)
-      newErrors.expiration_date = "Expiration date is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -492,6 +490,70 @@ export default function AddInventoryItemScreen() {
     }
   };
 
+  // Add this handler function at component level
+  const handleCategoryNameChange = (text) => {
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
+    setNewCategoryName(sanitizedText);
+  };
+
+  // Add this handler function at component level
+  const handleBrandNameChange = (text) => {
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
+    setFormData((prev) => ({ ...prev, brand_name: sanitizedText }));
+
+    // Validate and show error if needed
+    if (!sanitizedText.trim()) {
+      setErrors((prev) => ({ ...prev, brand_name: "Brand name is required" }));
+    } else if (sanitizedText.length < 2) {
+      setErrors((prev) => ({
+        ...prev,
+        brand_name: "Brand name must be at least 2 characters",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, brand_name: undefined }));
+    }
+  };
+
+  // Add this handler function at component level
+  const handleUnitOfMeasureChange = (text) => {
+    // Only allow letters, no numbers or special characters
+    const sanitizedText = text.replace(/[^a-zA-Z]/g, "").toLowerCase();
+    setFormData((prev) => ({ ...prev, unit_of_measure: sanitizedText }));
+
+    // Validate and show error if needed
+    if (!sanitizedText.trim()) {
+      setErrors((prev) => ({
+        ...prev,
+        unit_of_measure: "Unit of measure is required",
+      }));
+    } else if (!isValidUnit(sanitizedText)) {
+      setErrors((prev) => ({
+        ...prev,
+        unit_of_measure: "Please enter a valid unit (kg, gm, ml, l, pieces)",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, unit_of_measure: undefined }));
+    }
+  };
+
+  // Add validation function for units
+  const isValidUnit = (unit) => {
+    const validUnits = [
+      "kg",
+      "gm",
+      "ml",
+      "l",
+      "pieces",
+      "piece",
+      "pcs",
+      "box",
+      "boxes",
+    ];
+    return validUnits.includes(unit.toLowerCase());
+  };
+
   return (
     <Box
       flex={1}
@@ -637,14 +699,12 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* Brand Name */}
-          <FormControl isRequired isInvalid={"brand_name" in errors}>
+          <FormControl isInvalid={"brand_name" in errors}>
             <FormControl.Label>Brand Name</FormControl.Label>
             <Input
               placeholder="Enter brand name"
               value={formData.brand_name}
-              onChangeText={(value) =>
-                setFormData({ ...formData, brand_name: value })
-              }
+              onChangeText={handleBrandNameChange}
             />
             <FormControl.ErrorMessage>
               {errors.brand_name}
@@ -657,9 +717,7 @@ export default function AddInventoryItemScreen() {
             <Input
               placeholder="Enter unit of measure"
               value={formData.unit_of_measure}
-              onChangeText={(value) =>
-                setFormData({ ...formData, unit_of_measure: value })
-              }
+              onChangeText={handleUnitOfMeasureChange}
             />
             <FormControl.ErrorMessage>
               {errors.unit_of_measure}
@@ -667,7 +725,7 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* Reorder Level */}
-          <FormControl isRequired isInvalid={"reorder_level" in errors}>
+          <FormControl isInvalid={"reorder_level" in errors}>
             <FormControl.Label>Reorder Level</FormControl.Label>
             <Input
               keyboardType="numeric"
@@ -683,7 +741,7 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* Expiration Date */}
-          <FormControl isRequired isInvalid={"expiration_date" in errors}>
+          <FormControl isInvalid={"expiration_date" in errors}>
             <FormControl.Label>Expiration Date</FormControl.Label>
             <Pressable onPress={() => setShowExpirationDatePicker(true)}>
               <Input
@@ -710,7 +768,7 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* In Date */}
-          <FormControl isRequired isInvalid={"in_date" in errors}>
+          <FormControl isInvalid={"in_date" in errors}>
             <FormControl.Label>In Date</FormControl.Label>
             <Pressable onPress={() => setShowInDatePicker(true)}>
               <Input
@@ -830,7 +888,7 @@ export default function AddInventoryItemScreen() {
                   <Input
                     placeholder="Enter category name"
                     value={newCategoryName}
-                    onChangeText={setNewCategoryName}
+                    onChangeText={handleCategoryNameChange}
                   />
                 </FormControl>
               </Modal.Body>
@@ -839,7 +897,11 @@ export default function AddInventoryItemScreen() {
                   <Button onPress={() => setAddCategoryModalOpen(false)} px={6}>
                     Cancel
                   </Button>
-                  <Button onPress={handleAddCategory} px={6}>
+                  <Button
+                    onPress={handleAddCategory}
+                    px={6}
+                    isDisabled={!newCategoryName.trim()}
+                  >
                     Add
                   </Button>
                 </HStack>

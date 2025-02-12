@@ -65,6 +65,9 @@ export default function EditMenuView() {
   const [spicyLevels, setSpicyLevels] = useState([]);
   const [ratingList, setRatingList] = useState([]);
 
+  // Add this at the top with other state declarations
+  const [errors, setErrors] = useState({});
+
   // Define fetchInitialData function
   const fetchInitialData = async () => {
     if (!menuId) {
@@ -232,6 +235,33 @@ export default function EditMenuView() {
   }, [menuId]);
 
   const handleUpdate = async () => {
+    // Validate all required fields first
+    const newErrors = {};
+
+    if (!menuDetails.name?.trim()) {
+      newErrors.name = "Menu name is required";
+    }
+
+    if (!menuDetails.full_price) {
+      newErrors.full_price = "Full price is required";
+    }
+
+    if (!menuDetails.menu_cat_id) {
+      newErrors.menu_cat_id = "Category is required";
+    }
+
+    if (!menuDetails.food_type) {
+      newErrors.food_type = "Food type is required";
+    }
+
+    // Update errors state
+    setErrors(newErrors);
+
+    // If there are errors, stop form submission
+    if (Object.keys(newErrors).length > 0) {
+      return;
+    }
+
     try {
       setSubmitting(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
@@ -427,6 +457,81 @@ export default function EditMenuView() {
     }));
   };
 
+  // Add this handler function at component level
+  const handleMenuNameChange = (text) => {
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
+    setMenuDetails((prev) => ({ ...prev, name: sanitizedText }));
+
+    // Validate and show error if needed
+    if (!sanitizedText.trim()) {
+      setErrors((prev) => ({ ...prev, name: "Menu name is required" }));
+    } else if (sanitizedText.length < 2) {
+      setErrors((prev) => ({
+        ...prev,
+        name: "Menu name must be at least 2 characters",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, name: undefined }));
+    }
+  };
+
+  // Add these handler functions at component level
+  const handleFullPriceChange = (text) => {
+    // Remove leading zeros and non-numeric/non-decimal characters
+    let sanitizedText = text.replace(/[^0-9.]/g, "").replace(/^0+/, "");
+
+    // Handle decimal numbers starting with 0
+    if (text.startsWith("0.")) {
+      sanitizedText = "0" + sanitizedText;
+    }
+
+    // Prevent multiple decimal points
+    const parts = sanitizedText.split(".");
+    const formattedText = parts[0] + (parts[1] ? "." + parts[1] : "");
+
+    setMenuDetails((prev) => ({ ...prev, full_price: formattedText }));
+
+    if (!formattedText) {
+      setErrors((prev) => ({ ...prev, full_price: "Full price is required" }));
+    } else {
+      setErrors((prev) => ({ ...prev, full_price: undefined }));
+    }
+  };
+
+  const handleHalfPriceChange = (text) => {
+    // Remove leading zeros and non-numeric/non-decimal characters
+    let sanitizedText = text.replace(/[^0-9.]/g, "").replace(/^0+/, "");
+
+    // Handle decimal numbers starting with 0
+    if (text.startsWith("0.")) {
+      sanitizedText = "0" + sanitizedText;
+    }
+
+    // Prevent multiple decimal points
+    const parts = sanitizedText.split(".");
+    const formattedText = parts[0] + (parts[1] ? "." + parts[1] : "");
+
+    setMenuDetails((prev) => ({ ...prev, half_price: formattedText }));
+  };
+
+  const handleOfferChange = (text) => {
+    // Only allow numbers
+    const sanitizedText = text.replace(/[^0-9]/g, "").replace(/^0+/, "");
+
+    // Validate offer percentage (0-100)
+    if (sanitizedText && Number(sanitizedText) > 100) {
+      setErrors((prev) => ({
+        ...prev,
+        offer: "Offer must be between 0 and 100",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, offer: undefined }));
+    }
+
+    setMenuDetails((prev) => ({ ...prev, offer: sanitizedText }));
+  };
+
   if (loading) {
     return (
       <Box flex={1} bg="white" safeArea>
@@ -510,20 +615,21 @@ export default function EditMenuView() {
           {/* Basic Information */}
           <Box bg="white" rounded="lg" shadow={1} p={4}>
             <VStack space={4}>
-              <FormControl isRequired>
+              <FormControl isRequired isInvalid={"name" in errors}>
                 <FormControl.Label>Menu Name</FormControl.Label>
                 <Input
                   value={menuDetails.name}
-                  onChangeText={(value) =>
-                    setMenuDetails((prev) => ({ ...prev, name: value }))
-                  }
+                  onChangeText={handleMenuNameChange}
                   placeholder="Enter menu name"
                 />
+                <FormControl.ErrorMessage>
+                  {errors.name}
+                </FormControl.ErrorMessage>
               </FormControl>
 
               {/* Category Selector */}
               <Pressable onPress={() => setCategoryModalVisible(true)}>
-                <FormControl isRequired>
+                <FormControl isRequired isInvalid={"menu_cat_id" in errors}>
                   <FormControl.Label>Category</FormControl.Label>
                   <Input
                     value={menuDetails.category_name || ""}
@@ -537,12 +643,15 @@ export default function EditMenuView() {
                       />
                     }
                   />
+                  <FormControl.ErrorMessage>
+                    {errors.menu_cat_id}
+                  </FormControl.ErrorMessage>
                 </FormControl>
               </Pressable>
 
               {/* Food Type Selector */}
               <Pressable onPress={() => setFoodTypeModalVisible(true)}>
-                <FormControl isRequired>
+                <FormControl isRequired isInvalid={"food_type" in errors}>
                   <FormControl.Label>Food Type</FormControl.Label>
                   <Input
                     value={
@@ -560,6 +669,9 @@ export default function EditMenuView() {
                       />
                     }
                   />
+                  <FormControl.ErrorMessage>
+                    {errors.food_type}
+                  </FormControl.ErrorMessage>
                 </FormControl>
               </Pressable>
             </VStack>
@@ -568,37 +680,40 @@ export default function EditMenuView() {
           {/* Pricing */}
           <Box bg="white" rounded="lg" shadow={1} p={4}>
             <VStack space={4}>
-              <FormControl isRequired>
+              <FormControl isRequired isInvalid={"full_price" in errors}>
                 <FormControl.Label>Full Price</FormControl.Label>
                 <Input
                   value={menuDetails.full_price}
-                  onChangeText={(value) =>
-                    setMenuDetails((prev) => ({ ...prev, full_price: value }))
-                  }
+                  onChangeText={handleFullPriceChange}
                   keyboardType="numeric"
+                  placeholder="Enter full price"
                 />
+                <FormControl.ErrorMessage>
+                  {errors.full_price}
+                </FormControl.ErrorMessage>
               </FormControl>
 
               <FormControl>
                 <FormControl.Label>Half Price</FormControl.Label>
                 <Input
                   value={menuDetails.half_price}
-                  onChangeText={(value) =>
-                    setMenuDetails((prev) => ({ ...prev, half_price: value }))
-                  }
+                  onChangeText={handleHalfPriceChange}
                   keyboardType="numeric"
+                  placeholder="Enter half price"
                 />
               </FormControl>
 
-              <FormControl>
+              <FormControl isInvalid={"offer" in errors}>
                 <FormControl.Label>Offer (%)</FormControl.Label>
                 <Input
                   value={menuDetails.offer}
-                  onChangeText={(value) =>
-                    setMenuDetails((prev) => ({ ...prev, offer: value }))
-                  }
+                  onChangeText={handleOfferChange}
                   keyboardType="numeric"
+                  placeholder="Enter offer percentage"
                 />
+                <FormControl.ErrorMessage>
+                  {errors.offer}
+                </FormControl.ErrorMessage>
               </FormControl>
             </VStack>
           </Box>

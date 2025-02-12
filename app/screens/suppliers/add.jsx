@@ -158,59 +158,94 @@ export default function AddSupplierScreen() {
 
   // Update form change handler
   const handleFormChange = (field, value) => {
-    let isValid = true;
-    let sanitizedValue = value.trim();
-
     switch (field) {
       case "name":
-        isValid = validateName(sanitizedValue);
-        if (!isValid && sanitizedValue.length > 0) {
-          toast.show({
-            description: "Supplier name should only contain letters",
-            status: "error",
-          });
-          return;
+        // Only allow letters and spaces
+        const nameValue = value.replace(/[^a-zA-Z\s]/g, "");
+        setFormData((prev) => ({ ...prev, name: nameValue }));
+
+        if (!nameValue.trim()) {
+          setErrors((prev) => ({ ...prev, name: "Supplier name is required" }));
+        } else {
+          setErrors((prev) => ({ ...prev, name: undefined }));
         }
         break;
 
       case "mobileNumber1":
       case "mobileNumber2":
-        // Only validate if there's input and it's not being deleted
-        if (sanitizedValue.length > 0) {
-          isValid = validateMobileNumber(sanitizedValue);
-          if (!isValid) {
-            toast.show({
-              description: "Mobile number should only contain digits",
-              status: "error",
-            });
+        // Only allow digits
+        const sanitizedNumber = value.replace(/[^0-9]/g, "");
+
+        if (field === "mobileNumber1" && !sanitizedNumber) {
+          setErrors((prev) => ({
+            ...prev,
+            [field]: "Primary mobile number is required",
+          }));
+        } else if (sanitizedNumber.length > 0) {
+          const firstDigit = sanitizedNumber[0];
+          if (!["6", "7", "8", "9"].includes(firstDigit)) {
+            setFormData((prev) => ({
+              ...prev,
+              [field]:
+                prev[field] && ["6", "7", "8", "9"].includes(prev[field][0])
+                  ? prev[field]
+                  : "",
+            }));
+            setErrors((prev) => ({
+              ...prev,
+              [field]: "Number must start with 6, 7, 8 or 9",
+            }));
             return;
+          } else if (sanitizedNumber.length !== 10) {
+            setErrors((prev) => ({
+              ...prev,
+              [field]: "Mobile number must be 10 digits",
+            }));
+          } else {
+            setErrors((prev) => ({ ...prev, [field]: undefined }));
           }
-          // Only show length error when user has finished typing (10+ digits)
-          if (sanitizedValue.length > 10) {
-            toast.show({
-              description: "Mobile number should be 10 digits",
-              status: "error",
-            });
-            return;
-          }
+        } else {
+          setErrors((prev) => ({ ...prev, [field]: undefined }));
         }
+
+        setFormData((prev) => ({ ...prev, [field]: sanitizedNumber }));
+        break;
+
+      case "ownerName":
+        // Only allow letters and spaces
+        if (!/^[a-zA-Z\s]*$/.test(value)) {
+          return; // Don't update state if anything other than letters and spaces are entered
+        }
+        setFormData((prev) => ({ ...prev, ownerName: value }));
+        break;
+
+      case "address":
+        // Only allow letters, numbers, and spaces
+        if (!/^[a-zA-Z0-9\s]*$/.test(value)) {
+          return; // Don't update state if invalid characters are entered
+        }
+        setFormData((prev) => ({ ...prev, address: value }));
         break;
 
       case "location":
-        isValid = validateLocation(sanitizedValue);
-        if (!isValid && sanitizedValue.length > 0) {
-          // Only show error if there's input
-          toast.show({
-            description: "Location should not contain special characters",
-            status: "error",
-          });
-          return;
+        // Only allow letters, numbers, and spaces
+        if (!/^[a-zA-Z0-9\s]*$/.test(value)) {
+          return; // Don't update state if invalid characters are entered
         }
+        setFormData((prev) => ({ ...prev, location: value }));
         break;
-    }
 
-    // Always update the form data while typing
-    setFormData((prev) => ({ ...prev, [field]: value })); // Use original value instead of sanitizedValue
+      case "creditLimit":
+        // Only allow numbers
+        if (!/^\d*$/.test(value)) {
+          return; // Don't update state if non-numeric characters are entered
+        }
+        setFormData((prev) => ({ ...prev, creditLimit: value }));
+        break;
+
+      default:
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleAddressChange = (text) => {
@@ -229,115 +264,47 @@ export default function AddSupplierScreen() {
   };
 
   const validateForm = () => {
+    const newErrors = {};
+
     // Check required fields
     if (!formData.name) {
-      toast.show({
-        title: "Required Field",
-        description: "Please enter supplier name",
-        status: "warning",
-        duration: 3000,
-      });
-      return false;
+      newErrors.name = "Supplier name is required";
+    } else if (!validateName(formData.name)) {
+      newErrors.name = "Supplier name should only contain letters";
     }
 
     if (!formData.mobileNumber1) {
-      toast.show({
-        title: "Required Field",
-        description: "Please enter primary mobile number",
-        status: "warning",
-        duration: 3000,
-      });
-      return false;
+      newErrors.mobileNumber1 = "Primary mobile number is required";
+    } else if (!validateMobileNumber(formData.mobileNumber1)) {
+      newErrors.mobileNumber1 = "Mobile number should only contain digits";
+    } else if (formData.mobileNumber1.length !== 10) {
+      newErrors.mobileNumber1 = "Mobile number must be 10 digits";
     }
 
-    // Validate name format
-    if (!validateName(formData.name)) {
-      toast.show({
-        title: "Invalid Input",
-        description: "Supplier name should only contain letters",
-        status: "error",
-        duration: 3000,
-      });
-      return false;
-    }
-
-    // Validate mobile number format and length at submission
-    if (formData.mobileNumber1) {
-      if (!validateMobileNumber(formData.mobileNumber1)) {
-        toast.show({
-          title: "Invalid Input",
-          description: "Primary mobile number should only contain digits",
-          status: "error",
-          duration: 3000,
-        });
-        return false;
-      }
-      if (formData.mobileNumber1.length !== 10) {
-        toast.show({
-          title: "Invalid Input",
-          description: "Primary mobile number must be 10 digits",
-          status: "error",
-          duration: 3000,
-        });
-        return false;
-      }
-    }
-
-    // Validate secondary mobile number if provided
     if (formData.mobileNumber2) {
       if (!validateMobileNumber(formData.mobileNumber2)) {
-        toast.show({
-          title: "Invalid Input",
-          description: "Secondary mobile number should only contain digits",
-          status: "error",
-          duration: 3000,
-        });
-        return false;
-      }
-      if (formData.mobileNumber2.length !== 10) {
-        toast.show({
-          title: "Invalid Input",
-          description: "Secondary mobile number must be 10 digits",
-          status: "error",
-          duration: 3000,
-        });
-        return false;
+        newErrors.mobileNumber2 = "Mobile number should only contain digits";
+      } else if (formData.mobileNumber2.length !== 10) {
+        newErrors.mobileNumber2 = "Mobile number must be 10 digits";
       }
     }
 
-    // Validate location if provided
-    if (formData.location && !validateLocation(formData.location)) {
-      toast.show({
-        title: "Invalid Input",
-        description: "Location contains invalid characters",
-        status: "error",
-        duration: 3000,
-      });
-      return false;
+    if (!formData.creditLimit) {
+      newErrors.creditLimit = "Credit limit is required";
     }
 
-    // Add address validation
     if (!formData.address?.trim()) {
-      toast.show({
-        title: "Required Field",
-        description: "Please enter address",
-        status: "warning",
-        duration: 3000,
-      });
-      return false;
+      newErrors.address = "Address is required";
+    } else if (!validateAddress(formData.address)) {
+      newErrors.address = "Address must be at least 5 characters long";
     }
 
-    if (!validateAddress(formData.address)) {
-      toast.show({
-        title: "Invalid Input",
-        description: "Address must be at least 5 characters long",
-        status: "error",
-        duration: 3000,
-      });
-      return false;
+    if (formData.location && !validateLocation(formData.location)) {
+      newErrors.location = "Location contains invalid characters";
     }
 
-    return true;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
@@ -440,14 +407,18 @@ export default function AddSupplierScreen() {
                 </Heading>
               </HStack>
 
-              <FormControl isRequired>
+              <FormControl isRequired isInvalid={"name" in errors}>
                 <FormControl.Label>Name</FormControl.Label>
                 <Input
                   value={formData.name}
                   onChangeText={(text) => handleFormChange("name", text)}
                   placeholder="Enter supplier name"
                   bg="white"
+                  borderColor={errors.name ? "red.500" : "coolGray.200"}
                 />
+                <FormControl.ErrorMessage>
+                  {errors.name}
+                </FormControl.ErrorMessage>
               </FormControl>
             </VStack>
           </Box>
@@ -462,7 +433,7 @@ export default function AddSupplierScreen() {
                 </Heading>
               </HStack>
 
-              <FormControl isRequired>
+              <FormControl isRequired isInvalid={"mobileNumber1" in errors}>
                 <FormControl.Label>Mobile Number 1</FormControl.Label>
                 <Input
                   value={formData.mobileNumber1}
@@ -473,10 +444,16 @@ export default function AddSupplierScreen() {
                   keyboardType="numeric"
                   maxLength={10}
                   bg="white"
+                  borderColor={
+                    errors.mobileNumber1 ? "red.500" : "coolGray.200"
+                  }
                 />
+                <FormControl.ErrorMessage>
+                  {errors.mobileNumber1}
+                </FormControl.ErrorMessage>
               </FormControl>
 
-              <FormControl>
+              <FormControl isInvalid={"mobileNumber2" in errors}>
                 <FormControl.Label>Mobile Number 2</FormControl.Label>
                 <Input
                   value={formData.mobileNumber2}
@@ -487,7 +464,13 @@ export default function AddSupplierScreen() {
                   keyboardType="numeric"
                   maxLength={10}
                   bg="white"
+                  borderColor={
+                    errors.mobileNumber2 ? "red.500" : "coolGray.200"
+                  }
                 />
+                <FormControl.ErrorMessage>
+                  {errors.mobileNumber2}
+                </FormControl.ErrorMessage>
               </FormControl>
 
               <FormControl>
@@ -545,17 +528,18 @@ export default function AddSupplierScreen() {
                 </Pressable>
               </FormControl>
 
-              <FormControl>
-                <FormControl.Label isRequired>Credit Limit</FormControl.Label>
+              <FormControl isRequired isInvalid={"creditLimit" in errors}>
+                <FormControl.Label>Credit Limit</FormControl.Label>
                 <Input
                   value={formData.creditLimit}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, creditLimit: text })
-                  }
+                  onChangeText={(text) => handleFormChange("creditLimit", text)}
                   placeholder="Enter credit limit"
                   keyboardType="numeric"
                   bg="white"
                 />
+                <FormControl.ErrorMessage>
+                  {errors.creditLimit}
+                </FormControl.ErrorMessage>
               </FormControl>
 
               <FormControl>
@@ -570,7 +554,7 @@ export default function AddSupplierScreen() {
                 />
               </FormControl>
 
-              <FormControl>
+              <FormControl isInvalid={"location" in errors}>
                 <FormControl.Label>Location</FormControl.Label>
                 <Input
                   value={formData.location}
@@ -578,17 +562,21 @@ export default function AddSupplierScreen() {
                   placeholder="Enter location"
                   bg="white"
                 />
+                <FormControl.ErrorMessage>
+                  {errors.location}
+                </FormControl.ErrorMessage>
               </FormControl>
 
               <FormControl isRequired isInvalid={"address" in errors}>
                 <FormControl.Label>Address</FormControl.Label>
                 <TextArea
                   value={formData.address}
-                  onChangeText={handleAddressChange}
-                  placeholder="Enter complete address (minimum 5 characters)"
+                  onChangeText={(text) => handleFormChange("address", text)}
+                  placeholder="Enter complete address"
                   autoCompleteType={undefined}
                   h={20}
                   bg="white"
+                  borderColor={errors.address ? "red.500" : "coolGray.200"}
                 />
                 <FormControl.ErrorMessage>
                   {errors.address}

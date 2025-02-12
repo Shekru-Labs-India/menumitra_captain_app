@@ -622,6 +622,16 @@ export default function TableSectionsScreen() {
     };
   }, []);
 
+  // Add this handler function at component level
+  const handleEditSectionNameChange = (text) => {
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
+    setEditSection((prev) => ({
+      ...prev,
+      name: sanitizedText,
+    }));
+  };
+
   // Update the renderGridView function's table rendering logic
   const renderGridView = (sections) => (
     <ScrollView
@@ -1105,21 +1115,33 @@ export default function TableSectionsScreen() {
     </Box>
   );
 
-  // Add EditModal component
+  // Update the EditModal component
   const EditModal = () => (
     <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)}>
       <Modal.Content maxWidth="400px">
-        <Modal.Header>Edit Section</Modal.Header>
-        <Modal.CloseButton />
+        <HStack
+          alignItems="center"
+          justifyContent="space-between"
+          px={1}
+          py={2}
+        >
+          <Modal.Header flex={1} textAlign="center">
+            Edit Section
+          </Modal.Header>
+          <Modal.CloseButton position="absolute" right={2} />
+        </HStack>
         <Modal.Body>
           <FormControl isRequired>
-            <FormControl.Label>Section Name</FormControl.Label>
+            <FormControl.Label>
+              <HStack space={1} alignItems="center">
+                <Text>Section Name </Text>
+              </HStack>
+            </FormControl.Label>
             <Input
               value={editSection?.name || ""}
-              onChangeText={(text) =>
-                setEditSection((prev) => ({ ...prev, name: text }))
-              }
+              onChangeText={handleEditSectionNameChange}
               placeholder="Enter section name"
+              autoFocus
             />
           </FormControl>
         </Modal.Body>
@@ -1127,6 +1149,7 @@ export default function TableSectionsScreen() {
           <HStack space={2} width="100%" justifyContent="space-between">
             <Button
               variant="ghost"
+              colorScheme="blueGray"
               onPress={() => {
                 setEditSection(null);
                 setShowEditModal(false);
@@ -1134,7 +1157,11 @@ export default function TableSectionsScreen() {
             >
               Cancel
             </Button>
-            <Button onPress={handleEditSection} isLoading={loading}>
+            <Button
+              onPress={handleEditSection}
+              isLoading={loading}
+              isLoadingText="Saving..."
+            >
               Save Changes
             </Button>
           </HStack>
@@ -1360,6 +1387,13 @@ export default function TableSectionsScreen() {
     </Modal>
   );
 
+  // Add this handler function at component level
+  const handleSectionNameChange = (text) => {
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
+    setNewSectionName(sanitizedText);
+  };
+
   return (
     <Box flex={1} bg="coolGray.100" safeAreaTop>
       {/* Header Component */}
@@ -1463,7 +1497,7 @@ export default function TableSectionsScreen() {
               </FormControl.Label>
               <Input
                 value={newSectionName}
-                onChangeText={setNewSectionName}
+                onChangeText={handleSectionNameChange}
                 placeholder="Enter section name"
                 autoFocus
               />

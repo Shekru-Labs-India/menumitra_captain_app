@@ -10,6 +10,8 @@ import {
   Fab,
   useToast,
   Spinner,
+  Input,
+  Icon,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar } from "react-native";
@@ -23,12 +25,32 @@ export default function InventoryItemsScreen() {
   const toast = useToast();
   const { refresh } = useLocalSearchParams();
   const [items, setItems] = useState([]);
+  const [filteredItems, setFilteredItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [outletId, setOutletId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     getStoredData();
-  }, [refresh]); // Refresh when the refresh parameter changes
+  }, [refresh]);
+
+  // Add search filter effect
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredItems(items);
+    } else {
+      const filtered = items.filter(
+        (item) =>
+          (item.name?.toLowerCase() || "").includes(
+            searchQuery.toLowerCase()
+          ) ||
+          (item.brand_name?.toLowerCase() || "").includes(
+            searchQuery.toLowerCase()
+          )
+      );
+      setFilteredItems(filtered);
+    }
+  }, [searchQuery, items]);
 
   const getStoredData = async () => {
     try {
@@ -81,6 +103,10 @@ export default function InventoryItemsScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = (text) => {
+    setSearchQuery(text);
   };
 
   const renderItem = ({ item }) => (
@@ -143,12 +169,55 @@ export default function InventoryItemsScreen() {
     <Box flex={1} bg="white" safeArea>
       <Header title="Inventory Items" />
 
+      {/* Add Search Bar */}
+      <Box px={4} py={2}>
+        <Input
+          placeholder="Search items by name or brand"
+          value={searchQuery}
+          onChangeText={handleSearch}
+          width="100%"
+          borderRadius="lg"
+          py={3}
+          px={2}
+          backgroundColor="coolGray.100"
+          InputLeftElement={
+            <Icon
+              ml={2}
+              size={5}
+              color="gray.400"
+              as={<MaterialIcons name="search" />}
+            />
+          }
+          InputRightElement={
+            searchQuery ? (
+              <Pressable onPress={() => setSearchQuery("")}>
+                <Icon
+                  mr={2}
+                  size={5}
+                  color="gray.400"
+                  as={<MaterialIcons name="close" />}
+                />
+              </Pressable>
+            ) : null
+          }
+        />
+      </Box>
+
       <FlatList
-        data={items}
+        data={filteredItems}
         renderItem={renderItem}
         keyExtractor={(item) => item.inventory_id.toString()}
         contentContainerStyle={{ paddingVertical: 16 }}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <Box flex={1} justifyContent="center" alignItems="center" mt={10}>
+            <Text color="gray.500">
+              {searchQuery
+                ? "No items match your search"
+                : "No inventory items found"}
+            </Text>
+          </Box>
+        }
       />
 
       <Fab

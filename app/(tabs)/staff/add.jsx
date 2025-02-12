@@ -109,32 +109,33 @@ export default function AddStaffScreen() {
 
   // Modify handlePhoneChange function
   const handlePhoneChange = (text) => {
-    // Prevent entering 0-5 as first digit
-    if (text.length === 1 && ["0", "1", "2", "3", "4", "5"].includes(text)) {
-      setErrors((prev) => ({
-        ...prev,
-        phone: "Number must start with 6, 7, 8 or 9",
-      }));
-      return; // Don't update state with invalid first digit
-    }
-
     // Only allow digits
     const sanitizedText = text.replace(/[^0-9]/g, "");
+
+    // Always check if first digit is valid (6-9), regardless of input method
+    if (sanitizedText.length > 0) {
+      const firstDigit = sanitizedText[0];
+      if (!["6", "7", "8", "9"].includes(firstDigit)) {
+        // Keep the previous valid value if exists, otherwise empty
+        setFormData((prev) => ({
+          ...prev,
+          phone:
+            prev.phone && ["6", "7", "8", "9"].includes(prev.phone[0])
+              ? prev.phone
+              : "",
+        }));
+        setErrors((prev) => ({
+          ...prev,
+          phone: "Number must start with 6, 7, 8 or 9",
+        }));
+        return;
+      }
+    }
+
     setFormData({ ...formData, phone: sanitizedText });
 
-    // Validate the phone number
-    if (
-      sanitizedText.length > 0 &&
-      !["6", "7", "8", "9"].includes(sanitizedText[0])
-    ) {
-      setErrors((prev) => ({
-        ...prev,
-        phone: "Number must start with 6, 7, 8 or 9",
-      }));
-    } else if (
-      sanitizedText.length === 10 &&
-      !/^[6-9]\d{9}$/.test(sanitizedText)
-    ) {
+    // Validate the phone number length and format
+    if (sanitizedText.length === 10 && !/^[6-9]\d{9}$/.test(sanitizedText)) {
       setErrors((prev) => ({ ...prev, phone: "Enter valid 10-digit number" }));
     } else {
       setErrors((prev) => ({ ...prev, phone: undefined }));

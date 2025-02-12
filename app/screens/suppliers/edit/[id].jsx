@@ -166,11 +166,126 @@ export default function EditSupplierScreen() {
     getStoredData();
   }, []);
 
-  // Add this function to handle name input with validation
+  // Add these input handlers at the top level of the component
   const handleNameChange = (text) => {
-    // Remove special characters on input
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
+    setFormData((prev) => ({ ...prev, name: sanitizedText }));
+
+    // Validate and show error if needed
+    if (!sanitizedText.trim()) {
+      setErrors((prev) => ({ ...prev, name: "Supplier name is required" }));
+    } else if (sanitizedText.length < 2) {
+      setErrors((prev) => ({
+        ...prev,
+        name: "Name must be at least 2 characters",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, name: undefined }));
+    }
+  };
+
+  const handleMobileNumberChange = (field, value) => {
+    // Only allow numbers and validate first digit
+    const numericValue = value.replace(/[^0-9]/g, "");
+
+    if (numericValue.length > 0) {
+      const firstDigit = numericValue[0];
+      if (!["6", "7", "8", "9"].includes(firstDigit)) {
+        setErrors((prev) => ({
+          ...prev,
+          [field]: "Number must start with 6, 7, 8 or 9",
+        }));
+        return;
+      }
+    }
+
+    setFormData((prev) => ({ ...prev, [field]: numericValue }));
+
+    if (!numericValue) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]:
+          field === "mobileNumber1"
+            ? "Primary mobile number is required"
+            : undefined,
+      }));
+    } else if (numericValue.length !== 10) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: "Mobile number must be 10 digits",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleOwnerNameChange = (text) => {
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
+    setFormData((prev) => ({ ...prev, ownerName: sanitizedText }));
+
+    if (sanitizedText && sanitizedText.length < 2) {
+      setErrors((prev) => ({
+        ...prev,
+        ownerName: "Name must be at least 2 characters",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, ownerName: undefined }));
+    }
+  };
+
+  const handleCreditLimitChange = (text) => {
+    // Only allow numbers
+    const numericValue = text.replace(/[^0-9]/g, "");
+    setFormData((prev) => ({ ...prev, creditLimit: numericValue }));
+
+    if (!numericValue) {
+      setErrors((prev) => ({
+        ...prev,
+        creditLimit: "Credit limit is required",
+      }));
+    } else if (parseInt(numericValue) <= 0) {
+      setErrors((prev) => ({
+        ...prev,
+        creditLimit: "Credit limit must be greater than 0",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, creditLimit: undefined }));
+    }
+  };
+
+  const handleAddressChange = (text) => {
+    // Allow letters, numbers, spaces, and basic punctuation
+    const sanitizedText = text.replace(/[^a-zA-Z0-9\s,./-]/g, "");
+    setFormData((prev) => ({ ...prev, address: sanitizedText }));
+
+    if (!sanitizedText.trim()) {
+      setErrors((prev) => ({ ...prev, address: "Address is required" }));
+    } else if (sanitizedText.trim().length < 5) {
+      setErrors((prev) => ({
+        ...prev,
+        address: "Address must be at least 5 characters",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, address: undefined }));
+    }
+  };
+
+  // Add this handler function
+  const handleLocationChange = (text) => {
+    // Only allow letters, numbers and spaces
     const sanitizedText = text.replace(/[^a-zA-Z0-9\s]/g, "");
-    setFormData({ ...formData, name: sanitizedText });
+    setFormData((prev) => ({ ...prev, location: sanitizedText }));
+
+    if (sanitizedText && sanitizedText.length < 2) {
+      setErrors((prev) => ({
+        ...prev,
+        location: "Location must be at least 2 characters",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, location: undefined }));
+    }
   };
 
   // Add validation functions
@@ -195,20 +310,6 @@ export default function EditSupplierScreen() {
     return value.trim() === "" || websiteRegex.test(value);
   };
 
-  // Add this function to handle mobile number input
-  const handleMobileNumberChange = (field, value) => {
-    // Remove any non-numeric characters
-    const numericValue = value.replace(/[^0-9]/g, "");
-
-    // Limit to 10 digits
-    const truncatedValue = numericValue.slice(0, 10);
-
-    setFormData((prev) => ({
-      ...prev,
-      [field]: truncatedValue,
-    }));
-  };
-
   // Update validateForm function
   const validateForm = () => {
     const newErrors = {};
@@ -225,16 +326,26 @@ export default function EditSupplierScreen() {
       newErrors.mobileNumber1 = "Primary mobile number is required";
     } else if (!validateMobileNumber(formData.mobileNumber1)) {
       newErrors.mobileNumber1 = "Mobile number should only contain digits";
-    } else if (formData.mobileNumber1.trim().length !== 10) {
-      newErrors.mobileNumber1 = "Mobile number should be 10 digits";
+    } else if (formData.mobileNumber1.length !== 10) {
+      newErrors.mobileNumber1 = "Mobile number must be 10 digits";
+    } else {
+      const firstDigit = formData.mobileNumber1[0];
+      if (!["6", "7", "8", "9"].includes(firstDigit)) {
+        newErrors.mobileNumber1 = "Number must start with 6, 7, 8 or 9";
+      }
     }
 
     // Secondary Mobile validation (Optional)
     if (formData.mobileNumber2?.trim()) {
       if (!validateMobileNumber(formData.mobileNumber2)) {
         newErrors.mobileNumber2 = "Mobile number should only contain digits";
-      } else if (formData.mobileNumber2.trim().length !== 10) {
-        newErrors.mobileNumber2 = "Mobile number should be 10 digits";
+      } else if (formData.mobileNumber2.length !== 10) {
+        newErrors.mobileNumber2 = "Mobile number must be 10 digits";
+      } else {
+        const firstDigit = formData.mobileNumber2[0];
+        if (!["6", "7", "8", "9"].includes(firstDigit)) {
+          newErrors.mobileNumber2 = "Number must start with 6, 7, 8 or 9";
+        }
       }
     }
 
@@ -409,17 +520,14 @@ export default function EditSupplierScreen() {
                 <FormControl.Label>Name</FormControl.Label>
                 <Input
                   value={formData.name}
-                  onChangeText={handleNameChange} // Use the new handler
+                  onChangeText={handleNameChange}
                   placeholder="Enter supplier name"
                   bg="white"
-                  maxLength={50} // Add character limit
+                  maxLength={50}
                 />
                 <FormControl.ErrorMessage>
                   {errors.name}
                 </FormControl.ErrorMessage>
-                <FormControl.HelperText>
-                  Only letters, numbers and spaces allowed
-                </FormControl.HelperText>
               </FormControl>
 
               <FormControl>
@@ -449,8 +557,8 @@ export default function EditSupplierScreen() {
                 </Heading>
               </HStack>
 
-              <FormControl isInvalid={!!errors.mobileNumber1}>
-                <FormControl.Label>Primary Mobile Number *</FormControl.Label>
+              <FormControl isRequired isInvalid={"mobileNumber1" in errors}>
+                <FormControl.Label>Primary Mobile Number</FormControl.Label>
                 <Input
                   value={formData.mobileNumber1}
                   onChangeText={(value) =>
@@ -466,7 +574,7 @@ export default function EditSupplierScreen() {
                 </FormControl.ErrorMessage>
               </FormControl>
 
-              <FormControl isInvalid={!!errors.mobileNumber2}>
+              <FormControl isInvalid={"mobileNumber2" in errors}>
                 <FormControl.Label>Secondary Mobile Number</FormControl.Label>
                 <Input
                   value={formData.mobileNumber2}
@@ -541,9 +649,7 @@ export default function EditSupplierScreen() {
                 <FormControl.Label>Credit Limit</FormControl.Label>
                 <Input
                   value={formData.creditLimit}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, creditLimit: text })
-                  }
+                  onChangeText={handleCreditLimitChange}
                   placeholder="Enter credit limit"
                   keyboardType="numeric"
                   bg="white"
@@ -553,38 +659,38 @@ export default function EditSupplierScreen() {
                 </FormControl.ErrorMessage>
               </FormControl>
 
-              <FormControl>
+              <FormControl isInvalid={"ownerName" in errors}>
                 <FormControl.Label>Owner Name</FormControl.Label>
                 <Input
                   value={formData.ownerName}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, ownerName: text })
-                  }
+                  onChangeText={handleOwnerNameChange}
                   placeholder="Enter owner name"
                   bg="white"
                 />
+                <FormControl.ErrorMessage>
+                  {errors.ownerName}
+                </FormControl.ErrorMessage>
               </FormControl>
 
-              <FormControl>
+              <FormControl isInvalid={"location" in errors}>
                 <FormControl.Label>Location</FormControl.Label>
                 <Input
                   value={formData.location}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, location: text })
-                  }
+                  onChangeText={handleLocationChange}
                   placeholder="Enter location"
                   bg="white"
                 />
+                <FormControl.ErrorMessage>
+                  {errors.location}
+                </FormControl.ErrorMessage>
               </FormControl>
 
               <FormControl isRequired isInvalid={"address" in errors}>
                 <FormControl.Label>Address</FormControl.Label>
                 <TextArea
                   value={formData.address}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, address: text })
-                  }
-                  placeholder="Enter complete address (minimum 5 characters)"
+                  onChangeText={handleAddressChange}
+                  placeholder="Enter complete address"
                   autoCompleteType={undefined}
                   h={20}
                   bg="white"

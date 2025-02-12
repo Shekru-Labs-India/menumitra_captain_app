@@ -43,7 +43,7 @@ const ORDER_STATUS_COLORS = {
 
 const ORDER_TYPE_COLORS = {
   "dine-in": "blue",
-  parsel: "purple",
+  parcel: "purple",
   "drive-through": "orange",
   counter: "pink",
   DEFAULT: "coolGray",
@@ -51,7 +51,7 @@ const ORDER_TYPE_COLORS = {
 
 const ORDER_TYPE_ICONS = {
   "dine-in": "restaurant",
-  parsel: "takeout-dining",
+  parcel: "takeout-dining",
   "drive-through": "drive-eta",
   counter: "point-of-sale",
   DEFAULT: "receipt-long",
@@ -87,7 +87,7 @@ const EmptyStateAnimation = ({ orderStatus, orderType }) => {
       switch (orderType) {
         case "dine-in":
           return "No Dine-in Orders";
-        case "parsel":
+        case "parcel":
           return "No Parcel Orders";
         case "drive-through":
           return "No Drive Through Orders";
@@ -729,7 +729,7 @@ const OrdersScreen = () => {
         >
           <Select.Item label="All Types" value="all" />
           <Select.Item label="Dine-in" value="dine-in" />
-          <Select.Item label="Parcel" value="parsel" />
+          <Select.Item label="Parcel" value="parcel" />
           <Select.Item label="Drive Through" value="drive-through" />
           <Select.Item label="Counter" value="counter" />
         </Select>

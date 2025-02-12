@@ -273,21 +273,38 @@ export default function CreateMenuView() {
   };
 
   const handleCreateMenu = async () => {
-    try {
-      // Validation
-      if (
-        !menuDetails.name ||
-        !menuDetails.full_price ||
-        !menuDetails.menu_cat_id ||
-        !menuDetails.food_type
-      ) {
-        toast.show({
-          description: "Please fill all required fields",
-          status: "error",
-        });
-        return;
-      }
+    // Validate all required fields first
+    const newErrors = {};
 
+    if (!menuDetails.name?.trim()) {
+      newErrors.name = "Menu name is required";
+    }
+
+    if (!menuDetails.full_price) {
+      newErrors.full_price = "Full price is required";
+    }
+
+    if (!menuDetails.menu_cat_id) {
+      newErrors.menu_cat_id = "Category is required";
+    }
+
+    if (!menuDetails.food_type) {
+      newErrors.food_type = "Food type is required";
+    }
+
+    if (!menuDetails.rating) {
+      newErrors.rating = "Rating is required";
+    }
+
+    // Update errors state
+    setErrors(newErrors);
+
+    // If there are errors, stop form submission
+    if (Object.keys(newErrors).length > 0) {
+      return;
+    }
+
+    try {
       setLoading(true);
       const formData = new FormData();
       const outletId = await AsyncStorage.getItem("outlet_id");
@@ -352,6 +369,68 @@ export default function CreateMenuView() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMenuNameChange = (text) => {
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
+    setMenuDetails((prev) => ({ ...prev, name: sanitizedText }));
+
+    // Validate and show error if needed
+    if (!sanitizedText.trim()) {
+      setErrors((prev) => ({ ...prev, name: "Menu name is required" }));
+    } else if (sanitizedText.length < 2) {
+      setErrors((prev) => ({
+        ...prev,
+        name: "Menu name must be at least 2 characters",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, name: undefined }));
+    }
+  };
+
+  const handleFullPriceChange = (text) => {
+    // Remove leading zeros and non-numeric/non-decimal characters
+    let sanitizedText = text.replace(/[^0-9.]/g, "").replace(/^0+/, "");
+
+    // Handle decimal numbers starting with 0
+    if (text.startsWith("0.")) {
+      sanitizedText = "0" + sanitizedText;
+    }
+
+    // Prevent multiple decimal points
+    const parts = sanitizedText.split(".");
+    const formattedText = parts[0] + (parts[1] ? "." + parts[1] : "");
+
+    setMenuDetails((prev) => ({ ...prev, full_price: formattedText }));
+  };
+
+  const handleHalfPriceChange = (text) => {
+    // Remove leading zeros and non-numeric/non-decimal characters
+    let sanitizedText = text.replace(/[^0-9.]/g, "").replace(/^0+/, "");
+
+    // Handle decimal numbers starting with 0
+    if (text.startsWith("0.")) {
+      sanitizedText = "0" + sanitizedText;
+    }
+
+    // Prevent multiple decimal points
+    const parts = sanitizedText.split(".");
+    const formattedText = parts[0] + (parts[1] ? "." + parts[1] : "");
+
+    setMenuDetails((prev) => ({ ...prev, half_price: formattedText }));
+  };
+
+  const handleOfferChange = (text) => {
+    // Only allow numbers, remove leading zeros and non-numeric characters
+    let sanitizedText = text.replace(/[^0-9]/g, "").replace(/^0+/, "");
+
+    // Validate offer percentage (0-100)
+    if (sanitizedText && Number(sanitizedText) > 100) {
+      sanitizedText = "100";
+    }
+
+    setMenuDetails((prev) => ({ ...prev, offer: sanitizedText }));
   };
 
   return (
@@ -437,44 +516,46 @@ export default function CreateMenuView() {
 
           {/* Form Fields */}
           <VStack space={4} bg="white" p={4} rounded="lg">
-            <FormControl isRequired>
+            <FormControl isRequired isInvalid={"name" in errors}>
               <FormControl.Label>Menu Name</FormControl.Label>
               <Input
                 value={menuDetails.name}
-                onChangeText={(value) =>
-                  setMenuDetails((prev) => ({ ...prev, name: value }))
-                }
+                onChangeText={handleMenuNameChange}
                 placeholder="Enter menu name"
               />
+              <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
             </FormControl>
 
             <HStack space={4} justifyContent="space-between">
-              <FormControl flex={1} isRequired>
+              <FormControl
+                flex={1}
+                isRequired
+                isInvalid={"full_price" in errors}
+              >
                 <FormControl.Label>Full Price</FormControl.Label>
                 <Input
                   value={menuDetails.full_price}
-                  onChangeText={(value) =>
-                    setMenuDetails((prev) => ({ ...prev, full_price: value }))
-                  }
+                  onChangeText={handleFullPriceChange}
                   keyboardType="numeric"
                   placeholder="Enter full price"
                 />
+                <FormControl.ErrorMessage>
+                  {errors.full_price}
+                </FormControl.ErrorMessage>
               </FormControl>
 
               <FormControl flex={1}>
                 <FormControl.Label>Half Price</FormControl.Label>
                 <Input
                   value={menuDetails.half_price}
-                  onChangeText={(value) =>
-                    setMenuDetails((prev) => ({ ...prev, half_price: value }))
-                  }
+                  onChangeText={handleHalfPriceChange}
                   keyboardType="numeric"
                   placeholder="Enter half price"
                 />
               </FormControl>
             </HStack>
 
-            <FormControl isRequired>
+            <FormControl isRequired isInvalid={"menu_cat_id" in errors}>
               <FormControl.Label>Category</FormControl.Label>
               <Pressable onPress={() => setModalVisible(true)}>
                 <Input
@@ -484,6 +565,7 @@ export default function CreateMenuView() {
                     )?.category_name || ""
                   }
                   isReadOnly
+                  placeholder="Select category"
                   rightElement={
                     <Icon
                       as={MaterialIcons}
@@ -492,12 +574,14 @@ export default function CreateMenuView() {
                       mr={2}
                     />
                   }
-                  placeholder="Select category"
                 />
               </Pressable>
+              <FormControl.ErrorMessage>
+                {errors.menu_cat_id}
+              </FormControl.ErrorMessage>
             </FormControl>
 
-            <FormControl isRequired>
+            <FormControl isRequired isInvalid={"food_type" in errors}>
               <FormControl.Label>Food Type</FormControl.Label>
               <Pressable onPress={() => setFoodTypeModalVisible(true)}>
                 <Input
@@ -506,6 +590,7 @@ export default function CreateMenuView() {
                       ?.name || ""
                   }
                   isReadOnly
+                  placeholder="Select food type"
                   rightElement={
                     <Icon
                       as={MaterialIcons}
@@ -514,9 +599,11 @@ export default function CreateMenuView() {
                       mr={2}
                     />
                   }
-                  placeholder="Select food type"
                 />
               </Pressable>
+              <FormControl.ErrorMessage>
+                {errors.food_type}
+              </FormControl.ErrorMessage>
             </FormControl>
 
             <FormControl isRequired>
@@ -571,30 +658,35 @@ export default function CreateMenuView() {
               <FormControl.Label>Offer (%)</FormControl.Label>
               <Input
                 value={menuDetails.offer}
-                onChangeText={(value) =>
-                  setMenuDetails((prev) => ({ ...prev, offer: value }))
-                }
+                onChangeText={handleOfferChange}
                 keyboardType="numeric"
                 placeholder="Enter offer percentage"
               />
             </FormControl>
 
-            <FormControl isRequired>
+            <FormControl isRequired isInvalid={"rating" in errors}>
               <FormControl.Label>Rating</FormControl.Label>
-              <Pressable
-                onPress={() => setRatingModalVisible(true)}
-                borderWidth={1}
-                borderColor="gray.300"
-                p={3}
-                rounded="md"
-              >
-                <Text color={menuDetails.rating ? "black" : "gray.400"}>
-                  {menuDetails.rating
-                    ? ratingList.find((item) => item.key === menuDetails.rating)
-                        ?.name
-                    : "Select Rating"}
-                </Text>
+              <Pressable onPress={() => setRatingModalVisible(true)}>
+                <Input
+                  value={
+                    ratingList.find((item) => item.key === menuDetails.rating)
+                      ?.name || ""
+                  }
+                  isReadOnly
+                  placeholder="Select Rating"
+                  rightElement={
+                    <Icon
+                      as={MaterialIcons}
+                      name="arrow-drop-down"
+                      size={6}
+                      mr={2}
+                    />
+                  }
+                />
               </Pressable>
+              <FormControl.ErrorMessage>
+                {errors.rating}
+              </FormControl.ErrorMessage>
             </FormControl>
 
             <Box bg="white" rounded="lg" shadow={1} p={4}>

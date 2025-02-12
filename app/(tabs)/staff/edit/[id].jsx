@@ -275,31 +275,33 @@ export default function EditStaffScreen() {
   };
 
   const handleMobileChange = (text) => {
-    // Prevent entering 0-5 as first digit
-    if (text.length === 1 && ["0", "1", "2", "3", "4", "5"].includes(text)) {
-      setErrors((prev) => ({
-        ...prev,
-        mobile: "Number must start with 6, 7, 8 or 9",
-      }));
-      return;
-    }
-
     // Only allow digits
     const sanitizedText = text.replace(/[^0-9]/g, "");
+
+    // Always check if first digit is valid (6-9), regardless of input method
+    if (sanitizedText.length > 0) {
+      const firstDigit = sanitizedText[0];
+      if (!["6", "7", "8", "9"].includes(firstDigit)) {
+        // Keep the previous valid value if exists, otherwise empty
+        setFormData((prev) => ({
+          ...prev,
+          mobile:
+            prev.mobile && ["6", "7", "8", "9"].includes(prev.mobile[0])
+              ? prev.mobile
+              : "",
+        }));
+        setErrors((prev) => ({
+          ...prev,
+          mobile: "Number must start with 6, 7, 8 or 9",
+        }));
+        return;
+      }
+    }
+
     setFormData({ ...formData, mobile: sanitizedText });
 
-    if (
-      sanitizedText.length > 0 &&
-      !["6", "7", "8", "9"].includes(sanitizedText[0])
-    ) {
-      setErrors((prev) => ({
-        ...prev,
-        mobile: "Number must start with 6, 7, 8 or 9",
-      }));
-    } else if (
-      sanitizedText.length === 10 &&
-      !/^[6-9]\d{9}$/.test(sanitizedText)
-    ) {
+    // Validate the phone number length and format
+    if (sanitizedText.length === 10 && !/^[6-9]\d{9}$/.test(sanitizedText)) {
       setErrors((prev) => ({ ...prev, mobile: "Enter valid 10-digit number" }));
     } else {
       setErrors((prev) => ({ ...prev, mobile: undefined }));
@@ -318,6 +320,29 @@ export default function EditStaffScreen() {
     }
   };
 
+  const handleAddressChange = (text) => {
+    // Allow letters, numbers, spaces, commas, periods, and hyphens
+    const sanitizedText = text.replace(/[^a-zA-Z0-9\s,.-]/g, "");
+    setFormData({ ...formData, address: sanitizedText });
+
+    // Validate address with 5 char minimum
+    if (!sanitizedText.trim()) {
+      setErrors((prev) => ({ ...prev, address: "Address is required" }));
+    } else if (sanitizedText.trim().length < 5) {
+      setErrors((prev) => ({
+        ...prev,
+        address: "Address must be at least 5 characters",
+      }));
+    } else if (sanitizedText.trim().length > 50) {
+      setErrors((prev) => ({
+        ...prev,
+        address: "Address must not exceed 50 characters",
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, address: undefined }));
+    }
+  };
+
   const handleSave = async () => {
     const newErrors = {};
 
@@ -333,21 +358,32 @@ export default function EditStaffScreen() {
       newErrors.role = "Role is required";
     }
 
-    if (!formData.mobile || !/^[6-9]\d{9}$/.test(formData.mobile)) {
-      newErrors.mobile = "Enter valid 10-digit number starting with 6-9";
+    // Mobile validation
+    if (!formData.mobile) {
+      newErrors.mobile = "Mobile number is required";
+    } else if (formData.mobile.length !== 10) {
+      newErrors.mobile = "Mobile number must be 10 digits";
+    } else if (!/^[6-9]\d{9}$/.test(formData.mobile)) {
+      newErrors.mobile = "Number must start with 6, 7, 8 or 9";
     }
 
     if (!formData.aadhar_number || !/^\d{12}$/.test(formData.aadhar_number)) {
       newErrors.aadhar_number = "Enter valid 12-digit Aadhar number";
     }
 
+    // Address validation
+    if (!formData.address?.trim()) {
+      newErrors.address = "Address is required";
+    } else if (formData.address.trim().length < 5) {
+      newErrors.address = "Address must be at least 5 characters";
+    } else if (formData.address.trim().length > 50) {
+      newErrors.address = "Address must not exceed 50 characters";
+    }
+
     setErrors(newErrors);
 
+    // If there are errors, return without showing toast
     if (Object.keys(newErrors).length > 0) {
-      toast.show({
-        description: "Please fix all errors before submitting",
-        status: "error",
-      });
       return;
     }
 
@@ -513,16 +549,32 @@ export default function EditStaffScreen() {
             </FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl>
+          <FormControl isRequired isInvalid={"address" in errors}>
             <FormControl.Label>Address</FormControl.Label>
             <TextArea
               value={formData.address}
-              onChangeText={(text) =>
-                setFormData({ ...formData, address: text })
-              }
-              placeholder={formData.address || "Enter address"}
+              onChangeText={handleAddressChange}
+              placeholder="Enter address"
               autoCompleteType={undefined}
+              h={20}
+              borderColor={
+                formData.address && !errors.address
+                  ? "green.500"
+                  : errors.address
+                  ? "red.500"
+                  : "coolGray.200"
+              }
+              _focus={{
+                borderColor: errors.address
+                  ? "red.500"
+                  : formData.address
+                  ? "green.500"
+                  : "blue.500",
+              }}
             />
+            <FormControl.ErrorMessage>
+              {errors.address}
+            </FormControl.ErrorMessage>
           </FormControl>
 
           <Button

@@ -131,11 +131,10 @@ export default function LoginScreen() {
       });
 
       const data = await response.json();
-      console.log("Complete API Response:", data);
 
       if (data && data.st === 1) {
-        console.log("Success condition met, proceeding to OTP screen");
         await AsyncStorage.setItem("tempMobile", mobileNumber);
+        console.log("data", data);
 
         const otpMatch = data.msg.match(/\d{4}/);
         if (otpMatch) {
@@ -144,14 +143,10 @@ export default function LoginScreen() {
 
         router.push({ pathname: "/otp", params: { mobile: mobileNumber } });
       } else {
-        console.log("Success condition not met, showing error");
-        setApiError(data.msg || "This mobile number is not authorized");
+        setApiError("This mobile number is not registered");
       }
     } catch (error) {
-      console.error("API Error:", error);
-      setApiError(
-        "Something went wrong. Please check your internet connection and try again."
-      );
+      setApiError("This mobile number is not registered");
     } finally {
       setIsLoading(false);
     }
@@ -179,6 +174,14 @@ export default function LoginScreen() {
 
           <VStack space={4} w="100%">
             <VStack space={2} w="100%">
+              <Text
+                fontSize="sm"
+                fontWeight="medium"
+                color="coolGray.700"
+                pl={1}
+              >
+                Mobile Number
+              </Text>
               <HStack
                 space={2}
                 alignItems="center"
@@ -191,16 +194,6 @@ export default function LoginScreen() {
                 overflow="hidden"
                 bg="white"
               >
-                <Box
-                  px={4}
-                  py={3}
-                  borderRightWidth={1.5}
-                  borderRightColor="coolGray.300"
-                >
-                  <Text fontSize="md" fontWeight="medium" color="coolGray.600">
-                    +91
-                  </Text>
-                </Box>
                 <Input
                   ref={mobileInputRef}
                   flex={1}
@@ -246,7 +239,7 @@ export default function LoginScreen() {
                 color: "white",
               }}
               _disabled={{
-                bg: "coolGray.300",
+                bg: "blue.300",
                 _text: { color: "white" },
                 opacity: 0.6,
               }}
@@ -327,7 +320,7 @@ export default function LoginScreen() {
             >
               <Icon
                 as={MaterialCommunityIcons}
-                name="twitter"
+                name="alpha-x"
                 size={7}
                 color="#000000"
               />
