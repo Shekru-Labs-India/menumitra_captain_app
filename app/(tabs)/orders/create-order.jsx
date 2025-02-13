@@ -4,6 +4,11 @@ import {
   Keyboard,
   BackHandler,
   Platform,
+  TouchableOpacity,
+  Alert,
+  StyleSheet,
+  View,
+  ActivityIndicator,
 } from "react-native";
 import {
   Box,
@@ -37,6 +42,30 @@ import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { sendNotificationToWaiter } from "../../../services/NotificationService";
 import { getBaseUrl } from "../../../config/api.config";
 import * as Print from "expo-print";
+import { BleManager } from "react-native-ble-plx";
+import { PermissionsAndroid } from "react-native";
+import Constants from "expo-constants";
+
+const PRINTER_SERVICE_UUIDS = [
+  "49535343-FE7D-4AE5-8FA9-9FAFD205E455",
+  "E7810A71-73AE-499D-8C15-FAA9AEF0C3F2",
+  "000018F0-0000-1000-8000-00805F9B34FB",
+];
+
+const PRINTER_CHARACTERISTIC_UUIDS = [
+  "49535343-8841-43F4-A8D4-ECBE34729BB3",
+  "BEF8D6C9-9C21-4C9E-B632-BD58C1009F9F",
+];
+
+const ESC = 0x1b;
+const GS = 0x1d;
+const COMMANDS = {
+  INITIALIZE: [ESC, "@"],
+  TEXT_NORMAL: [ESC, "!", 0],
+  TEXT_CENTERED: [ESC, "a", 1],
+  LINE_SPACING: [ESC, "3", 60],
+  CUT_PAPER: [GS, "V", 1],
+};
 
 const getCurrentDate = () => {
   const date = new Date();
@@ -169,6 +198,28 @@ export default function CreateOrderScreen() {
   // Add this state at component level
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // Add these state variables in your component
+  const [printerDevice, setPrinterDevice] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [availableDevices, setAvailableDevices] = useState([]);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [bleManager] = useState(() => {
+    // Check if running in Expo Go
+    if (
+      Platform.OS === "web" ||
+      Constants.executionEnvironment === "storeClient"
+    ) {
+      return null;
+    }
+    try {
+      return new BleManager();
+    } catch (error) {
+      console.log("BLE initialization error:", error);
+      return null;
+    }
+  });
 
   // Update the useEffect for session handling
 
@@ -475,55 +526,62 @@ export default function CreateOrderScreen() {
   };
 
   const handleKOT = async () => {
-    if (isLoading) return;
-
     try {
-      setIsLoading(true);
+      if (selectedItems.length === 0) {
+        Alert.alert("Error", "Please add items to cart before creating KOT");
+        return;
+      }
+
+      setIsProcessing(true);
       setLoadingMessage("Processing KOT...");
 
       // First create/update the order
       await createOrder("print");
 
-      // Generate and print receipt
+      // Then handle KOT printing
       try {
-        await Print.printAsync({
-          html: generateKOTHTML(),
-          orientation: "portrait",
-        });
-
-        // Close any existing toasts before showing new one
-        toast.closeAll();
-        toast.show({
-          description: "KOT printed successfully",
-          status: "success",
-          duration: 1500,
-          isClosable: true, // Allow manual closing
-          onCloseComplete: () => toast.closeAll(), // Ensure toast is removed
-        });
+        if (printerDevice && isConnected) {
+          // Print using thermal printer
+          const kotHtml = generateKOTHTML();
+          await printThermal(kotHtml, true); // true indicates this is a KOT print
+        } else {
+          // Print using PDF
+          await Print.printAsync({
+            html: generateKOTHTML(),
+            orientation: "portrait",
+          });
+        }
       } catch (printError) {
-        console.error("Printing failed:", printError);
-        toast.closeAll();
-        toast.show({
-          description: "Failed to print KOT. Please check printer connection.",
-          status: "error",
-          duration: 2000,
-          isClosable: true,
-          onCloseComplete: () => toast.closeAll(),
-        });
+        console.error("KOT printing failed:", printError);
+        Alert.alert(
+          "Print Error",
+          "Failed to print KOT. Would you like to try PDF printing?",
+          [
+            {
+              text: "Print PDF",
+              onPress: async () => {
+                try {
+                  await Print.printAsync({
+                    html: generateKOTHTML(),
+                    orientation: "portrait",
+                  });
+                } catch (error) {
+                  Alert.alert("Error", "Failed to generate KOT PDF");
+                }
+              },
+            },
+            { text: "Cancel", style: "cancel" },
+          ]
+        );
       }
-    } catch (error) {
-      console.error("Error processing KOT:", error);
-      toast.closeAll();
-      toast.show({
-        description: "Failed to process KOT",
-        status: "error",
-        duration: 2000,
-        isClosable: true,
-        onCloseComplete: () => toast.closeAll(),
-      });
-    } finally {
-      setIsLoading(false);
+
       setLoadingMessage("");
+      setIsProcessing(false);
+    } catch (error) {
+      console.error("KOT error:", error);
+      Alert.alert("Error", error.message || "Failed to process KOT");
+      setLoadingMessage("");
+      setIsProcessing(false);
     }
   };
 
@@ -531,48 +589,19 @@ export default function CreateOrderScreen() {
     const items = selectedItems
       .map(
         (item) => `
-      <tr>
-        <td style="text-align: left;">${item.menu_name}</td>
+      <tr style="font-family: monospace;">
+        <td style="padding: 4px 0;">${item.menu_name}</td>
         <td style="text-align: center;">${item.quantity}</td>
-        <td style="text-align: right;">₹${
-          item.price ||
-          (item.portionSize === "Half" ? item.half_price : item.full_price) ||
-          0
-        }.00</td>
-        <td style="text-align: right;">₹${(
-          (item.price ||
-            (item.portionSize === "Half" ? item.half_price : item.full_price) ||
-            0) * item.quantity
-        ).toFixed(2)}</td>
       </tr>
     `
       )
       .join("");
 
-    const subtotal = calculateSubtotal(selectedItems);
-    const discount = calculateDiscount(selectedItems);
-    const serviceChargesAmount = calculateServiceCharges(
-      selectedItems,
-      serviceChargePercentage
-    );
-    const gstAmount = calculateGST(selectedItems, gstPercentage);
-    const grandTotal = calculateTotal(
-      selectedItems,
-      serviceChargePercentage,
-      gstPercentage
-    );
-
-    // Generate QR code data URL - you'll need to implement this
-    // const qrCodeUrl = await generateQRCode(`https://menumitra.com/pay/${orderId}/${grandTotal}`);
-
     return `
     <html>
       <head>
         <style>
-          @page {
-            margin: 0;
-            size: 80mm 297mm;
-          }
+          @page { margin: 0; size: 80mm 297mm; }
           body { 
             font-family: monospace;
             padding: 10px;
@@ -582,157 +611,42 @@ export default function CreateOrderScreen() {
           .header {
             text-align: center;
             margin-bottom: 10px;
-          }
-          .restaurant-name {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
-            margin-bottom: 5px;
-          }
-          .restaurant-address {
-            font-size: 14px;
-            margin-bottom: 5px;
-          }
-          .order-info {
-            margin-bottom: 10px;
-            font-size: 14px;
           }
           table {
             width: 100%;
             border-collapse: collapse;
-            margin: 10px 0;
-            font-size: 14px;
           }
-          th, td {
-            padding: 3px 0;
-          }
-          .dotted-line {
-            border-top: 1px dotted black;
-            margin: 5px 0;
-          }
-          .total-section {
-            font-size: 14px;
-          }
-          .total-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 2px 0;
-          }
-          .payment-methods {
-            text-align: center;
-            margin: 15px 0;
-          }
-          .payment-icons {
-            display: flex;
-            justify-content: space-around;
-            margin: 10px 0;
-          }
-          .payment-icons span {
-            font-size: 12px;
-            color: #666;
-            padding: 4px 8px;
-          }
-          .qr-section {
-            text-align: center;
-            margin: 15px 0;
-          }
-          .qr-code {
-            width: 150px;
-            height: 150px;
-            margin: 10px auto;
-          }
-          .website {
-            text-align: center;
-            font-size: 12px;
-            margin-top: 10px;
+          .divider {
+            border-top: 1px dashed #000;
+            margin: 8px 0;
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="restaurant-name">Cafe Deliciaa</div>
-          <div class="restaurant-address">Swargate, Near Bus Stand, Pune</div>
-        </div>
-
-        <div class="order-info">
+        <div class="header">*** KOT ***</div>
+        
+        <div>
           Order: #${params?.orderId || "New Order"}<br>
-          Table: ${
-            params?.isSpecialOrder
-              ? orderTypeMap[params.orderType]
-              : `Dinning - ${params.tableNumber}`
-          }<br>
-          DateTime: ${new Date().toLocaleString("en-US", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: true,
-          })}
+          Table: ${params?.tableNumber || "-"}<br>
+          DateTime: ${new Date().toLocaleString()}
         </div>
 
-        <div class="dotted-line"></div>
+        <div class="divider"></div>
 
         <table>
           <tr>
             <th style="text-align: left;">Item</th>
             <th style="text-align: center;">Qty</th>
-            <th style="text-align: right;">Rate</th>
-            <th style="text-align: right;">Amt</th>
           </tr>
           ${items}
         </table>
 
-        <div class="dotted-line"></div>
-
-        <div class="total-section">
-          <div class="total-row">
-            <span>Subtotal:</span>
-            <span>₹${subtotal.toFixed(2)}</span>
-          </div>
-         <div class="total-row">
-  <span>Discount(${calculateTotalDiscountPercentage(selectedItems)}%):</span>
-  <span>-₹${discount.toFixed(2)}</span>
-</div>
-          <div class="total-row">
-            <span>Service Charges(${serviceChargePercentage}%):</span>
-            <span>+₹${serviceChargesAmount.toFixed(2)}</span>
-          </div>
-          <div class="total-row">
-            <span>GST(${gstPercentage}%):</span>
-            <span>+₹${gstAmount.toFixed(2)}</span>
-          </div>
-        </div>
-
-        <div class="dotted-line"></div>
-
-        <div class="total-row" style="font-weight: bold;">
-          <span>Total:</span>
-          <span>₹${grandTotal.toFixed(2)}</span>
-        </div>
-
-        <div class="payment-methods">
-          <div class="payment-icons">
-            <span>PhonePe</span>
-            <span>Google Pay</span>
-            <span>Paytm</span>
-            
-            <span>UPI</span>
-          </div>
-        </div>
-
-        <div class="qr-section">
-          <div>Scan to Pay ₹${grandTotal.toFixed(2)}</div>
-          <img 
-            src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=merchant@upi&pn=CafeDeliciaa&am=${grandTotal.toFixed(
-              2
-            )}&cu=INR" 
-            class="qr-code"
-          />
-        </div>
-
-        <div class="website">
-          https://menumitra.com
+        <div class="divider"></div>
+        
+        <div style="text-align: right;">
+          Total Items: ${selectedItems.length}
         </div>
       </body>
     </html>
@@ -1628,6 +1542,558 @@ export default function CreateOrderScreen() {
     return parseFloat(((totalDiscount / totalAmount) * 100).toFixed(2)) || 0;
   };
 
+  // Add the print handling functions
+  const handlePrint = async () => {
+    try {
+      if (selectedItems.length === 0) {
+        Alert.alert("Error", "Please add items to cart before printing");
+        return;
+      }
+
+      setIsProcessing(true);
+      setLoadingMessage("Printing...");
+
+      // First update/create the order
+      await createOrder("print");
+
+      // Check if running in Expo Go
+      if (
+        Platform.OS === "web" ||
+        Constants.executionEnvironment === "storeClient"
+      ) {
+        // Use PDF printing in Expo Go
+        const html = await generateReceiptHTML();
+        await Print.printAsync({
+          html,
+          orientation: "portrait",
+        });
+      } else {
+        // Use thermal printing in production
+        if (printerDevice && isConnected) {
+          await printReceipt();
+        } else {
+          // Show printer selection modal
+          setIsModalVisible(true);
+          scanForPrinters();
+        }
+      }
+
+      setLoadingMessage("");
+      setIsProcessing(false);
+    } catch (error) {
+      console.error("Print error:", error);
+      Alert.alert("Error", error.message || "Failed to print receipt");
+      setLoadingMessage("");
+      setIsProcessing(false);
+    }
+  };
+
+  // Add the Bluetooth scanning and connection functions
+  const scanForPrinters = async () => {
+    try {
+      if (!bleManager) {
+        Alert.alert(
+          "Feature Not Available",
+          "Bluetooth printing is only available in development or production builds."
+        );
+        return;
+      }
+
+      const hasPermissions = await requestPermissions();
+      if (!hasPermissions) {
+        Alert.alert("Permission Error", "Bluetooth permissions not granted");
+        return;
+      }
+
+      setIsScanning(true);
+      setAvailableDevices([]);
+      setIsModalVisible(true);
+
+      bleManager.startDeviceScan(null, null, (error, device) => {
+        if (error) {
+          console.error("Scan error:", error);
+          return;
+        }
+        if (device) {
+          setAvailableDevices((prevDevices) => {
+            if (!prevDevices.find((d) => d.id === device.id)) {
+              return [...prevDevices, device];
+            }
+            return prevDevices;
+          });
+        }
+      });
+    } catch (error) {
+      console.error("Scan error:", error);
+      Alert.alert("Error", "Failed to start scanning");
+    }
+  };
+
+  const handleDeviceSelection = async (device) => {
+    try {
+      setIsModalVisible(false);
+      setIsScanning(false);
+      bleManager.stopDeviceScan();
+
+      setLoadingMessage("Connecting to device...");
+      setIsLoading(true);
+
+      const connectedDevice = await device.connect();
+      const discoveredDevice =
+        await connectedDevice.discoverAllServicesAndCharacteristics();
+
+      setPrinterDevice(discoveredDevice);
+      setIsConnected(true);
+      Alert.alert("Success", `Connected to ${device.name || "device"}`);
+    } catch (error) {
+      console.error("Connection error:", error);
+      Alert.alert(
+        "Connection Failed",
+        "Could not connect to the selected device"
+      );
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage("");
+    }
+  };
+
+  // Add helper functions for printing
+  const textToBytes = (text) => {
+    const encoder = new TextEncoder();
+    return Array.from(encoder.encode(text));
+  };
+
+  const sendToPrinter = async (commands) => {
+    try {
+      const services = await printerDevice.services();
+      const service = services.find((s) =>
+        PRINTER_SERVICE_UUIDS.includes(s.uuid.toUpperCase())
+      );
+
+      if (!service) throw new Error("Printer service not found");
+
+      const characteristics = await service.characteristics();
+      const printCharacteristic = characteristics.find((c) =>
+        PRINTER_CHARACTERISTIC_UUIDS.includes(c.uuid.toUpperCase())
+      );
+
+      if (!printCharacteristic)
+        throw new Error("Printer characteristic not found");
+
+      // Send data in chunks
+      const CHUNK_SIZE = 20;
+      for (let i = 0; i < commands.length; i += CHUNK_SIZE) {
+        const chunk = commands.slice(
+          i,
+          Math.min(i + CHUNK_SIZE, commands.length)
+        );
+        const base64Data = base64.encode(String.fromCharCode(...chunk));
+        await printCharacteristic.writeWithoutResponse(base64Data);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    } catch (error) {
+      console.error("Send to printer error:", error);
+      throw error;
+    }
+  };
+
+  // Add permission request function
+  const requestPermissions = async () => {
+    if (Platform.OS === "android") {
+      try {
+        if (Platform.Version >= 31) {
+          const results = await Promise.all([
+            PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
+            ),
+            PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
+            ),
+            PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+            ),
+          ]);
+          return results.every(
+            (result) => result === PermissionsAndroid.RESULTS.GRANTED
+          );
+        } else {
+          const result = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+          );
+          return result === PermissionsAndroid.RESULTS.GRANTED;
+        }
+      } catch (error) {
+        console.error("Permission request error:", error);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Add this function to handle receipt printing
+  const printReceipt = async () => {
+    try {
+      if (!printerDevice || !isConnected) {
+        throw new Error("No printer connected");
+      }
+
+      const html = await generateReceiptHTML();
+
+      if (printerDevice && isConnected) {
+        await printThermal(html);
+      } else {
+        await Print.printAsync({
+          html,
+          printerUrl: printerList[0]?.url,
+          orientation: "portrait",
+        });
+      }
+    } catch (error) {
+      console.error("Print receipt error:", error);
+      throw error;
+    }
+  };
+
+  // Add this function for thermal printing
+  const printThermal = async (html, isKOT = false) => {
+    try {
+      if (!printerDevice || !isConnected) {
+        throw new Error("No printer connected");
+      }
+
+      // Convert HTML to printer commands
+      const commands = isKOT
+        ? generateKOTCommands(html)
+        : generatePrinterCommands(html);
+
+      // Send commands to printer
+      await sendToPrinter(commands);
+    } catch (error) {
+      console.error("Thermal print error:", error);
+      throw error;
+    }
+  };
+
+  // Add KOT-specific command generator
+  const generateKOTCommands = (html) => {
+    const commands = [
+      ...COMMANDS.INITIALIZE,
+      ...textToBytes("\x1B\x40"), // Initialize printer
+      ...textToBytes("\x1B\x61\x01"), // Center alignment
+      ...textToBytes("*** KOT ***\n\n"),
+      ...textToBytes("\x1B\x61\x00"), // Left alignment
+      ...textToBytes(`Order: #${params?.orderId || "New Order"}\n`),
+      ...textToBytes(`Table: ${params?.tableNumber || "-"}\n`),
+      ...textToBytes(`Date: ${new Date().toLocaleString()}\n\n`),
+      ...textToBytes("Items:\n"),
+      ...selectedItems
+        .map((item) => textToBytes(`${item.menu_name} x ${item.quantity}\n`))
+        .flat(),
+      ...COMMANDS.CUT_PAPER,
+    ];
+
+    return commands;
+  };
+
+  // Add printer command generator
+  const generatePrinterCommands = (html) => {
+    // Convert HTML content to printer commands
+    const commands = [
+      ...COMMANDS.INITIALIZE,
+      ...textToBytes("\x1B\x40"), // Initialize printer
+      ...textToBytes("\x1B\x61\x01"), // Center alignment
+      ...textToBytes("*** RECEIPT ***\n\n"),
+      ...textToBytes("\x1B\x61\x00"), // Left alignment
+      ...textToBytes(html),
+      ...COMMANDS.CUT_PAPER,
+    ];
+
+    return commands;
+  };
+
+  // Add this function to generate receipt HTML
+  const generateReceiptHTML = async () => {
+    try {
+      // Get restaurant details from AsyncStorage
+      const outletName =
+        (await AsyncStorage.getItem("outlet_name")) || "Restaurant";
+      const outletAddress =
+        (await AsyncStorage.getItem("outlet_address")) || "Address";
+      const websiteUrl =
+        (await AsyncStorage.getItem("website_url")) || "menumitra.com";
+
+      const items = selectedItems
+        .map(
+          (item) => `
+      <tr>
+        <td style="text-align: left;">${item.menu_name}</td>
+        <td style="text-align: center;">${item.quantity}</td>
+        <td style="text-align: right;">₹${
+          item.portionSize === "Half" ? item.half_price : item.full_price
+        }</td>
+        <td style="text-align: right;">₹${(
+          (item.portionSize === "Half" ? item.half_price : item.full_price) *
+          item.quantity
+        ).toFixed(2)}</td>
+      </tr>
+    `
+        )
+        .join("");
+
+      const subtotal = calculateSubtotal(selectedItems);
+      const discount = calculateDiscount(selectedItems);
+      const serviceChargesAmount = calculateServiceCharges(
+        selectedItems,
+        serviceChargePercentage
+      );
+      const gstAmount = calculateGST(selectedItems, gstPercentage);
+      const grandTotal = calculateTotal(
+        selectedItems,
+        serviceChargePercentage,
+        gstPercentage
+      );
+
+      return `
+    <html>
+      <head>
+        <style>
+          @page {
+            margin: 0;
+            size: 80mm 297mm;
+          }
+          body { 
+            font-family: monospace;
+            padding: 10px;
+            width: 80mm;
+            margin: 0 auto;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 10px;
+          }
+          .restaurant-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+          .restaurant-address {
+            font-size: 14px;
+            margin-bottom: 5px;
+          }
+          .order-info {
+            margin-bottom: 10px;
+            font-size: 14px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 14px;
+          }
+          th, td {
+            padding: 3px 0;
+          }
+          .dotted-line {
+            border-top: 1px dotted black;
+            margin: 5px 0;
+          }
+          .total-section {
+            font-size: 14px;
+          }
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+          }
+          .payment-methods {
+            text-align: center;
+            margin: 15px 0;
+          }
+          .payment-icons {
+            display: flex;
+            justify-content: space-around;
+            margin: 10px 0;
+          }
+          .payment-icons span {
+            font-size: 12px;
+            color: #666;
+            padding: 4px 8px;
+          }
+          .qr-section {
+            text-align: center;
+            margin: 15px 0;
+          }
+          .qr-code {
+            width: 150px;
+            height: 150px;
+            margin: 10px auto;
+          }
+          .website {
+            text-align: center;
+            font-size: 12px;
+            margin-top: 10px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="restaurant-name">${outletName}</div>
+          <div class="restaurant-address">${outletAddress}</div>
+        </div>
+
+        <div class="order-info">
+          Order: #${params?.orderId || "New Order"}<br>
+          Table: ${
+            params?.isSpecialOrder
+              ? orderTypeMap[params.orderType]
+              : `Dinning - ${params.tableNumber}`
+          }<br>
+          DateTime: ${new Date().toLocaleString("en-US", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true,
+          })}
+        </div>
+
+        <div class="dotted-line"></div>
+
+        <table>
+          <tr>
+            <th style="text-align: left;">Item</th>
+            <th style="text-align: center;">Qty</th>
+            <th style="text-align: right;">Rate</th>
+            <th style="text-align: right;">Amt</th>
+          </tr>
+          ${items}
+        </table>
+
+        <div class="dotted-line"></div>
+
+        <div class="total-section">
+          <div class="total-row">
+            <span>Subtotal:</span>
+            <span>₹${subtotal.toFixed(2)}</span>
+          </div>
+          <div class="total-row">
+            <span>Discount(${calculateTotalDiscountPercentage(
+              selectedItems
+            )}%):</span>
+            <span>-₹${discount.toFixed(2)}</span>
+          </div>
+          <div class="total-row">
+            <span>Service Charges(${serviceChargePercentage}%):</span>
+            <span>+₹${serviceChargesAmount.toFixed(2)}</span>
+          </div>
+          <div class="total-row">
+            <span>GST(${gstPercentage}%):</span>
+            <span>+₹${gstAmount.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div class="dotted-line"></div>
+
+        <div class="total-row" style="font-weight: bold;">
+          <span>Total:</span>
+          <span>₹${grandTotal.toFixed(2)}</span>
+        </div>
+
+        <div class="payment-methods">
+          <div class="payment-icons">
+            <span>PhonePe</span>
+            <span>Google Pay</span>
+            <span>Paytm</span>
+            <span>UPI</span>
+          </div>
+        </div>
+
+        <div class="qr-section">
+          <div>Scan to Pay ₹${grandTotal.toFixed(2)}</div>
+          <img 
+            src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=merchant@upi&pn=${encodeURIComponent(
+              outletName
+            )}&am=${grandTotal.toFixed(2)}&cu=INR" 
+            class="qr-code"
+          />
+        </div>
+
+        <div class="website">
+          ${websiteUrl}
+        </div>
+      </body>
+    </html>
+    `;
+    } catch (error) {
+      console.error("Error generating receipt HTML:", error);
+      throw error;
+    }
+  };
+
+  // Add this function to generate KOT HTML
+
+  // Add this component for the device selection modal
+  const DeviceSelectionModal = ({ visible, devices, onSelect, onClose }) => (
+    <Modal isOpen={visible} onClose={onClose}>
+      <Modal.Content maxWidth="90%" maxHeight="80%">
+        <Modal.Header>Select a Bluetooth Printer</Modal.Header>
+        <Modal.Body>
+          {isScanning && (
+            <Center p={4}>
+              <Spinner size="lg" color="blue.500" />
+              <Text mt={2} color="gray.600">
+                Scanning for devices...
+              </Text>
+            </Center>
+          )}
+
+          <ScrollView maxH="300">
+            {devices.map((device, index) => (
+              <Pressable
+                key={device.id || index}
+                p={4}
+                borderBottomWidth={1}
+                borderBottomColor="gray.200"
+                onPress={() => onSelect(device)}
+              >
+                <Text fontSize="md" fontWeight="500">
+                  {device.name || "Unknown Device"}
+                </Text>
+                <Text fontSize="sm" color="gray.500" mt={1}>
+                  {device.id}
+                </Text>
+              </Pressable>
+            ))}
+            {!isScanning && devices.length === 0 && (
+              <Text textAlign="center" color="gray.500" p={4}>
+                No printers found. Make sure your printer is turned on and
+                nearby.
+              </Text>
+            )}
+          </ScrollView>
+        </Modal.Body>
+
+        <Modal.Footer>
+          <Button.Group space={2}>
+            <Button
+              variant="ghost"
+              colorScheme="blueGray"
+              onPress={() => {
+                setAvailableDevices([]);
+                scanForPrinters();
+              }}
+            >
+              Scan Again
+            </Button>
+            <Button onPress={onClose}>Close</Button>
+          </Button.Group>
+        </Modal.Footer>
+      </Modal.Content>
+    </Modal>
+  );
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -2104,50 +2570,113 @@ export default function CreateOrderScreen() {
                   </HStack>
                 </VStack>
 
-                <HStack space={4} justifyContent="space-between">
-                  <Button
-                    bg="gray.400"
-                    rounded="lg"
+                <HStack
+                  space={2}
+                  justifyContent="space-between"
+                  alignItems="center"
+                  py={2}
+                >
+                  <TouchableOpacity
                     onPress={handleHold}
-                    _pressed={{ bg: "gray.600" }}
-                    isDisabled={
+                    disabled={Boolean(
                       loadingMessage && loadingMessage !== "Saving order..."
-                    }
-                    isLoading={loadingMessage === "Saving order..."}
+                    )}
+                    style={{
+                      padding: 8,
+                      borderRadius: 8,
+                      backgroundColor: "transparent",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      minWidth: 44,
+                      minHeight: 44,
+                    }}
                   >
-                    {loadingMessage === "Saving order..."
-                      ? "Saving..."
-                      : "Save"}
-                  </Button>
+                    <MaterialIcons
+                      name="save"
+                      size={28}
+                      color={
+                        loadingMessage === "Saving order..." ? "#999" : "#666"
+                      }
+                    />
+                  </TouchableOpacity>
+
                   <Button
                     flex={1}
-                    variant="outline"
                     bg="black"
+                    height="44px"
                     leftIcon={
-                      <MaterialIcons name="receipt" size={20} color="white" />
+                      <MaterialIcons
+                        name="receipt"
+                        size={24}
+                        color="white"
+                        style={{ marginRight: 4 }}
+                      />
                     }
                     onPress={handleKOT}
-                    _text={{ color: "white" }}
-                    isDisabled={
+                    _text={{
+                      color: "white",
+                      fontSize: "md",
+                      fontWeight: "600",
+                    }}
+                    isDisabled={Boolean(
                       loadingMessage && loadingMessage !== "Processing KOT..."
-                    }
+                    )}
                     isLoading={loadingMessage === "Processing KOT..."}
                   >
                     {loadingMessage === "Processing KOT..."
                       ? "Processing..."
-                      : "Print"}
+                      : "KOT"}
                   </Button>
+
+                  <Button
+                    flex={1}
+                    variant="outline"
+                    bg="black"
+                    height="44px"
+                    leftIcon={
+                      <MaterialIcons
+                        name="print"
+                        size={24}
+                        color="white"
+                        style={{ marginRight: 4 }}
+                      />
+                    }
+                    onPress={handlePrint}
+                    _text={{
+                      color: "white",
+                      fontSize: "md",
+                      fontWeight: "600",
+                    }}
+                    isDisabled={Boolean(
+                      loadingMessage && loadingMessage !== "Printing..."
+                    )}
+                    isLoading={loadingMessage === "Printing..."}
+                  >
+                    {loadingMessage === "Printing..." ? "Printing..." : "Print"}
+                  </Button>
+
                   <Button
                     flex={1}
                     bg="blue.500"
+                    height="44px"
                     leftIcon={
-                      <MaterialIcons name="payment" size={20} color="white" />
+                      <MaterialIcons
+                        name="payment"
+                        size={24}
+                        color="white"
+                        style={{ marginRight: 4 }}
+                      />
                     }
                     onPress={handleSettle}
                     _pressed={{ bg: "blue.600" }}
-                    isDisabled={
+                    _text={{
+                      color: "white",
+                      fontSize: "md",
+                      fontWeight: "600",
+                    }}
+                    isDisabled={Boolean(
                       loadingMessage && loadingMessage !== "Settling order..."
-                    }
+                    )}
                     isLoading={loadingMessage === "Settling order..."}
                   >
                     {loadingMessage === "Settling order..."
@@ -2207,6 +2736,17 @@ export default function CreateOrderScreen() {
           )}
         </Actionsheet.Content>
       </Actionsheet>
+
+      <DeviceSelectionModal
+        visible={isModalVisible}
+        devices={availableDevices}
+        onSelect={handleDeviceSelection}
+        onClose={() => {
+          setIsModalVisible(false);
+          setIsScanning(false);
+          bleManager?.stopDeviceScan();
+        }}
+      />
     </Box>
   );
 }
