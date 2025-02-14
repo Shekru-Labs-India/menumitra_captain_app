@@ -9,6 +9,9 @@ import {
   StyleSheet,
   View,
   ActivityIndicator,
+  NativeModules,
+  NativeEventEmitter,
+  Linking,
 } from "react-native";
 import {
   Box,
@@ -45,6 +48,7 @@ import * as Print from "expo-print";
 import { BleManager } from "react-native-ble-plx";
 import { PermissionsAndroid } from "react-native";
 import Constants from "expo-constants";
+import base64 from "react-native-base64";
 
 const PRINTER_SERVICE_UUIDS = [
   "49535343-FE7D-4AE5-8FA9-9FAFD205E455",
@@ -206,19 +210,13 @@ export default function CreateOrderScreen() {
   const [availableDevices, setAvailableDevices] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [bleManager] = useState(() => {
-    // Check if running in Expo Go
-    if (
-      Platform.OS === "web" ||
-      Constants.executionEnvironment === "storeClient"
-    ) {
+    if (Platform.OS === "web") return null;
+    if (Constants.appOwnership === "expo") {
+      // Show message about development build requirement
+      console.log("BLE requires development build");
       return null;
     }
-    try {
-      return new BleManager();
-    } catch (error) {
-      console.log("BLE initialization error:", error);
-      return null;
-    }
+    return new BleManager();
   });
 
   // Update the useEffect for session handling
@@ -1644,7 +1642,17 @@ export default function CreateOrderScreen() {
 
       setPrinterDevice(discoveredDevice);
       setIsConnected(true);
-      Alert.alert("Success", `Connected to ${device.name || "device"}`);
+
+      // Monitor connection state
+      device.onDisconnected((error, disconnectedDevice) => {
+        if (!isDisconnecting) {
+          setIsConnected(false);
+          setPrinterDevice(null);
+          Alert.alert("Disconnected", "Printer connection was lost");
+        }
+      });
+
+      Alert.alert("Success", `Connected to ${device.name || "printer"}`);
     } catch (error) {
       console.error("Connection error:", error);
       Alert.alert(
@@ -1663,22 +1671,29 @@ export default function CreateOrderScreen() {
     return Array.from(encoder.encode(text));
   };
 
-  const sendToPrinter = async (commands) => {
+  const sendToDevice = async (commands) => {
     try {
+      if (!printerDevice || !isConnected) {
+        throw new Error("No printer connected");
+      }
+
       const services = await printerDevice.services();
       const service = services.find((s) =>
         PRINTER_SERVICE_UUIDS.includes(s.uuid.toUpperCase())
       );
 
-      if (!service) throw new Error("Printer service not found");
+      if (!service) {
+        throw new Error("Printer service not found");
+      }
 
       const characteristics = await service.characteristics();
       const printCharacteristic = characteristics.find((c) =>
         PRINTER_CHARACTERISTIC_UUIDS.includes(c.uuid.toUpperCase())
       );
 
-      if (!printCharacteristic)
+      if (!printCharacteristic) {
         throw new Error("Printer characteristic not found");
+      }
 
       // Send data in chunks
       const CHUNK_SIZE = 20;
@@ -1688,19 +1703,48 @@ export default function CreateOrderScreen() {
           Math.min(i + CHUNK_SIZE, commands.length)
         );
         const base64Data = base64.encode(String.fromCharCode(...chunk));
-        await printCharacteristic.writeWithoutResponse(base64Data);
-        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Add retry logic
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            await printCharacteristic.writeWithoutResponse(base64Data);
+            break;
+          } catch (error) {
+            retries--;
+            if (retries === 0) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
+      return true;
     } catch (error) {
       console.error("Send to printer error:", error);
       throw error;
     }
   };
 
-  // Add permission request function
+  // Add enhanced permission checking
   const requestPermissions = async () => {
-    if (Platform.OS === "android") {
-      try {
+    try {
+      const state = await bleManager.state();
+      if (state !== "PoweredOn") {
+        Alert.alert(
+          "Bluetooth Required",
+          "Please enable Bluetooth to connect to printer",
+          [
+            {
+              text: "Open Settings",
+              onPress: () => Linking.openSettings(),
+            },
+            { text: "Cancel", style: "cancel" },
+          ]
+        );
+        return false;
+      }
+
+      if (Platform.OS === "android") {
         if (Platform.Version >= 31) {
           const results = await Promise.all([
             PermissionsAndroid.request(
@@ -1722,12 +1766,12 @@ export default function CreateOrderScreen() {
           );
           return result === PermissionsAndroid.RESULTS.GRANTED;
         }
-      } catch (error) {
-        console.error("Permission request error:", error);
-        return false;
       }
+      return true;
+    } catch (error) {
+      console.error("Permission request error:", error);
+      return false;
     }
-    return true;
   };
 
   // Add this function to handle receipt printing
@@ -1767,7 +1811,7 @@ export default function CreateOrderScreen() {
         : generatePrinterCommands(html);
 
       // Send commands to printer
-      await sendToPrinter(commands);
+      await sendToDevice(commands);
     } catch (error) {
       console.error("Thermal print error:", error);
       throw error;
