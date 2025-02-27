@@ -604,6 +604,7 @@ const OrdersScreen = () => {
         pathname: "/orders/order-details",
         params: {
           id: orderData.orderNumber,
+          order_id: orderData.orderId.toString(),
           initialData: JSON.stringify(orderData),
         },
       });

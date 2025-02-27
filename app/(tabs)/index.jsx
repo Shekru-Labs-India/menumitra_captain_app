@@ -37,6 +37,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
 import { getBaseUrl } from "../../config/api.config";
+import * as Updates from "expo-updates";
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -57,6 +58,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
 
   // Update the management cards array to match the reference
   const managementCards = [
@@ -175,8 +177,55 @@ export default function HomeScreen() {
     }
   };
 
+  const checkForUpdates = async () => {
+    try {
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        Alert.alert(
+          "Update Available",
+          "A new version of the app is available. Would you like to update now?",
+          [
+            {
+              text: "Update",
+              onPress: async () => {
+                try {
+                  await Updates.fetchUpdateAsync();
+                  Alert.alert(
+                    "Update Downloaded",
+                    "The update has been downloaded. The app will now restart to apply the changes.",
+                    [
+                      {
+                        text: "OK",
+                        onPress: async () => {
+                          await Updates.reloadAsync();
+                        },
+                      },
+                    ]
+                  );
+                } catch (error) {
+                  Alert.alert(
+                    "Error",
+                    "Failed to download update. Please try again later."
+                  );
+                  console.log("Error downloading update:", error);
+                }
+              },
+            },
+            {
+              text: "Later",
+              style: "cancel",
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.log("Error checking for updates:", error);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    checkForUpdates();
   }, []);
 
   // Add Audio initialization
@@ -502,7 +551,7 @@ export default function HomeScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchData();
+      await Promise.all([fetchData(), checkForUpdates()]);
     } finally {
       setRefreshing(false);
     }

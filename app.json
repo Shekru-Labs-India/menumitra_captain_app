@@ -37,6 +37,18 @@
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.BLUETOOTH_SCAN",
         "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_SMS",
+        "android.permission.RECEIVE_SMS",
+        "android.permission.NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
@@ -54,20 +66,23 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#ffffff",
-          "sounds": ["./assets/sounds/notification.mp3"],
+          "sounds": [
+            "./assets/sounds/notification.mp3"
+          ],
           "androidMode": "default",
           "androidCollapsedTitle": "MenuMitra",
           "iosDisplayInForeground": true
         }
       ],
-      
       [
         "react-native-ble-plx",
         {
           "isBackgroundEnabled": true,
-          "modes": ["peripheral", "central"],
+          "modes": [
+            "peripheral",
+            "central"
+          ],
           "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to connect to bluetooth devices"
-          
         }
       ]
     ],
@@ -78,6 +93,14 @@
       "eas": {
         "projectId": "c58bd2bc-2b46-4518-a238-6e981d88470a"
       }
+    },
+    "updates": {
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/c58bd2bc-2b46-4518-a238-6e981d88470a"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }

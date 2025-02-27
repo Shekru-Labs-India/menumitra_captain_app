@@ -162,7 +162,9 @@ export default function OtpScreen() {
       };
 
       const response = await fetch(
-        "https://menusmitra.xyz/captain_api/captain_verify_otp",
+        // "https://menusmitra.xyz/captain_api/captain_verify_otp",  //production
+        "https://men4u.xyz/captain_api/captain_verify_otp", //development
+
         {
           method: "POST",
           headers: {

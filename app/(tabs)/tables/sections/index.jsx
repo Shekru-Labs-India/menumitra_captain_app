@@ -421,6 +421,8 @@ export default function TableSectionsScreen() {
             },
             body: JSON.stringify({
               order_number: table.order_number,
+              outlet_id: outlet_id.toString(),
+              order_id: table.order_id.toString()
             }),
           });
 

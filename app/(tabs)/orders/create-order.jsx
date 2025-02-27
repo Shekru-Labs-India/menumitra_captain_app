@@ -361,7 +361,7 @@ export default function CreateOrderScreen() {
     }
   };
 
-  const createOrder = async (orderStatus) => {
+  const createOrder = async (orderStatus, returnResponse = false) => {
     if (selectedItems.length === 0) {
       toast.show({
         description: "Please add items to the order",
@@ -483,6 +483,10 @@ export default function CreateOrderScreen() {
           duration: 2000,
         });
 
+        if (returnResponse) {
+          return result; // Return the response if requested
+        }
+
         router.replace(
           params?.isSpecialOrder ? "/(tabs)/orders" : "/(tabs)/tables/sections"
         );
@@ -533,8 +537,54 @@ export default function CreateOrderScreen() {
       setIsProcessing(true);
       setLoadingMessage("Processing KOT...");
 
+      // Get required data for payment
+      const [storedOutletId, storedUserId, accessToken] = await Promise.all([
+        AsyncStorage.getItem("outlet_id"),
+        AsyncStorage.getItem("user_id"),
+        AsyncStorage.getItem("access"),
+      ]);
+
+      let orderId;
+
       // First create/update the order
-      await createOrder("print");
+      if (params?.orderId) {
+        // For existing orders
+        await createOrder("print");
+        orderId = params.orderId;
+      } else {
+        // For new orders, capture the order ID from response
+        const response = await createOrder("print", true); // Add a parameter to return the response
+        if (response?.order_id) {
+          orderId = response.order_id;
+        } else {
+          throw new Error("Failed to get order ID from new order");
+        }
+      }
+
+      // Mark order as paid for both new and existing orders
+      const settleRequestBody = {
+        outlet_id: storedOutletId.toString(),
+        order_id: orderId.toString(),
+        order_status: "paid",
+        user_id: storedUserId.toString(),
+      };
+
+      const settleResponse = await fetch(
+        `${getBaseUrl()}/update_order_status`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(settleRequestBody),
+        }
+      );
+
+      const settleResult = await settleResponse.json();
+      if (settleResult.st !== 1) {
+        throw new Error(settleResult.msg || "Failed to mark as paid");
+      }
 
       // Then handle KOT printing
       try {
@@ -572,6 +622,23 @@ export default function CreateOrderScreen() {
           ]
         );
       }
+
+      // Clear states and navigate
+      setSelectedItems([]);
+      setSearchQuery("");
+      setOrderDetails({});
+      setServiceCharges(0);
+      setGstAmount(0);
+      setDiscountAmount(0);
+
+      router.replace({
+        pathname: "/(tabs)/orders",
+        params: {
+          refresh: Date.now().toString(),
+          status: "paid",
+          fromKOT: true,
+        },
+      });
 
       setLoadingMessage("");
       setIsProcessing(false);
@@ -1540,7 +1607,7 @@ export default function CreateOrderScreen() {
     return parseFloat(((totalDiscount / totalAmount) * 100).toFixed(2)) || 0;
   };
 
-  // Add the print handling functions
+  // Update the handlePrint function
   const handlePrint = async () => {
     try {
       if (selectedItems.length === 0) {
@@ -1554,41 +1621,87 @@ export default function CreateOrderScreen() {
       // First update/create the order
       await createOrder("print");
 
-      // Check if running in Expo Go
-      if (
-        Platform.OS === "web" ||
-        Constants.executionEnvironment === "storeClient"
-      ) {
-        // Use PDF printing in Expo Go
+      // Check if running in Expo Go or web
+      const isExpoGo = Constants.executionEnvironment === "storeClient";
+      const isWeb = Platform.OS === "web";
+
+      if (isExpoGo || isWeb) {
+        // Use PDF printing in Expo Go or web
         const html = await generateReceiptHTML();
         await Print.printAsync({
           html,
           orientation: "portrait",
         });
       } else {
-        // Use thermal printing in production
+        // Use thermal printing in development or production builds
         if (printerDevice && isConnected) {
           await printReceipt();
         } else {
-          // Show printer selection modal
           setIsModalVisible(true);
           scanForPrinters();
         }
       }
-
-      setLoadingMessage("");
-      setIsProcessing(false);
     } catch (error) {
       console.error("Print error:", error);
-      Alert.alert("Error", error.message || "Failed to print receipt");
-      setLoadingMessage("");
+      Alert.alert(
+        "Print Error",
+        "Failed to print receipt. Would you like to try PDF printing?",
+        [
+          {
+            text: "Print PDF",
+            onPress: async () => {
+              try {
+                const html = await generateReceiptHTML();
+                await Print.printAsync({
+                  html,
+                  orientation: "portrait",
+                });
+              } catch (pdfError) {
+                Alert.alert("Error", "Failed to generate receipt PDF");
+              }
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+    } finally {
       setIsProcessing(false);
+      setLoadingMessage("");
     }
   };
 
-  // Add the Bluetooth scanning and connection functions
+  // Update the scanForPrinters function to include Expo Go check
   const scanForPrinters = async () => {
     try {
+      // Check if running in Expo Go or web
+      const isExpoGo = Constants.executionEnvironment === "storeClient";
+      const isWeb = Platform.OS === "web";
+
+      if (isExpoGo || isWeb) {
+        Alert.alert(
+          "Feature Not Available",
+          "Bluetooth printing is not available in Expo Go or web. Please use PDF printing instead.",
+          [
+            {
+              text: "Print PDF",
+              onPress: async () => {
+                try {
+                  const html = await generateReceiptHTML();
+                  await Print.printAsync({
+                    html,
+                    orientation: "portrait",
+                  });
+                } catch (error) {
+                  Alert.alert("Error", "Failed to generate receipt PDF");
+                }
+              },
+            },
+            { text: "Cancel", style: "cancel" },
+          ]
+        );
+        return;
+      }
+
       if (!bleManager) {
         Alert.alert(
           "Feature Not Available",
@@ -1781,20 +1894,22 @@ export default function CreateOrderScreen() {
         throw new Error("No printer connected");
       }
 
-      const html = await generateReceiptHTML();
-
-      if (printerDevice && isConnected) {
-        await printThermal(html);
-      } else {
-        await Print.printAsync({
-          html,
-          printerUrl: printerList[0]?.url,
-          orientation: "portrait",
-        });
-      }
+      // Generate and send commands directly for thermal printer
+      const commands = generatePrinterCommands();
+      await sendToDevice(commands);
     } catch (error) {
       console.error("Print receipt error:", error);
-      throw error;
+      // Fallback to PDF printing if thermal printing fails
+      try {
+        const html = await generateReceiptHTML();
+        await Print.printAsync({
+          html,
+          orientation: "portrait",
+        });
+      } catch (pdfError) {
+        console.error("PDF fallback error:", pdfError);
+        throw error; // Throw original error if both methods fail
+      }
     }
   };
 
@@ -1841,49 +1956,8 @@ export default function CreateOrderScreen() {
 
   // Add printer command generator
   const generatePrinterCommands = (html) => {
-    // Convert HTML content to printer commands
-    const commands = [
-      ...COMMANDS.INITIALIZE,
-      ...textToBytes("\x1B\x40"), // Initialize printer
-      ...textToBytes("\x1B\x61\x01"), // Center alignment
-      ...textToBytes("*** RECEIPT ***\n\n"),
-      ...textToBytes("\x1B\x61\x00"), // Left alignment
-      ...textToBytes(html),
-      ...COMMANDS.CUT_PAPER,
-    ];
-
-    return commands;
-  };
-
-  // Add this function to generate receipt HTML
-  const generateReceiptHTML = async () => {
     try {
-      // Get restaurant details from AsyncStorage
-      const outletName =
-        (await AsyncStorage.getItem("outlet_name")) || "Restaurant";
-      const outletAddress =
-        (await AsyncStorage.getItem("outlet_address")) || "Address";
-      const websiteUrl =
-        (await AsyncStorage.getItem("website_url")) || "menumitra.com";
-
-      const items = selectedItems
-        .map(
-          (item) => `
-      <tr>
-        <td style="text-align: left;">${item.menu_name}</td>
-        <td style="text-align: center;">${item.quantity}</td>
-        <td style="text-align: right;">₹${
-          item.portionSize === "Half" ? item.half_price : item.full_price
-        }</td>
-        <td style="text-align: right;">₹${(
-          (item.portionSize === "Half" ? item.half_price : item.full_price) *
-          item.quantity
-        ).toFixed(2)}</td>
-      </tr>
-    `
-        )
-        .join("");
-
+      // Extract data from selectedItems and calculate totals
       const subtotal = calculateSubtotal(selectedItems);
       const discount = calculateDiscount(selectedItems);
       const serviceChargesAmount = calculateServiceCharges(
@@ -1896,6 +1970,149 @@ export default function CreateOrderScreen() {
         serviceChargePercentage,
         gstPercentage
       );
+
+      // Build commands array
+      const commands = [
+        ...COMMANDS.INITIALIZE,
+        ...textToBytes("\x1B\x40"), // Initialize printer
+        ...textToBytes("\x1B\x61\x01"), // Center alignment
+        ...textToBytes("*** RECEIPT ***\n\n"),
+        ...textToBytes("\x1B\x61\x00"), // Left alignment
+
+        // Order Info
+        ...textToBytes(`Bill Number: ${params?.orderNumber || "New Order"}\n`),
+        ...textToBytes(
+          `Table: ${
+            params?.isSpecialOrder
+              ? orderTypeMap[params.orderType]
+              : `${params.sectionName} - ${params.tableNumber}`
+          }\n`
+        ),
+        ...textToBytes(`Date: ${new Date().toLocaleString()}\n\n`),
+
+        ...textToBytes("----------------------------------------\n"),
+        ...textToBytes("Item                  Qty    Rate    Amt\n"),
+        ...textToBytes("----------------------------------------\n"),
+
+        // Items
+        ...selectedItems.flatMap((item) => {
+          const price =
+            item.portionSize === "Half" ? item.half_price : item.full_price;
+          const amount = price * item.quantity;
+          const itemName = item.menu_name.padEnd(20).substring(0, 20);
+          return textToBytes(
+            `${itemName} ${String(item.quantity).padStart(3)}  ${String(
+              price
+            ).padStart(6)} ${String(amount.toFixed(2)).padStart(7)}\n`
+          );
+        }),
+
+        ...textToBytes("----------------------------------------\n"),
+
+        // Totals
+        ...textToBytes(
+          `Subtotal:${String(subtotal.toFixed(2)).padStart(29)}\n`
+        ),
+        ...textToBytes(
+          `Discount (${calculateTotalDiscountPercentage(
+            selectedItems
+          )}%):${String(-discount.toFixed(2)).padStart(20)}\n`
+        ),
+        ...textToBytes(
+          `Service Charge (${serviceChargePercentage}%):${String(
+            serviceChargesAmount.toFixed(2)
+          ).padStart(17)}\n`
+        ),
+        ...textToBytes(
+          `GST (${gstPercentage}%):${String(gstAmount.toFixed(2)).padStart(
+            28
+          )}\n`
+        ),
+        ...textToBytes("----------------------------------------\n"),
+        ...textToBytes(
+          `GRAND TOTAL:${String(grandTotal.toFixed(2)).padStart(27)}\n\n`
+        ),
+
+        // Footer
+        ...textToBytes("\x1B\x61\x01"), // Center alignment
+        ...textToBytes("Thank you for dining with us!\n"),
+        ...textToBytes("Visit us again\n\n"),
+
+        ...COMMANDS.CUT_PAPER,
+      ];
+
+      return commands;
+    } catch (error) {
+      console.error("Error generating printer commands:", error);
+      throw error;
+    }
+  };
+
+  // Add this function to generate receipt HTML
+  const generateReceiptHTML = async () => {
+    try {
+      // Get restaurant details from order details if available, otherwise from AsyncStorage
+      let outletName, outletAddress, websiteUrl;
+
+      if (orderDetails?.lists?.order_details) {
+        // Changed from order_details to lists.order_details
+        outletName = orderDetails.lists.order_details.outlet_name;
+        outletAddress = orderDetails.lists.order_details.outlet_address;
+      } else {
+        outletName =
+          (await AsyncStorage.getItem("outlet_name")) || "Restaurant";
+        outletAddress =
+          (await AsyncStorage.getItem("outlet_address")) || "Address";
+      }
+      websiteUrl =
+        (await AsyncStorage.getItem("website_url")) || "menumitra.com";
+
+      const items = selectedItems
+        .map(
+          (item) => `
+      <tr>
+        <td style="text-align: left;">${item.menu_name}</td>
+        <td style="text-align: center;">${item.quantity}</td>
+        <td style="text-align: right;">₹${
+          item.price ||
+          (item.half_or_full === "half" ? item.half_price : item.full_price)
+        }</td>
+        <td style="text-align: right;">₹${(
+          (item.price ||
+            (item.half_or_full === "half"
+              ? item.half_price
+              : item.full_price)) * item.quantity
+        ).toFixed(2)}</td>
+      </tr>
+    `
+        )
+        .join("");
+
+      // Get values either from order details or calculate them
+      const subtotal =
+        orderDetails?.lists?.order_details?.total_bill_amount || // Changed from order_details to lists.order_details
+        calculateSubtotal(selectedItems);
+      const discount =
+        orderDetails?.lists?.order_details?.discount_amount || // Changed from order_details to lists.order_details
+        calculateDiscount(selectedItems);
+      const discountPercent =
+        orderDetails?.lists?.order_details?.discount_percent || // Changed from order_details to lists.order_details
+        calculateTotalDiscountPercentage(selectedItems);
+      const serviceChargesAmount =
+        orderDetails?.lists?.order_details?.service_charges_amount || // Changed from order_details to lists.order_details
+        calculateServiceCharges(selectedItems, serviceChargePercentage);
+      const serviceChargesPercent =
+        orderDetails?.lists?.order_details?.service_charges_percent || // Changed from order_details to lists.order_details
+        serviceChargePercentage;
+      const gstAmount =
+        orderDetails?.lists?.order_details?.gst_amount || // Changed from order_details to lists.order_details
+        calculateGST(selectedItems, gstPercentage);
+      const gstPercent =
+        orderDetails?.lists?.order_details?.gst_percent || // Changed from order_details to lists.order_details
+        gstPercentage;
+      const grandTotal =
+        orderDetails?.lists?.order_details?.grand_total || // Changed from order_details to lists.order_details
+        calculateTotal(selectedItems, serviceChargePercentage, gstPercentage);
 
       return `
     <html>
@@ -1986,21 +2203,34 @@ export default function CreateOrderScreen() {
         </div>
 
         <div class="order-info">
-          Order: #${params?.orderId || "New Order"}<br>
+          Order: #${
+            orderDetails?.lists?.order_details?.order_number || // Changed from order_details to lists.order_details
+            params?.orderId ||
+            "New Order"
+          }<br>
           Table: ${
             params?.isSpecialOrder
               ? orderTypeMap[params.orderType]
-              : `Dinning - ${params.tableNumber}`
+              : `${
+                  orderDetails?.lists?.order_details?.section || "Dinning"
+                } - ${
+                  // Changed from order_details to lists.order_details
+                  orderDetails?.lists?.order_details?.table_number?.[0] || // Changed from order_details to lists.order_details
+                  params?.tableNumber
+                }`
           }<br>
-          DateTime: ${new Date().toLocaleString("en-US", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: true,
-          })}
+          DateTime: ${
+            orderDetails?.lists?.order_details?.datetime || // Changed from order_details to lists.order_details
+            new Date().toLocaleString("en-US", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: true,
+            })
+          }
         </div>
 
         <div class="dotted-line"></div>
@@ -2023,17 +2253,15 @@ export default function CreateOrderScreen() {
             <span>₹${subtotal.toFixed(2)}</span>
           </div>
           <div class="total-row">
-            <span>Discount(${calculateTotalDiscountPercentage(
-              selectedItems
-            )}%):</span>
+            <span>Discount(${discountPercent}%):</span>
             <span>-₹${discount.toFixed(2)}</span>
           </div>
           <div class="total-row">
-            <span>Service Charges(${serviceChargePercentage}%):</span>
+            <span>Service Charges(${serviceChargesPercent}%):</span>
             <span>+₹${serviceChargesAmount.toFixed(2)}</span>
           </div>
           <div class="total-row">
-            <span>GST(${gstPercentage}%):</span>
+            <span>GST(${gstPercent}%):</span>
             <span>+₹${gstAmount.toFixed(2)}</span>
           </div>
         </div>
@@ -2294,7 +2522,7 @@ export default function CreateOrderScreen() {
                 }}
                 nestedScrollEnabled={true}
               >
-                <VStack space={2} mb={selectedItems.length > 0 ? 300 : 0}>
+                <VStack space={2} mb={selectedItems.length > 0 ? 280 : 0}>
                   {selectedItems.length === 0 ? (
                     <Box
                       flex={1}

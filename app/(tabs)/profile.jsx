@@ -205,7 +205,7 @@ export default function ProfileScreen() {
 
               const data = await response.json();
 
-              if (data.st === 1) {
+              if (data.st == 1) {
                 // Clear all AsyncStorage data
                 await AsyncStorage.clear();
 

@@ -4,7 +4,7 @@ const ENV = {
 };
 
 // Set this to change environments
-const CURRENT_ENV = ENV.prod;
+const CURRENT_ENV = ENV.dev;
 
 // Base URLs
 const DEVELOPMENT_API = "https://men4u.xyz/common_api";
