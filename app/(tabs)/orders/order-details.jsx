@@ -32,6 +32,8 @@ import Constants from "expo-constants";
 import { PermissionsAndroid } from "react-native";
 import base64 from "react-native-base64";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 const formatTime = (dateTimeString) => {
   if (!dateTimeString) return "";
@@ -230,6 +232,261 @@ const generateReceiptHTML = (orderDetails, menuItems) => {
   }
 };
 
+// Update the generateInvoiceHTML function to handle data safely
+const generateInvoiceHTML = (orderDetails, menuItems) => {
+  try {
+    // Safely handle date and time formatting
+    const dateTime = (orderDetails?.datetime || '').split(' ');
+    const date = dateTime[0] || '';
+    const time = dateTime.length > 2 ? `${dateTime[1]} ${dateTime[2]}` : '';
+
+    // Ensure orderDetails and menuItems are valid
+    if (!orderDetails || !menuItems) {
+      throw new Error('Invalid order details or menu items');
+    }
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Invoice</title>
+        <style>
+          @page {
+            margin: 15mm;
+            size: A4;
+          }
+          body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px;
+            color: #333;
+            line-height: 1.5;
+            font-size: 14px;
+            max-width: 900px;
+            margin: 0 auto;
+          }
+          .header { 
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+          }
+          .logo-section {
+            display: flex;
+            align-items: center;
+          }
+          .logo-text {
+            margin-left: 10px;
+            font-size: 24px;
+            font-weight: bold;
+          }
+          .invoice-label {
+            color: #dc3545;
+            font-size: 18px;
+            font-weight: 500;
+          }
+          .header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+          }
+          .customer-info {
+            flex: 1;
+          }
+          .bill-info {
+            text-align: right;
+            font-size: 15px;
+            line-height: 1.6;
+          }
+          .greeting {
+            margin: 0;
+            font-size: 15px;
+          }
+          .items-section {
+            margin: 25px 0;
+          }
+          .items-header {
+            display: grid;
+            grid-template-columns: 1fr 100px 120px;
+            padding: 10px 4px;
+            color: #444;
+            font-weight: 500;
+            font-size: 15px;
+            border-bottom: 2px solid #dee2e6;
+          }
+          .items-header span:nth-child(2) { text-align: center; }
+          .items-header span:nth-child(3) { text-align: right; }
+          .menu-items {
+            margin: 15px 0;
+          }
+          .menu-item {
+            display: grid;
+            grid-template-columns: 1fr 100px 120px;
+            padding: 8px 4px;
+            color: #444;
+            font-size: 14px;
+          }
+          .menu-item span:nth-child(2) { text-align: center; }
+          .menu-item span:nth-child(3) { text-align: right; }
+          .amount-details {
+            width: 100%;
+            margin-top: 15px;
+            border-top: 1px solid #dee2e6;
+            padding-top: 15px;
+          }
+          .amount-row {
+            display: flex;
+            justify-content: flex-end;
+            margin: 5px 0;
+            font-size: 14px;
+          }
+          .amount-label {
+            margin-right: 20px;
+            color: #444;
+            font-weight: 500;
+          }
+          .amount-value {
+            width: 100px;
+            text-align: right;
+          }
+          .divider {
+            border-top: 1px solid #dee2e6;
+            margin: 8px 0;
+          }
+          .billing-info {
+            margin-top: 25px;
+            font-size: 14px;
+            line-height: 1.6;
+          }
+          .payment-section {
+            display: flex;
+            justify-content: flex-end;
+            margin: 15px 0 25px 0;
+            gap: 40px;
+            font-size: 14px;
+            border-top: none;
+            padding-top: 0;
+          }
+          .payment-label {
+            font-weight: 500;
+          }
+          .footer {
+            margin-top: 35px;
+            text-align: center;
+            font-style: italic;
+            color: #666;
+            font-size: 13px;
+            line-height: 1.6;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo-section">
+            <span class="logo-text">MenuMitra</span>
+          </div>
+          <div class="invoice-label">Invoice</div>
+        </div>
+
+        <div class="header-info">
+          <div class="customer-info">
+            <div class="greeting">
+              Hello, ${orderDetails.customer_name || 'Customer'}<br>
+              Thank you for shopping from our store and for your order.
+            </div>
+          </div>
+          <div class="bill-info">
+            Bill no: ${orderDetails.order_number || ''}<br>
+            ${date}<br>
+            ${time}
+          </div>
+        </div>
+
+        <div class="items-section">
+          <div class="items-header">
+            <span>Item</span>
+            <span>Quantity</span>
+            <span>Price</span>
+          </div>
+          <div class="menu-items">
+            ${(Array.isArray(menuItems) ? menuItems : []).map(item => `
+              <div class="menu-item">
+                <span>${item.menu_name || ''}${item.half_or_full ? ` (${item.half_or_full})` : ''}</span>
+                <span>${item.quantity || 0}</span>
+                <span>₹ ${Number(item.price || 0).toFixed(2)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="amount-details">
+          <div class="amount-row">
+            <span class="amount-label">Total:</span>
+            <span class="amount-value">₹${Number(orderDetails.total_bill_amount || 0).toFixed(2)}</span>
+          </div>
+          ${orderDetails.discount_amount > 0 ? `
+            <div class="amount-row">
+              <span class="amount-label">Discount (${orderDetails.discount_percent || 0}%):</span>
+              <span class="amount-value" style="color: #28a745">-₹${Number(orderDetails.discount_amount || 0).toFixed(2)}</span>
+            </div>
+          ` : ''}
+          ${orderDetails.special_discount > 0 ? `
+            <div class="amount-row">
+              <span class="amount-label">Special Discount:</span>
+              <span class="amount-value" style="color: #28a745">-₹${Number(orderDetails.special_discount || 0).toFixed(2)}</span>
+            </div>
+          ` : ''}
+          <div class="amount-row">
+            <span class="amount-label">Total after Discount:</span>
+            <span class="amount-value">₹${(Number(orderDetails.total_bill_amount) - Number(orderDetails.discount_amount) - Number(orderDetails.special_discount || 0)).toFixed(2)}</span>
+          </div>
+          <div class="amount-row">
+            <span class="amount-label">Extra Charges:</span>
+            <span class="amount-value">+₹${Number(orderDetails.extra_charges || 0).toFixed(2)}</span>
+          </div>
+          <div class="amount-row">
+            <span class="amount-label">Service Charges (${orderDetails.service_charges_percent}%):</span>
+            <span class="amount-value">+₹${Number(orderDetails.service_charges_amount).toFixed(2)}</span>
+          </div>
+          <div class="amount-row">
+            <span class="amount-label">GST (${orderDetails.gst_percent}%):</span>
+            <span class="amount-value">+₹${Number(orderDetails.gst_amount).toFixed(2)}</span>
+          </div>
+          <div class="divider"></div>
+          <div class="amount-row" style="font-weight: bold;">
+            <span class="amount-label">Grand Total:</span>
+            <span class="amount-value">₹${Number(orderDetails.grand_total).toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div class="payment-section">
+          <span class="payment-label">Payment Method:</span>
+          <span>UPI</span>
+        </div>
+
+        <div class="billing-info">
+          <strong>Billing Information</strong><br>
+          ▶ ${orderDetails.outlet_name}<br>
+          ▶ ${orderDetails.outlet_address || ''}<br>
+          ▶ ${orderDetails.outlet_mobile || ''}
+        </div>
+
+        <div class="footer">
+          Have a nice day.<br>
+          info@menumitra.com<br>
+          +91 9172530151
+        </div>
+      </body>
+      </html>
+    `;
+  } catch (error) {
+    console.error('Error generating invoice HTML:', error);
+    throw error;
+  }
+};
+
 export default function OrderDetailsScreen() {
   const router = useRouter();
   const { id, order_id } = useLocalSearchParams();
@@ -245,6 +502,7 @@ export default function OrderDetailsScreen() {
   const [isConnected, setIsConnected] = useState(false);
   const [availableDevices, setAvailableDevices] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [bleManager] = useState(() => {
     if (Platform.OS === "web") return null;
     if (Constants.appOwnership === "expo") {
@@ -253,6 +511,126 @@ export default function OrderDetailsScreen() {
     }
     return new BleManager();
   });
+
+  // Update the handleDownloadInvoice function with better error handling
+  const handleDownloadInvoice = async () => {
+    try {
+      setLoadingMessage("Generating invoice...");
+      console.log("Starting invoice generation...");
+
+      // Validate required data
+      if (!orderDetails) {
+        throw new Error('Order details not found');
+      }
+
+      if (!menuItems || !Array.isArray(menuItems)) {
+        throw new Error('Menu items not available');
+      }
+
+      // Generate the invoice HTML with safe access
+      const invoiceHTML = generateInvoiceHTML({
+        datetime: orderDetails.datetime || '',
+        order_number: orderDetails.order_number || '',
+        customer_name: orderDetails.customer_name || '',
+        total_bill_amount: orderDetails.total_bill_amount || 0,
+        discount_amount: orderDetails.discount_amount || 0,
+        discount_percent: orderDetails.discount_percent || 0,
+        special_discount: orderDetails.special_discount || 0,
+        extra_charges: orderDetails.extra_charges || 0,
+        service_charges_amount: orderDetails.service_charges_amount || 0,
+        service_charges_percent: orderDetails.service_charges_percent || 0,
+        gst_amount: orderDetails.gst_amount || 0,
+        gst_percent: orderDetails.gst_percent || 0,
+        grand_total: orderDetails.grand_total || 0,
+        outlet_name: orderDetails.outlet_name || '',
+        outlet_address: orderDetails.outlet_address || '',
+        outlet_mobile: orderDetails.outlet_mobile || ''
+      }, menuItems);
+
+      // Generate PDF file
+      const { uri } = await Print.printToFileAsync({
+        html: invoiceHTML,
+        base64: false
+      });
+
+      // Get download directory based on platform
+      const downloadDir = Platform.OS === 'android' 
+        ? FileSystem.documentDirectory 
+        : FileSystem.documentDirectory;
+
+      // Create filename with timestamp
+      const timestamp = new Date().getTime();
+      const fileName = `invoice_${orderDetails.order_number}_${timestamp}.pdf`;
+      const newFileUri = `${downloadDir}${fileName}`;
+
+      try {
+        // Copy file to downloads
+        await FileSystem.copyAsync({
+          from: uri,
+          to: newFileUri
+        });
+
+        if (Platform.OS === 'android') {
+          const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          
+          if (permissions.granted) {
+            // Read the file as base64
+            const base64 = await FileSystem.readAsStringAsync(newFileUri, { 
+              encoding: FileSystem.EncodingType.Base64 
+            });
+            
+            // Create file in downloads using Storage Access Framework
+            await FileSystem.StorageAccessFramework.createFileAsync(
+              permissions.directoryUri,
+              fileName,
+              'application/pdf'
+            ).then(async (uri) => {
+              await FileSystem.writeAsStringAsync(uri, base64, { 
+                encoding: FileSystem.EncodingType.Base64 
+              });
+            });
+
+            toast.show({
+              description: "Invoice saved to Downloads",
+              status: "success",
+              duration: 3000
+            });
+          } else {
+            // Fallback to share dialog if permission denied
+            await Sharing.shareAsync(uri, {
+              mimeType: 'application/pdf',
+              dialogTitle: 'Download Invoice'
+            });
+          }
+        } else {
+          // For iOS use share sheet
+          await Sharing.shareAsync(newFileUri, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Download Invoice',
+            UTI: 'com.adobe.pdf'
+          });
+        }
+
+      } catch (error) {
+        console.error('Error saving file:', error);
+        // Fallback to sharing if file save fails
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Download Invoice'
+        });
+      }
+
+    } catch (error) {
+      console.error("Error in handleDownloadInvoice:", error);
+      toast.show({
+        description: error.message || "Failed to generate invoice. Please try again.",
+        status: "error",
+        duration: 3000,
+      });
+    } finally {
+      setLoadingMessage("");
+    }
+  };
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -1108,9 +1486,9 @@ export default function OrderDetailsScreen() {
         </Box>
 
         {/* Invoice Button */}
-        {orderDetails.order_status === "paid" && orderDetails.invoice_url && (
+        {orderDetails.order_status === "paid" && (
           <Pressable
-            onPress={() => Linking.openURL(orderDetails.invoice_url)}
+            onPress={handleDownloadInvoice}
             mx={4}
             mb={4}
           >
@@ -1122,9 +1500,9 @@ export default function OrderDetailsScreen() {
               borderColor="blue.200"
             >
               <HStack space={2} alignItems="center" justifyContent="center">
-                <MaterialIcons name="receipt" size={24} color="#3182CE" />
+                <MaterialIcons name="download" size={24} color="#3182CE" />
                 <Text color="blue.600" fontWeight="semibold">
-                  View Invoice
+                  Download Invoice
                 </Text>
               </HStack>
             </Box>
