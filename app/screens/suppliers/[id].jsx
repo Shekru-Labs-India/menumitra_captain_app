@@ -23,6 +23,7 @@ import { Platform, StatusBar, Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 export default function SupplierDetails() {
   const router = useRouter();
@@ -62,26 +63,20 @@ export default function SupplierDetails() {
     setLoading(true);
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
       console.log("Fetching supplier details with:", {
         outlet_id: storedOutletId.toString(),
         supplier_id: id.toString(),
       });
 
-      const response = await fetch(`${getBaseUrl()}/supplier_view`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/supplier_view`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: storedOutletId.toString(),
           supplier_id: id.toString(),
         }),
       });
-
-      const data = await response.json();
       console.log("Supplier View API Response:", data);
 
       if (data.st === 1 && data.data) {
@@ -124,21 +119,15 @@ export default function SupplierDetails() {
   const handleDelete = async () => {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/supplier_delete`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/supplier_delete`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: storedOutletId.toString(),
           supplier_id: id.toString(),
         }),
       });
-
-      const data = await response.json();
       console.log("Delete Response:", data);
 
       if (data.st === 1) {

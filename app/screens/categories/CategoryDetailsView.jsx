@@ -19,6 +19,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import Header from "../../components/Header";
 
 export default function CategoryDetailsView() {
   const router = useRouter();
@@ -39,21 +41,16 @@ export default function CategoryDetailsView() {
   const fetchCategoryDetails = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/menu_category_view`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_view`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId,
           menu_cat_id: params.categoryId,
         }),
       });
 
-      const data = await response.json();
       console.log("Category Details Response:", data);
       if (data.st === 1) {
         setCategoryData(data.data);
@@ -83,25 +80,24 @@ export default function CategoryDetailsView() {
   const handleDelete = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/menu_category_delete`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_delete`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId,
           menu_cat_id: params.categoryId,
         }),
       });
 
-      const data = await response.json();
       if (data.st === 1) {
+        setIsDeleteDialogOpen(false);
         toast.show({
           description: "Category deleted successfully",
           status: "success",
+          duration: 3000,
+          placement: "bottom",
+          isClosable: true,
         });
         // Navigate back to category list with refresh parameter
         router.push({
@@ -109,56 +105,29 @@ export default function CategoryDetailsView() {
           params: { refresh: Date.now() },
         });
       } else {
-        throw new Error(data.msg || "Failed to delete category");
+        // Throw the actual error message from the API
+        throw new Error(data.msg);
       }
     } catch (error) {
       console.error("Delete Category Error:", error);
+      setIsDeleteDialogOpen(false);
       toast.show({
-        description: "Failed to delete category",
+        description: error.message || "Failed to delete category",
         status: "error",
+        duration: 3000,
+        placement: "bottom",
+        isClosable: true,
       });
     }
   };
 
-  // Custom Header Component
-  const CustomHeader = () => (
-    <Box
-      px={4}
-      pt={12}
-      pb={3}
-      bg="white"
-      flexDirection="row"
-      alignItems="center"
-      justifyContent="space-between"
-    >
-      <HStack space={3} alignItems="center">
-        <Pressable onPress={() => router.back()}>
-          <Icon
-            as={MaterialIcons}
-            name="arrow-back"
-            size={6}
-            color="coolGray.800"
-          />
-        </Pressable>
-        <Text fontSize="xl" textAlign="center" fontWeight="bold">
-          Category Details
-        </Text>
-      </HStack>
-      <Pressable onPress={() => setIsDeleteDialogOpen(true)}>
-        <Icon
-          as={MaterialIcons}
-          name="delete-outline"
-          size={6}
-          color="red.500"
-        />
-      </Pressable>
-    </Box>
-  );
-
   if (loading || !categoryData) {
     return (
       <Box flex={1} bg="white" safeArea>
-        <CustomHeader />
+        <Header 
+          title="Category Details" 
+          showBackButton 
+        />
         <Box flex={1} justifyContent="center" alignItems="center">
           <Spinner size="lg" />
         </Box>
@@ -168,7 +137,20 @@ export default function CategoryDetailsView() {
 
   return (
     <Box flex={1} bg="coolGray.100" safeArea>
-      <CustomHeader />
+      <Header 
+        title="Category Details" 
+        showBackButton 
+        rightComponent={
+          <Pressable onPress={() => setIsDeleteDialogOpen(true)}>
+            <Icon
+              as={MaterialIcons}
+              name="delete-outline"
+              size={6}
+              color="red.500"
+            />
+          </Pressable>
+        }
+      />
 
       <ScrollView>
         <VStack space={4} p={4}>

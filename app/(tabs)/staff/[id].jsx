@@ -23,6 +23,7 @@ import { Platform, StatusBar, Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 export default function StaffDetailsScreen() {
   const router = useRouter();
@@ -38,21 +39,15 @@ export default function StaffDetailsScreen() {
   const fetchStaffDetails = async (storedOutletId) => {
     setIsLoading(true);
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-
-      const response = await fetch(`${getBaseUrl()}/staff_view`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/staff_view`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           staff_id: parseInt(id),
           outlet_id: storedOutletId,
         }),
       });
 
-      const data = await response.json();
       console.log("Staff Details Response:", data);
 
       if (data.st === 1 && data.data) {
@@ -101,21 +96,15 @@ export default function StaffDetailsScreen() {
 
   const handleDelete = async () => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-
-      const response = await fetch(`${getBaseUrl()}/staff_delete`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/staff_delete`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           staff_id: id.toString(),
           outlet_id: outletId.toString(),
         }),
       });
 
-      const data = await response.json();
       console.log("Delete Response:", data);
 
       if (data.st === 1) {

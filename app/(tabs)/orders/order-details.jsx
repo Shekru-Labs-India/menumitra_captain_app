@@ -31,6 +31,7 @@ import { BleManager } from "react-native-ble-plx";
 import Constants from "expo-constants";
 import { PermissionsAndroid } from "react-native";
 import base64 from "react-native-base64";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 const formatTime = (dateTimeString) => {
   if (!dateTimeString) return "";
@@ -261,21 +262,17 @@ export default function OrderDetailsScreen() {
       }
 
       try {
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        
         console.log("Fetching order details with params:", {
           order_number: id,
           order_id: order_id,
-          outlet_id: await AsyncStorage.getItem("outlet_id")
+          outlet_id: storedOutletId
         });
-        
-        const accessToken = await AsyncStorage.getItem("access");
-        const storedOutletId = await AsyncStorage.getItem("outlet_id");
 
-        const response = await fetch(`${getBaseUrl()}/order_view`, {
+        const data = await fetchWithAuth(`${getBaseUrl()}/order_view`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             order_number: id,
             order_id: order_id,
@@ -283,7 +280,6 @@ export default function OrderDetailsScreen() {
           }),
         });
 
-        const data = await response.json();
         console.log("Order Details Response:", data);
 
         if (data.st === 1 && data.lists) {
@@ -331,14 +327,10 @@ export default function OrderDetailsScreen() {
       setIsLoading(true);
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       const storedUserId = await AsyncStorage.getItem("user_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/update_order_status`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/update_order_status`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: storedOutletId,
           order_id: orderDetails.order_id.toString(),
@@ -346,8 +338,6 @@ export default function OrderDetailsScreen() {
           user_id: storedUserId,
         }),
       });
-
-      const data = await response.json();
 
       if (data.st === 1) {
         toast.show({

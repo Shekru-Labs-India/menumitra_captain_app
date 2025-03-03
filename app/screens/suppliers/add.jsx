@@ -24,6 +24,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 export default function AddSupplierScreen() {
   const router = useRouter();
@@ -76,19 +77,14 @@ export default function AddSupplierScreen() {
 
   const fetchCreditRatings = async () => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(
+      const data = await fetchWithAuth(
         `${getBaseUrl()}/supplier_credit_rating_choices`,
         {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { "Content-Type": "application/json" },
         }
       );
 
-      const data = await response.json();
       if (data.st === 1 && data.credit_rating_choices) {
         const ratingsArray = Object.entries(data.credit_rating_choices).map(
           ([key, value]) => ({
@@ -109,16 +105,10 @@ export default function AddSupplierScreen() {
 
   const fetchStatusChoices = async () => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${getBaseUrl()}/supplier_status_choices`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/supplier_status_choices`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
       });
-
-      const data = await response.json();
       console.log("Status Choices:", data);
 
       if (data.st === 1 && data.supplier_status_choices) {
@@ -166,81 +156,135 @@ export default function AddSupplierScreen() {
 
         if (!nameValue.trim()) {
           setErrors((prev) => ({ ...prev, name: "Supplier name is required" }));
+        } else if (nameValue.trim().length < 2) {
+          setErrors((prev) => ({ ...prev, name: "Name must be at least 2 characters" }));
         } else {
-          setErrors((prev) => ({ ...prev, name: undefined }));
+          setErrors((prev) => {
+            const { name, ...rest } = prev;
+            return rest;
+          });
         }
         break;
 
       case "mobileNumber1":
       case "mobileNumber2":
-        // Only allow digits
         const sanitizedNumber = value.replace(/[^0-9]/g, "");
-
-        if (field === "mobileNumber1" && !sanitizedNumber) {
-          setErrors((prev) => ({
-            ...prev,
-            [field]: "Primary mobile number is required",
-          }));
-        } else if (sanitizedNumber.length > 0) {
+        
+        if (sanitizedNumber.length > 0) {
           const firstDigit = sanitizedNumber[0];
           if (!["6", "7", "8", "9"].includes(firstDigit)) {
-            setFormData((prev) => ({
-              ...prev,
-              [field]:
-                prev[field] && ["6", "7", "8", "9"].includes(prev[field][0])
-                  ? prev[field]
-                  : "",
-            }));
             setErrors((prev) => ({
               ...prev,
               [field]: "Number must start with 6, 7, 8 or 9",
             }));
-            return;
           } else if (sanitizedNumber.length !== 10) {
             setErrors((prev) => ({
               ...prev,
               [field]: "Mobile number must be 10 digits",
             }));
           } else {
-            setErrors((prev) => ({ ...prev, [field]: undefined }));
+            setErrors((prev) => {
+              const newErrors = { ...prev };
+              delete newErrors[field];
+              return newErrors;
+            });
           }
+        } else if (field === "mobileNumber1") {
+          setErrors((prev) => ({
+            ...prev,
+            [field]: "Primary mobile number is required",
+          }));
         } else {
-          setErrors((prev) => ({ ...prev, [field]: undefined }));
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors[field];
+            return newErrors;
+          });
         }
-
+        
         setFormData((prev) => ({ ...prev, [field]: sanitizedNumber }));
         break;
 
-      case "ownerName":
-        // Only allow letters and spaces
-        if (!/^[a-zA-Z\s]*$/.test(value)) {
-          return; // Don't update state if anything other than letters and spaces are entered
+      case "website":
+        // Allow empty website field
+        if (!value) {
+          setFormData((prev) => ({ ...prev, website: value }));
+          setErrors((prev) => {
+            const { website, ...rest } = prev;
+            return rest;
+          });
+          break;
         }
-        setFormData((prev) => ({ ...prev, ownerName: value }));
-        break;
 
-      case "address":
-        // Only allow letters, numbers, and spaces
-        if (!/^[a-zA-Z0-9\s]*$/.test(value)) {
-          return; // Don't update state if invalid characters are entered
+        // URL validation pattern
+        const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
+        setFormData((prev) => ({ ...prev, website: value }));
+        
+        if (!urlPattern.test(value)) {
+          setErrors((prev) => ({ 
+            ...prev, 
+            website: "Invalid website format (e.g., www.example.com)" 
+          }));
+        } else {
+          setErrors((prev) => {
+            const { website, ...rest } = prev;
+            return rest;
+          });
         }
-        setFormData((prev) => ({ ...prev, address: value }));
-        break;
-
-      case "location":
-        // Only allow letters, numbers, and spaces
-        if (!/^[a-zA-Z0-9\s]*$/.test(value)) {
-          return; // Don't update state if invalid characters are entered
-        }
-        setFormData((prev) => ({ ...prev, location: value }));
         break;
 
       case "creditLimit":
-        // Only allow numbers
-        if (!/^\d*$/.test(value)) {
-          return; // Don't update state if non-numeric characters are entered
+        const numericValue = value.replace(/[^0-9]/g, "");
+        setFormData((prev) => ({ ...prev, creditLimit: numericValue }));
+
+        if (!numericValue) {
+          setErrors((prev) => ({ ...prev, creditLimit: "Credit limit is required" }));
+        } else {
+          setErrors((prev) => {
+            const { creditLimit, ...rest } = prev;
+            return rest;
+          });
         }
-        setFormData((prev) => ({ ...prev, creditLimit: value }));
+        break;
+
+      case "ownerName":
+        const ownerNameValue = value.replace(/[^a-zA-Z\s]/g, "");
+        setFormData((prev) => ({ ...prev, ownerName: ownerNameValue }));
+
+        if (ownerNameValue && ownerNameValue.trim().length < 2) {
+          setErrors((prev) => ({ ...prev, ownerName: "Name must be at least 2 characters" }));
+        } else {
+          setErrors((prev) => {
+            const { ownerName, ...rest } = prev;
+            return rest;
+          });
+        }
+        break;
+
+      case "location":
+        setFormData((prev) => ({ ...prev, location: value }));
+        if (value && value.trim().length < 2) {
+          setErrors((prev) => ({ ...prev, location: "Location must be at least 2 characters" }));
+        } else {
+          setErrors((prev) => {
+            const { location, ...rest } = prev;
+            return rest;
+          });
+        }
+        break;
+
+      case "address":
+        setFormData((prev) => ({ ...prev, address: value }));
+        if (!value.trim()) {
+          setErrors((prev) => ({ ...prev, address: "Address is required" }));
+        } else if (value.trim().length < 5) {
+          setErrors((prev) => ({ ...prev, address: "Address must be at least 5 characters" }));
+        } else {
+          setErrors((prev) => {
+            const { address, ...rest } = prev;
+            return rest;
+          });
+        }
         break;
 
       default:
@@ -303,6 +347,14 @@ export default function AddSupplierScreen() {
       newErrors.location = "Location contains invalid characters";
     }
 
+    // Website validation (if provided)
+    if (formData.website) {
+      const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
+      if (!urlPattern.test(formData.website)) {
+        newErrors.website = "Invalid website format (e.g., www.example.com)";
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -315,7 +367,6 @@ export default function AddSupplierScreen() {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       const storedUserId = await AsyncStorage.getItem("user_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
       if (!storedOutletId || !storedUserId) {
         toast.show({
@@ -343,16 +394,11 @@ export default function AddSupplierScreen() {
 
       console.log("Request Body:", requestBody);
 
-      const response = await fetch(`${getBaseUrl()}/supplier_create`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/supplier_create`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
-
-      const data = await response.json();
       console.log("Create Supplier Response:", data);
 
       if (data.st === 1) {
@@ -414,7 +460,14 @@ export default function AddSupplierScreen() {
                   onChangeText={(text) => handleFormChange("name", text)}
                   placeholder="Enter supplier name"
                   bg="white"
-                  borderColor={errors.name ? "red.500" : "coolGray.200"}
+                  borderColor={
+                    formData.name && !errors.name ? "green.500" : 
+                    errors.name ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.name && !errors.name ? "green.500" : 
+                                errors.name ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.name}
@@ -445,8 +498,13 @@ export default function AddSupplierScreen() {
                   maxLength={10}
                   bg="white"
                   borderColor={
+                    formData.mobileNumber1 && !errors.mobileNumber1 ? "green.500" : 
                     errors.mobileNumber1 ? "red.500" : "coolGray.200"
                   }
+                  _focus={{
+                    borderColor: formData.mobileNumber1 && !errors.mobileNumber1 ? "green.500" : 
+                                errors.mobileNumber1 ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.mobileNumber1}
@@ -465,25 +523,39 @@ export default function AddSupplierScreen() {
                   maxLength={10}
                   bg="white"
                   borderColor={
+                    formData.mobileNumber2 && !errors.mobileNumber2 ? "green.500" : 
                     errors.mobileNumber2 ? "red.500" : "coolGray.200"
                   }
+                  _focus={{
+                    borderColor: formData.mobileNumber2 && !errors.mobileNumber2 ? "green.500" : 
+                                errors.mobileNumber2 ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.mobileNumber2}
                 </FormControl.ErrorMessage>
               </FormControl>
 
-              <FormControl>
+              <FormControl isInvalid={"website" in errors}>
                 <FormControl.Label>Website</FormControl.Label>
                 <Input
                   value={formData.website}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, website: text })
-                  }
+                  onChangeText={(text) => handleFormChange("website", text)}
                   placeholder="Enter website URL"
                   keyboardType="url"
                   bg="white"
+                  borderColor={
+                    formData.website && !errors.website ? "green.500" : 
+                    errors.website ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.website && !errors.website ? "green.500" : 
+                                errors.website ? "red.500" : "blue.500",
+                  }}
                 />
+                <FormControl.ErrorMessage>
+                  {errors.website}
+                </FormControl.ErrorMessage>
               </FormControl>
             </VStack>
           </Box>
@@ -516,6 +588,14 @@ export default function AddSupplierScreen() {
                     placeholder="Select credit rating"
                     bg="white"
                     isReadOnly={true}
+                    borderColor={
+                      formData.creditRating && !errors.creditRating ? "green.500" : 
+                      errors.creditRating ? "red.500" : "coolGray.200"
+                    }
+                    _focus={{
+                      borderColor: formData.creditRating && !errors.creditRating ? "green.500" : 
+                                  errors.creditRating ? "red.500" : "blue.500",
+                    }}
                   >
                     {creditRatings.map((rating) => (
                       <Select.Item
@@ -536,6 +616,14 @@ export default function AddSupplierScreen() {
                   placeholder="Enter credit limit"
                   keyboardType="numeric"
                   bg="white"
+                  borderColor={
+                    formData.creditLimit && !errors.creditLimit ? "green.500" : 
+                    errors.creditLimit ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.creditLimit && !errors.creditLimit ? "green.500" : 
+                                errors.creditLimit ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.creditLimit}
@@ -547,10 +635,18 @@ export default function AddSupplierScreen() {
                 <Input
                   value={formData.ownerName}
                   onChangeText={(text) =>
-                    setFormData({ ...formData, ownerName: text })
+                    handleFormChange("ownerName", text)
                   }
                   placeholder="Enter owner name"
                   bg="white"
+                  borderColor={
+                    formData.ownerName && !errors.ownerName ? "green.500" : 
+                    errors.ownerName ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.ownerName && !errors.ownerName ? "green.500" : 
+                                errors.ownerName ? "red.500" : "blue.500",
+                  }}
                 />
               </FormControl>
 
@@ -561,6 +657,14 @@ export default function AddSupplierScreen() {
                   onChangeText={(text) => handleFormChange("location", text)}
                   placeholder="Enter location"
                   bg="white"
+                  borderColor={
+                    formData.location && !errors.location ? "green.500" : 
+                    errors.location ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.location && !errors.location ? "green.500" : 
+                                errors.location ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.location}
@@ -576,7 +680,14 @@ export default function AddSupplierScreen() {
                   autoCompleteType={undefined}
                   h={20}
                   bg="white"
-                  borderColor={errors.address ? "red.500" : "coolGray.200"}
+                  borderColor={
+                    formData.address && !errors.address ? "green.500" : 
+                    errors.address ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.address && !errors.address ? "green.500" : 
+                                errors.address ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.address}

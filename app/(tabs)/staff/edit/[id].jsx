@@ -16,14 +16,17 @@ import {
   Text,
   Select,
   CheckIcon,
+  Icon,
 } from "native-base";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Platform, StatusBar } from "react-native";
+import { Platform, StatusBar, Image } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Header from "../../../components/Header";
 import { getBaseUrl } from "../../../../config/api.config";
+import { fetchWithAuth } from "../../../../utils/apiInterceptor";
+import * as ImagePicker from "expo-image-picker";
 
 export default function EditStaffScreen() {
   const router = useRouter();
@@ -45,6 +48,7 @@ export default function EditStaffScreen() {
     dob: "",
     aadhar_number: "",
     photo: "",
+    existing_photo: "",
   });
 
   const months = [
@@ -170,16 +174,11 @@ export default function EditStaffScreen() {
 
   const fetchRoles = async () => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${getBaseUrl()}/get_staff_role`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/get_staff_role`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
-      const data = await response.json();
       console.log("Roles Response:", data);
 
       if (data.st === 1 && data.role_list) {
@@ -205,20 +204,15 @@ export default function EditStaffScreen() {
   useEffect(() => {
     const fetchStaffDetails = async () => {
       try {
-        const accessToken = await AsyncStorage.getItem("access");
-        const response = await fetch(`${getBaseUrl()}/staff_view`, {
+        const data = await fetchWithAuth(`${getBaseUrl()}/staff_view`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             staff_id: parseInt(id),
             outlet_id: outletId,
           }),
         });
 
-        const data = await response.json();
         console.log("Staff Details Response:", data);
 
         if (data.st === 1 && data.data) {
@@ -230,7 +224,8 @@ export default function EditStaffScreen() {
             address: data.data.address || "",
             dob: formattedDate,
             aadhar_number: data.data.aadhar_number?.toString() || "",
-            photo: data.data.photo || "",
+            photo: "",
+            existing_photo: data.data.photo || "",
           });
         } else {
           toast.show({
@@ -259,7 +254,10 @@ export default function EditStaffScreen() {
     const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setFormData({ ...formData, name: sanitizedText });
 
-    if (sanitizedText.trim().length < 2) {
+    // Clear error if valid, set error if invalid
+    if (!sanitizedText.trim()) {
+      setErrors((prev) => ({ ...prev, name: "Name is required" }));
+    } else if (sanitizedText.trim().length < 2) {
       setErrors((prev) => ({
         ...prev,
         name: "Name must be at least 2 characters long",
@@ -270,7 +268,11 @@ export default function EditStaffScreen() {
         name: "Only letters and spaces allowed",
       }));
     } else {
-      setErrors((prev) => ({ ...prev, name: undefined }));
+      // Explicitly remove the name error when input is valid
+      setErrors((prev) => {
+        const { name, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -278,18 +280,11 @@ export default function EditStaffScreen() {
     // Only allow digits
     const sanitizedText = text.replace(/[^0-9]/g, "");
 
-    // Always check if first digit is valid (6-9), regardless of input method
+    // Always check if first digit is valid (6-9)
     if (sanitizedText.length > 0) {
       const firstDigit = sanitizedText[0];
       if (!["6", "7", "8", "9"].includes(firstDigit)) {
-        // Keep the previous valid value if exists, otherwise empty
-        setFormData((prev) => ({
-          ...prev,
-          mobile:
-            prev.mobile && ["6", "7", "8", "9"].includes(prev.mobile[0])
-              ? prev.mobile
-              : "",
-        }));
+        setFormData({ ...formData, mobile: sanitizedText });
         setErrors((prev) => ({
           ...prev,
           mobile: "Number must start with 6, 7, 8 or 9",
@@ -300,11 +295,19 @@ export default function EditStaffScreen() {
 
     setFormData({ ...formData, mobile: sanitizedText });
 
-    // Validate the phone number length and format
-    if (sanitizedText.length === 10 && !/^[6-9]\d{9}$/.test(sanitizedText)) {
-      setErrors((prev) => ({ ...prev, mobile: "Enter valid 10-digit number" }));
+    // Clear error if valid, set error if invalid
+    if (!sanitizedText) {
+      setErrors((prev) => ({ ...prev, mobile: "Mobile number is required" }));
+    } else if (sanitizedText.length !== 10) {
+      setErrors((prev) => ({ ...prev, mobile: "Mobile number must be 10 digits" }));
+    } else if (!/^[6-9]\d{9}$/.test(sanitizedText)) {
+      setErrors((prev) => ({ ...prev, mobile: "Invalid mobile number format" }));
     } else {
-      setErrors((prev) => ({ ...prev, mobile: undefined }));
+      // Explicitly remove the mobile error when input is valid
+      setErrors((prev) => {
+        const { mobile, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -313,10 +316,23 @@ export default function EditStaffScreen() {
     const sanitizedText = text.replace(/[^0-9]/g, "");
     setFormData({ ...formData, aadhar_number: sanitizedText });
 
-    if (sanitizedText && sanitizedText.length !== 12) {
-      setErrors((prev) => ({ ...prev, aadhar_number: "Must be 12 digits" }));
+    // Clear error if valid, set error if invalid
+    if (!sanitizedText) {
+      setErrors((prev) => ({
+        ...prev,
+        aadhar_number: "Aadhar number is required",
+      }));
+    } else if (sanitizedText.length !== 12) {
+      setErrors((prev) => ({
+        ...prev,
+        aadhar_number: "Must be 12 digits",
+      }));
     } else {
-      setErrors((prev) => ({ ...prev, aadhar_number: undefined }));
+      // Explicitly remove the aadhar_number error when input is valid
+      setErrors((prev) => {
+        const { aadhar_number, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -343,14 +359,35 @@ export default function EditStaffScreen() {
     }
   };
 
+  const handleImagePick = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled) {
+        setFormData(prev => ({
+          ...prev,
+          photo: result.assets[0].uri
+        }));
+      }
+    } catch (error) {
+      console.error("Image picking error:", error);
+      toast.show({
+        description: "Failed to pick image",
+        status: "error",
+      });
+    }
+  };
+
   const handleSave = async () => {
     const newErrors = {};
 
     // Validate all fields
-    if (
-      !formData.name?.trim() ||
-      !/^[a-zA-Z\s]{2,50}$/.test(formData.name.trim())
-    ) {
+    if (!formData.name?.trim() || !/^[a-zA-Z\s]{2,50}$/.test(formData.name.trim())) {
       newErrors.name = "Enter valid name (only letters and spaces)";
     }
 
@@ -390,34 +427,43 @@ export default function EditStaffScreen() {
     setIsLoading(true);
     try {
       const userId = await AsyncStorage.getItem("user_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/staff_update`, {
+      // Create FormData instance for multipart/form-data
+      const formDataToSend = new FormData();
+      formDataToSend.append("user_id", parseInt(userId));
+      formDataToSend.append("staff_id", parseInt(id));
+      formDataToSend.append("outlet_id", outletId);
+      formDataToSend.append("name", formData.name.trim());
+      formDataToSend.append("mobile", formData.mobile);
+      formDataToSend.append("address", formData.address.trim());
+      formDataToSend.append("role", formData.role.toLowerCase());
+      formDataToSend.append("dob", formData.dob);
+      formDataToSend.append("aadhar_number", formData.aadhar_number);
+
+      // Append new image if selected
+      if (formData.photo) {
+        const filename = formData.photo.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        
+        formDataToSend.append("photo", {
+          uri: formData.photo,
+          name: filename,
+          type,
+        });
+      }
+
+      const data = await fetchWithAuth(`${getBaseUrl()}/staff_update`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          user_id: parseInt(userId),
-          staff_id: parseInt(id),
-          outlet_id: outletId,
-          name: formData.name.trim(),
-          mobile: formData.mobile,
-          address: formData.address.trim(),
-          role: formData.role.toLowerCase(),
-          dob: formData.dob,
-          aadhar_number: formData.aadhar_number,
-          photo: formData.photo || "",
-        }),
+        headers: { "Content-Type": "multipart/form-data" },
+        body: formDataToSend,
       });
 
-      const data = await response.json();
       console.log("Update Response:", data);
 
       if (data.st === 1) {
         toast.show({
-          description: data.msg || "Staff details updated successfully",
+          description:"Staff details updated successfully",
           status: "success",
         });
         router.replace({
@@ -447,6 +493,39 @@ export default function EditStaffScreen() {
 
       <ScrollView px={4} py={4}>
         <VStack space={4}>
+          <FormControl>
+            <FormControl.Label>Photo</FormControl.Label>
+            <VStack space={2}>
+              {(formData.photo || formData.existing_photo) && (
+                <Image
+                  source={{
+                    uri: formData.photo || formData.existing_photo
+                  }}
+                  style={{
+                    width: 100,
+                    height: 100,
+                    borderRadius: 50,
+                    alignSelf: "center"
+                  }}
+                />
+              )}
+              <Button
+                onPress={handleImagePick}
+                variant="outline"
+                leftIcon={
+                  <Icon
+                    as={MaterialIcons}
+                    name="photo-camera"
+                    size={5}
+                    color="coolGray.500"
+                  />
+                }
+              >
+                {formData.photo || formData.existing_photo ? "Change Photo" : "Add Photo"}
+              </Button>
+            </VStack>
+          </FormControl>
+
           <FormControl isRequired isInvalid={"name" in errors}>
             <FormControl.Label>Name</FormControl.Label>
             <Input
@@ -454,6 +533,14 @@ export default function EditStaffScreen() {
               onChangeText={handleNameChange}
               placeholder="Enter name"
               autoCapitalize="words"
+              borderColor={
+                formData.name && !errors.name ? "green.500" : 
+                errors.name ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.name && !errors.name ? "green.500" : 
+                            errors.name ? "red.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
           </FormControl>
@@ -462,14 +549,26 @@ export default function EditStaffScreen() {
             <FormControl.Label>Role</FormControl.Label>
             <Select
               selectedValue={formData.role}
-              onValueChange={(value) =>
-                setFormData({ ...formData, role: value })
-              }
+              onValueChange={(value) => {
+                setFormData({ ...formData, role: value });
+                setErrors((prev) => {
+                  const { role, ...rest } = prev;
+                  return rest;
+                });
+              }}
               placeholder="Select role"
               isDisabled={isLoadingRoles}
               _selectedItem={{
                 bg: "cyan.600",
                 endIcon: <CheckIcon size="5" color="white" />,
+              }}
+              borderColor={
+                formData.role && !errors.role ? "green.500" : 
+                errors.role ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.role && !errors.role ? "green.500" : 
+                            errors.role ? "red.500" : "blue.500",
               }}
             >
               {roles.map((role) => (
@@ -490,6 +589,14 @@ export default function EditStaffScreen() {
               keyboardType="numeric"
               placeholder="Enter phone number (start with 6-9)"
               maxLength={10}
+              borderColor={
+                formData.mobile && !errors.mobile ? "green.500" : 
+                errors.mobile ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.mobile && !errors.mobile ? "green.500" : 
+                            errors.mobile ? "red.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>{errors.mobile}</FormControl.ErrorMessage>
           </FormControl>
@@ -501,6 +608,14 @@ export default function EditStaffScreen() {
                 value={formData.dob}
                 isReadOnly
                 placeholder="Select date of birth"
+                borderColor={
+                  formData.dob && !errors.dob ? "green.500" : 
+                  errors.dob ? "red.500" : "coolGray.200"
+                }
+                _focus={{
+                  borderColor: formData.dob && !errors.dob ? "green.500" : 
+                              errors.dob ? "red.500" : "blue.500",
+                }}
                 rightElement={
                   <IconButton
                     icon={
@@ -543,6 +658,14 @@ export default function EditStaffScreen() {
               keyboardType="numeric"
               placeholder="Enter 12-digit Aadhar number"
               maxLength={12}
+              borderColor={
+                formData.aadhar_number && !errors.aadhar_number ? "green.500" : 
+                errors.aadhar_number ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.aadhar_number && !errors.aadhar_number ? "green.500" : 
+                            errors.aadhar_number ? "red.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>
               {errors.aadhar_number}
@@ -558,18 +681,12 @@ export default function EditStaffScreen() {
               autoCompleteType={undefined}
               h={20}
               borderColor={
-                formData.address && !errors.address
-                  ? "green.500"
-                  : errors.address
-                  ? "red.500"
-                  : "coolGray.200"
+                formData.address && !errors.address ? "green.500" : 
+                errors.address ? "red.500" : "coolGray.200"
               }
               _focus={{
-                borderColor: errors.address
-                  ? "red.500"
-                  : formData.address
-                  ? "green.500"
-                  : "blue.500",
+                borderColor: formData.address && !errors.address ? "green.500" : 
+                            errors.address ? "red.500" : "blue.500",
               }}
             />
             <FormControl.ErrorMessage>

@@ -6,24 +6,23 @@ export default function OrdersLayout() {
       screenOptions={{
         headerShown: false,
       }}
-      initialRouteName="index"
     >
       <Stack.Screen
         name="index"
         options={{
-          href: "/orders",
+          href: "/(tabs)/orders/",
         }}
       />
       <Stack.Screen
         name="order-details"
         options={{
-          href: null, // This makes it not directly accessible via URL/tab
+          href: null,
         }}
       />
       <Stack.Screen
         name="create-order"
         options={{
-          href: null, // This makes it not directly accessible via URL/tab
+          href: null,
         }}
       />
     </Stack>

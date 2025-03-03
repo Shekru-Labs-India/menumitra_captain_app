@@ -21,6 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
 import { MaterialIcons } from "@expo/vector-icons";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 export default function EditInventoryItemScreen() {
   const router = useRouter();
@@ -83,20 +84,15 @@ export default function EditInventoryItemScreen() {
 
   const fetchInventoryDetails = async (outId, invId, availableCategories) => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${getBaseUrl()}/inventory_view`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/inventory_view`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outId.toString(),
           inventory_id: invId.toString(),
         }),
       });
 
-      const data = await response.json();
       if (data.st === 1 && data.data) {
         // Find the matching category
         const categoryObj = availableCategories.find(
@@ -139,20 +135,14 @@ export default function EditInventoryItemScreen() {
   const fetchSuppliers = async () => {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
-
-      const response = await fetch(`${getBaseUrl()}/get_supplier_list`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/get_supplier_list`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: storedOutletId,
         }),
       });
 
-      const data = await response.json();
       if (data.st === 1) {
         const suppliersArray = Object.entries(data.suppliers_dict).map(
           ([name, id]) => ({
@@ -175,18 +165,13 @@ export default function EditInventoryItemScreen() {
 
   const fetchCategories = async () => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(
+      const data = await fetchWithAuth(
         `${getBaseUrl()}/get_inventory_category_list`,
         {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { "Content-Type": "application/json" },
         }
       );
-      const data = await response.json();
 
       if (data.st === 1) {
         const categoriesArray = Object.entries(
@@ -196,7 +181,7 @@ export default function EditInventoryItemScreen() {
           id: id.toString(),
         }));
         setCategories(categoriesArray);
-        return categoriesArray; // Return the categories array
+        return categoriesArray;
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -210,36 +195,112 @@ export default function EditInventoryItemScreen() {
 
   // Add these handlers for name and brand name validation
   const handleNameChange = (text) => {
-    // Only allow letters and spaces
-    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
-    setFormData({ ...formData, name: sanitizedText });
+    const sanitizedText = text.replace(/[^a-zA-Z0-9\s]/g, "");
+    setFormData((prev) => ({ ...prev, name: sanitizedText }));
 
     if (!sanitizedText.trim()) {
-      setErrors((prev) => ({ ...prev, name: "Name is required" }));
+      setErrors((prev) => ({ ...prev, name: "Item name is required" }));
     } else if (sanitizedText.trim().length < 2) {
-      setErrors((prev) => ({
-        ...prev,
-        name: "Name must be at least 2 characters",
-      }));
+      setErrors((prev) => ({ ...prev, name: "Name must be at least 2 characters" }));
     } else {
-      setErrors((prev) => ({ ...prev, name: undefined }));
+      setErrors((prev) => {
+        const { name, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const handleUnitPriceChange = (value) => {
+    const formattedValue = value.replace(/[^0-9.]/g, "");
+    setFormData((prev) => ({ ...prev, unit_price: formattedValue }));
+
+    if (!formattedValue) {
+      setErrors((prev) => ({ ...prev, unit_price: "Unit price is required" }));
+    } else if (isNaN(parseFloat(formattedValue))) {
+      setErrors((prev) => ({ ...prev, unit_price: "Please enter a valid price" }));
+    } else {
+      setErrors((prev) => {
+        const { unit_price, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const handleQuantityChange = (value) => {
+    const formattedValue = value.replace(/[^0-9]/g, "");
+    setFormData((prev) => ({ ...prev, quantity: formattedValue }));
+
+    if (!formattedValue) {
+      setErrors((prev) => ({ ...prev, quantity: "Quantity is required" }));
+    } else if (parseInt(formattedValue) <= 0) {
+      setErrors((prev) => ({ ...prev, quantity: "Quantity must be greater than 0" }));
+    } else {
+      setErrors((prev) => {
+        const { quantity, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const handleUnitOfMeasureChange = (text) => {
+    // Only allow letters and spaces
+    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
+    setFormData((prev) => ({ ...prev, unit_of_measure: sanitizedText }));
+    
+    if (!sanitizedText.trim()) {
+      setErrors((prev) => ({ ...prev, unit_of_measure: "Unit of measure is required" }));
+    } else if (sanitizedText.trim().length < 2) {
+      setErrors((prev) => ({ ...prev, unit_of_measure: "Unit of measure must be at least 2 characters" }));
+    } else {
+      setErrors((prev) => {
+        const { unit_of_measure, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const handleReorderLevelChange = (value) => {
+    const formattedValue = value.replace(/[^0-9]/g, "");
+    setFormData((prev) => ({ ...prev, reorder_level: formattedValue }));
+
+    if (formattedValue && parseInt(formattedValue) < 0) {
+      setErrors((prev) => ({ ...prev, reorder_level: "Reorder level cannot be negative" }));
+    } else {
+      setErrors((prev) => {
+        const { reorder_level, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
   const handleBrandNameChange = (text) => {
-    // Only allow letters and spaces
-    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
-    setFormData({ ...formData, brand_name: sanitizedText });
-
-    if (!sanitizedText.trim()) {
-      setErrors((prev) => ({ ...prev, brand_name: "Brand name is required" }));
-    } else if (sanitizedText.trim().length < 2) {
-      setErrors((prev) => ({
-        ...prev,
-        brand_name: "Brand name must be at least 2 characters",
-      }));
+    setFormData((prev) => ({ ...prev, brand_name: text }));
+    
+    if (text && text.trim().length < 2) {
+      setErrors((prev) => ({ ...prev, brand_name: "Brand name must be at least 2 characters" }));
     } else {
-      setErrors((prev) => ({ ...prev, brand_name: undefined }));
+      setErrors((prev) => {
+        const { brand_name, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const handleTaxRateChange = (value) => {
+    const formattedValue = value.replace(/[^0-9.]/g, "");
+    setFormData((prev) => ({ ...prev, tax_rate: formattedValue }));
+
+    if (!formattedValue) {
+      setErrors((prev) => ({ ...prev, tax_rate: "Tax rate is required" }));
+    } else if (isNaN(parseFloat(formattedValue))) {
+      setErrors((prev) => ({ ...prev, tax_rate: "Please enter a valid tax rate" }));
+    } else if (parseFloat(formattedValue) < 0 || parseFloat(formattedValue) > 100) {
+      setErrors((prev) => ({ ...prev, tax_rate: "Tax rate must be between 0 and 100" }));
+    } else {
+      setErrors((prev) => {
+        const { tax_rate, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -254,14 +315,7 @@ export default function EditInventoryItemScreen() {
       newErrors.name = "Name can only contain letters and spaces";
     }
 
-    // Validate brand name
-    if (!formData.brand_name?.trim()) {
-      newErrors.brand_name = "Brand name is required";
-    } else if (!nameRegex.test(formData.brand_name.trim())) {
-      newErrors.brand_name = "Brand name can only contain letters and spaces";
-    }
-
-    // ...rest of your existing validations...
+    // Validate required fields
     if (!formData.supplier_id) newErrors.supplier_id = "Supplier is required";
     if (!formData.category_id) newErrors.category_id = "Category is required";
     if (!formData.unit_price || Number(formData.unit_price) <= 0) {
@@ -272,9 +326,6 @@ export default function EditInventoryItemScreen() {
     }
     if (!formData.unit_of_measure) {
       newErrors.unit_of_measure = "Unit of measure is required";
-    }
-    if (!formData.reorder_level || Number(formData.reorder_level) < 0) {
-      newErrors.reorder_level = "Valid reorder level is required";
     }
     if (!formData.tax_rate || Number(formData.tax_rate) < 0) {
       newErrors.tax_rate = "Valid tax rate is required";
@@ -289,23 +340,17 @@ export default function EditInventoryItemScreen() {
 
     setIsLoading(true);
     try {
-      // Get both access token and user_id
-      const [accessToken, userId] = await Promise.all([
-        AsyncStorage.getItem("access"),
-        AsyncStorage.getItem("user_id"),
-      ]);
+      // Get user_id
+      const userId = await AsyncStorage.getItem("user_id");
 
       // Check if user_id exists
       if (!userId) {
         throw new Error("User ID not found. Please login again.");
       }
 
-      const response = await fetch(`${getBaseUrl()}/inventory_update`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/inventory_update`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
           inventory_id: formData.inventory_id.toString(),
@@ -323,11 +368,10 @@ export default function EditInventoryItemScreen() {
           in_date: formData.in_date,
           out_date: formData.out_date,
           expiration_date: formData.expiration_date,
-          user_id: userId.toString(), // Add user_id to the request
+          user_id: userId.toString(),
         }),
       });
 
-      const data = await response.json();
       if (data.st === 1) {
         toast.show({
           description: "Inventory item updated successfully",
@@ -445,6 +489,14 @@ export default function EditInventoryItemScreen() {
               onChangeText={handleNameChange}
               placeholder="Enter item name"
               autoCapitalize="words"
+              borderColor={
+                formData.name && !errors.name ? "green.500" : 
+                errors.name ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.name && !errors.name ? "green.500" : 
+                            errors.name ? "red.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
           </FormControl>
@@ -454,11 +506,20 @@ export default function EditInventoryItemScreen() {
             <FormControl.Label>Description</FormControl.Label>
             <TextArea
               value={formData.description}
-              onChangeText={(value) =>
-                setFormData({ ...formData, description: value })
-              }
+              onChangeText={(value) => {
+                setFormData({ ...formData, description: value });
+                // Clear any errors
+                setErrors((prev) => {
+                  const { description, ...rest } = prev;
+                  return rest;
+                });
+              }}
               placeholder="Enter description"
               h={20}
+              borderColor={formData.description ? "green.500" : "coolGray.200"}
+              _focus={{
+                borderColor: formData.description ? "green.500" : "blue.500",
+              }}
             />
           </FormControl>
 
@@ -467,11 +528,17 @@ export default function EditInventoryItemScreen() {
             <FormControl.Label>Unit Price</FormControl.Label>
             <Input
               value={formData.unit_price}
-              onChangeText={(value) =>
-                setFormData({ ...formData, unit_price: value })
-              }
+              onChangeText={handleUnitPriceChange}
               keyboardType="numeric"
               placeholder="Enter unit price"
+              borderColor={
+                formData.unit_price && !errors.unit_price ? "green.500" : 
+                errors.unit_price ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.unit_price && !errors.unit_price ? "green.500" : 
+                            errors.unit_price ? "red.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>
               {errors.unit_price}
@@ -483,11 +550,17 @@ export default function EditInventoryItemScreen() {
             <FormControl.Label>Quantity</FormControl.Label>
             <Input
               value={formData.quantity}
-              onChangeText={(value) =>
-                setFormData({ ...formData, quantity: value })
-              }
+              onChangeText={handleQuantityChange}
               keyboardType="numeric"
               placeholder="Enter quantity"
+              borderColor={
+                formData.quantity && !errors.quantity ? "green.500" : 
+                errors.quantity ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.quantity && !errors.quantity ? "green.500" : 
+                            errors.quantity ? "red.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>
               {errors.quantity}
@@ -499,10 +572,16 @@ export default function EditInventoryItemScreen() {
             <FormControl.Label>Unit of Measure</FormControl.Label>
             <Input
               value={formData.unit_of_measure}
-              onChangeText={(value) =>
-                setFormData({ ...formData, unit_of_measure: value })
-              }
+              onChangeText={handleUnitOfMeasureChange}
               placeholder="Enter unit of measure"
+              borderColor={
+                formData.unit_of_measure && !errors.unit_of_measure ? "green.500" : 
+                errors.unit_of_measure ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.unit_of_measure && !errors.unit_of_measure ? "green.500" : 
+                            errors.unit_of_measure ? "red.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>
               {errors.unit_of_measure}
@@ -510,15 +589,21 @@ export default function EditInventoryItemScreen() {
           </FormControl>
 
           {/* Reorder Level */}
-          <FormControl isRequired isInvalid={"reorder_level" in errors}>
+          <FormControl isInvalid={"reorder_level" in errors}>
             <FormControl.Label>Reorder Level</FormControl.Label>
             <Input
               value={formData.reorder_level}
-              onChangeText={(value) =>
-                setFormData({ ...formData, reorder_level: value })
-              }
+              onChangeText={handleReorderLevelChange}
               keyboardType="numeric"
               placeholder="Enter reorder level"
+              borderColor={
+                formData.reorder_level && !errors.reorder_level ? "green.500" : 
+                errors.reorder_level ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.reorder_level && !errors.reorder_level ? "green.500" : 
+                            errors.reorder_level ? "red.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>
               {errors.reorder_level}
@@ -526,13 +611,21 @@ export default function EditInventoryItemScreen() {
           </FormControl>
 
           {/* Brand Name */}
-          <FormControl isRequired isInvalid={"brand_name" in errors}>
+          <FormControl isInvalid={"brand_name" in errors}>
             <FormControl.Label>Brand Name</FormControl.Label>
             <Input
               value={formData.brand_name}
               onChangeText={handleBrandNameChange}
               placeholder="Enter brand name"
               autoCapitalize="words"
+              borderColor={
+                formData.brand_name && !errors.brand_name ? "green.500" : 
+                errors.brand_name ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.brand_name && !errors.brand_name ? "green.500" : 
+                            errors.brand_name ? "red.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>
               {errors.brand_name}
@@ -544,11 +637,17 @@ export default function EditInventoryItemScreen() {
             <FormControl.Label>Tax Rate (%)</FormControl.Label>
             <Input
               value={formData.tax_rate}
-              onChangeText={(value) =>
-                setFormData({ ...formData, tax_rate: value })
-              }
+              onChangeText={handleTaxRateChange}
               keyboardType="numeric"
               placeholder="Enter tax rate"
+              borderColor={
+                formData.tax_rate && !errors.tax_rate ? "green.500" : 
+                errors.tax_rate ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.tax_rate && !errors.tax_rate ? "green.500" : 
+                            errors.tax_rate ? "red.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>
               {errors.tax_rate}
@@ -563,6 +662,12 @@ export default function EditInventoryItemScreen() {
                 value={formData.in_date}
                 isReadOnly
                 placeholder="Select in date"
+                borderColor={
+                  formData.in_date ? "green.500" : "coolGray.200"
+                }
+                _focus={{
+                  borderColor: formData.in_date ? "green.500" : "blue.500",
+                }}
                 rightElement={
                   <IconButton
                     icon={
@@ -586,6 +691,12 @@ export default function EditInventoryItemScreen() {
                 value={formData.out_date}
                 isReadOnly
                 placeholder="Select out date"
+                borderColor={
+                  formData.out_date ? "green.500" : "coolGray.200"
+                }
+                _focus={{
+                  borderColor: formData.out_date ? "green.500" : "blue.500",
+                }}
                 rightElement={
                   <IconButton
                     icon={
@@ -609,6 +720,12 @@ export default function EditInventoryItemScreen() {
                 value={formData.expiration_date}
                 isReadOnly
                 placeholder="Select expiration date"
+                borderColor={
+                  formData.expiration_date ? "green.500" : "coolGray.200"
+                }
+                _focus={{
+                  borderColor: formData.expiration_date ? "green.500" : "blue.500",
+                }}
                 rightElement={
                   <IconButton
                     icon={
@@ -663,10 +780,24 @@ export default function EditInventoryItemScreen() {
                 ref={categorySelect}
                 selectedValue={formData.category_id}
                 placeholder="Select category"
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, category_id: value }))
-                }
+                onValueChange={(value) => {
+                  setFormData((prev) => ({ ...prev, category_id: value }));
+                  if (value) {
+                    setErrors((prev) => {
+                      const { category_id, ...rest } = prev;
+                      return rest;
+                    });
+                  }
+                }}
                 isReadOnly={true}
+                borderColor={
+                  formData.category_id && !errors.category_id ? "green.500" : 
+                  errors.category_id ? "red.500" : "coolGray.200"
+                }
+                _focus={{
+                  borderColor: formData.category_id && !errors.category_id ? "green.500" : 
+                              errors.category_id ? "red.500" : "blue.500",
+                }}
               >
                 {categories.map((category) => (
                   <Select.Item
@@ -696,10 +827,24 @@ export default function EditInventoryItemScreen() {
                 ref={supplierSelect}
                 selectedValue={formData.supplier_id}
                 placeholder="Select supplier"
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, supplier_id: value }))
-                }
+                onValueChange={(value) => {
+                  setFormData((prev) => ({ ...prev, supplier_id: value }));
+                  if (value) {
+                    setErrors((prev) => {
+                      const { supplier_id, ...rest } = prev;
+                      return rest;
+                    });
+                  }
+                }}
                 isReadOnly={true}
+                borderColor={
+                  formData.supplier_id && !errors.supplier_id ? "green.500" : 
+                  errors.supplier_id ? "red.500" : "coolGray.200"
+                }
+                _focus={{
+                  borderColor: formData.supplier_id && !errors.supplier_id ? "green.500" : 
+                              errors.supplier_id ? "red.500" : "blue.500",
+                }}
               >
                 {suppliers.map((supplier) => (
                   <Select.Item

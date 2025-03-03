@@ -27,6 +27,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import Header from "../../components/Header";
 import * as ImagePicker from "expo-image-picker";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 export default function EditMenuView() {
   const params = useLocalSearchParams();
@@ -49,7 +50,7 @@ export default function EditMenuView() {
     half_price: "",
     food_type: "",
     menu_cat_id: "",
-    spicy_index: "1",
+    spicy_index: "",
     offer: "",
     description: "",
     ingredients: "",
@@ -81,26 +82,20 @@ export default function EditMenuView() {
 
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
       if (!outletId) {
         throw new Error("Outlet ID not found");
       }
 
       // Fetch menu details
-      const menuResponse = await fetch(`${getBaseUrl()}/menu_view`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_view`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId,
           menu_id: menuId,
         }),
       });
-
-      const data = await menuResponse.json();
       console.log("Menu Data:", data);
 
       if (data.st === 1 && data.data) {
@@ -141,36 +136,32 @@ export default function EditMenuView() {
   const fetchDropdownData = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
       // Fetch Categories
-      const categoryResponse = await fetch(
+      const categoryData = await fetchWithAuth(
         `${getBaseUrl()}/menu_category_listview`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ outlet_id: outletId }),
         }
       );
-      const categoryData = await categoryResponse.json();
       if (categoryData.st === 1) {
-        setCategories(categoryData.menucat_details);
+        // Filter out null menu_cat_id and 'all' category
+        const validCategories = categoryData.menucat_details.filter(
+          (cat) => cat && cat.menu_cat_id !== null && cat.category_name !== "all"
+        );
+        setCategories(validCategories);
       }
 
       // Fetch Food Types
-      const foodTypeResponse = await fetch(
+      const foodTypeData = await fetchWithAuth(
         `${getBaseUrl()}/get_food_type_list`,
         {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
         }
       );
-      const foodTypeData = await foodTypeResponse.json();
       if (foodTypeData.st === 1) {
         const foodTypeArray = Object.entries(foodTypeData.food_type_list).map(
           ([key, value]) => ({
@@ -182,16 +173,13 @@ export default function EditMenuView() {
       }
 
       // Fetch Spicy Levels
-      const spicyResponse = await fetch(
+      const spicyData = await fetchWithAuth(
         `${getBaseUrl()}/get_spicy_index_list`,
         {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
         }
       );
-      const spicyData = await spicyResponse.json();
       if (spicyData.st === 1) {
         const spicyArray = Object.entries(spicyData.spicy_index_list).map(
           ([key, value]) => ({
@@ -203,17 +191,14 @@ export default function EditMenuView() {
       }
 
       // Fetch Rating List
-      const ratingResponse = await fetch(`${getBaseUrl()}/rating_list`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+      const ratingData = await fetchWithAuth(`${getBaseUrl()}/rating_list`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
       });
-      const ratingData = await ratingResponse.json();
       if (ratingData.st === 1) {
         const ratingArray = Object.entries(ratingData.rating_list).map(
           ([key, value]) => ({
-            id: key,
+            key: key,
             name: value,
           })
         );
@@ -266,7 +251,6 @@ export default function EditMenuView() {
       setSubmitting(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
       const userId = await AsyncStorage.getItem("user_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
       // Create FormData instance
       const formData = new FormData();
@@ -302,17 +286,14 @@ export default function EditMenuView() {
 
       console.log("Sending update request with FormData");
 
-      const response = await fetch(`${getBaseUrl()}/menu_update`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_update`, {
         method: "POST",
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "multipart/form-data",
         },
         body: formData,
       });
-
-      const data = await response.json();
       console.log("Update Response:", data);
 
       if (data.st === 1) {
@@ -346,16 +327,12 @@ export default function EditMenuView() {
     try {
       setIsSpecialLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(
+      const data = await fetchWithAuth(
         `${getBaseUrl()}/make_menu_special_non_special`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             outlet_id: outletId,
             menu_id: menuId,
@@ -363,7 +340,6 @@ export default function EditMenuView() {
         }
       );
 
-      const data = await response.json();
       if (data.st === 1) {
         setMenuDetails((prev) => ({
           ...prev,
@@ -419,32 +395,44 @@ export default function EditMenuView() {
   // Add image picker function
   const pickImage = async () => {
     try {
-      if (menuDetails.images.length >= 5) {
-        toast.show({
-          description: "Maximum 5 images allowed",
-          status: "warning",
-        });
-        return;
-      }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [4, 3],
+        aspect: [1, 1],
         quality: 1,
       });
 
       if (!result.canceled) {
-        setMenuDetails((prev) => ({
+        // Get file size in MB
+        const response = await fetch(result.assets[0].uri);
+        const blob = await response.blob();
+        const fileSizeInMB = blob.size / (1024 * 1024);
+
+        if (fileSizeInMB > 3) {
+          toast.show({
+            description: "Image size should not exceed 3MB",
+            status: "error",
+            duration: 3000,
+            placement: "top",
+            isClosable: true,
+          });
+          return;
+        }
+
+        setMenuDetails(prev => ({
           ...prev,
-          images: [...prev.images, result.assets[0].uri],
+          images: [...prev.images, result.assets[0].uri]
         }));
+        setImageSelected(true);
       }
     } catch (error) {
       console.error("Error picking image:", error);
       toast.show({
         description: "Failed to pick image",
         status: "error",
+        duration: 3000,
+        placement: "top",
+        isClosable: true,
       });
     }
   };
@@ -457,36 +445,33 @@ export default function EditMenuView() {
     }));
   };
 
-  // Add this handler function at component level
+  // Update the input handlers
   const handleMenuNameChange = (text) => {
-    // Only allow letters and spaces
     const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setMenuDetails((prev) => ({ ...prev, name: sanitizedText }));
 
-    // Validate and show error if needed
     if (!sanitizedText.trim()) {
       setErrors((prev) => ({ ...prev, name: "Menu name is required" }));
-    } else if (sanitizedText.length < 2) {
+    } else if (sanitizedText.trim().length < 2) {
       setErrors((prev) => ({
         ...prev,
         name: "Menu name must be at least 2 characters",
       }));
     } else {
-      setErrors((prev) => ({ ...prev, name: undefined }));
+      setErrors((prev) => {
+        const { name, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
-  // Add these handler functions at component level
   const handleFullPriceChange = (text) => {
-    // Remove leading zeros and non-numeric/non-decimal characters
     let sanitizedText = text.replace(/[^0-9.]/g, "").replace(/^0+/, "");
-
-    // Handle decimal numbers starting with 0
+    
     if (text.startsWith("0.")) {
       sanitizedText = "0" + sanitizedText;
     }
 
-    // Prevent multiple decimal points
     const parts = sanitizedText.split(".");
     const formattedText = parts[0] + (parts[1] ? "." + parts[1] : "");
 
@@ -494,39 +479,53 @@ export default function EditMenuView() {
 
     if (!formattedText) {
       setErrors((prev) => ({ ...prev, full_price: "Full price is required" }));
+    } else if (parseFloat(formattedText) <= 0) {
+      setErrors((prev) => ({ ...prev, full_price: "Price must be greater than 0" }));
     } else {
-      setErrors((prev) => ({ ...prev, full_price: undefined }));
+      setErrors((prev) => {
+        const { full_price, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
   const handleHalfPriceChange = (text) => {
-    // Remove leading zeros and non-numeric/non-decimal characters
     let sanitizedText = text.replace(/[^0-9.]/g, "").replace(/^0+/, "");
-
-    // Handle decimal numbers starting with 0
+    
     if (text.startsWith("0.")) {
       sanitizedText = "0" + sanitizedText;
     }
 
-    // Prevent multiple decimal points
     const parts = sanitizedText.split(".");
     const formattedText = parts[0] + (parts[1] ? "." + parts[1] : "");
 
     setMenuDetails((prev) => ({ ...prev, half_price: formattedText }));
+
+    if (formattedText && menuDetails.full_price) {
+      const halfPrice = parseFloat(formattedText);
+      const fullPrice = parseFloat(menuDetails.full_price);
+      
+      if (halfPrice >= fullPrice) {
+        setErrors((prev) => ({ 
+          ...prev, 
+          half_price: "Half price must be less than full price" 
+        }));
+      } else {
+        setErrors((prev) => {
+          const { half_price, ...rest } = prev;
+          return rest;
+        });
+      }
+    }
   };
 
   const handleOfferChange = (text) => {
-    // Only allow numbers
-    const sanitizedText = text.replace(/[^0-9]/g, "").replace(/^0+/, "");
+    // Allow 0 at the start and only numbers
+    let sanitizedText = text.replace(/[^0-9]/g, "");
 
     // Validate offer percentage (0-100)
     if (sanitizedText && Number(sanitizedText) > 100) {
-      setErrors((prev) => ({
-        ...prev,
-        offer: "Offer must be between 0 and 100",
-      }));
-    } else {
-      setErrors((prev) => ({ ...prev, offer: undefined }));
+      sanitizedText = "100";
     }
 
     setMenuDetails((prev) => ({ ...prev, offer: sanitizedText }));
@@ -621,10 +620,16 @@ export default function EditMenuView() {
                   value={menuDetails.name}
                   onChangeText={handleMenuNameChange}
                   placeholder="Enter menu name"
+                  borderColor={
+                    menuDetails.name && !errors.name ? "green.500" : 
+                    errors.name ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: menuDetails.name && !errors.name ? "green.500" : 
+                                errors.name ? "red.500" : "blue.500",
+                  }}
                 />
-                <FormControl.ErrorMessage>
-                  {errors.name}
-                </FormControl.ErrorMessage>
+                <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
               </FormControl>
 
               {/* Category Selector */}
@@ -687,10 +692,16 @@ export default function EditMenuView() {
                   onChangeText={handleFullPriceChange}
                   keyboardType="numeric"
                   placeholder="Enter full price"
+                  borderColor={
+                    menuDetails.full_price && !errors.full_price ? "green.500" : 
+                    errors.full_price ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: menuDetails.full_price && !errors.full_price ? "green.500" : 
+                                errors.full_price ? "red.500" : "blue.500",
+                  }}
                 />
-                <FormControl.ErrorMessage>
-                  {errors.full_price}
-                </FormControl.ErrorMessage>
+                <FormControl.ErrorMessage>{errors.full_price}</FormControl.ErrorMessage>
               </FormControl>
 
               <FormControl>
@@ -700,7 +711,16 @@ export default function EditMenuView() {
                   onChangeText={handleHalfPriceChange}
                   keyboardType="numeric"
                   placeholder="Enter half price"
+                  borderColor={
+                    menuDetails.half_price && !errors.half_price ? "green.500" : 
+                    errors.half_price ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: menuDetails.half_price && !errors.half_price ? "green.500" : 
+                                errors.half_price ? "red.500" : "blue.500",
+                  }}
                 />
+                <FormControl.ErrorMessage>{errors.half_price}</FormControl.ErrorMessage>
               </FormControl>
 
               <FormControl isInvalid={"offer" in errors}>
@@ -710,6 +730,12 @@ export default function EditMenuView() {
                   onChangeText={handleOfferChange}
                   keyboardType="numeric"
                   placeholder="Enter offer percentage"
+                  borderColor={
+                    menuDetails.offer ? "green.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: menuDetails.offer ? "green.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.offer}
@@ -767,6 +793,29 @@ export default function EditMenuView() {
                   />
                 </FormControl>
               </Pressable>
+
+              {/* Rating Selector */}
+              <FormControl isRequired isInvalid={"rating" in errors}>
+                <FormControl.Label>Rating</FormControl.Label>
+                <Pressable onPress={() => setRatingModalVisible(true)}>
+                  <Input
+                    value={
+                      ratingList.find((item) => item.key === menuDetails.rating)?.name || ""
+                    }
+                    isReadOnly
+                    placeholder="Select Rating"
+                    rightElement={
+                      <Icon
+                        as={MaterialIcons}
+                        name="arrow-drop-down"
+                        size={6}
+                        mr={2}
+                      />
+                    }
+                  />
+                </Pressable>
+                <FormControl.ErrorMessage>{errors.rating}</FormControl.ErrorMessage>
+              </FormControl>
 
               {/* Special Toggle */}
               <HStack
@@ -910,21 +959,21 @@ export default function EditMenuView() {
         isOpen={ratingModalVisible}
         onClose={() => setRatingModalVisible(false)}
       >
-        <Modal.Content maxWidth="90%">
+        <Modal.Content maxWidth="400px">
           <Modal.CloseButton />
           <Modal.Header>Select Rating</Modal.Header>
           <Modal.Body>
             <FlatList
               data={ratingList}
-              keyExtractor={(item) => item.id?.toString()}
+              keyExtractor={(item) => item.key}
               renderItem={({ item }) => (
                 <Pressable
                   p={3}
-                  bg={menuDetails.rating === item.id ? "primary.100" : "white"}
+                  bg={menuDetails.rating === item.key ? "primary.100" : "white"}
                   onPress={() => {
                     setMenuDetails((prev) => ({
                       ...prev,
-                      rating: item.id,
+                      rating: item.key
                     }));
                     setRatingModalVisible(false);
                   }}

@@ -29,6 +29,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 // Add this function to handle phone calls
 const handlePhonePress = (phoneNumber) => {
@@ -333,21 +334,19 @@ export default function StaffScreen() {
     setIsLoading(true);
     try {
       console.log("Fetching staff with role:", filterRole);
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/get_staff_list_with_role`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          outlet_id: outletId,
-          staff_role: filterRole === "all" ? "all" : filterRole,
-        }),
-      });
+      const data = await fetchWithAuth(
+        `${getBaseUrl()}/get_staff_list_with_role`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            outlet_id: outletId,
+            staff_role: filterRole === "all" ? "all" : filterRole,
+          }),
+        }
+      );
 
-      const data = await response.json();
       console.log("Staff List Response:", data);
 
       if (data.st === 1 && Array.isArray(data.lists)) {
@@ -383,20 +382,14 @@ export default function StaffScreen() {
     if (!outletId) return;
 
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-
-      const response = await fetch(`${getBaseUrl()}/staff_role_list`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/staff_role_list`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId,
         }),
       });
 
-      const data = await response.json();
       console.log("Roles Response:", data);
 
       if (data.st === 1 && Array.isArray(data.role_list)) {

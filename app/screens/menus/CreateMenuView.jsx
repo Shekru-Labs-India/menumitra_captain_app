@@ -29,6 +29,7 @@ import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBaseUrl } from "../../../config/api.config";
 import Header from "../../components/Header";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 export default function CreateMenuView() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export default function CreateMenuView() {
     half_price: "",
     food_type: "",
     menu_cat_id: "",
-    spicy_index: "1",
+    spicy_index: "",
     offer: "",
     description: "",
     ingredients: "",
@@ -91,17 +92,13 @@ export default function CreateMenuView() {
   const fetchCategories = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/menu_category_listview`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_listview`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ outlet_id: outletId }),
       });
-      const data = await response.json();
+      
       if (data.st === 1) {
         setCategories(
           data.menucat_details.filter((cat) => cat.menu_cat_id !== null)
@@ -123,15 +120,11 @@ export default function CreateMenuView() {
 
   const fetchVegNonvegList = async () => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${getBaseUrl()}/get_food_type_list`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/get_food_type_list`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
       });
-      const data = await response.json();
+      
       if (data.st === 1) {
         const foodTypeArray = Object.entries(data.food_type_list).map(
           ([key, value]) => ({
@@ -157,15 +150,11 @@ export default function CreateMenuView() {
 
   const fetchSpicyIndexList = async () => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${getBaseUrl()}/get_spicy_index_list`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/get_spicy_index_list`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
       });
-      const data = await response.json();
+      
       if (data.st === 1) {
         const spicyArray = Object.entries(data.spicy_index_list).map(
           ([key, value]) => ({
@@ -191,15 +180,11 @@ export default function CreateMenuView() {
 
   const fetchRatingList = async () => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${getBaseUrl()}/rating_list`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/rating_list`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
       });
-      const data = await response.json();
+      
       if (data.st === 1) {
         const ratingList = Object.entries(data.rating_list).map(
           ([key, value]) => ({
@@ -208,14 +193,21 @@ export default function CreateMenuView() {
           })
         );
         setRatingList(ratingList);
-        if (!rating) {
-          setRating("0.0");
+        if (!menuDetails.rating) {
+          setMenuDetails(prev => ({ ...prev, rating: "" }));
         }
       } else {
-        Alert.alert("Error", "Failed to fetch rating list.");
+        toast.show({
+          description: "Failed to fetch rating list",
+          status: "error",
+        });
       }
     } catch (error) {
-      Alert.alert("Error", "Unable to fetch rating list. Please try again.");
+      console.error("Error fetching rating list:", error);
+      toast.show({
+        description: "Unable to fetch rating list. Please try again",
+        status: "error",
+      });
     }
   };
 
@@ -232,12 +224,29 @@ export default function CreateMenuView() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [4, 3],
+        aspect: [1, 1],
         quality: 1,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedImage = result.assets[0];
+        
+        // Add size validation
+        const response = await fetch(selectedImage.uri);
+        const blob = await response.blob();
+        const fileSizeInMB = blob.size / (1024 * 1024);
+
+        if (fileSizeInMB > 3) {
+          toast.show({
+            description: "Image size should not exceed 3MB",
+            status: "error",
+            duration: 3000,
+            placement: "bottom",
+            isClosable: true,
+          });
+          return;
+        }
+
         if (selectedImage.uri) {
           setMenuDetails((prev) => ({
             ...prev,
@@ -251,6 +260,9 @@ export default function CreateMenuView() {
       toast.show({
         description: "Failed to pick image",
         status: "error",
+        duration: 3000,
+        placement: "bottom",
+        isClosable: true,
       });
     }
   };
@@ -309,7 +321,6 @@ export default function CreateMenuView() {
       const formData = new FormData();
       const outletId = await AsyncStorage.getItem("outlet_id");
       const userId = await AsyncStorage.getItem("user_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
       // Append all required fields
       formData.append("outlet_id", outletId);
@@ -340,21 +351,21 @@ export default function CreateMenuView() {
 
       console.log("Form Data being sent:", formData._parts);
 
-      const response = await fetch(`${getBaseUrl()}/menu_create`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_create`, {
         method: "POST",
         headers: {
           "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${accessToken}`,
         },
         body: formData,
       });
-
-      const data = await response.json();
 
       if (data.st === 1) {
         toast.show({
           description: "Menu created successfully",
           status: "success",
+          duration: 3000,
+          placement: "top",
+          isClosable: true,
         });
         router.push("/screens/menus/MenuListView");
       } else {
@@ -365,6 +376,9 @@ export default function CreateMenuView() {
       toast.show({
         description: error.message || "Failed to create menu",
         status: "error",
+        duration: 3000,
+        placement: "top",
+        isClosable: true,
       });
     } finally {
       setLoading(false);
@@ -372,58 +386,82 @@ export default function CreateMenuView() {
   };
 
   const handleMenuNameChange = (text) => {
-    // Only allow letters and spaces
     const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setMenuDetails((prev) => ({ ...prev, name: sanitizedText }));
 
-    // Validate and show error if needed
     if (!sanitizedText.trim()) {
       setErrors((prev) => ({ ...prev, name: "Menu name is required" }));
-    } else if (sanitizedText.length < 2) {
+    } else if (sanitizedText.trim().length < 2) {
       setErrors((prev) => ({
         ...prev,
         name: "Menu name must be at least 2 characters",
       }));
     } else {
-      setErrors((prev) => ({ ...prev, name: undefined }));
+      setErrors((prev) => {
+        const { name, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
   const handleFullPriceChange = (text) => {
-    // Remove leading zeros and non-numeric/non-decimal characters
     let sanitizedText = text.replace(/[^0-9.]/g, "").replace(/^0+/, "");
-
-    // Handle decimal numbers starting with 0
+    
     if (text.startsWith("0.")) {
       sanitizedText = "0" + sanitizedText;
     }
 
-    // Prevent multiple decimal points
     const parts = sanitizedText.split(".");
     const formattedText = parts[0] + (parts[1] ? "." + parts[1] : "");
 
     setMenuDetails((prev) => ({ ...prev, full_price: formattedText }));
+
+    if (!formattedText) {
+      setErrors((prev) => ({ ...prev, full_price: "Full price is required" }));
+    } else if (parseFloat(formattedText) <= 0) {
+      setErrors((prev) => ({ ...prev, full_price: "Price must be greater than 0" }));
+    } else {
+      setErrors((prev) => {
+        const { full_price, ...rest } = prev;
+        return rest;
+      });
+    }
   };
 
   const handleHalfPriceChange = (text) => {
-    // Remove leading zeros and non-numeric/non-decimal characters
     let sanitizedText = text.replace(/[^0-9.]/g, "").replace(/^0+/, "");
-
-    // Handle decimal numbers starting with 0
+    
     if (text.startsWith("0.")) {
       sanitizedText = "0" + sanitizedText;
     }
 
-    // Prevent multiple decimal points
     const parts = sanitizedText.split(".");
     const formattedText = parts[0] + (parts[1] ? "." + parts[1] : "");
 
     setMenuDetails((prev) => ({ ...prev, half_price: formattedText }));
+
+    // Validate half price is less than full price if both exist
+    if (formattedText && menuDetails.full_price) {
+      const halfPrice = parseFloat(formattedText);
+      const fullPrice = parseFloat(menuDetails.full_price);
+      
+      if (halfPrice >= fullPrice) {
+        setErrors((prev) => ({ 
+          ...prev, 
+          half_price: "Half price must be less than full price" 
+        }));
+      } else {
+        setErrors((prev) => {
+          const { half_price, ...rest } = prev;
+          return rest;
+        });
+      }
+    }
   };
 
   const handleOfferChange = (text) => {
-    // Only allow numbers, remove leading zeros and non-numeric characters
-    let sanitizedText = text.replace(/[^0-9]/g, "").replace(/^0+/, "");
+    // Allow 0 at the start and only numbers
+    let sanitizedText = text.replace(/[^0-9]/g, "");
 
     // Validate offer percentage (0-100)
     if (sanitizedText && Number(sanitizedText) > 100) {
@@ -431,6 +469,53 @@ export default function CreateMenuView() {
     }
 
     setMenuDetails((prev) => ({ ...prev, offer: sanitizedText }));
+  };
+
+  const handleCategorySelect = (categoryId) => {
+    setMenuDetails((prev) => ({
+      ...prev,
+      menu_cat_id: categoryId,
+    }));
+    // Clear error when valid selection is made
+    setErrors((prev) => {
+      const { menu_cat_id, ...rest } = prev;
+      return rest;
+    });
+    setModalVisible(false);
+  };
+
+  const handleFoodTypeSelect = (foodTypeId) => {
+    setMenuDetails((prev) => ({
+      ...prev,
+      food_type: foodTypeId,
+    }));
+    // Clear error when valid selection is made
+    setErrors((prev) => {
+      const { food_type, ...rest } = prev;
+      return rest;
+    });
+    setFoodTypeModalVisible(false);
+  };
+
+  const handleSpicyLevelSelect = (spicyId) => {
+    setMenuDetails((prev) => ({
+      ...prev,
+      spicy_index: spicyId,
+    }));
+    setSpicyModalVisible(false);
+  };
+
+  const handleRatingSelect = (ratingKey) => {
+    setMenuDetails((prev) => ({
+      ...prev,
+      rating: ratingKey,
+    }));
+    // Clear error when valid selection is made
+    setErrors((prev) => {
+      const { rating, ...rest } = prev;
+      return rest;
+    });
+    setRatingModalVisible(false);
   };
 
   return (
@@ -445,20 +530,6 @@ export default function CreateMenuView() {
               <Text fontSize="md" fontWeight="bold">
                 Menu Images ({menuDetails.images.length}/5)
               </Text>
-              <Button
-                size="sm"
-                onPress={pickImage}
-                isDisabled={menuDetails.images.length >= 5}
-                leftIcon={
-                  <Icon
-                    as={MaterialIcons}
-                    name="add-photo-alternate"
-                    size="sm"
-                  />
-                }
-              >
-                Add Image
-              </Button>
             </HStack>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -468,7 +539,9 @@ export default function CreateMenuView() {
                     <Image
                       source={{ uri }}
                       alt={`Menu Image ${index + 1}`}
-                      size="xl"
+                      size="32"
+                      w="32"
+                      h="32"
                       rounded="lg"
                     />
                     <IconButton
@@ -490,25 +563,33 @@ export default function CreateMenuView() {
                     />
                   </Box>
                 ))}
-                {menuDetails.images.length === 0 && (
-                  <Box
-                    w="150"
-                    h="150"
-                    bg="gray.200"
-                    rounded="lg"
-                    justifyContent="center"
-                    alignItems="center"
-                  >
-                    <Icon
-                      as={MaterialIcons}
-                      name="add-photo-alternate"
-                      size={8}
-                      color="gray.400"
-                    />
-                    <Text color="gray.400" mt={2}>
-                      Add Photos
-                    </Text>
-                  </Box>
+                {menuDetails.images.length < 5 && (
+                  <Pressable onPress={pickImage}>
+                    <Box
+                      w="32"
+                      h="32"
+                      bg="gray.100"
+                      rounded="lg"
+                      justifyContent="center"
+                      alignItems="center"
+                      borderWidth={1}
+                      borderStyle="dashed"
+                      borderColor="gray.300"
+                    >
+                      <Icon
+                        as={MaterialIcons}
+                        name="add-photo-alternate"
+                        size={8}
+                        color="gray.400"
+                      />
+                      <Text color="gray.400" mt={2} fontSize="sm">
+                        Add Photo
+                      </Text>
+                      <Text color="gray.400" fontSize="xs">
+                        (Max 3MB)
+                      </Text>
+                    </Box>
+                  </Pressable>
                 )}
               </HStack>
             </ScrollView>
@@ -522,26 +603,36 @@ export default function CreateMenuView() {
                 value={menuDetails.name}
                 onChangeText={handleMenuNameChange}
                 placeholder="Enter menu name"
+                borderColor={
+                  menuDetails.name && !errors.name ? "green.500" : 
+                  errors.name ? "red.500" : "coolGray.200"
+                }
+                _focus={{
+                  borderColor: menuDetails.name && !errors.name ? "green.500" : 
+                              errors.name ? "red.500" : "blue.500",
+                }}
               />
               <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
             </FormControl>
 
             <HStack space={4} justifyContent="space-between">
-              <FormControl
-                flex={1}
-                isRequired
-                isInvalid={"full_price" in errors}
-              >
+              <FormControl flex={1} isRequired isInvalid={"full_price" in errors}>
                 <FormControl.Label>Full Price</FormControl.Label>
                 <Input
                   value={menuDetails.full_price}
                   onChangeText={handleFullPriceChange}
                   keyboardType="numeric"
                   placeholder="Enter full price"
+                  borderColor={
+                    menuDetails.full_price && !errors.full_price ? "green.500" : 
+                    errors.full_price ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: menuDetails.full_price && !errors.full_price ? "green.500" : 
+                                errors.full_price ? "red.500" : "blue.500",
+                  }}
                 />
-                <FormControl.ErrorMessage>
-                  {errors.full_price}
-                </FormControl.ErrorMessage>
+                <FormControl.ErrorMessage>{errors.full_price}</FormControl.ErrorMessage>
               </FormControl>
 
               <FormControl flex={1}>
@@ -551,6 +642,12 @@ export default function CreateMenuView() {
                   onChangeText={handleHalfPriceChange}
                   keyboardType="numeric"
                   placeholder="Enter half price"
+                  borderColor={
+                    menuDetails.half_price ? "green.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: menuDetails.half_price ? "green.500" : "blue.500",
+                  }}
                 />
               </FormControl>
             </HStack>
@@ -559,54 +656,49 @@ export default function CreateMenuView() {
               <FormControl.Label>Category</FormControl.Label>
               <Pressable onPress={() => setModalVisible(true)}>
                 <Input
-                  value={
-                    categories.find(
-                      (cat) => cat.menu_cat_id === menuDetails.menu_cat_id
-                    )?.category_name || ""
-                  }
+                  value={categories.find((cat) => cat.menu_cat_id === menuDetails.menu_cat_id)?.category_name || ""}
                   isReadOnly
                   placeholder="Select category"
+                  borderColor={
+                    menuDetails.menu_cat_id && !errors.menu_cat_id ? "green.500" : 
+                    errors.menu_cat_id ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: menuDetails.menu_cat_id && !errors.menu_cat_id ? "green.500" : 
+                                errors.menu_cat_id ? "red.500" : "blue.500",
+                  }}
                   rightElement={
-                    <Icon
-                      as={MaterialIcons}
-                      name="arrow-drop-down"
-                      size={6}
-                      mr={2}
-                    />
+                    <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
                   }
                 />
               </Pressable>
-              <FormControl.ErrorMessage>
-                {errors.menu_cat_id}
-              </FormControl.ErrorMessage>
+              <FormControl.ErrorMessage>{errors.menu_cat_id}</FormControl.ErrorMessage>
             </FormControl>
 
             <FormControl isRequired isInvalid={"food_type" in errors}>
               <FormControl.Label>Food Type</FormControl.Label>
               <Pressable onPress={() => setFoodTypeModalVisible(true)}>
                 <Input
-                  value={
-                    foodTypes.find((type) => type.id === menuDetails.food_type)
-                      ?.name || ""
-                  }
+                  value={foodTypes.find((type) => type.id === menuDetails.food_type)?.name || ""}
                   isReadOnly
                   placeholder="Select food type"
+                  borderColor={
+                    menuDetails.food_type && !errors.food_type ? "green.500" : 
+                    errors.food_type ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: menuDetails.food_type && !errors.food_type ? "green.500" : 
+                                errors.food_type ? "red.500" : "blue.500",
+                  }}
                   rightElement={
-                    <Icon
-                      as={MaterialIcons}
-                      name="arrow-drop-down"
-                      size={6}
-                      mr={2}
-                    />
+                    <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
                   }
                 />
               </Pressable>
-              <FormControl.ErrorMessage>
-                {errors.food_type}
-              </FormControl.ErrorMessage>
+              <FormControl.ErrorMessage>{errors.food_type}</FormControl.ErrorMessage>
             </FormControl>
 
-            <FormControl isRequired>
+            <FormControl >
               <FormControl.Label>Spicy Level</FormControl.Label>
               <Pressable onPress={() => setSpicyModalVisible(true)}>
                 <Input
@@ -668,25 +760,23 @@ export default function CreateMenuView() {
               <FormControl.Label>Rating</FormControl.Label>
               <Pressable onPress={() => setRatingModalVisible(true)}>
                 <Input
-                  value={
-                    ratingList.find((item) => item.key === menuDetails.rating)
-                      ?.name || ""
-                  }
+                  value={ratingList.find((item) => item.key === menuDetails.rating)?.name || ""}
                   isReadOnly
                   placeholder="Select Rating"
+                  borderColor={
+                    menuDetails.rating && !errors.rating ? "green.500" : 
+                    errors.rating ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: menuDetails.rating && !errors.rating ? "green.500" : 
+                                errors.rating ? "red.500" : "blue.500",
+                  }}
                   rightElement={
-                    <Icon
-                      as={MaterialIcons}
-                      name="arrow-drop-down"
-                      size={6}
-                      mr={2}
-                    />
+                    <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
                   }
                 />
               </Pressable>
-              <FormControl.ErrorMessage>
-                {errors.rating}
-              </FormControl.ErrorMessage>
+              <FormControl.ErrorMessage>{errors.rating}</FormControl.ErrorMessage>
             </FormControl>
 
             <Box bg="white" rounded="lg" shadow={1} p={4}>
@@ -726,18 +816,8 @@ export default function CreateMenuView() {
               renderItem={({ item }) => (
                 <Pressable
                   p={3}
-                  bg={
-                    menuDetails.menu_cat_id === item.menu_cat_id
-                      ? "primary.100"
-                      : "white"
-                  }
-                  onPress={() => {
-                    setMenuDetails((prev) => ({
-                      ...prev,
-                      menu_cat_id: item.menu_cat_id,
-                    }));
-                    setModalVisible(false);
-                  }}
+                  bg={menuDetails.menu_cat_id === item.menu_cat_id ? "primary.100" : "white"}
+                  onPress={() => handleCategorySelect(item.menu_cat_id)}
                 >
                   <Text>{item.category_name}</Text>
                 </Pressable>
@@ -762,16 +842,8 @@ export default function CreateMenuView() {
               renderItem={({ item }) => (
                 <Pressable
                   p={3}
-                  bg={
-                    menuDetails.food_type === item.id ? "primary.100" : "white"
-                  }
-                  onPress={() => {
-                    setMenuDetails((prev) => ({
-                      ...prev,
-                      food_type: item.id,
-                    }));
-                    setFoodTypeModalVisible(false);
-                  }}
+                  bg={menuDetails.food_type === item.id ? "primary.100" : "white"}
+                  onPress={() => handleFoodTypeSelect(item.id)}
                 >
                   <Text>{item.name}</Text>
                 </Pressable>
@@ -801,13 +873,7 @@ export default function CreateMenuView() {
                       ? "primary.100"
                       : "white"
                   }
-                  onPress={() => {
-                    setMenuDetails((prev) => ({
-                      ...prev,
-                      spicy_index: item.id,
-                    }));
-                    setSpicyModalVisible(false);
-                  }}
+                  onPress={() => handleSpicyLevelSelect(item.id)}
                 >
                   <Text>{item.name}</Text>
                 </Pressable>
@@ -833,10 +899,7 @@ export default function CreateMenuView() {
                 <Pressable
                   p={3}
                   bg={menuDetails.rating === item.key ? "primary.100" : "white"}
-                  onPress={() => {
-                    setMenuDetails((prev) => ({ ...prev, rating: item.key }));
-                    setRatingModalVisible(false);
-                  }}
+                  onPress={() => handleRatingSelect(item.key)}
                 >
                   <Text>{item.name}</Text>
                 </Pressable>

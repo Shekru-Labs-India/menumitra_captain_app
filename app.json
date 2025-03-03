@@ -101,6 +101,8 @@
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    }
+    },
+    "newArchEnabled": true
   }
 }
+ 

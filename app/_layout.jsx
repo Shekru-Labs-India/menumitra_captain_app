@@ -14,6 +14,7 @@ import { Slot, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { VersionProvider } from "../context/VersionContext";
 import { AuthProvider } from "../context/AuthContext";
+import { PrinterProvider } from '../context/PrinterContext';
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -56,23 +57,26 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <VersionProvider>
-        <SupplierProvider>
-          <NativeBaseProvider>
-            <ThemeProvider
-              value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-            >
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="login" />
-                <Stack.Screen name="otp" />
-                <Stack.Screen name="(tabs)" />
-              </Stack>
-            </ThemeProvider>
-          </NativeBaseProvider>
-        </SupplierProvider>
-      </VersionProvider>
-    </AuthProvider>
+    <PrinterProvider>
+      <AuthProvider>
+        <VersionProvider>
+          <SupplierProvider>
+            <NativeBaseProvider>
+              <ThemeProvider
+                value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+              >
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="login" />
+                  <Stack.Screen name="otp" />
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen name="screens" />
+                </Stack>
+              </ThemeProvider>
+            </NativeBaseProvider>
+          </SupplierProvider>
+        </VersionProvider>
+      </AuthProvider>
+    </PrinterProvider>
   );
 }

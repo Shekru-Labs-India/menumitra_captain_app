@@ -38,6 +38,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
 import { getBaseUrl } from "../../config/api.config";
 import * as Updates from "expo-updates";
+import Constants from 'expo-constants';
+import { fetchWithAuth } from "../../utils/apiInterceptor";
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -59,6 +61,7 @@ export default function HomeScreen() {
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const isExpoGo = Constants.executionEnvironment === "storeClient";
 
   // Update the management cards array to match the reference
   const managementCards = [
@@ -112,7 +115,6 @@ export default function HomeScreen() {
     try {
       console.log("Starting fetchData function");
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
       if (!storedOutletId) {
         console.log("No outlet ID found");
@@ -125,14 +127,11 @@ export default function HomeScreen() {
       }
 
       // Fetch staff list
-      const staffResponse = await fetch(
+      const staffData = await fetchWithAuth(
         `${getBaseUrl()}/get_staff_list_with_role`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             outlet_id: storedOutletId,
             staff_role: "all",
@@ -140,27 +139,24 @@ export default function HomeScreen() {
         }
       );
 
-      const staffData = await staffResponse.json();
       if (staffData.st === 1 && Array.isArray(staffData.lists)) {
         setStaffCount(staffData.lists.length);
       }
 
       // Fetch table list using new API
       console.log("Fetching table list...");
-      const tableResponse = await fetch(`${getBaseUrl()}/table_listview`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          outlet_id: storedOutletId,
-        }),
-      });
+      const tableData = await fetchWithAuth(
+        `${getBaseUrl()}/table_listview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            outlet_id: storedOutletId,
+          }),
+        }
+      );
 
-      const tableData = await tableResponse.json();
       console.log("Raw Table Response:", tableData);
-
       if (tableData.st === 1) {
         setTableCount(tableData.total_tables);
       }
@@ -178,6 +174,12 @@ export default function HomeScreen() {
   };
 
   const checkForUpdates = async () => {
+    // Skip update check in Expo Go
+    if (isExpoGo) {
+      console.log("Update checking is not supported in Expo Go");
+      return;
+    }
+
     try {
       const update = await Updates.checkForUpdateAsync();
       if (update.isAvailable) {
@@ -203,11 +205,11 @@ export default function HomeScreen() {
                     ]
                   );
                 } catch (error) {
+                  console.log("Error downloading update:", error);
                   Alert.alert(
                     "Error",
                     "Failed to download update. Please try again later."
                   );
-                  console.log("Error downloading update:", error);
                 }
               },
             },
@@ -475,16 +477,11 @@ export default function HomeScreen() {
       const outletId = await AsyncStorage.getItem("outlet_id");
       const sessionToken = await AsyncStorage.getItem("session_token");
 
-      const result = await fetch(
-        `${getBaseUrl().replace(
-          "common_api",
-          "captain_api"
-        )}/send_notification`,
+      const data = await fetchWithAuth(
+        `${getBaseUrl().replace("common_api", "captain_api")}/send_notification`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             data: {
               type: "waiter_call",
@@ -496,9 +493,7 @@ export default function HomeScreen() {
         }
       );
 
-      const responseData = await result.json();
-
-      if (responseData.success) {
+      if (data.success) {
         await playSound();
         toast.show({
           description: "Waiter has been notified",
@@ -506,7 +501,7 @@ export default function HomeScreen() {
           duration: 3000,
         });
       } else {
-        throw new Error(responseData.message || "Failed to send notification");
+        throw new Error(data.message || "Failed to send notification");
       }
     } catch (error) {
       console.error("Error sending waiter notification:", error);
@@ -521,20 +516,15 @@ export default function HomeScreen() {
   const fetchLatestSales = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/table_listview`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/table_listview`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId,
         }),
       });
 
-      const data = await response.json();
       console.log("Latest sales data:", data);
 
       if (data.st === 1) {
@@ -551,7 +541,11 @@ export default function HomeScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchData(), checkForUpdates()]);
+      // Only check for updates if not in Expo Go
+      await Promise.all([
+        fetchData(),
+        !isExpoGo ? checkForUpdates() : Promise.resolve()
+      ]);
     } finally {
       setRefreshing(false);
     }
@@ -560,7 +554,15 @@ export default function HomeScreen() {
   // Handle screen focus
   useFocusEffect(
     React.useCallback(() => {
-      fetchData();
+      const initializeScreen = async () => {
+        await fetchData();
+        // Only check for updates if not in Expo Go
+        if (!isExpoGo) {
+          await checkForUpdates();
+        }
+      };
+
+      initializeScreen();
     }, [])
   );
 

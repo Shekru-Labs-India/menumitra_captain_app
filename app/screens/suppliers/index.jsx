@@ -22,6 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 const toTitleCase = (str) => {
   return str
@@ -65,20 +66,14 @@ export default function SuppliersScreen() {
   const fetchSuppliers = async () => {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/supplier_listview`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/supplier_listview`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: storedOutletId.toString(),
         }),
       });
-
-      const data = await response.json();
       console.log("Suppliers List Response:", data);
 
       if (data.st === 1 && data.data) {

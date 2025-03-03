@@ -21,6 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 export default function EditCategoryView() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -44,21 +45,16 @@ export default function EditCategoryView() {
   const fetchCategoryDetails = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/menu_category_view`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_view`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId,
           menu_cat_id: params.categoryId,
         }),
       });
 
-      const data = await response.json();
       if (data.st === 1) {
         setCategoryDetails({
           category_name: data.data.name,
@@ -84,22 +80,40 @@ export default function EditCategoryView() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [4, 3],
+        aspect: [1, 1],
         quality: 1,
       });
 
       if (!result.canceled) {
-        setCategoryDetails((prev) => ({
-          ...prev,
-          image: result.assets[0].uri,
-        }));
+        // Get file size in MB
+        const response = await fetch(result.assets[0].uri);
+        const blob = await response.blob();
+        const fileSizeInMB = blob.size / (1024 * 1024);
+
+        if (fileSizeInMB > 3) {
+          setErrors(prev => ({
+            ...prev,
+            image: "Image size should not exceed 3MB"
+          }));
+          return;
+        }
+
+        setCategoryDetails(prev => ({ ...prev, image: result.assets[0].uri }));
         setImageSelected(true);
+        // Clear image error if exists
+        setErrors(prev => {
+          const { image, ...rest } = prev;
+          return rest;
+        });
       }
     } catch (error) {
       console.error("Image picking error:", error);
       toast.show({
         description: "Failed to pick image",
         status: "error",
+        duration: 3000,
+        placement: "top",
+        isClosable: true,
       });
     }
   };
@@ -111,15 +125,19 @@ export default function EditCategoryView() {
     if (!sanitizedText.trim()) {
       setErrors((prev) => ({
         ...prev,
-        category_name: "Category name is required",
+        category_name: "Category name is required"
       }));
-    } else if (sanitizedText.length < 2) {
+    } else if (sanitizedText.trim().length < 2) {
       setErrors((prev) => ({
         ...prev,
-        category_name: "Category name must be at least 2 characters",
+        category_name: "Category name must be at least 2 characters"
       }));
     } else {
-      setErrors((prev) => ({ ...prev, category_name: undefined }));
+      // Properly clear the error when input is valid
+      setErrors((prev) => {
+        const { category_name, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -142,7 +160,6 @@ export default function EditCategoryView() {
       setLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
       const userId = await AsyncStorage.getItem("user_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
       const formData = new FormData();
       formData.append("outlet_id", outletId);
@@ -163,20 +180,19 @@ export default function EditCategoryView() {
         });
       }
 
-      const response = await fetch(`${getBaseUrl()}/menu_category_update`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_update`, {
         method: "POST",
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "multipart/form-data" },
         body: formData,
       });
 
-      const data = await response.json();
       if (data.st === 1) {
         toast.show({
           description: "Category updated successfully",
           status: "success",
+          duration: 3000,
+          placement: "top",
+          isClosable: true,
         });
 
         // First navigate to list view with refresh parameter
@@ -201,6 +217,9 @@ export default function EditCategoryView() {
       toast.show({
         description: error.message || "Failed to update category",
         status: "error",
+        duration: 3000,
+        placement: "top",
+        isClosable: true,
       });
     } finally {
       setLoading(false);
@@ -226,44 +245,48 @@ export default function EditCategoryView() {
         <VStack space={4} p={4}>
           {/* Category Image */}
           <Box bg="white" rounded="lg" p={4} shadow={1}>
-            <Pressable onPress={pickImage}>
-              {(imageSelected && categoryDetails.image) ||
-              categoryDetails.existing_image ? (
-                <Box alignItems="center">
-                  <Image
-                    source={{
-                      uri:
-                        categoryDetails.image || categoryDetails.existing_image,
-                    }}
-                    alt="Category Image"
-                    size="2xl"
+            <FormControl isInvalid={"image" in errors}>
+              <Pressable onPress={pickImage}>
+                {(imageSelected && categoryDetails.image) ||
+                categoryDetails.existing_image ? (
+                  <Box alignItems="center">
+                    <Image
+                      source={{
+                        uri: categoryDetails.image || categoryDetails.existing_image,
+                      }}
+                      alt="Category Image"
+                      size="2xl"
+                      rounded="lg"
+                    />
+                    <Text mt={2} color="coolGray.500">
+                      Tap to change image (Max 3MB)
+                    </Text>
+                  </Box>
+                ) : (
+                  <Box
+                    borderWidth={2}
+                    borderStyle="dashed"
+                    borderColor={errors.image ? "red.500" : "coolGray.300"}
                     rounded="lg"
-                  />
-                  <Text mt={2} color="coolGray.500">
-                    Tap to change image
-                  </Text>
-                </Box>
-              ) : (
-                <Box
-                  borderWidth={2}
-                  borderStyle="dashed"
-                  borderColor="coolGray.300"
-                  rounded="lg"
-                  p={10}
-                  alignItems="center"
-                >
-                  <Icon
-                    as={MaterialIcons}
-                    name="add-photo-alternate"
-                    size={12}
-                    color="coolGray.400"
-                  />
-                  <Text mt={2} color="coolGray.500">
-                    Tap to add image
-                  </Text>
-                </Box>
-              )}
-            </Pressable>
+                    p={10}
+                    alignItems="center"
+                  >
+                    <Icon
+                      as={MaterialIcons}
+                      name="add-photo-alternate"
+                      size={12}
+                      color={errors.image ? "red.500" : "coolGray.400"}
+                    />
+                    <Text mt={2} color={errors.image ? "red.500" : "coolGray.500"}>
+                      Tap to add image (Max 3MB)
+                    </Text>
+                  </Box>
+                )}
+              </Pressable>
+              <FormControl.ErrorMessage>
+                {errors.image}
+              </FormControl.ErrorMessage>
+            </FormControl>
           </Box>
 
           {/* Category Details Form */}
@@ -275,6 +298,14 @@ export default function EditCategoryView() {
                   value={categoryDetails.category_name}
                   onChangeText={handleCategoryNameChange}
                   placeholder="Enter category name"
+                  borderColor={
+                    categoryDetails.category_name && !errors.category_name ? "green.500" : 
+                    errors.category_name ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: categoryDetails.category_name && !errors.category_name ? "green.500" : 
+                                errors.category_name ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.category_name}
@@ -290,6 +321,10 @@ export default function EditCategoryView() {
             bg="primary.600"
             _pressed={{ bg: "primary.700" }}
             mb={6}
+            isDisabled={
+              // Only check for category name errors and emptiness
+              ("category_name" in errors) || !categoryDetails.category_name.trim()
+            }
           >
             Update Category
           </Button>

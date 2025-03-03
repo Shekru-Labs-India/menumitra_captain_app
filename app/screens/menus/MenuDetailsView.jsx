@@ -24,6 +24,7 @@ import Header from "../../components/Header";
 import { router } from "expo-router";
 import { Dimensions } from "react-native";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -43,21 +44,15 @@ export default function MenuDetailsView() {
   const fetchMenuDetails = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/menu_view`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_view`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId,
           menu_id: menuId,
         }),
       });
-
-      const data = await response.json();
       console.log("Menu Details:", data);
 
       if (data.st === 1) {
@@ -79,21 +74,16 @@ export default function MenuDetailsView() {
   const handleDelete = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/menu_delete`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_delete`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId,
           menu_id: menuId,
         }),
       });
 
-      const data = await response.json();
       if (data.st === 1) {
         toast.show({
           description: "Menu deleted successfully",
@@ -159,26 +149,29 @@ export default function MenuDetailsView() {
   const CustomHeader = () => (
     <Box
       px={4}
-      pt={12}
-      pb={3}
+      py={4}
       bg="white"
       flexDirection="row"
       alignItems="center"
       justifyContent="space-between"
+      safeAreaTop
     >
-      <HStack space={3} alignItems="center">
-        <Pressable onPress={() => router.back()}>
-          <Icon
-            as={MaterialIcons}
-            name="arrow-back"
-            size={6}
-            color="coolGray.800"
-          />
-        </Pressable>
-        <Text fontSize="xl" textAlign="center" fontWeight="bold">
-          Menu Details
-        </Text>
-      </HStack>
+      {/* Left: Back Button */}
+      <Pressable onPress={() => router.back()}>
+        <Icon
+          as={MaterialIcons}
+          name="arrow-back"
+          size={6}
+          color="coolGray.800"
+        />
+      </Pressable>
+
+      {/* Center: Title */}
+      <Text fontSize="xl" fontWeight="bold" flex={1} textAlign="center">
+        Menu Details
+      </Text>
+
+      {/* Right: Delete Button */}
       <Pressable onPress={() => setIsDeleteDialogOpen(true)}>
         <Icon
           as={MaterialIcons}

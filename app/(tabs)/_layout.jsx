@@ -5,9 +5,8 @@ import { usePathname } from "expo-router";
 export default function TabLayout() {
   const pathname = usePathname();
 
-  const isInventoryOrSuppliers =
-    pathname.includes("/screens/inventory") ||
-    pathname.includes("/screens/suppliers");
+  // Show bottom nav for all screens except create-order
+  const shouldHideTabBar = pathname.includes("/screens/orders/create-order");
 
   return (
     <Tabs
@@ -19,7 +18,7 @@ export default function TabLayout() {
           height: 60,
           paddingBottom: 8,
           paddingTop: 8,
-          display: isInventoryOrSuppliers ? "none" : "flex", // Hide tabBar for inventory/suppliers
+          display: shouldHideTabBar ? "none" : "flex",
         },
         tabBarLabelStyle: {
           fontSize: 12,

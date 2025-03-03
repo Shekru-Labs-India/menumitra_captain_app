@@ -21,6 +21,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
 import { useFocusEffect } from "@react-navigation/native";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 export default function MenuListView() {
   const [menus, setMenus] = useState([]);
@@ -51,20 +52,15 @@ export default function MenuListView() {
     try {
       setLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/menu_listview`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_listview`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId,
         }),
       });
 
-      const data = await response.json();
       if (data.st === 1) {
         setMenus(data.lists);
         setFilteredMenus(data.lists);

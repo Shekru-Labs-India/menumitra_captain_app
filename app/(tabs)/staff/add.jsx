@@ -26,6 +26,7 @@ import Header from "../../components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 const API_BASE_URL = getBaseUrl();
 
@@ -85,14 +86,16 @@ export default function AddStaffScreen() {
     }
   };
 
-  // Add this function to handle name input with validation
+  // Update handleNameChange function
   const handleNameChange = (text) => {
     // Remove special characters and numbers on input
     const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setFormData({ ...formData, name: sanitizedText });
 
-    // Validate and set error
-    if (sanitizedText.trim().length < 2) {
+    // Clear error if valid, set error if invalid
+    if (!sanitizedText.trim()) {
+      setErrors((prev) => ({ ...prev, name: "Name is required" }));
+    } else if (sanitizedText.trim().length < 2) {
       setErrors((prev) => ({
         ...prev,
         name: "Name must be at least 2 characters long",
@@ -103,7 +106,11 @@ export default function AddStaffScreen() {
         name: "Only letters and spaces allowed",
       }));
     } else {
-      setErrors((prev) => ({ ...prev, name: undefined }));
+      // Explicitly remove the name error when input is valid
+      setErrors((prev) => {
+        const { name, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -116,13 +123,9 @@ export default function AddStaffScreen() {
     if (sanitizedText.length > 0) {
       const firstDigit = sanitizedText[0];
       if (!["6", "7", "8", "9"].includes(firstDigit)) {
-        // Keep the previous valid value if exists, otherwise empty
         setFormData((prev) => ({
           ...prev,
-          phone:
-            prev.phone && ["6", "7", "8", "9"].includes(prev.phone[0])
-              ? prev.phone
-              : "",
+          phone: sanitizedText // Still update the phone number
         }));
         setErrors((prev) => ({
           ...prev,
@@ -134,11 +137,19 @@ export default function AddStaffScreen() {
 
     setFormData({ ...formData, phone: sanitizedText });
 
-    // Validate the phone number length and format
-    if (sanitizedText.length === 10 && !/^[6-9]\d{9}$/.test(sanitizedText)) {
-      setErrors((prev) => ({ ...prev, phone: "Enter valid 10-digit number" }));
+    // Clear error if valid, set error if invalid
+    if (!sanitizedText) {
+      setErrors((prev) => ({ ...prev, phone: "Mobile number is required" }));
+    } else if (sanitizedText.length !== 10) {
+      setErrors((prev) => ({ ...prev, phone: "Mobile number must be 10 digits" }));
+    } else if (!/^[6-9]\d{9}$/.test(sanitizedText)) {
+      setErrors((prev) => ({ ...prev, phone: "Invalid mobile number format" }));
     } else {
-      setErrors((prev) => ({ ...prev, phone: undefined }));
+      // Explicitly remove the phone error when input is valid
+      setErrors((prev) => {
+        const { phone, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -227,29 +238,18 @@ export default function AddStaffScreen() {
 
     try {
       const userId = await AsyncStorage.getItem("user_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
       // Format date to DD Mon YYYY (without hyphens)
       const formatDOB = (dateString) => {
         const date = new Date(dateString);
         const day = String(date.getDate()).padStart(2, "0");
         const months = [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
+          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
         ];
         const month = months[date.getMonth()];
         const year = date.getFullYear();
-        return `${day} ${month} ${year}`; // Removed hyphens, using spaces instead
+        return `${day} ${month} ${year}`;
       };
 
       // Create FormData instance
@@ -281,20 +281,19 @@ export default function AddStaffScreen() {
         });
       }
 
-      const response = await fetch(`${getBaseUrl()}/staff_create`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/staff_create`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          // Don't set Content-Type for FormData, let the browser set it with boundary
         },
         body: formDataToSend,
       });
 
-      const data = await response.json();
       console.log("API Response:", data);
 
       if (data.st === 1) {
         toast.show({
-          description: data.msg || "Staff member added successfully",
+          description: "Staff member added successfully",
           status: "success",
         });
         router.back();
@@ -312,17 +311,11 @@ export default function AddStaffScreen() {
 
   const fetchRoles = async () => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-
-      const response = await fetch(`${getBaseUrl()}/get_staff_role`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/get_staff_role`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
-      const data = await response.json();
       console.log("Roles Response:", data);
 
       if (data.st === 1 && data.role_list) {
@@ -429,18 +422,8 @@ export default function AddStaffScreen() {
 
       const day = String(selected.getDate()).padStart(2, "0");
       const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
       ];
       const month = months[selected.getMonth()];
       const year = selected.getFullYear();
@@ -450,6 +433,12 @@ export default function AddStaffScreen() {
         ...prev,
         dob: formattedDate,
       }));
+
+      // Clear the dob error when a valid date is selected
+      setErrors((prev) => {
+        const { dob, ...rest } = prev;
+        return rest;
+      });
     } else {
       setShowDatePicker(false);
     }
@@ -496,11 +485,12 @@ export default function AddStaffScreen() {
               autoCapitalize="words"
               maxLength={50}
               borderColor={
-                formData.name && !errors.name ? "green.500" : "coolGray.200"
+                formData.name && !errors.name ? "green.500" : 
+                errors.name ? "red.500" : "coolGray.200"
               }
               _focus={{
-                borderColor:
-                  formData.name && !errors.name ? "green.500" : "blue.500",
+                borderColor: formData.name && !errors.name ? "green.500" : 
+                            errors.name ? "red.500" : "coolGray.500",
               }}
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
@@ -525,7 +515,11 @@ export default function AddStaffScreen() {
                 onValueChange={(value) => {
                   console.log("Selected role:", value);
                   setFormData({ ...formData, role: value });
-                  setErrors((prev) => ({ ...prev, role: undefined }));
+                  // Clear the role error when a valid selection is made
+                  setErrors((prev) => {
+                    const { role, ...rest } = prev;
+                    return rest;
+                  });
                 }}
                 placeholder="Select role"
                 isDisabled={isLoadingRoles}
@@ -533,11 +527,15 @@ export default function AddStaffScreen() {
                   bg: "cyan.600",
                   endIcon: <CheckIcon size="5" color="white" />,
                 }}
-                borderColor={formData.role ? "green.500" : "coolGray.200"}
+                borderColor={
+                  formData.role && !errors.role ? "green.500" : 
+                  errors.role ? "red.500" : "coolGray.200"
+                }
                 _focus={{
-                  borderColor: formData.role ? "green.500" : "blue.500",
+                  borderColor: formData.role && !errors.role ? "green.500" : 
+                              errors.role ? "red.500" : "blue.500",
                 }}
-                isReadOnly={true} // Prevent keyboard
+                isReadOnly={true}
               >
                 {roles.map((role) => (
                   <Select.Item
@@ -560,11 +558,12 @@ export default function AddStaffScreen() {
               keyboardType="numeric"
               maxLength={10}
               borderColor={
-                formData.phone && !errors.phone ? "green.500" : "coolGray.200"
+                formData.phone && !errors.phone ? "green.500" : 
+                errors.phone ? "red.500" : "coolGray.200"
               }
               _focus={{
-                borderColor:
-                  formData.phone && !errors.phone ? "green.500" : "blue.500",
+                borderColor: formData.phone && !errors.phone ? "green.500" : 
+                            errors.phone ? "red.500" : "blue.500",
               }}
             />
             <FormControl.ErrorMessage>{errors.phone}</FormControl.ErrorMessage>
@@ -577,15 +576,17 @@ export default function AddStaffScreen() {
                 value={formData.dob || ""}
                 isReadOnly
                 placeholder="Select date of birth"
+                borderColor={
+                  formData.dob && !errors.dob ? "green.500" : 
+                  errors.dob ? "red.500" : "coolGray.200"
+                }
+                _focus={{
+                  borderColor: formData.dob && !errors.dob ? "green.500" : 
+                              errors.dob ? "red.500" : "blue.500",
+                }}
                 rightElement={
                   <IconButton
-                    icon={
-                      <MaterialIcons
-                        name="calendar-today"
-                        size={24}
-                        color="gray"
-                      />
-                    }
+                    icon={<MaterialIcons name="calendar-today" size={24} color="gray" />}
                     onPress={() => setShowDatePicker(true)}
                   />
                 }
@@ -611,18 +612,34 @@ export default function AddStaffScreen() {
               onChangeText={(text) => {
                 const numbers = text.replace(/[^0-9]/g, "");
                 setFormData({ ...formData, aadharNo: numbers });
-                if (numbers.length !== 12) {
+                if (!numbers) {
+                  setErrors((prev) => ({
+                    ...prev,
+                    aadharNo: "Aadhar number is required",
+                  }));
+                } else if (numbers.length !== 12) {
                   setErrors((prev) => ({
                     ...prev,
                     aadharNo: "Must be 12 digits",
                   }));
                 } else {
-                  setErrors((prev) => ({ ...prev, aadharNo: undefined }));
+                  setErrors((prev) => {
+                    const { aadharNo, ...rest } = prev;
+                    return rest;
+                  });
                 }
               }}
               placeholder="Enter 12-digit Aadhar number"
               keyboardType="numeric"
               maxLength={12}
+              borderColor={
+                formData.aadharNo && !errors.aadharNo ? "green.500" : 
+                errors.aadharNo ? "red.500" : "coolGray.200"
+              }
+              _focus={{
+                borderColor: formData.aadharNo && !errors.aadharNo ? "green.500" : 
+                            errors.aadharNo ? "red.500" : "blue.500",
+              }}
             />
             <FormControl.ErrorMessage>
               {errors.aadharNo}
@@ -638,15 +655,12 @@ export default function AddStaffScreen() {
               autoCompleteType={undefined}
               h={20}
               borderColor={
-                formData.address && !errors.address
-                  ? "green.500"
-                  : "coolGray.200"
+                formData.address && !errors.address ? "green.500" : 
+                errors.address ? "red.500" : "coolGray.200"
               }
               _focus={{
-                borderColor:
-                  formData.address && !errors.address
-                    ? "green.500"
-                    : "blue.500",
+                borderColor: formData.address && !errors.address ? "green.500" : 
+                            errors.address ? "red.500" : "blue.500",
               }}
             />
             <FormControl.ErrorMessage>
@@ -661,7 +675,7 @@ export default function AddStaffScreen() {
             leftIcon={<MaterialIcons name="save" size={20} color="white" />}
             isLoadingText="Saving..."
           >
-            Save Staff Member
+            Save 
           </Button>
         </VStack>
       </ScrollView>

@@ -20,6 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 export default function CreateCategoryView() {
   const router = useRouter();
@@ -39,42 +40,52 @@ export default function CreateCategoryView() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [4, 3],
+        aspect: [1, 1],
         quality: 1,
       });
 
       if (!result.canceled) {
-        setCategoryDetails((prev) => ({
-          ...prev,
-          image: result.assets[0].uri,
-        }));
+        const response = await fetch(result.assets[0].uri);
+        const blob = await response.blob();
+        const fileSizeInMB = blob.size / (1024 * 1024);
+
+        if (fileSizeInMB > 3) {
+          setErrors(prev => ({
+            ...prev,
+            image: "Image size should not exceed 3MB"
+          }));
+          return;
+        }
+
+        setCategoryDetails(prev => ({ ...prev, image: result.assets[0].uri }));
         setImageSelected(true);
+        setErrors(prev => {
+          const { image, ...rest } = prev;
+          return rest;
+        });
       }
     } catch (error) {
-      console.error("Image picking error:", error);
-      toast.show({
-        description: "Failed to pick image",
-        status: "error",
-      });
+      console.error("Error picking image:", error);
+      setErrors(prev => ({
+        ...prev,
+        image: "Error selecting image. Please try again."
+      }));
     }
   };
 
   const handleCategoryNameChange = (text) => {
     const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
-    setCategoryDetails((prev) => ({ ...prev, category_name: sanitizedText }));
+    setCategoryDetails(prev => ({ ...prev, category_name: sanitizedText }));
 
     if (!sanitizedText.trim()) {
-      setErrors((prev) => ({
-        ...prev,
-        category_name: "Category name is required",
-      }));
-    } else if (sanitizedText.length < 2) {
-      setErrors((prev) => ({
-        ...prev,
-        category_name: "Category name must be at least 2 characters",
-      }));
+      setErrors(prev => ({ ...prev, category_name: "Category name is required" }));
+    } else if (sanitizedText.trim().length < 2) {
+      setErrors(prev => ({ ...prev, category_name: "Category name must be at least 2 characters" }));
     } else {
-      setErrors((prev) => ({ ...prev, category_name: undefined }));
+      setErrors(prev => {
+        const { category_name, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -97,7 +108,6 @@ export default function CreateCategoryView() {
       setLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
       const userId = await AsyncStorage.getItem("user_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
       const formData = new FormData();
       formData.append("outlet_id", outletId);
@@ -117,20 +127,19 @@ export default function CreateCategoryView() {
         });
       }
 
-      const response = await fetch(`${getBaseUrl()}/menu_category_create`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_create`, {
         method: "POST",
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "multipart/form-data" },
         body: formData,
       });
 
-      const data = await response.json();
       if (data.st === 1) {
         toast.show({
           description: "Category created successfully",
           status: "success",
+          duration: 3000,
+          placement: "top",
+          isClosable: true,
         });
         router.push({
           pathname: "/screens/categories/CategoryListview",
@@ -144,6 +153,9 @@ export default function CreateCategoryView() {
       toast.show({
         description: error.message || "Failed to create category",
         status: "error",
+        duration: 3000,
+        placement: "top",
+        isClosable: true,
       });
     } finally {
       setLoading(false);
@@ -158,40 +170,45 @@ export default function CreateCategoryView() {
         <VStack space={4} p={4}>
           {/* Category Image */}
           <Box bg="white" rounded="lg" p={4} shadow={1}>
-            <Pressable onPress={pickImage}>
-              {imageSelected && categoryDetails.image ? (
-                <Box alignItems="center">
-                  <Image
-                    source={{ uri: categoryDetails.image }}
-                    alt="Category Image"
-                    size="2xl"
+            <FormControl isInvalid={"image" in errors}>
+              <Pressable onPress={pickImage}>
+                {imageSelected && categoryDetails.image ? (
+                  <Box alignItems="center">
+                    <Image
+                      source={{ uri: categoryDetails.image }}
+                      alt="Category Image"
+                      size="2xl"
+                      rounded="lg"
+                    />
+                    <Text mt={2} color="coolGray.500">
+                      Tap to change image
+                    </Text>
+                  </Box>
+                ) : (
+                  <Box
+                    borderWidth={2}
+                    borderStyle="dashed"
+                    borderColor={errors.image ? "red.500" : "coolGray.300"}
                     rounded="lg"
-                  />
-                  <Text mt={2} color="coolGray.500">
-                    Tap to change image
-                  </Text>
-                </Box>
-              ) : (
-                <Box
-                  borderWidth={2}
-                  borderStyle="dashed"
-                  borderColor="coolGray.300"
-                  rounded="lg"
-                  p={10}
-                  alignItems="center"
-                >
-                  <Icon
-                    as={MaterialIcons}
-                    name="add-photo-alternate"
-                    size={12}
-                    color="coolGray.400"
-                  />
-                  <Text mt={2} color="coolGray.500">
-                    Tap to add image
-                  </Text>
-                </Box>
-              )}
-            </Pressable>
+                    p={10}
+                    alignItems="center"
+                  >
+                    <Icon
+                      as={MaterialIcons}
+                      name="add-photo-alternate"
+                      size={12}
+                      color={errors.image ? "red.500" : "coolGray.400"}
+                    />
+                    <Text mt={2} color={errors.image ? "red.500" : "coolGray.500"}>
+                      Tap to add image (Max 3MB)
+                    </Text>
+                  </Box>
+                )}
+              </Pressable>
+              <FormControl.ErrorMessage>
+                {errors.image}
+              </FormControl.ErrorMessage>
+            </FormControl>
           </Box>
 
           {/* Category Details Form */}
@@ -203,6 +220,14 @@ export default function CreateCategoryView() {
                   value={categoryDetails.category_name}
                   onChangeText={handleCategoryNameChange}
                   placeholder="Enter category name"
+                  borderColor={
+                    categoryDetails.category_name && !errors.category_name ? "green.500" : 
+                    errors.category_name ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: categoryDetails.category_name && !errors.category_name ? "green.500" : 
+                                errors.category_name ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.category_name}
@@ -218,6 +243,7 @@ export default function CreateCategoryView() {
             bg="primary.600"
             _pressed={{ bg: "primary.700" }}
             mb={6}
+            isDisabled={Object.keys(errors).length > 0 || !categoryDetails.category_name || !categoryDetails.image}
           >
             Create Category
           </Button>

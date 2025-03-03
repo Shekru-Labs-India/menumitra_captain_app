@@ -20,6 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 export default function CategoryListView() {
   const [categories, setCategories] = useState([]);
@@ -48,20 +49,15 @@ export default function CategoryListView() {
     try {
       setLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/menu_category_listview`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_listview`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId,
         }),
       });
 
-      const data = await response.json();
       if (data.st === 1) {
         const validCategories = data.menucat_details.filter(
           (cat) =>

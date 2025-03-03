@@ -32,8 +32,9 @@ import { Platform, StatusBar, ScrollView, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import Header from "../../../components/Header";
+import Header from "../../../../app/components/Header";
 import { getBaseUrl } from "../../../../config/api.config";
+import { fetchWithAuth } from "../../../../utils/apiInterceptor";
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -123,6 +124,7 @@ export default function TableSectionsScreen() {
   const [selectedSection, setSelectedSection] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const refreshInterval = useRef(null);
+  const [editingSectionId, setEditingSectionId] = useState(null);
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -152,17 +154,14 @@ export default function TableSectionsScreen() {
       const fetchTablesForSection = async () => {
         try {
           const storedOutletId = await AsyncStorage.getItem("outlet_id");
-          const response = await fetch(`${getBaseUrl()}/table_listview`, {
+          const data = await fetchWithAuth(`${getBaseUrl()}/table_listview`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               outlet_id: storedOutletId,
             }),
           });
 
-          const data = await response.json();
           if (data.st === 1 && data.data) {
             let sectionTables = [];
             Object.entries(data.data).forEach(([key, tables]) => {
@@ -243,20 +242,15 @@ export default function TableSectionsScreen() {
   const fetchSections = async (outletId) => {
     try {
       setLoading(true);
-      const accessToken = await AsyncStorage.getItem("access");
-
-      const response = await fetch(`${getBaseUrl()}/table_listview`, {
+      
+      const data = await fetchWithAuth(`${getBaseUrl()}/table_listview`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
         }),
       });
 
-      const data = await response.json();
       console.log("API Response:", data);
 
       if (data.st === 1) {
@@ -339,21 +333,16 @@ export default function TableSectionsScreen() {
 
     try {
       setLoading(true);
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/section_create`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/section_create`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
           section_name: newSectionName.trim(),
         }),
       });
 
-      const data = await response.json();
       console.log("Create Section Response:", data);
 
       if (data.st === 1) {
@@ -412,13 +401,9 @@ export default function TableSectionsScreen() {
       // Handle occupied table with order
       if (table.is_occupied === 1 && table.order_id) {
         try {
-          const accessToken = await AsyncStorage.getItem("access");
-          const response = await fetch(`${getBaseUrl()}/order_view`, {
+          const result = await fetchWithAuth(`${getBaseUrl()}/order_view`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               order_number: table.order_number,
               outlet_id: outlet_id.toString(),
@@ -426,7 +411,6 @@ export default function TableSectionsScreen() {
             }),
           });
 
-          const result = await response.json();
           console.log("Order view response:", result);
 
           if (result.st === 1 && result.lists) {
@@ -444,7 +428,7 @@ export default function TableSectionsScreen() {
             }));
 
             router.push({
-              pathname: "/(tabs)/orders/create-order",
+              pathname: "/screens/orders/create-order",
               params: {
                 ...baseParams,
                 orderId: table.order_id.toString(),
@@ -473,7 +457,7 @@ export default function TableSectionsScreen() {
       } else {
         // For new orders
         router.push({
-          pathname: "/(tabs)/orders/create-order",
+          pathname: "/screens/orders/create-order",
           params: {
             ...baseParams,
             orderType: "dine-in",
@@ -542,21 +526,15 @@ export default function TableSectionsScreen() {
   const handleDeleteTable = async (sectionId, tableId) => {
     try {
       setLoading(true);
-      const accessToken = await AsyncStorage.getItem("access");
-
-      const response = await fetch(`${getBaseUrl()}/table_delete`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/table_delete`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId?.toString() || "",
           section_id: (sectionId || "").toString(),
         }),
       });
 
-      const data = await response.json();
       console.log("Delete Table Response:", data);
 
       if (data.st === 1) {
@@ -624,14 +602,49 @@ export default function TableSectionsScreen() {
     };
   }, []);
 
-  // Add this handler function at component level
-  const handleEditSectionNameChange = (text) => {
-    // Only allow letters and spaces
+  // Update the section name change handler
+  const handleEditSectionNameChange = async (text, section) => {
     const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
-    setEditSection((prev) => ({
-      ...prev,
-      name: sanitizedText,
-    }));
+    
+    if (!sanitizedText.trim()) {
+      toast.show({
+        description: "Section name is required",
+        status: "warning",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const data = await fetchWithAuth(`${getBaseUrl()}/section_update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: outletId.toString(),
+          section_id: section.id.toString(),
+          section_name: sanitizedText.trim(),
+        }),
+      });
+
+      if (data.st === 1) {
+        toast.show({
+          description: "Section updated successfully",
+          status: "success",
+        });
+        await fetchSections(outletId);
+        setEditingSectionId(null);
+      } else {
+        throw new Error(data.msg || "Failed to update section");
+      }
+    } catch (error) {
+      console.error("Edit Section Error:", error);
+      toast.show({
+        description: error.message || "Failed to update section",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Update the renderGridView function's table rendering logic
@@ -664,9 +677,37 @@ export default function TableSectionsScreen() {
                         justifyContent="space-between"
                         alignItems="center"
                       >
-                        <Heading size="md" color="black">
-                          {section.name}
-                        </Heading>
+                        {editingSectionId === section.id && showEditIcons ? (
+                          <Input
+                            w="70%"
+                            value={section.name}
+                            onChangeText={(text) => {
+                              const updatedSections = sections.map((s) =>
+                                s.id === section.id ? { ...s, name: text } : s
+                              );
+                              setSections(updatedSections);
+                            }}
+                            onBlur={() => {
+                              handleEditSectionNameChange(section.name, section);
+                            }}
+                            onSubmitEditing={() => {
+                              handleEditSectionNameChange(section.name, section);
+                            }}
+                            autoFocus
+                            blurOnSubmit={false}
+                            returnKeyType="done"
+                            size="md"
+                            borderColor="primary.500"
+                            _focus={{
+                              borderColor: "primary.600",
+                              backgroundColor: "white",
+                            }}
+                          />
+                        ) : (
+                          <Text fontSize="lg" fontWeight="bold">
+                            {section.name}
+                          </Text>
+                        )}
                         {showEditIcons && (
                           <HStack space={2}>
                             <IconButton
@@ -680,13 +721,7 @@ export default function TableSectionsScreen() {
                               bg="coolGray.100"
                               rounded="full"
                               _pressed={{ bg: "coolGray.200" }}
-                              onPress={() => {
-                                setEditSection({
-                                  id: section.id,
-                                  name: section.name,
-                                });
-                                setShowEditModal(true);
-                              }}
+                              onPress={() => setEditingSectionId(section.id)}
                             />
                             <IconButton
                               icon={
@@ -1013,7 +1048,7 @@ export default function TableSectionsScreen() {
             <Pressable
               onPress={() =>
                 router.replace({
-                  pathname: "/(tabs)/orders/create-order",
+                  pathname: "/screens/orders/create-order",
                   params: {
                     isSpecialOrder: "true",
                     orderType: "parcel",
@@ -1047,7 +1082,7 @@ export default function TableSectionsScreen() {
             <Pressable
               onPress={() =>
                 router.replace({
-                  pathname: "/(tabs)/orders/create-order",
+                  pathname: "/screens/orders/create-order",
                   params: {
                     isSpecialOrder: "true",
                     orderType: "drive-through",
@@ -1081,7 +1116,7 @@ export default function TableSectionsScreen() {
             <Pressable
               onPress={() =>
                 router.replace({
-                  pathname: "/(tabs)/orders/create-order",
+                  pathname: "/screens/orders/create-order",
                   params: {
                     isSpecialOrder: "true",
                     orderType: "counter",
@@ -1115,61 +1150,6 @@ export default function TableSectionsScreen() {
         </ScrollView>
       </Box>
     </Box>
-  );
-
-  // Update the EditModal component
-  const EditModal = () => (
-    <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)}>
-      <Modal.Content maxWidth="400px">
-        <HStack
-          alignItems="center"
-          justifyContent="space-between"
-          px={1}
-          py={2}
-        >
-          <Modal.Header flex={1} textAlign="center">
-            Edit Section
-          </Modal.Header>
-          <Modal.CloseButton position="absolute" right={2} />
-        </HStack>
-        <Modal.Body>
-          <FormControl isRequired>
-            <FormControl.Label>
-              <HStack space={1} alignItems="center">
-                <Text>Section Name </Text>
-              </HStack>
-            </FormControl.Label>
-            <Input
-              value={editSection?.name || ""}
-              onChangeText={handleEditSectionNameChange}
-              placeholder="Enter section name"
-              autoFocus
-            />
-          </FormControl>
-        </Modal.Body>
-        <Modal.Footer>
-          <HStack space={2} width="100%" justifyContent="space-between">
-            <Button
-              variant="ghost"
-              colorScheme="blueGray"
-              onPress={() => {
-                setEditSection(null);
-                setShowEditModal(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onPress={handleEditSection}
-              isLoading={loading}
-              isLoadingText="Saving..."
-            >
-              Save Changes
-            </Button>
-          </HStack>
-        </Modal.Footer>
-      </Modal.Content>
-    </Modal>
   );
 
   // Add DeleteConfirmationModal component
@@ -1242,14 +1222,9 @@ export default function TableSectionsScreen() {
 
     try {
       setLoading(true);
-      const accessToken = await AsyncStorage.getItem("access");
-
-      const response = await fetch(`${getBaseUrl()}/section_update`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/section_update`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
           section_id: editSection.id.toString(),
@@ -1257,7 +1232,6 @@ export default function TableSectionsScreen() {
         }),
       });
 
-      const data = await response.json();
       if (data.st === 1) {
         toast.show({
           description: "Section updated successfully",
@@ -1283,21 +1257,15 @@ export default function TableSectionsScreen() {
   const handleDeleteSection = async () => {
     try {
       setLoading(true);
-      const accessToken = await AsyncStorage.getItem("access");
-
-      const response = await fetch(`${getBaseUrl()}/section_delete`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/section_delete`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
           section_id: activeSection.id.toString(),
         }),
       });
 
-      const data = await response.json();
       if (data.st === 1) {
         toast.show({
           description: "Section deleted successfully",
@@ -1323,21 +1291,15 @@ export default function TableSectionsScreen() {
   const handleCreateTable = async () => {
     try {
       setLoading(true);
-      const accessToken = await AsyncStorage.getItem("access");
-
-      const response = await fetch(`${getBaseUrl()}/table_create`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/table_create`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
           section_id: selectedSection.toString(),
         }),
       });
 
-      const data = await response.json();
       console.log("Create Table Response:", data);
 
       if (data.st === 1) {
@@ -1396,53 +1358,36 @@ export default function TableSectionsScreen() {
     setNewSectionName(sanitizedText);
   };
 
+  // Add useEffect to reset editing state when gear icon is disabled
+  useEffect(() => {
+    if (!showEditIcons) {
+      setEditingSectionId(null);
+    }
+  }, [showEditIcons]);
+
   return (
     <Box flex={1} bg="coolGray.100" safeAreaTop>
       {/* Header Component */}
-      {/* Custom Header */}
-      <Box
-        bg="white"
-        px={4}
-        py={3}
-        flexDirection="row"
-        alignItems="center"
-        justifyContent="space-between"
-        safeAreaTop
-        shadow={1}
-      >
-        <IconButton
-          icon={
-            <MaterialIcons name="arrow-back" size={24} color="coolGray.500" />
-          }
-          onPress={() => router.back()}
-        />
-
-        <Heading
-          size="lg"
-          position="absolute"
-          left={0}
-          right={0}
-          textAlign="center"
-        >
-          Tables
-        </Heading>
-
-        <IconButton
-          icon={
-            <MaterialIcons
-              name="settings"
-              size={24}
-              color={showEditIcons ? "white" : "coolGray.600"}
-            />
-          }
-          onPress={() => setShowEditIcons(!showEditIcons)}
-          bg={showEditIcons ? "primary.500" : "transparent"}
-          _pressed={{
-            bg: showEditIcons ? "primary.600" : "coolGray.100",
-          }}
-          rounded="full"
-        />
-      </Box>
+      <Header 
+        title="Tables" 
+        rightComponent={
+          <IconButton
+            icon={
+              <MaterialIcons
+                name="settings"
+                size={24}
+                color={showEditIcons ? "white" : "coolGray.600"}
+              />
+            }
+            onPress={() => setShowEditIcons(!showEditIcons)}
+            bg={showEditIcons ? "primary.500" : "transparent"}
+            _pressed={{
+              bg: showEditIcons ? "primary.600" : "coolGray.100",
+            }}
+            rounded="full"
+          />
+        }
+      />
       {/* Search and Filters */}
 
       {/* Filter Buttons */}
@@ -1528,9 +1473,6 @@ export default function TableSectionsScreen() {
           </Modal.Footer>
         </Modal.Content>
       </Modal>
-
-      {/* Edit Section Modal */}
-      <EditModal />
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal />

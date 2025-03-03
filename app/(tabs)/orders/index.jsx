@@ -30,6 +30,7 @@ import { NotificationService } from "../../../services/NotificationService";
 import { getBaseUrl } from "../../../config/api.config";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Platform } from "react-native";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 const ORDER_STATUS_COLORS = {
   COMPLETED: "green",
@@ -466,20 +467,14 @@ const OrdersScreen = () => {
 
     try {
       const restaurantId = await AsyncStorage.getItem("outlet_id");
-      const accessToken = await AsyncStorage.getItem("access");
 
-      const response = await fetch(`${getBaseUrl()}/order_listview`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/order_listview`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: restaurantId,
         }),
       });
-
-      const data = await response.json();
 
       if (data.st === 1 && data.lists) {
         // Store all orders but filter display based on selected date

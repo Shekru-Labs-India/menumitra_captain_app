@@ -23,6 +23,7 @@ import { SupplierContext } from "../../../../context/SupplierContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../../components/Header";
 import { getBaseUrl } from "../../../../config/api.config";
+import { fetchWithAuth } from "../../../../utils/apiInterceptor";
 
 export default function EditSupplierScreen() {
   const router = useRouter();
@@ -50,19 +51,14 @@ export default function EditSupplierScreen() {
 
   const fetchCreditRatings = async () => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(
+      const data = await fetchWithAuth(
         `${getBaseUrl()}/supplier_credit_rating_choices`,
         {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { "Content-Type": "application/json" },
         }
       );
 
-      const data = await response.json();
       if (data.st === 1 && data.credit_rating_choices) {
         const ratingsArray = Object.entries(data.credit_rating_choices).map(
           ([key, value]) => ({
@@ -83,7 +79,6 @@ export default function EditSupplierScreen() {
     const fetchSupplierDetails = async () => {
       try {
         const storedOutletId = await AsyncStorage.getItem("outlet_id");
-        const accessToken = await AsyncStorage.getItem("access");
 
         if (!storedOutletId) {
           toast.show({
@@ -96,19 +91,14 @@ export default function EditSupplierScreen() {
 
         setOutletId(storedOutletId);
 
-        const response = await fetch(`${getBaseUrl()}/supplier_view`, {
+        const data = await fetchWithAuth(`${getBaseUrl()}/supplier_view`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             supplier_id: id.toString(),
             outlet_id: storedOutletId.toString(),
           }),
         });
-
-        const data = await response.json();
         console.log("Supplier Details Response:", data);
 
         if (data.st === 1 && data.data) {
@@ -168,123 +158,109 @@ export default function EditSupplierScreen() {
 
   // Add these input handlers at the top level of the component
   const handleNameChange = (text) => {
-    // Only allow letters and spaces
     const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setFormData((prev) => ({ ...prev, name: sanitizedText }));
 
-    // Validate and show error if needed
     if (!sanitizedText.trim()) {
-      setErrors((prev) => ({ ...prev, name: "Supplier name is required" }));
-    } else if (sanitizedText.length < 2) {
-      setErrors((prev) => ({
-        ...prev,
-        name: "Name must be at least 2 characters",
-      }));
+      setErrors((prev) => ({ ...prev, name: "Name is required" }));
+    } else if (sanitizedText.trim().length < 2) {
+      setErrors((prev) => ({ ...prev, name: "Name must be at least 2 characters" }));
     } else {
-      setErrors((prev) => ({ ...prev, name: undefined }));
+      // Explicitly remove the name error
+      setErrors((prev) => {
+        const { name, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
-  const handleMobileNumberChange = (field, value) => {
-    // Only allow numbers and validate first digit
-    const numericValue = value.replace(/[^0-9]/g, "");
+  const handleMobileNumberChange = (field, text) => {
+    const sanitizedNumber = text.replace(/[^0-9]/g, "");
+    setFormData((prev) => ({ ...prev, [field]: sanitizedNumber }));
 
-    if (numericValue.length > 0) {
-      const firstDigit = numericValue[0];
-      if (!["6", "7", "8", "9"].includes(firstDigit)) {
-        setErrors((prev) => ({
-          ...prev,
-          [field]: "Number must start with 6, 7, 8 or 9",
-        }));
-        return;
+    if (!sanitizedNumber) {
+      if (field === "mobileNumber1") {
+        setErrors((prev) => ({ ...prev, [field]: "Primary mobile number is required" }));
+      } else {
+        // Clear error for optional mobile number 2
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
       }
-    }
-
-    setFormData((prev) => ({ ...prev, [field]: numericValue }));
-
-    if (!numericValue) {
-      setErrors((prev) => ({
-        ...prev,
-        [field]:
-          field === "mobileNumber1"
-            ? "Primary mobile number is required"
-            : undefined,
-      }));
-    } else if (numericValue.length !== 10) {
-      setErrors((prev) => ({
-        ...prev,
-        [field]: "Mobile number must be 10 digits",
-      }));
+    } else if (sanitizedNumber.length !== 10) {
+      setErrors((prev) => ({ ...prev, [field]: "Mobile number must be 10 digits" }));
+    } else if (!["6", "7", "8", "9"].includes(sanitizedNumber[0])) {
+      setErrors((prev) => ({ ...prev, [field]: "Number must start with 6, 7, 8 or 9" }));
     } else {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
+      // Clear error when valid
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
   };
 
   const handleOwnerNameChange = (text) => {
-    // Only allow letters and spaces
     const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setFormData((prev) => ({ ...prev, ownerName: sanitizedText }));
 
-    if (sanitizedText && sanitizedText.length < 2) {
-      setErrors((prev) => ({
-        ...prev,
-        ownerName: "Name must be at least 2 characters",
-      }));
+    if (sanitizedText && sanitizedText.trim().length < 2) {
+      setErrors((prev) => ({ ...prev, ownerName: "Name must be at least 2 characters" }));
     } else {
-      setErrors((prev) => ({ ...prev, ownerName: undefined }));
+      // Clear error when valid or empty (optional field)
+      setErrors((prev) => {
+        const { ownerName, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
   const handleCreditLimitChange = (text) => {
-    // Only allow numbers
     const numericValue = text.replace(/[^0-9]/g, "");
     setFormData((prev) => ({ ...prev, creditLimit: numericValue }));
 
     if (!numericValue) {
-      setErrors((prev) => ({
-        ...prev,
-        creditLimit: "Credit limit is required",
-      }));
-    } else if (parseInt(numericValue) <= 0) {
-      setErrors((prev) => ({
-        ...prev,
-        creditLimit: "Credit limit must be greater than 0",
-      }));
+      setErrors((prev) => ({ ...prev, creditLimit: "Credit limit is required" }));
     } else {
-      setErrors((prev) => ({ ...prev, creditLimit: undefined }));
+      // Clear error when valid
+      setErrors((prev) => {
+        const { creditLimit, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
   const handleAddressChange = (text) => {
-    // Allow letters, numbers, spaces, and basic punctuation
-    const sanitizedText = text.replace(/[^a-zA-Z0-9\s,./-]/g, "");
-    setFormData((prev) => ({ ...prev, address: sanitizedText }));
+    setFormData((prev) => ({ ...prev, address: text }));
 
-    if (!sanitizedText.trim()) {
+    if (!text.trim()) {
       setErrors((prev) => ({ ...prev, address: "Address is required" }));
-    } else if (sanitizedText.trim().length < 5) {
-      setErrors((prev) => ({
-        ...prev,
-        address: "Address must be at least 5 characters",
-      }));
+    } else if (text.trim().length < 5) {
+      setErrors((prev) => ({ ...prev, address: "Address must be at least 5 characters" }));
     } else {
-      setErrors((prev) => ({ ...prev, address: undefined }));
+      // Clear error when valid
+      setErrors((prev) => {
+        const { address, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
   // Add this handler function
   const handleLocationChange = (text) => {
-    // Only allow letters, numbers and spaces
-    const sanitizedText = text.replace(/[^a-zA-Z0-9\s]/g, "");
-    setFormData((prev) => ({ ...prev, location: sanitizedText }));
+    setFormData((prev) => ({ ...prev, location: text }));
 
-    if (sanitizedText && sanitizedText.length < 2) {
-      setErrors((prev) => ({
-        ...prev,
-        location: "Location must be at least 2 characters",
-      }));
+    if (text && text.trim().length < 2) {
+      setErrors((prev) => ({ ...prev, location: "Location must be at least 2 characters" }));
     } else {
-      setErrors((prev) => ({ ...prev, location: undefined }));
+      // Clear error when valid or empty (optional field)
+      setErrors((prev) => {
+        const { location, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -397,10 +373,9 @@ export default function EditSupplierScreen() {
     }
 
     try {
-      const accessToken = await AsyncStorage.getItem("access");
       const userId = await AsyncStorage.getItem("user_id");
 
-      if (!accessToken || !userId) {
+      if (!userId) {
         toast.show({
           description: "Please login again",
           status: "error",
@@ -429,34 +404,24 @@ export default function EditSupplierScreen() {
 
       console.log("Update Request Body:", requestBody);
 
-      const response = await fetch(`${getBaseUrl()}/supplier_update`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/supplier_update`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
-
-      const data = await response.json();
       console.log("Update Response:", data);
 
       if (data.st === 1) {
         // After successful update, fetch updated details
-        const detailsResponse = await fetch(`${getBaseUrl()}/supplier_view`, {
+        const detailsData = await fetchWithAuth(`${getBaseUrl()}/supplier_view`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: userId.toString(),
             supplier_id: id.toString(),
             outlet_id: outletId.toString(),
           }),
         });
-
-        const detailsData = await detailsResponse.json();
 
         if (detailsData.st === 1) {
           toast.show({
@@ -524,6 +489,14 @@ export default function EditSupplierScreen() {
                   placeholder="Enter supplier name"
                   bg="white"
                   maxLength={50}
+                  borderColor={
+                    formData.name && !errors.name ? "green.500" : 
+                    errors.name ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.name && !errors.name ? "green.500" : 
+                                errors.name ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.name}
@@ -539,6 +512,12 @@ export default function EditSupplierScreen() {
                   }
                   placeholder="Select status"
                   bg="white"
+                  borderColor={
+                    formData.status ? "green.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.status ? "green.500" : "blue.500",
+                  }}
                 >
                   <Select.Item label="Active" value="active" />
                   <Select.Item label="Inactive" value="inactive" />
@@ -568,6 +547,14 @@ export default function EditSupplierScreen() {
                   keyboardType="numeric"
                   maxLength={10}
                   bg="white"
+                  borderColor={
+                    formData.mobileNumber1 && !errors.mobileNumber1 ? "green.500" : 
+                    errors.mobileNumber1 ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.mobileNumber1 && !errors.mobileNumber1 ? "green.500" : 
+                                errors.mobileNumber1 ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.mobileNumber1}
@@ -585,6 +572,14 @@ export default function EditSupplierScreen() {
                   keyboardType="numeric"
                   maxLength={10}
                   bg="white"
+                  borderColor={
+                    formData.mobileNumber2 && !errors.mobileNumber2 ? "green.500" : 
+                    errors.mobileNumber2 ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.mobileNumber2 && !errors.mobileNumber2 ? "green.500" : 
+                                errors.mobileNumber2 ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.mobileNumber2}
@@ -601,6 +596,14 @@ export default function EditSupplierScreen() {
                   placeholder="Enter website URL"
                   keyboardType="url"
                   bg="white"
+                  borderColor={
+                    formData.website && !errors.website ? "green.500" : 
+                    errors.website ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.website && !errors.website ? "green.500" : 
+                                errors.website ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.website}
@@ -628,11 +631,15 @@ export default function EditSupplierScreen() {
                   }
                   placeholder="Select credit rating"
                   bg="white"
+                  borderColor={
+                    formData.creditRating ? "green.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.creditRating ? "green.500" : "blue.500",
+                  }}
                   _selectedItem={{
                     bg: "coolGray.100",
-                    endIcon: (
-                      <MaterialIcons name="check" size={20} color="green.500" />
-                    ),
+                    endIcon: <MaterialIcons name="check" size={20} color="green.500" />
                   }}
                 >
                   {creditRatings.map((rating) => (
@@ -653,6 +660,14 @@ export default function EditSupplierScreen() {
                   placeholder="Enter credit limit"
                   keyboardType="numeric"
                   bg="white"
+                  borderColor={
+                    formData.creditLimit && !errors.creditLimit ? "green.500" : 
+                    errors.creditLimit ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.creditLimit && !errors.creditLimit ? "green.500" : 
+                                errors.creditLimit ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.creditLimit}
@@ -666,6 +681,14 @@ export default function EditSupplierScreen() {
                   onChangeText={handleOwnerNameChange}
                   placeholder="Enter owner name"
                   bg="white"
+                  borderColor={
+                    formData.ownerName && !errors.ownerName ? "green.500" : 
+                    errors.ownerName ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.ownerName && !errors.ownerName ? "green.500" : 
+                                errors.ownerName ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.ownerName}
@@ -679,6 +702,14 @@ export default function EditSupplierScreen() {
                   onChangeText={handleLocationChange}
                   placeholder="Enter location"
                   bg="white"
+                  borderColor={
+                    formData.location && !errors.location ? "green.500" : 
+                    errors.location ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.location && !errors.location ? "green.500" : 
+                                errors.location ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.location}
@@ -694,6 +725,14 @@ export default function EditSupplierScreen() {
                   autoCompleteType={undefined}
                   h={20}
                   bg="white"
+                  borderColor={
+                    formData.address && !errors.address ? "green.500" : 
+                    errors.address ? "red.500" : "coolGray.200"
+                  }
+                  _focus={{
+                    borderColor: formData.address && !errors.address ? "green.500" : 
+                                errors.address ? "red.500" : "blue.500",
+                  }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.address}

@@ -7,7 +7,7 @@ const BottomNavigation = () => {
 
   // Function to determine if a tab should be active
   const isTabActive = (tabPath) => {
-    // For home tab - active on home screen and inventory/suppliers screens
+    // For home tab
     if (tabPath === "index") {
       return (
         pathname === "/(tabs)" ||
@@ -16,14 +16,14 @@ const BottomNavigation = () => {
       );
     }
 
-    // For orders tab - only active on orders index screen
+    // For orders tab - explicitly check only index and order-details
     if (tabPath === "orders") {
-      return (
-        pathname === "/(tabs)/orders" || pathname === "/(tabs)/orders/index"
-      );
+      return pathname === "/(tabs)/orders" || 
+             pathname === "/(tabs)/orders/index" || 
+             pathname === "/(tabs)/orders/order-details";
     }
 
-    // For other main tabs
+    // For other tabs
     return pathname === `/(tabs)/${tabPath}`;
   };
 
@@ -72,18 +72,20 @@ const BottomNavigation = () => {
         options={{
           title: "Orders",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="receipt" size={size} color={color} />
+            <MaterialIcons 
+              name="receipt" 
+              size={size} 
+              color={pathname.includes("create-order") ? "#6b7280" : color} 
+            />
           ),
-          href: null,
+          href: "/(tabs)/orders/",
           unmountOnBlur: true,
+          tabBarActiveTintColor: isTabActive("orders") ? "#0891b2" : "#6b7280",
           listeners: ({ navigation }) => ({
             tabPress: (e) => {
               e.preventDefault();
-              // Reset the orders stack and navigate to index
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "/(tabs)/orders" }],
-              });
+              // Always navigate to orders index, never to create-order
+              navigation.navigate("/(tabs)/orders/");
             },
           }),
         }}

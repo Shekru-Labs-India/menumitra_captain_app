@@ -19,6 +19,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 export default function InventoryItemsScreen() {
   const router = useRouter();
@@ -73,19 +74,14 @@ export default function InventoryItemsScreen() {
 
   const fetchInventoryItems = async (outId) => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${getBaseUrl()}/inventory_listview`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/inventory_listview`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outId.toString(),
         }),
       });
 
-      const data = await response.json();
       if (data.st === 1) {
         setItems(data.lists);
       } else {

@@ -21,6 +21,7 @@ import { Platform, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBaseUrl } from "../../../config/api.config";
+import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
 export default function InventoryItemDetailsScreen() {
   const router = useRouter();
@@ -57,20 +58,15 @@ export default function InventoryItemDetailsScreen() {
 
   const fetchInventoryDetails = async (outId, invId) => {
     try {
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${getBaseUrl()}/inventory_view`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/inventory_view`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outId.toString(),
           inventory_id: invId.toString(),
         }),
       });
 
-      const data = await response.json();
       console.log("Inventory Details Response:", data);
 
       if (data.st === 1 && data.data) {
@@ -128,20 +124,15 @@ export default function InventoryItemDetailsScreen() {
         return;
       }
 
-      const accessToken = await AsyncStorage.getItem("access");
-      const response = await fetch(`${getBaseUrl()}/inventory_delete`, {
+      const data = await fetchWithAuth(`${getBaseUrl()}/inventory_delete`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
           inventory_id: inventoryId.toString(),
         }),
       });
 
-      const data = await response.json();
       console.log("Delete Response:", data);
 
       if (data.st === 1) {
