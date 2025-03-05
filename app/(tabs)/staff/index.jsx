@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, memo, useMemo } from "react";
 import {
   Box,
   FlatList,
@@ -31,19 +31,150 @@ import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
 
-// Add this function to handle phone calls
-const handlePhonePress = (phoneNumber) => {
-  Linking.openURL(`tel:${phoneNumber}`);
-};
-
-// Add this helper function at the top level of the file
+// Memoized helper functions
 const toTitleCase = (str) => {
+  if (!str) return '';
   return str
     .toLowerCase()
     .split(" ")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 };
+
+// Memoized Components
+const MemoizedHeader = memo(({ title }) => <Header title={title} />);
+
+const StaffAvatar = memo(({ name, photo, size = "md" }) => (
+  <Avatar size={size} bg="cyan.500" source={photo ? { uri: photo } : null}>
+    {!photo && name?.charAt(0).toUpperCase()}
+  </Avatar>
+));
+
+const StatusButtons = memo(({ staffId, status, onStatusChange, size = "xs" }) => (
+  <Button.Group size={size} space={1}>
+    <Button
+      variant={status === "present" ? "solid" : "outline"}
+      colorScheme="success"
+      borderColor="success.500"
+      onPress={(e) => {
+        e.stopPropagation();
+        onStatusChange(staffId, "present");
+      }}
+      size={size}
+    >
+      Present
+    </Button>
+    <Button
+      variant={status === "absent" ? "solid" : "outline"}
+      colorScheme="danger"
+      borderColor="danger.500"
+      onPress={(e) => {
+        e.stopPropagation();
+        onStatusChange(staffId, "absent");
+      }}
+      size={size}
+    >
+      Absent
+    </Button>
+  </Button.Group>
+));
+
+const ListItem = memo(({ item, onPress, onStatusChange, onPhonePress }) => (
+  <Pressable onPress={onPress}>
+    <Box
+      bg="white"
+      rounded="lg"
+      shadow={2}
+      mb={3}
+      mx={3}
+      p={4}
+      borderWidth={1}
+      borderColor="coolGray.200"
+    >
+      <HStack space={3} alignItems="center">
+        <StaffAvatar name={item.name} photo={item.photo} />
+        <VStack flex={1} ml={2}>
+          <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
+            {toTitleCase(item.name)}
+          </Text>
+          <Text fontSize="md" color="coolGray.600">
+            {toTitleCase(item.role)}
+          </Text>
+        </VStack>
+
+        <VStack alignItems="flex-end" space={1}>
+          <StatusButtons
+            staffId={item.staff_id}
+            status={item.status}
+            onStatusChange={onStatusChange}
+          />
+          <IconButton
+            icon={<MaterialIcons name="phone" size={20} color="white" />}
+            onPress={() => onPhonePress(item.mobile)}
+            bg="green.500"
+            _pressed={{ bg: "green.600" }}
+            rounded="full"
+            size="sm"
+            mt={1}
+          />
+        </VStack>
+      </HStack>
+    </Box>
+  </Pressable>
+));
+
+const GridItem = memo(({ item, onPress, onStatusChange }) => (
+  <Pressable onPress={onPress} flex={1} m={1}>
+    <Box
+      bg="white"
+      rounded="lg"
+      shadow={2}
+      p={3}
+      borderWidth={1}
+      borderColor="coolGray.200"
+    >
+      <VStack space={2} alignItems="center">
+        <StaffAvatar name={item.name} photo={item.photo} size="lg" />
+        <VStack space={1} alignItems="center">
+          <Text fontSize="md" fontWeight="bold" textAlign="center">
+            {toTitleCase(item.name)}
+          </Text>
+          <Text fontSize="sm" color="coolGray.600" textAlign="center">
+            {toTitleCase(item.role)}
+          </Text>
+          <StatusButtons
+            staffId={item.staff_id}
+            status={item.status}
+            onStatusChange={onStatusChange}
+            size="sm"
+          />
+        </VStack>
+      </VStack>
+    </Box>
+  </Pressable>
+));
+
+const RoleFilter = memo(({ filterRole, setFilterRole, roles }) => (
+  <Select
+    flex={1}
+    selectedValue={filterRole}
+    onValueChange={setFilterRole}
+    placeholder="Select Role"
+    _selectedItem={{
+      endIcon: <CheckIcon size={4} />,
+    }}
+    fontSize="sm"
+    py={1}
+  >
+    {roles.map((role) => (
+      <Select.Item
+        key={role.role_name}
+        label={role.role_name.toLowerCase() === "all" ? "All Roles" : toTitleCase(role.role_name)}
+        value={role.role_name.toLowerCase()}
+      />
+    ))}
+  </Select>
+));
 
 export default function StaffScreen() {
   const router = useRouter();
@@ -74,267 +205,74 @@ export default function StaffScreen() {
     notes: "",
   });
 
-  // Filter and sort staff list
-  const filteredStaff = staffList
-    .filter((staff) => {
-      const matchesSearch =
-        staff.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        staff.mobile?.includes(searchQuery) ||
-        staff.role?.toLowerCase().includes(searchQuery.toLowerCase());
+  // Memoized handlers
+  const handlePhonePress = useCallback((phoneNumber) => {
+    Linking.openURL(`tel:${phoneNumber}`);
+  }, []);
 
-      // For "all" role, show all staff, otherwise filter by role
-      const matchesRole =
-        filterRole === "all" ? true : staff.role === filterRole;
-
-      const matchesStatus = filterStatus ? staff.status === filterStatus : true;
-      return matchesSearch && matchesRole && matchesStatus;
-    })
-    .sort((a, b) => {
-      const factor = sortOrder === "asc" ? 1 : -1;
-      if (sortBy === "name") {
-        return a.name.localeCompare(b.name) * factor;
-      }
-      return a.role.localeCompare(b.role) * factor;
-    });
-
-  const uniqueRoles = [...new Set(staffList.map((staff) => staff.role))];
-
-  const validateForm = () => {
-    if (!formData.name || !formData.role || !formData.phone) {
-      toast.show({
-        description: "Please fill all required fields",
-        status: "error",
-      });
-      return false;
-    }
-
-    // Validate phone number
-    const phoneRegex = /^\d{10}$/;
-    if (!phoneRegex.test(formData.phone)) {
-      toast.show({
-        description: "Please enter a valid 10-digit phone number",
-        status: "error",
-      });
-      return false;
-    }
-
-    // Validate salary if provided
-    if (formData.salary && isNaN(formData.salary)) {
-      toast.show({
-        description: "Please enter a valid salary amount",
-        status: "error",
-      });
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleAddStaff = () => {
-    if (!validateForm()) return;
-
-    const newStaff = {
-      id: Date.now().toString(),
-      ...formData,
-    };
-
-    setStaffList([...staffList, newStaff]);
-    setModalVisible(false);
-    resetForm();
-    toast.show({
-      description: "Staff member added successfully",
-      status: "success",
-    });
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      role: "",
-      phone: "",
-      salary: "",
-      joinDate: new Date().toISOString().split("T")[0],
-      status: "present",
-      emergencyContact: "",
-      address: "",
-      notes: "",
-    });
-  };
-
-  const handleStatusChange = (staffId, newStatus) => {
-    const updatedStaffList = staffList.map((staff) =>
-      staff.staff_id === staffId ? { ...staff, status: newStatus } : staff
+  const handleStatusChange = useCallback((staffId, newStatus) => {
+    setStaffList(prev => 
+      prev.map(staff =>
+        staff.staff_id === staffId ? { ...staff, status: newStatus } : staff
+      )
     );
-    setStaffList(updatedStaffList);
     toast.show({
       description: `Staff marked as ${newStatus}`,
       status: "success",
     });
-  };
+  }, [toast]);
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case "present":
-        return "success";
-      case "absent":
-        return "danger";
-      case "on leave":
-        return "warning";
-      default:
-        return "info";
-    }
-  };
+  const handleItemPress = useCallback((staffId, restaurantId) => {
+    router.push({
+      pathname: `/(tabs)/staff/${staffId}`,
+      params: { restaurant_id: restaurantId },
+    });
+  }, [router]);
 
-  const renderStaffItem = ({ item }) => (
-    <Pressable
-      onPress={() => {
-        router.push({
-          pathname: `/(tabs)/staff/${item.staff_id}`,
-          params: { restaurant_id: item.restaurant_id },
-        });
-      }}
-    >
-      <Box
-        bg="white"
-        rounded="lg"
-        shadow={2}
-        mb={3}
-        mx={3}
-        p={4}
-        borderWidth={1}
-        borderColor="coolGray.200"
-      >
-        <HStack space={3} alignItems="center">
-          <Avatar
-            size="md"
-            bg="cyan.500"
-            source={item.photo ? { uri: item.photo } : null}
-          >
-            {!item.photo && item.name?.charAt(0).toUpperCase()}
-          </Avatar>
-          <VStack flex={1} ml={2}>
-            <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
-              {toTitleCase(item.name)}
-            </Text>
-            <Text fontSize="md" color="coolGray.600">
-              {toTitleCase(item.role)}
-            </Text>
-          </VStack>
+  // Memoized list renderers
+  const renderStaffItem = useCallback(({ item }) => (
+    <ListItem
+      item={item}
+      onPress={() => handleItemPress(item.staff_id, item.restaurant_id)}
+      onStatusChange={handleStatusChange}
+      onPhonePress={handlePhonePress}
+    />
+  ), [handleItemPress, handleStatusChange, handlePhonePress]);
 
-          <VStack alignItems="flex-end" space={1}>
-            <Button.Group size="xs" space={1}>
-              <Button
-                variant="outline"
-                colorScheme="success"
-                borderColor="success.500"
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleStatusChange(item.staff_id, "present");
-                }}
-                size="xs"
-              >
-                Present
-              </Button>
-              <Button
-                variant="outline"
-                colorScheme="danger"
-                borderColor="danger.500"
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleStatusChange(item.staff_id, "absent");
-                }}
-                size="xs"
-              >
-                Absent
-              </Button>
-            </Button.Group>
-            <IconButton
-              icon={<MaterialIcons name="phone" size={20} color="white" />}
-              onPress={() => handlePhonePress(item.mobile)}
-              bg="green.500"
-              _pressed={{ bg: "green.600" }}
-              rounded="full"
-              size="sm"
-              mt={1}
-            />
-          </VStack>
-        </HStack>
-      </Box>
-    </Pressable>
-  );
+  const renderGridItem = useCallback(({ item }) => (
+    <GridItem
+      item={item}
+      onPress={() => handleItemPress(item.staff_id, item.restaurant_id)}
+      onStatusChange={handleStatusChange}
+    />
+  ), [handleItemPress, handleStatusChange]);
 
-  const renderGridItem = ({ item }) => (
-    <Pressable
-      onPress={() => {
-        router.push({
-          pathname: `/(tabs)/staff/${item.staff_id}`,
-          params: { outlet_id: outletId },
-        });
-      }}
-      flex={1}
-      m={1}
-    >
-      <Box
-        bg="white"
-        rounded="lg"
-        shadow={2}
-        p={3}
-        borderWidth={1}
-        borderColor="coolGray.200"
-      >
-        <VStack space={2} alignItems="center">
-          <Avatar
-            size="lg"
-            bg="cyan.500"
-            source={item.photo ? { uri: item.photo } : null}
-          >
-            {item.name?.charAt(0).toUpperCase()}
-          </Avatar>
-          <VStack space={1} alignItems="center">
-            <Text fontSize="md" fontWeight="bold" textAlign="center">
-              {toTitleCase(item.name)}
-            </Text>
-            <Text fontSize="sm" color="coolGray.600" textAlign="center">
-              {toTitleCase(item.role)}
-            </Text>
+  // Memoized filtered staff list
+  const filteredStaff = useMemo(() => {
+    return staffList
+      .filter((staff) => {
+        const matchesSearch =
+          staff.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          staff.mobile?.includes(searchQuery) ||
+          staff.role?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesRole = filterRole === "all" ? true : staff.role === filterRole;
+        const matchesStatus = filterStatus ? staff.status === filterStatus : true;
+        return matchesSearch && matchesRole && matchesStatus;
+      })
+      .sort((a, b) => {
+        const factor = sortOrder === "asc" ? 1 : -1;
+        return sortBy === "name"
+          ? a.name.localeCompare(b.name) * factor
+          : a.role.localeCompare(b.role) * factor;
+      });
+  }, [staffList, searchQuery, filterRole, filterStatus, sortBy, sortOrder]);
 
-            <Button.Group size="sm" space={1}>
-              <Button
-                variant={item.status === "present" ? "solid" : "outline"}
-                colorScheme="success"
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleStatusChange(item.staff_id, "present");
-                }}
-                size="xs"
-              >
-                Present
-              </Button>
-              <Button
-                variant={item.status === "absent" ? "solid" : "outline"}
-                colorScheme="danger"
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleStatusChange(item.staff_id, "absent");
-                }}
-                size="xs"
-              >
-                Absent
-              </Button>
-            </Button.Group>
-          </VStack>
-        </VStack>
-      </Box>
-    </Pressable>
-  );
-
-  const fetchStaffList = async () => {
+  // Optimized fetch functions
+  const fetchStaffList = useCallback(async () => {
     if (!outletId) return;
 
     setIsLoading(true);
     try {
-      console.log("Fetching staff with role:", filterRole);
-
       const data = await fetchWithAuth(
         `${getBaseUrl()}/get_staff_list_with_role`,
         {
@@ -347,20 +285,10 @@ export default function StaffScreen() {
         }
       );
 
-      console.log("Staff List Response:", data);
-
       if (data.st === 1 && Array.isArray(data.lists)) {
-        const sortedList = [...data.lists].sort((a, b) => {
-          if (sortOrder === "asc") {
-            return a.name.localeCompare(b.name);
-          }
-          return b.name.localeCompare(a.name);
-        });
-        console.log("Setting staff list with length:", sortedList.length);
-        setStaffList(sortedList);
+        setStaffList(data.lists);
       } else {
-        console.error("Invalid response format:", data);
-        setStaffList([]); // Set empty array on error
+        setStaffList([]);
         toast.show({
           description: "Failed to fetch staff list",
           status: "error",
@@ -368,7 +296,7 @@ export default function StaffScreen() {
       }
     } catch (error) {
       console.error("Fetch Staff Error:", error);
-      setStaffList([]); // Set empty array on error
+      setStaffList([]);
       toast.show({
         description: "Failed to fetch staff list",
         status: "error",
@@ -376,7 +304,7 @@ export default function StaffScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [outletId, filterRole, toast]);
 
   const fetchRoles = async () => {
     if (!outletId) return;
@@ -488,7 +416,7 @@ export default function StaffScreen() {
 
   return (
     <Box flex={1} bg="white" safeArea>
-      <Header title="Staff" />
+      <MemoizedHeader title="Staff" />
 
       <VStack flex={1}>
         <HStack
@@ -594,10 +522,14 @@ export default function StaffScreen() {
               key={viewType}
               contentContainerStyle={{
                 padding: 4,
-                flexGrow: 1, // This ensures the empty component centers properly
+                flexGrow: 1,
               }}
               refreshing={refreshing}
               onRefresh={onRefresh}
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={10}
+              windowSize={10}
+              initialNumToRender={8}
               ListEmptyComponent={
                 <Box
                   flex={1}
@@ -627,31 +559,3 @@ export default function StaffScreen() {
     </Box>
   );
 }
-
-const RoleFilter = ({ filterRole, setFilterRole, roles }) => {
-  return (
-    <Select
-      flex={1}
-      selectedValue={filterRole}
-      onValueChange={setFilterRole}
-      placeholder="Select Role"
-      _selectedItem={{
-        endIcon: <CheckIcon size={4} />,
-      }}
-      fontSize="sm"
-      py={1}
-    >
-      {roles.map((role) => (
-        <Select.Item
-          key={role.role_name}
-          label={
-            role.role_name.toLowerCase() === "all"
-              ? "All Roles"
-              : toTitleCase(role.role_name)
-          }
-          value={role.role_name.toLowerCase()}
-        />
-      ))}
-    </Select>
-  );
-};

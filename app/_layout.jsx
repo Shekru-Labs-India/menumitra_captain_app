@@ -6,39 +6,45 @@ import {
 import { useFonts } from "expo-font";
 import { SplashScreen, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
-import { useColorScheme } from "react-native";
+import { useEffect, useMemo } from "react";
+import { useColorScheme, LogBox } from "react-native";
 import { NativeBaseProvider, extendTheme } from "native-base";
 import { SupplierProvider } from "../context/SupplierContext";
-import { Slot, useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Slot } from "expo-router";
 import { VersionProvider } from "../context/VersionContext";
 import { AuthProvider } from "../context/AuthContext";
 import { PrinterProvider } from '../context/PrinterContext';
 
+// Ignore specific warnings to improve performance
+LogBox.ignoreLogs([
+  'NativeBase:',
+  'ViewPropTypes will be removed',
+  'ColorPropType will be removed',
+]);
+
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
-// Define your custom theme
+// Keep your original theme but move it outside component
 const theme = extendTheme({
-  colors: {
-    primary: {
-      50: "#e3f2f9",
-      100: "#c5e4f3",
-      200: "#a2d4ec",
-      300: "#7ac1e4",
-      400: "#47a9da",
-      500: "#0a7ea4", // primary color
-      600: "#007192",
-      700: "#005c7a",
-      800: "#004c64",
-      900: "#003f54",
-    },
-  },
   config: {
-    initialColorMode: "light",
-  },
+    // Disable unnecessary features
+    useSystemColorMode: false,
+    suppressColorAccessibilityWarning: true,
+  }
 });
+
+// Memoize common configurations
+const stackScreenOptions = {
+  headerShown: false,
+  animation: 'fade',
+  animationDuration: 200,
+};
+
+// Optimize NativeBase configuration
+const nativeBaseConfig = {
+  isSSR: false,
+};
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -46,9 +52,19 @@ export default function RootLayout() {
     boxicons: require("../assets/fonts/boxicons.ttf"),
   });
 
+  // Memoize theme value to prevent unnecessary re-renders
+  const themeValue = useMemo(() => 
+    colorScheme === "dark" ? DarkTheme : DefaultTheme,
+    [colorScheme]
+  );
+
   useEffect(() => {
     if (fontsLoaded) {
-      SplashScreen.hideAsync();
+      // Add a small timeout to ensure smooth transition
+      const timer = setTimeout(() => {
+        SplashScreen.hideAsync();
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [fontsLoaded]);
 
@@ -57,26 +73,40 @@ export default function RootLayout() {
   }
 
   return (
-    <PrinterProvider>
+    <NativeBaseProvider theme={theme} config={nativeBaseConfig}>
       <AuthProvider>
         <VersionProvider>
           <SupplierProvider>
-            <NativeBaseProvider>
-              <ThemeProvider
-                value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-              >
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="login" />
-                  <Stack.Screen name="otp" />
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen name="screens" />
+            <PrinterProvider>
+              <ThemeProvider value={themeValue}>
+                <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+                <Stack screenOptions={stackScreenOptions}>
+                  <Stack.Screen 
+                    name="index" 
+                    options={{ freezeOnBlur: true }} 
+                  />
+                  <Stack.Screen 
+                    name="login" 
+                    options={{ freezeOnBlur: true }}
+                  />
+                  <Stack.Screen 
+                    name="otp" 
+                    options={{ freezeOnBlur: true }}
+                  />
+                  <Stack.Screen 
+                    name="(tabs)" 
+                    options={{ freezeOnBlur: true }}
+                  />
+                  <Stack.Screen 
+                    name="screens" 
+                    options={{ freezeOnBlur: true }}
+                  />
                 </Stack>
               </ThemeProvider>
-            </NativeBaseProvider>
+            </PrinterProvider>
           </SupplierProvider>
         </VersionProvider>
       </AuthProvider>
-    </PrinterProvider>
+    </NativeBaseProvider>
   );
 }

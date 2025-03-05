@@ -30,6 +30,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBaseUrl } from "../../../config/api.config";
 import Header from "../../components/Header";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import LottieView from 'lottie-react-native';
+import { Modal as NativeModal } from 'react-native';
 
 export default function CreateMenuView() {
   const router = useRouter();
@@ -69,6 +71,12 @@ export default function CreateMenuView() {
 
   const [userId, setUserId] = useState(null);
   const [errors, setErrors] = useState({});
+
+  // Add new state to track form mode
+  const [formMode, setFormMode] = useState('initial'); // 'initial', 'ai', 'manual'
+
+  // Add new state for animation
+  const [showAIAnimation, setShowAIAnimation] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -304,15 +312,19 @@ export default function CreateMenuView() {
       newErrors.food_type = "Food type is required";
     }
 
-    if (!menuDetails.rating) {
-      newErrors.rating = "Rating is required";
-    }
-
     // Update errors state
     setErrors(newErrors);
 
     // If there are errors, stop form submission
     if (Object.keys(newErrors).length > 0) {
+      // Add a toast to show validation errors
+      toast.show({
+        description: "Please fill all required fields",
+        status: "error",
+        duration: 3000,
+        placement: "top",
+        isClosable: true,
+      });
       return;
     }
 
@@ -334,7 +346,6 @@ export default function CreateMenuView() {
       formData.append("offer", menuDetails.offer || "");
       formData.append("description", menuDetails.description || "");
       formData.append("ingredients", menuDetails.ingredients || "");
-      formData.append("rating", menuDetails.rating || "");
       formData.append("is_special", menuDetails.is_special ? "1" : "0");
 
       // Handle multiple images with sequential numbering
@@ -518,6 +529,34 @@ export default function CreateMenuView() {
     setRatingModalVisible(false);
   };
 
+  // Modify the handleManualFill function
+  const handleManualFill = () => {
+    setFormMode('manual');
+  };
+
+  // Modify the handleGenerateAI function
+  const handleGenerateAI = () => {
+    setShowAIAnimation(true);
+    setFormMode('ai');
+    
+    // Simulate API call with timeout
+    setTimeout(() => {
+      setShowAIAnimation(false);
+      const toastId = toast.show({
+        description: "AI generation coming soon!",
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+        placement: "bottom",
+      });
+      
+      // Force close the toast after 3 seconds
+      setTimeout(() => {
+        toast.close(toastId);
+      }, 3000);
+    }, 3000); // Show animation for 3 seconds
+  };
+
   return (
     <Box flex={1} bg="coolGray.100" safeArea>
       <Header title="Create Menu" showBackButton />
@@ -525,75 +564,81 @@ export default function CreateMenuView() {
       <ScrollView flex={1} bg="white">
         <VStack space={4} p={4}>
           {/* Image Gallery */}
-          <Box>
-            <HStack mb={2} justifyContent="space-between" alignItems="center">
-              <Text fontSize="md" fontWeight="bold">
-                Menu Images ({menuDetails.images.length}/5)
-              </Text>
-            </HStack>
+         
+<Box>
+  <HStack mb={2} justifyContent="space-between" alignItems="center">
+    <Text fontSize="md" fontWeight="bold">
+      Menu Images ({menuDetails.images.length}/5)
+    </Text>
+  </HStack>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <HStack space={2}>
-                {menuDetails.images.map((uri, index) => (
-                  <Box key={index} position="relative">
-                    <Image
-                      source={{ uri }}
-                      alt={`Menu Image ${index + 1}`}
-                      size="32"
-                      w="32"
-                      h="32"
-                      rounded="lg"
-                    />
-                    <IconButton
-                      position="absolute"
-                      top={1}
-                      right={1}
-                      size="sm"
-                      rounded="full"
-                      bg="red.500"
-                      icon={
-                        <Icon
-                          as={MaterialIcons}
-                          name="close"
-                          color="white"
-                          size="sm"
-                        />
-                      }
-                      onPress={() => removeImage(index)}
-                    />
-                  </Box>
-                ))}
-                {menuDetails.images.length < 5 && (
-                  <Pressable onPress={pickImage}>
-                    <Box
-                      w="32"
-                      h="32"
-                      bg="gray.100"
-                      rounded="lg"
-                      justifyContent="center"
-                      alignItems="center"
-                      borderWidth={1}
-                      borderStyle="dashed"
-                      borderColor="gray.300"
-                    >
-                      <Icon
-                        as={MaterialIcons}
-                        name="add-photo-alternate"
-                        size={8}
-                        color="gray.400"
-                      />
-                      <Text color="gray.400" mt={2} fontSize="sm">
-                        Add Photo
-                      </Text>
-                      <Text color="gray.400" fontSize="xs">
-                        (Max 3MB)
-                      </Text>
-                    </Box>
-                  </Pressable>
-                )}
-              </HStack>
-            </ScrollView>
+  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <HStack space={2}>
+      {menuDetails.images.map((uri, index) => (
+        <Box key={index} position="relative">
+          <Image
+            source={{ uri }}
+            alt={`Menu Image ${index + 1}`}
+            size="32"
+            w="32"
+            h="32"
+            rounded="lg"
+          />
+          {formMode === 'manual' && (
+            <IconButton
+              position="absolute"
+              top={1}
+              right={1}
+              size="sm"
+              rounded="full"
+              bg="red.500"
+              icon={
+                <Icon
+                  as={MaterialIcons}
+                  name="close"
+                  color="white"
+                  size="sm"
+                />
+              }
+              onPress={() => removeImage(index)}
+            />
+          )}
+        </Box>
+      ))}
+      {menuDetails.images.length < 5 && (
+        <Pressable 
+          onPress={formMode === 'manual' ? pickImage : undefined}
+          opacity={formMode === 'manual' ? 1 : 0.6}
+        >
+          <Box
+            w="32"
+            h="32"
+            bg="gray.100"
+            rounded="lg"
+            justifyContent="center"
+            alignItems="center"
+            borderWidth={1}
+            borderStyle="dashed"
+            borderColor="gray.300"
+          >
+            <Icon
+              as={MaterialIcons}
+              name="add-photo-alternate"
+              size={8}
+              color="gray.400"
+            />
+            <Text color="gray.400" mt={2} fontSize="sm">
+              Add Photo
+            </Text>
+            <Text color="gray.400" fontSize="xs">
+              (Max 3MB)
+            </Text>
           </Box>
+        </Pressable>
+      )}
+    </HStack>
+  </ScrollView>
+</Box>
 
           {/* Form Fields */}
           <VStack space={4} bg="white" p={4} rounded="lg">
@@ -675,67 +720,92 @@ export default function CreateMenuView() {
               <FormControl.ErrorMessage>{errors.menu_cat_id}</FormControl.ErrorMessage>
             </FormControl>
 
-            <FormControl isRequired isInvalid={"food_type" in errors}>
+            <FormControl isRequired isInvalid={"food_type" in errors} isDisabled={formMode !== 'manual'}>
               <FormControl.Label>Food Type</FormControl.Label>
-              <Pressable onPress={() => setFoodTypeModalVisible(true)}>
+              {formMode === 'manual' ? (
+                <Pressable onPress={() => setFoodTypeModalVisible(true)}>
+                  <Input
+                    value={foodTypes.find((type) => type.id === menuDetails.food_type)?.name || ""}
+                    isReadOnly
+                    placeholder="Select food type"
+                    borderColor={
+                      menuDetails.food_type && !errors.food_type ? "green.500" : 
+                      errors.food_type ? "red.500" : "coolGray.200"
+                    }
+                    _focus={{
+                      borderColor: menuDetails.food_type && !errors.food_type ? "green.500" : 
+                                  errors.food_type ? "red.500" : "blue.500",
+                    }}
+                    rightElement={
+                      <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
+                    }
+                  />
+                </Pressable>
+              ) : (
                 <Input
                   value={foodTypes.find((type) => type.id === menuDetails.food_type)?.name || ""}
                   isReadOnly
                   placeholder="Select food type"
-                  borderColor={
-                    menuDetails.food_type && !errors.food_type ? "green.500" : 
-                    errors.food_type ? "red.500" : "coolGray.200"
-                  }
-                  _focus={{
-                    borderColor: menuDetails.food_type && !errors.food_type ? "green.500" : 
-                                errors.food_type ? "red.500" : "blue.500",
-                  }}
+                  isDisabled
                   rightElement={
                     <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
                   }
                 />
-              </Pressable>
+              )}
               <FormControl.ErrorMessage>{errors.food_type}</FormControl.ErrorMessage>
             </FormControl>
 
-            <FormControl >
+            <FormControl isDisabled={formMode !== 'manual'}>
               <FormControl.Label>Spicy Level</FormControl.Label>
-              <Pressable onPress={() => setSpicyModalVisible(true)}>
+              {formMode === 'manual' ? (
+                <Pressable onPress={() => setSpicyModalVisible(true)}>
+                  <Input
+                    value={spicyLevels.find((level) => level.id === menuDetails.spicy_index)?.name || ""}
+                    isReadOnly
+                    placeholder="Select spicy level"
+                    rightElement={
+                      <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
+                    }
+                  />
+                </Pressable>
+              ) : (
                 <Input
-                  value={
-                    spicyLevels.find(
-                      (level) => level.id === menuDetails.spicy_index
-                    )?.name || ""
-                  }
+                  value={spicyLevels.find((level) => level.id === menuDetails.spicy_index)?.name || ""}
                   isReadOnly
-                  rightElement={
-                    <Icon
-                      as={MaterialIcons}
-                      name="arrow-drop-down"
-                      size={6}
-                      mr={2}
-                    />
-                  }
+                  isDisabled
                   placeholder="Select spicy level"
+                  rightElement={
+                    <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
+                  }
                 />
-              </Pressable>
+              )}
             </FormControl>
 
-            <FormControl>
-              <FormControl.Label>Description</FormControl.Label>
+            <FormControl isDisabled={formMode !== 'manual'}>
+              <FormControl.Label>
+                Description
+                <Text fontSize="xs" color="coolGray.500" ml={1}>
+                  ({menuDetails.description.length}/500 characters)
+                </Text>
+              </FormControl.Label>
               <Input
                 value={menuDetails.description}
-                onChangeText={(value) =>
-                  setMenuDetails((prev) => ({ ...prev, description: value }))
-                }
+                onChangeText={(value) => {
+                  if (value.length <= 500) {
+                    setMenuDetails((prev) => ({ ...prev, description: value }))
+                  }
+                }}
                 placeholder="Enter description"
                 multiline
                 numberOfLines={3}
                 height={20}
-              />
+                editable={formMode === 'manual'}
+                isReadOnly={formMode !== 'manual'}
+                maxLength={500}
+              />  
             </FormControl>
 
-            <FormControl>
+            <FormControl isDisabled={formMode !== 'manual'}>
               <FormControl.Label>Ingredients</FormControl.Label>
               <Input
                 value={menuDetails.ingredients}
@@ -743,41 +813,57 @@ export default function CreateMenuView() {
                   setMenuDetails((prev) => ({ ...prev, ingredients: value }))
                 }
                 placeholder="Enter ingredients"
+                editable={formMode === 'manual'}
+                isReadOnly={formMode !== 'manual'}
               />
             </FormControl>
 
-            <FormControl>
+            <FormControl isDisabled={formMode !== 'manual'}>
               <FormControl.Label>Offer (%)</FormControl.Label>
               <Input
                 value={menuDetails.offer}
                 onChangeText={handleOfferChange}
                 keyboardType="numeric"
                 placeholder="Enter offer percentage"
+                editable={formMode === 'manual'}
+                isReadOnly={formMode !== 'manual'}
               />
             </FormControl>
 
-            <FormControl isRequired isInvalid={"rating" in errors}>
+            {/* <FormControl isRequired isInvalid={"rating" in errors} isDisabled={formMode !== 'manual'}>
               <FormControl.Label>Rating</FormControl.Label>
-              <Pressable onPress={() => setRatingModalVisible(true)}>
+              {formMode === 'manual' ? (
+                <Pressable onPress={() => setRatingModalVisible(true)}>
+                  <Input
+                    value={ratingList.find((item) => item.key === menuDetails.rating)?.name || ""}
+                    isReadOnly
+                    placeholder="Select Rating"
+                    borderColor={
+                      menuDetails.rating && !errors.rating ? "green.500" : 
+                      errors.rating ? "red.500" : "coolGray.200"
+                    }
+                    _focus={{
+                      borderColor: menuDetails.rating && !errors.rating ? "green.500" : 
+                                  errors.rating ? "red.500" : "blue.500",
+                    }}
+                    rightElement={
+                      <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
+                    }
+                  />
+                </Pressable>
+              ) : (
                 <Input
                   value={ratingList.find((item) => item.key === menuDetails.rating)?.name || ""}
                   isReadOnly
+                  isDisabled
                   placeholder="Select Rating"
-                  borderColor={
-                    menuDetails.rating && !errors.rating ? "green.500" : 
-                    errors.rating ? "red.500" : "coolGray.200"
-                  }
-                  _focus={{
-                    borderColor: menuDetails.rating && !errors.rating ? "green.500" : 
-                                errors.rating ? "red.500" : "blue.500",
-                  }}
                   rightElement={
                     <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
                   }
                 />
-              </Pressable>
+              )}
               <FormControl.ErrorMessage>{errors.rating}</FormControl.ErrorMessage>
-            </FormControl>
+            </FormControl> */}
 
             <Box bg="white" rounded="lg" shadow={1} p={4}>
               <HStack alignItems="center" justifyContent="space-between">
@@ -791,16 +877,37 @@ export default function CreateMenuView() {
             </Box>
           </VStack>
 
-          <Button
-            onPress={handleCreateMenu}
-            isLoading={loading}
-            isLoadingText="Creating..."
-            bg="primary.600"
-            _pressed={{ bg: "primary.700" }}
-            mb={6}
-          >
-            Create Menu
-          </Button>
+          {/* Replace VStack with HStack for side-by-side buttons */}
+          <HStack space={4} mb={6} justifyContent="center">
+            <Button
+              flex={1}
+              onPress={handleGenerateAI}
+              bg="primary.600"
+              _pressed={{ bg: "primary.700" }}
+            >
+              Generate by AI
+            </Button>
+            <Button
+              flex={1}
+              onPress={handleManualFill}
+              bg="secondary.600"
+              _pressed={{ bg: "secondary.700" }}
+            >
+              Fill Manually
+            </Button>
+          </HStack>
+          {formMode !== 'initial' && (
+            <Button
+              onPress={handleCreateMenu}
+              isLoading={loading}
+              isLoadingText="Creating..."
+              bg="primary.600"
+              _pressed={{ bg: "primary.700" }}
+              mb={6}
+            >
+              Create Menu
+            </Button>
+          )}
         </VStack>
       </ScrollView>
 
@@ -908,6 +1015,62 @@ export default function CreateMenuView() {
           </Modal.Body>
         </Modal.Content>
       </Modal>
+
+      {/* AI Animation Modal */}
+      {showAIAnimation && (
+        <NativeModal
+          transparent={true}
+          animationType="fade"
+          visible={showAIAnimation}
+        >
+          <Box 
+            flex={1} 
+            bg="rgba(0,0,0,0.7)" 
+            justifyContent="center" 
+            alignItems="center"
+          >
+            <Box 
+              bg="white" 
+              p={6} 
+              rounded="2xl" 
+              width="80%" 
+              alignItems="center"
+              shadow={5}
+            >
+              <LottieView
+                source={require('../../../assets/animations/ai-loading.json')}
+                autoPlay
+                loop
+                style={{ 
+                  width: 200, 
+                  height: 200,
+                  backgroundColor: 'transparent'
+                }}
+                renderMode="AUTOMATIC"
+                speed={0.8}
+                
+              />
+              <Text 
+                fontSize="lg" 
+                fontWeight="bold" 
+                color="primary.600" 
+                mt={4}
+                textAlign="center"
+              >
+                AI is analyzing your menu...
+              </Text>
+              <Text 
+                fontSize="sm" 
+                color="gray.500" 
+                mt={2}
+                textAlign="center"
+              >
+                Please wait while we generate the perfect menu details
+              </Text>
+            </Box>
+          </Box>
+        </NativeModal>
+      )}
     </Box>
   );
 }

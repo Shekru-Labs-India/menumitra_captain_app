@@ -75,8 +75,11 @@ export default function EditMenuView() {
       toast.show({
         description: "Menu ID is missing",
         status: "error",
+        duration: 3000, // Duration in milliseconds
       });
-      router.back();
+      setTimeout(() => {
+        router.back();
+      }, 3000); // Wait for 3 seconds before navigating back
       return;
     }
 
@@ -300,6 +303,7 @@ export default function EditMenuView() {
         toast.show({
           description: data.msg || "Menu updated successfully",
           status: "success",
+          duration: 3000,
         });
         router.push({
           pathname: "/screens/menus/MenuDetailsView",
@@ -316,6 +320,7 @@ export default function EditMenuView() {
       toast.show({
         description: error.message || "Failed to update menu",
         status: "error",
+        duration: 3000,
       });
     } finally {
       setSubmitting(false);
@@ -348,6 +353,7 @@ export default function EditMenuView() {
         toast.show({
           description: data.msg || "Special status updated successfully",
           status: "success",
+          duration: 3000,
         });
       } else {
         throw new Error(data.msg || "Failed to update special status");
@@ -357,6 +363,7 @@ export default function EditMenuView() {
       toast.show({
         description: error.message,
         status: "error",
+        duration: 3000,
       });
     } finally {
       setIsSpecialLoading(false);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import {
   Platform,
   StatusBar,
@@ -35,11 +35,68 @@ import {
   addNotificationResponseListener,
 } from "../../services/DeviceTokenService";
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
 import { getBaseUrl } from "../../config/api.config";
 import * as Updates from "expo-updates";
 import Constants from 'expo-constants';
 import { fetchWithAuth } from "../../utils/apiInterceptor";
+
+// Memoize static components
+const MemoizedStatusBar = memo(() => (
+  <NativeBaseStatusBar backgroundColor="white" barStyle="dark-content" />
+));
+
+// Memoize the management card component
+const ManagementCard = memo(({ card, onPress }) => (
+  <Pressable
+    width="48%"
+    bg={card.color}
+    rounded="lg"
+    p={4}
+    mb={4}
+    alignItems="center"
+    justifyContent="center"
+    onPress={onPress}
+    position="relative"
+    shadow={2}
+    borderWidth={1}
+    borderColor="coolGray.300"
+  >
+    {card.count !== undefined && (
+      <Box position="absolute" top={2} right={2} bg="white" rounded="full" px={2}>
+        <Text fontSize="sm" fontWeight="bold" color="coolGray.700">
+          {card.count}
+        </Text>
+      </Box>
+    )}
+    <Icon as={MaterialIcons} name={card.icon} size={10} color="white" mb={2} />
+    <Text color="white" fontWeight="bold" textAlign="center" fontSize="lg">
+      {card.title}
+    </Text>
+  </Pressable>
+));
+
+// Memoize the sales summary component
+const SalesSummary = memo(({ liveSales, todayTotalSales }) => (
+  <HStack mx={4} my={4} bg="white" rounded="lg" shadow={2} p={3} justifyContent="space-between">
+    <VStack alignItems="center" flex={1}>
+      <Text fontSize="lg" fontWeight="bold">
+        ₹{Number(liveSales).toFixed(2)}
+      </Text>
+      <Text mt={2} color="coolGray.500">
+        Live Sales
+      </Text>
+    </VStack>
+    <Box width={1} bg="coolGray.200" />
+    <VStack alignItems="center" flex={1}>
+      <Text fontSize="lg" fontWeight="bold">
+        ₹{Number(todayTotalSales).toFixed(2)}
+      </Text>
+      <Text mt={2} color="coolGray.500">
+        Today's Revenue
+      </Text>
+    </VStack>
+  </HStack>
+));
 
 export default function HomeScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -111,13 +168,40 @@ export default function HomeScreen() {
     },
   ];
 
-  const fetchData = async () => {
-    try {
-      console.log("Starting fetchData function");
-      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+  // Memoize handlers
+  const handleCardPress = useCallback((route) => {
+    router.push(route);
+  }, [router]);
 
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen(prev => !prev);
+  }, []);
+
+  // Memoize fetch functions
+  const fetchLatestSales = useCallback(async () => {
+    try {
+      const outletId = await AsyncStorage.getItem("outlet_id");
+      const data = await fetchWithAuth(`${getBaseUrl()}/table_listview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outlet_id: outletId }),
+      });
+
+      if (data.st === 1) {
+        setSalesData({
+          liveSales: data.live_sales || 0,
+          todayTotalSales: data.today_total_sales || 0,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching latest sales:", error);
+    }
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
       if (!storedOutletId) {
-        console.log("No outlet ID found");
         toast.show({
           description: "Please log in again",
           status: "error",
@@ -126,42 +210,31 @@ export default function HomeScreen() {
         return;
       }
 
-      // Fetch staff list
-      const staffData = await fetchWithAuth(
-        `${getBaseUrl()}/get_staff_list_with_role`,
-        {
+      const [staffData, tableData] = await Promise.all([
+        fetchWithAuth(`${getBaseUrl()}/get_staff_list_with_role`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             outlet_id: storedOutletId,
             staff_role: "all",
           }),
-        }
-      );
-
-      if (staffData.st === 1 && Array.isArray(staffData.lists)) {
-        setStaffCount(staffData.lists.length);
-      }
-
-      // Fetch table list using new API
-      console.log("Fetching table list...");
-      const tableData = await fetchWithAuth(
-        `${getBaseUrl()}/table_listview`,
-        {
+        }),
+        fetchWithAuth(`${getBaseUrl()}/table_listview`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             outlet_id: storedOutletId,
           }),
-        }
-      );
+        }),
+      ]);
 
-      console.log("Raw Table Response:", tableData);
+      if (staffData.st === 1 && Array.isArray(staffData.lists)) {
+        setStaffCount(staffData.lists.length);
+      }
       if (tableData.st === 1) {
         setTableCount(tableData.total_tables);
       }
 
-      // Fetch latest sales
       await fetchLatestSales();
     } catch (error) {
       console.error("Error in fetchData:", error);
@@ -171,7 +244,34 @@ export default function HomeScreen() {
         duration: 3000,
       });
     }
-  };
+  }, [toast, fetchLatestSales]);
+
+  // Optimize refresh control
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchData(),
+        !isExpoGo ? checkForUpdates() : Promise.resolve()
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchData, isExpoGo]);
+
+  // Optimize focus effect
+  useFocusEffect(
+    useCallback(() => {
+      const initializeScreen = async () => {
+        await fetchData();
+        if (!isExpoGo) {
+          await checkForUpdates();
+        }
+      };
+
+      initializeScreen();
+    }, [fetchData, isExpoGo])
+  );
 
   const checkForUpdates = async () => {
     // Skip update check in Expo Go
@@ -224,11 +324,6 @@ export default function HomeScreen() {
       console.log("Error checking for updates:", error);
     }
   };
-
-  useEffect(() => {
-    fetchData();
-    checkForUpdates();
-  }, []);
 
   // Add Audio initialization
   useEffect(() => {
@@ -376,10 +471,6 @@ export default function HomeScreen() {
     }
   };
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
   const checkStoredToken = async () => {
     try {
       const token = await AsyncStorage.getItem("devicePushToken");
@@ -513,62 +604,9 @@ export default function HomeScreen() {
     }
   };
 
-  const fetchLatestSales = async () => {
-    try {
-      const outletId = await AsyncStorage.getItem("outlet_id");
-
-      const data = await fetchWithAuth(`${getBaseUrl()}/table_listview`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          outlet_id: outletId,
-        }),
-      });
-
-      console.log("Latest sales data:", data);
-
-      if (data.st === 1) {
-        setSalesData({
-          liveSales: data.live_sales || 0,
-          todayTotalSales: data.today_total_sales || 0,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching latest sales:", error);
-    }
-  };
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      // Only check for updates if not in Expo Go
-      await Promise.all([
-        fetchData(),
-        !isExpoGo ? checkForUpdates() : Promise.resolve()
-      ]);
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
-
-  // Handle screen focus
-  useFocusEffect(
-    React.useCallback(() => {
-      const initializeScreen = async () => {
-        await fetchData();
-        // Only check for updates if not in Expo Go
-        if (!isExpoGo) {
-          await checkForUpdates();
-        }
-      };
-
-      initializeScreen();
-    }, [])
-  );
-
   return (
     <Box flex={1} bg="white" safeArea>
-      <NativeBaseStatusBar backgroundColor="white" barStyle="dark-content" />
+      <MemoizedStatusBar />
       <HStack
         px={4}
         py={2}
@@ -602,96 +640,25 @@ export default function HomeScreen() {
           />
         }
       >
-        <HStack
-          mx={4}
-          my={4}
-          bg="white"
-          rounded="lg"
-          shadow={2}
-          p={3}
-          justifyContent="space-between"
-        >
-          <VStack alignItems="center" flex={1}>
-            <Text fontSize="lg" fontWeight="bold">
-              ₹{Number(salesData.liveSales).toFixed(2)}
-            </Text>
-            <Text mt={2} color="coolGray.500">
-              Live Sales
-            </Text>
-          </VStack>
+        <SalesSummary 
+          liveSales={salesData.liveSales} 
+          todayTotalSales={salesData.todayTotalSales} 
+        />
 
-          <Box width={1} bg="coolGray.200" />
-
-          <VStack alignItems="center" flex={1}>
-            <Text fontSize="lg" fontWeight="bold">
-              ₹{Number(salesData.todayTotalSales).toFixed(2)}
-            </Text>
-            <Text mt={2} color="coolGray.500">
-              Today's Revenue
-            </Text>
-          </VStack>
-        </HStack>
-
-        <Box
-          flexDirection="row"
-          flexWrap="wrap"
-          justifyContent="space-between"
-          px={4}
-        >
+        <Box flexDirection="row" flexWrap="wrap" justifyContent="space-between" px={4}>
           {managementCards.map((card, index) => (
-            <Pressable
+            <ManagementCard
               key={index}
-              width="48%"
-              bg={card.color}
-              rounded="lg"
-              p={4}
-              mb={4}
-              alignItems="center"
-              justifyContent="center"
-              onPress={() => router.push(card.route)}
-              position="relative"
-              shadow={2}
-              borderWidth={1}
-              borderColor="coolGray.300"
-            >
-              {card.count !== undefined && (
-                <Box
-                  position="absolute"
-                  top={2}
-                  right={2}
-                  bg="white"
-                  rounded="full"
-                  px={2}
-                >
-                  <Text fontSize="sm" fontWeight="bold" color="coolGray.700">
-                    {card.count}
-                  </Text>
-                </Box>
-              )}
-              <Icon
-                as={MaterialIcons}
-                name={card.icon}
-                size={10}
-                color="white"
-                mb={2}
-              />
-              <Text
-                color="white"
-                fontWeight="bold"
-                textAlign="center"
-                fontSize="lg"
-              >
-                {card.title}
-              </Text>
-            </Pressable>
+              card={card}
+              onPress={() => handleCardPress(card.route)}
+            />
           ))}
         </Box>
       </NativeBaseScrollView>
 
       <Sidebar
         isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        // onCallWaiter={handleCallWaiter}
+        onClose={toggleSidebar}
       />
     </Box>
   );

@@ -79,11 +79,43 @@ export default function MenuListView() {
   };
 
   const filterMenus = () => {
-    const filtered = menus.filter(
-      (menu) =>
-        menu.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        menu.category_name.toLowerCase().includes(searchQuery.toLowerCase())
+    if (!searchQuery.trim()) {
+      setFilteredMenus(menus);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = menus.filter(menu => 
+      menu.name.toLowerCase().includes(query) ||
+      menu.category_name.toLowerCase().includes(query)
     );
+
+    // Sort the filtered results based on priority
+    filtered.sort((a, b) => {
+      const nameA = a.name.toLowerCase();
+      const nameB = b.name.toLowerCase();
+      
+      // Priority 1: Exact match at the start of the name
+      if (nameA.startsWith(query) && !nameB.startsWith(query)) return -1;
+      if (!nameA.startsWith(query) && nameB.startsWith(query)) return 1;
+      
+      // Priority 2: Partial match in the name
+      const nameMatchA = nameA.includes(query);
+      const nameMatchB = nameB.includes(query);
+      if (nameMatchA && !nameMatchB) return -1;
+      if (!nameMatchA && nameMatchB) return 1;
+      
+      // Priority 3: Category match (only if no name match)
+      if (!nameMatchA && !nameMatchB) {
+        const catA = a.category_name.toLowerCase();
+        const catB = b.category_name.toLowerCase();
+        if (catA.includes(query) && !catB.includes(query)) return -1;
+        if (!catA.includes(query) && catB.includes(query)) return 1;
+      }
+      
+      return 0;
+    });
+
     setFilteredMenus(filtered);
   };
 
@@ -114,6 +146,8 @@ export default function MenuListView() {
 
   const renderRating = (rating) => {
     const ratingValue = parseFloat(rating);
+    if (ratingValue === 0) return null;
+    
     return (
       <HStack space={1} alignItems="center">
         <Icon as={MaterialIcons} name="star" size="sm" color="amber.400" />
