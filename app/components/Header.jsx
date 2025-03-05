@@ -49,26 +49,30 @@ const Header = ({ title, onBackPress, rightComponent }) => {
   );
 
   return (
-    <HStack
+    <Box 
+      bg="white" 
+      pb={2}
+      pt={2}
       px={4}
-      py={3}
-      justifyContent="space-between"
-      alignItems="center"
-      bg="white"
       shadow={2}
     >
-      <IconButton
-        icon={<MaterialIcons name="arrow-back" size={24} color="gray" />}
-        onPress={handleBack}
-        _pressed={{
-          bg: "coolGray.100",
-        }}
-      />
-      <Heading size="md" flex={1} textAlign="center">
-        {title}
-      </Heading>
-      {rightComponent || <Box width={10} />}
-    </HStack>
+      <HStack
+        justifyContent="space-between"
+        alignItems="center"
+      >
+        <IconButton
+          icon={<MaterialIcons name="arrow-back" size={24} color="gray" />}
+          onPress={handleBack}
+          _pressed={{
+            bg: "coolGray.100",
+          }}
+        />
+        <Heading size="md" flex={1} textAlign="center">
+          {title}
+        </Heading>
+        {rightComponent || <Box width={10} />}
+      </HStack>
+    </Box>
   );
 };
 

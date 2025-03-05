@@ -31,3 +31,8 @@ export const getCurrentEnv = () => CURRENT_ENV;
 // Example usage:
 // import { getBaseUrl } from '../config/api.config';
 // const apiUrl = getBaseUrl() + '/menu_view';
+
+// Add this to your existing config
+
+export const STABILITY_API_KEY = "sk-5wpJUeo9YaAVUI8UDcsFBJ9YZE6FkC154YWsqPeIZua5QWFD";
+
