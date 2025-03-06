@@ -41,7 +41,7 @@ export default function EditSupplierScreen() {
 
     website: "",
     mobileNumber1: "",
-    mobileNumber2: "",
+    mobilleNumber2: "",
     address: "",
   });
 
@@ -111,7 +111,7 @@ export default function EditSupplierScreen() {
             ownerName: data.data.owner_name || "",
             website: data.data.website || "",
             mobileNumber1: data.data.mobile_number1 || "",
-            mobileNumber2: data.data.mobile_number2 || "",
+            mobilleNumber2: data.data.mobille_number2 || "",
             address: data.data.address || "",
           });
         } else {
@@ -312,15 +312,15 @@ export default function EditSupplierScreen() {
     }
 
     // Secondary Mobile validation (Optional)
-    if (formData.mobileNumber2?.trim()) {
-      if (!validateMobileNumber(formData.mobileNumber2)) {
-        newErrors.mobileNumber2 = "Mobile number should only contain digits";
-      } else if (formData.mobileNumber2.length !== 10) {
-        newErrors.mobileNumber2 = "Mobile number must be 10 digits";
+    if (formData.mobilleNumber2?.trim()) {
+      if (!validateMobileNumber(formData.mobilleNumber2)) {
+        newErrors.mobilleNumber2 = "Mobile number should only contain digits";
+      } else if (formData.mobilleNumber2.length !== 10) {
+        newErrors.mobilleNumber2 = "Mobile number must be 10 digits";
       } else {
-        const firstDigit = formData.mobileNumber2[0];
+        const firstDigit = formData.mobilleNumber2[0];
         if (!["6", "7", "8", "9"].includes(firstDigit)) {
-          newErrors.mobileNumber2 = "Number must start with 6, 7, 8 or 9";
+          newErrors.mobilleNumber2 = "Number must start with 6, 7, 8 or 9";
         }
       }
     }
@@ -398,7 +398,7 @@ export default function EditSupplierScreen() {
         owner_name: formData.ownerName?.trim() || "",
         website: formData.website?.trim() || "",
         mobile_number1: formData.mobileNumber1.trim(),
-        mobile_number2: formData.mobileNumber2?.trim() || "",
+        mobille_number2: formData.mobilleNumber2?.trim() || "",
         address: formData.address?.trim() || "",
       };
 
@@ -561,28 +561,28 @@ export default function EditSupplierScreen() {
                 </FormControl.ErrorMessage>
               </FormControl>
 
-              <FormControl isInvalid={"mobileNumber2" in errors}>
+              <FormControl isInvalid={"mobilleNumber2" in errors}>
                 <FormControl.Label>Secondary Mobile Number</FormControl.Label>
                 <Input
-                  value={formData.mobileNumber2}
+                  value={formData.mobilleNumber2}
                   onChangeText={(value) =>
-                    handleMobileNumberChange("mobileNumber2", value)
+                    handleMobileNumberChange("mobilleNumber2", value)
                   }
                   placeholder="Enter secondary mobile number"
                   keyboardType="numeric"
                   maxLength={10}
                   bg="white"
                   borderColor={
-                    formData.mobileNumber2 && !errors.mobileNumber2 ? "green.500" : 
-                    errors.mobileNumber2 ? "red.500" : "coolGray.200"
+                    formData.mobilleNumber2 && !errors.mobilleNumber2 ? "green.500" : 
+                    errors.mobilleNumber2 ? "red.500" : "coolGray.200"
                   }
                   _focus={{
-                    borderColor: formData.mobileNumber2 && !errors.mobileNumber2 ? "green.500" : 
-                                errors.mobileNumber2 ? "red.500" : "blue.500",
+                    borderColor: formData.mobilleNumber2 && !errors.mobilleNumber2 ? "green.500" : 
+                                errors.mobilleNumber2 ? "red.500" : "blue.500",
                   }}
                 />
                 <FormControl.ErrorMessage>
-                  {errors.mobileNumber2}
+                  {errors.mobilleNumber2}
                 </FormControl.ErrorMessage>
               </FormControl>
 

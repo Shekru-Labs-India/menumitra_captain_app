@@ -86,8 +86,8 @@ export default function SupplierDetails() {
           status: data.data.supplier_status,
           supplierCode: data.data.supplier_code,
           mobileNumber1: data.data.mobile_number1,
-          mobileNumber2:
-            data.data.mobile_number2 === null ? "" : data.data.mobile_number2,
+          mobilleNumber2:
+            data.data.mobille_number2 === null ? "" : data.data.mobille_number2,
           website: data.data.website,
           creditRating: data.data.credit_rating,
           creditLimit: data.data.credit_limit,
@@ -332,7 +332,7 @@ export default function SupplierDetails() {
               </HStack>
 
               {/* Secondary Contact */}
-              {supplier.mobileNumber2 && supplier.mobileNumber2.length > 0 && (
+              {supplier.mobilleNumber2 && supplier.mobilleNumber2.length > 0 && (
                 <HStack space={3} alignItems="center">
                   <Box p={2} bg="blue.100" rounded="full">
                     <MaterialIcons name="phone" size={20} color="blue.500" />
@@ -341,13 +341,13 @@ export default function SupplierDetails() {
                     <Text color="coolGray.500" fontSize="sm">
                       Secondary Contact
                     </Text>
-                    <Text fontSize="md">{supplier.mobileNumber2}</Text>
+                    <Text fontSize="md">{supplier.mobilleNumber2}</Text>
                   </VStack>
                   <IconButton
                     icon={
                       <MaterialIcons name="call" size={20} color="green.500" />
                     }
-                    onPress={() => handleCall(supplier.mobileNumber2)}
+                    onPress={() => handleCall(supplier.mobilleNumber2)}
                     bg="green.100"
                     rounded="full"
                   />

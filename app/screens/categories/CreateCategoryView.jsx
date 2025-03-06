@@ -243,7 +243,7 @@ export default function CreateCategoryView() {
             bg="primary.600"
             _pressed={{ bg: "primary.700" }}
             mb={6}
-            isDisabled={Object.keys(errors).length > 0 || !categoryDetails.category_name || !categoryDetails.image}
+            isDisabled={Object.keys(errors).length > 0 || !categoryDetails.category_name}
           >
             Create Category
           </Button>

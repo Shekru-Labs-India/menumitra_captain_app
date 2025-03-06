@@ -40,7 +40,7 @@ export default function AddSupplierScreen() {
     ownerName: "",
     website: "",
     mobileNumber1: "",
-    mobileNumber2: "",
+    mobilleNumber2: "",
     address: "",
   });
 
@@ -167,7 +167,7 @@ export default function AddSupplierScreen() {
         break;
 
       case "mobileNumber1":
-      case "mobileNumber2":
+      case "mobilleNumber2":
         const sanitizedNumber = value.replace(/[^0-9]/g, "");
         
         if (sanitizedNumber.length > 0) {
@@ -325,11 +325,11 @@ export default function AddSupplierScreen() {
       newErrors.mobileNumber1 = "Mobile number must be 10 digits";
     }
 
-    if (formData.mobileNumber2) {
-      if (!validateMobileNumber(formData.mobileNumber2)) {
-        newErrors.mobileNumber2 = "Mobile number should only contain digits";
-      } else if (formData.mobileNumber2.length !== 10) {
-        newErrors.mobileNumber2 = "Mobile number must be 10 digits";
+    if (formData.mobilleNumber2) {
+      if (!validateMobileNumber(formData.mobilleNumber2)) {
+        newErrors.mobilleNumber2 = "Mobile number should only contain digits";
+      } else if (formData.mobilleNumber2.length !== 10) {
+        newErrors.mobilleNumber2 = "Mobile number must be 10 digits";
       }
     }
 
@@ -388,7 +388,7 @@ export default function AddSupplierScreen() {
         owner_name: formData.ownerName?.trim() || "",
         website: formData.website?.trim() || "",
         mobile_number1: formData.mobileNumber1?.trim() || "",
-        mobile_number2: formData.mobileNumber2?.trim() || "", // Send empty string if no value
+        mobille_number2: formData.mobilleNumber2?.trim() || "", // Send empty string if no value
         address: formData.address?.trim() || "",
       };
 
@@ -511,28 +511,28 @@ export default function AddSupplierScreen() {
                 </FormControl.ErrorMessage>
               </FormControl>
 
-              <FormControl isInvalid={"mobileNumber2" in errors}>
+              <FormControl isInvalid={"mobilleNumber2" in errors}>
                 <FormControl.Label>Mobile Number 2</FormControl.Label>
                 <Input
-                  value={formData.mobileNumber2}
+                  value={formData.mobilleNumber2}
                   onChangeText={(text) =>
-                    handleFormChange("mobileNumber2", text)
+                    handleFormChange("mobilleNumber2", text)
                   }
                   placeholder="Enter secondary mobile number"
                   keyboardType="numeric"
                   maxLength={10}
                   bg="white"
                   borderColor={
-                    formData.mobileNumber2 && !errors.mobileNumber2 ? "green.500" : 
-                    errors.mobileNumber2 ? "red.500" : "coolGray.200"
+                    formData.mobilleNumber2 && !errors.mobilleNumber2 ? "green.500" : 
+                    errors.mobilleNumber2 ? "red.500" : "coolGray.200"
                   }
                   _focus={{
-                    borderColor: formData.mobileNumber2 && !errors.mobileNumber2 ? "green.500" : 
-                                errors.mobileNumber2 ? "red.500" : "blue.500",
+                    borderColor: formData.mobilleNumber2 && !errors.mobilleNumber2 ? "green.500" : 
+                                errors.mobilleNumber2 ? "red.500" : "blue.500",
                   }}
                 />
                 <FormControl.ErrorMessage>
-                  {errors.mobileNumber2}
+                  {errors.mobilleNumber2}
                 </FormControl.ErrorMessage>
               </FormControl>
 

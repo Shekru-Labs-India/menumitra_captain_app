@@ -232,7 +232,12 @@ const generateReceiptHTML = (orderDetails, menuItems) => {
   }
 };
 
-// Update the generateInvoiceHTML function to handle data safely
+// First, let's add a helper function to get the payment method
+const getPaymentMethod = (orderDetails) => {
+  return orderDetails.payment_method || 'Cash'; // Return 'Cash' if payment_method is null
+};
+
+// Then modify the payment section in the HTML template
 const generateInvoiceHTML = (orderDetails, menuItems) => {
   try {
     // Safely handle date and time formatting
@@ -463,7 +468,7 @@ const generateInvoiceHTML = (orderDetails, menuItems) => {
 
         <div class="payment-section">
           <span class="payment-label">Payment Method:</span>
-          <span>UPI</span>
+          <span>${getPaymentMethod(orderDetails)}</span>
         </div>
 
         <div class="billing-info">

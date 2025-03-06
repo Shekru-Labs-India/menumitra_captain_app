@@ -272,6 +272,12 @@ export default function AddInventoryItemScreen() {
         return;
       }
 
+      // Set current date as in_date if status is "in" and no date selected
+      let inDate = formData.in_date;
+      if (formData.in_or_out === "in" && !formData.in_date) {
+        inDate = formatDate(new Date());
+      }
+
       const data = await fetchWithAuth(`${getBaseUrl()}/inventory_create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -289,7 +295,7 @@ export default function AddInventoryItemScreen() {
           brand_name: formData.brand_name,
           tax_rate: formData.tax_rate.toString(),
           in_or_out: formData.in_or_out,
-          in_date: formData.in_date,
+          in_date: inDate, // Use the potentially modified inDate
           expiration_date: formData.expiration_date,
         }),
       });

@@ -349,16 +349,30 @@ export default function CreateMenuView() {
       formData.append("ingredients", menuDetails.ingredients || "");
       formData.append("is_special", menuDetails.is_special ? "1" : "0");
 
-      // Handle multiple images with sequential numbering
+      // Handle multiple images with proper naming
       if (menuDetails.images.length > 0) {
-        menuDetails.images.forEach((imageUri, index) => {
-          const filename = imageUri.split("/").pop();
-          formData.append(`images`, {
-            uri: imageUri,
-            type: "image/jpeg",
-            name: filename,
-          });
-        });
+        for (const [index, imageUri] of menuDetails.images.entries()) {
+          if (imageUri.startsWith('data:image')) {
+            // For AI-generated images, use a short, unique name
+            formData.append('images', {
+              uri: imageUri,
+              type: 'image/jpeg',
+              name: `ai_${index}.jpg`  // Simple, short name
+            });
+          } else {
+            // For uploaded images, keep original name but ensure it's not too long
+            let filename = imageUri.split('/').pop();
+            if (filename.length > 32) {  // Limit filename length
+              const ext = filename.split('.').pop();
+              filename = `img_${index}.${ext}`;
+            }
+            formData.append('images', {
+              uri: imageUri,
+              type: 'image/jpeg',
+              name: filename
+            });
+          }
+        }
       }
 
       console.log("Form Data being sent:", formData._parts);
