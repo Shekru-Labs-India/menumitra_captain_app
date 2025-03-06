@@ -651,13 +651,15 @@ export default function CreateMenuView() {
         body: JSON.stringify({
           prompt: menuDetails.name,
           description: menuDetails.description,
-          image_count: 1
         }),
       });
 
-      if (response.st === 1 && response.image_urls?.length > 0) {
-        // Add the generated images to menuDetails
-        const newImages = response.image_urls.map(url => url);
+      if (response.st === 1 && response.images?.length > 0) {
+        // Convert base64 images to URLs
+        const newImages = response.images.map(base64String => {
+          return `data:image/png;base64,${base64String}`;
+        });
+        
         setMenuDetails(prev => ({
           ...prev,
           images: [...prev.images, ...newImages]
@@ -678,7 +680,7 @@ export default function CreateMenuView() {
       console.error("Error generating images:", error);
       toast.show({
         description: error.message || "Failed to generate images. Please try again.",
-        status: "error",
+        status: "error", 
         duration: 3000,
         placement: "bottom",
         isClosable: true,
