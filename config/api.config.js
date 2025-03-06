@@ -34,5 +34,5 @@ export const getCurrentEnv = () => CURRENT_ENV;
 
 // Add this to your existing config
 
-export const STABILITY_API_KEY = "sk-5wpJUeo9YaAVUI8UDcsFBJ9YZE6FkC154YWsqPeIZua5QWFD";
+export const STABILITY_API_KEY = "sk-bWI6e3m25rIxbHN4B37GgCW0g45OJdtCA9TkLrfUJHROVWH3";
 

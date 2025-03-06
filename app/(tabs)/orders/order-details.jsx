@@ -492,6 +492,41 @@ const generateInvoiceHTML = (orderDetails, menuItems) => {
   }
 };
 
+// Update the helper function to include section information
+const getOrderDisplayInfo = (orderDetails) => {
+  if (!orderDetails) return null;
+
+  if (orderDetails.order_type === "dine-in") {
+    return {
+      icon: "table-restaurant",
+      text: orderDetails.section 
+        ? `${orderDetails.section} - Table ${orderDetails.table_number?.join(", ") || "N/A"}`
+        : `Table ${orderDetails.table_number?.join(", ") || "N/A"}`
+    };
+  }
+
+  // For other order types
+  const orderTypeDisplay = {
+    "parcel": {
+      icon: "takeout-dining",
+      text: "Parcel"
+    },
+    "drive-through": {
+      icon: "drive-eta",
+      text: "Drive Through"
+    },
+    "counter": {
+      icon: "point-of-sale",
+      text: "Counter"
+    }
+  };
+
+  return orderTypeDisplay[orderDetails.order_type] || {
+    icon: "receipt-long",
+    text: orderDetails.order_type
+  };
+};
+
 export default function OrderDetailsScreen() {
   const router = useRouter();
   const { id, order_id } = useLocalSearchParams();
@@ -598,7 +633,9 @@ export default function OrderDetailsScreen() {
             toast.show({
               description: "Invoice saved to Downloads",
               status: "success",
-              duration: 3000
+              duration: 3000,
+              placement: "bottom",
+              isClosable: true,
             });
           } else {
             // Fallback to share dialog if permission denied
@@ -631,6 +668,8 @@ export default function OrderDetailsScreen() {
         description: error.message || "Failed to generate invoice. Please try again.",
         status: "error",
         duration: 3000,
+        placement: "bottom",
+        isClosable: true,
       });
     } finally {
       setLoadingMessage("");
@@ -696,6 +735,9 @@ export default function OrderDetailsScreen() {
         toast.show({
           description: "Failed to fetch order details",
           status: "error",
+          duration: 3000,
+          placement: "bottom",
+          isClosable: true,
         });
       } finally {
         setIsLoading(false);
@@ -728,7 +770,9 @@ export default function OrderDetailsScreen() {
             newStatus === "cancelled" ? "cancelled" : "marked as " + newStatus
           } successfully`,
           status: "success",
-          duration: 2000,
+          duration: 3000,
+          placement: "bottom",
+          isClosable: true,
         });
 
         router.replace({
@@ -748,6 +792,8 @@ export default function OrderDetailsScreen() {
         description: error.message,
         status: "error",
         duration: 3000,
+        placement: "bottom",
+        isClosable: true,
       });
     } finally {
       setIsLoading(false);
@@ -798,9 +844,22 @@ export default function OrderDetailsScreen() {
 
   const handleTimerEnd = async () => {
     try {
-      await handleStatusUpdate("cooking");
+      // After successful status update, navigate back to orders screen with refresh param
+      router.replace({
+        pathname: "/(tabs)/orders",
+        params: {
+          refresh: Date.now().toString(),
+        },
+      });
     } catch (error) {
       console.error("Error handling timer end:", error);
+      toast.show({
+        description: "Failed to update order status",
+        status: "error",
+        duration: 3000,
+        placement: "bottom",
+        isClosable: true,
+      });
     }
   };
 
@@ -823,6 +882,7 @@ export default function OrderDetailsScreen() {
             }
           }, 1000);
         } else if (remaining === 0) {
+          // If timer is already expired when component mounts
           handleTimerEnd();
         }
       }
@@ -1106,31 +1166,19 @@ export default function OrderDetailsScreen() {
       toast.show({
         description: "Receipt printed successfully",
         status: "success",
-        duration: 2000,
+        duration: 3000,
+        placement: "bottom",
+        isClosable: true,
       });
     } catch (error) {
-      console.error("Print Error:", error);
-      Alert.alert(
-        "Print Error",
-        "Failed to print receipt. Would you like to try PDF printing?",
-        [
-          {
-            text: "Print PDF",
-            onPress: async () => {
-              try {
-                const html = generateReceiptHTML(orderDetails, menuItems);
-                await Print.printAsync({
-                  html,
-                  orientation: "portrait",
-                });
-              } catch (pdfError) {
-                Alert.alert("Error", "Failed to generate receipt PDF");
-              }
-            },
-          },
-          { text: "Cancel", style: "cancel" },
-        ]
-      );
+      console.error("Print error:", error);
+      toast.show({
+        description: "Failed to print receipt",
+        status: "error",
+        duration: 3000,
+        placement: "bottom",
+        isClosable: true,
+      });
     } finally {
       setIsLoading(false);
       setLoadingMessage("");
@@ -1325,8 +1373,18 @@ export default function OrderDetailsScreen() {
 
             <HStack space={4} alignItems="center">
               <HStack space={2} alignItems="center">
-                <MaterialIcons name="table-restaurant" size={20} color="gray" />
-                <Text fontSize="md">Table {orderDetails.table_number}</Text>
+                {orderDetails && (
+                  <>
+                    <MaterialIcons 
+                      name={getOrderDisplayInfo(orderDetails).icon} 
+                      size={20} 
+                      color="gray" 
+                    />
+                    <Text fontSize="md">
+                      {getOrderDisplayInfo(orderDetails).text}
+                    </Text>
+                  </>
+                )}
               </HStack>
             </HStack>
           </VStack>

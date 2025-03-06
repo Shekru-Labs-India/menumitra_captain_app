@@ -79,6 +79,9 @@ export default function CreateMenuView() {
   // Add new state for animation
   const [showAIAnimation, setShowAIAnimation] = useState(false);
 
+  // Add new state for image generation loading
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+
   useEffect(() => {
     fetchCategories();
     fetchVegNonvegList();
@@ -116,6 +119,9 @@ export default function CreateMenuView() {
         toast.show({
           description: "Failed to fetch categories",
           status: "error",
+          duration: 3000,
+          placement: "bottom",
+          isClosable: true,
         });
       }
     } catch (error) {
@@ -123,6 +129,9 @@ export default function CreateMenuView() {
       toast.show({
         description: "Error loading categories",
         status: "error",
+        duration: 3000,
+        placement: "bottom",
+        isClosable: true,
       });
     }
   };
@@ -146,6 +155,9 @@ export default function CreateMenuView() {
         toast.show({
           description: "Failed to fetch food types",
           status: "error",
+          duration: 3000,
+          placement: "bottom",
+          isClosable: true,
         });
       }
     } catch (error) {
@@ -153,6 +165,9 @@ export default function CreateMenuView() {
       toast.show({
         description: "Error loading food types",
         status: "error",
+        duration: 3000,
+        placement: "bottom",
+        isClosable: true,
       });
     }
   };
@@ -176,6 +191,9 @@ export default function CreateMenuView() {
         toast.show({
           description: "Failed to fetch spicy levels",
           status: "error",
+          duration: 3000,
+          placement: "bottom",
+          isClosable: true,
         });
       }
     } catch (error) {
@@ -183,6 +201,9 @@ export default function CreateMenuView() {
       toast.show({
         description: "Error loading spicy levels",
         status: "error",
+        duration: 3000,
+        placement: "bottom",
+        isClosable: true,
       });
     }
   };
@@ -209,6 +230,9 @@ export default function CreateMenuView() {
         toast.show({
           description: "Failed to fetch rating list",
           status: "error",
+          duration: 3000,
+          placement: "bottom",
+          isClosable: true,
         });
       }
     } catch (error) {
@@ -216,6 +240,9 @@ export default function CreateMenuView() {
       toast.show({
         description: "Unable to fetch rating list. Please try again",
         status: "error",
+        duration: 3000,
+        placement: "bottom",
+        isClosable: true,
       });
     }
   };
@@ -226,6 +253,9 @@ export default function CreateMenuView() {
         toast.show({
           description: "Maximum 5 images allowed",
           status: "warning",
+          duration: 3000,
+          placement: "bottom",
+          isClosable: true,
         });
         return;
       }
@@ -294,49 +324,14 @@ export default function CreateMenuView() {
   };
 
   const handleCreateMenu = async () => {
-    // Validate all required fields first
-    const newErrors = {};
-
-    if (!menuDetails.name?.trim()) {
-      newErrors.name = "Menu name is required";
-    }
-
-    if (!menuDetails.full_price) {
-      newErrors.full_price = "Full price is required";
-    }
-
-    if (!menuDetails.menu_cat_id) {
-      newErrors.menu_cat_id = "Category is required";
-    }
-
-    if (!menuDetails.food_type) {
-      newErrors.food_type = "Food type is required";
-    }
-
-    // Update errors state
-    setErrors(newErrors);
-
-    // If there are errors, stop form submission
-    if (Object.keys(newErrors).length > 0) {
-      // Add a toast to show validation errors
-      toast.show({
-        description: "Please fill all required fields",
-        status: "error",
-        duration: 3000,
-        placement: "top",
-        isClosable: true,
-      });
+    if (!validateRequiredFields()) {
       return;
     }
 
+    setLoading(true);
     try {
-      setLoading(true);
       const formData = new FormData();
-      const outletId = await AsyncStorage.getItem("outlet_id");
-      const userId = await AsyncStorage.getItem("user_id");
-
-      // Append all required fields
-      formData.append("outlet_id", outletId);
+      formData.append("outlet_id", menuDetails.outlet_id);
       formData.append("user_id", userId);
       formData.append("name", menuDetails.name);
       formData.append("full_price", menuDetails.full_price);
@@ -344,9 +339,9 @@ export default function CreateMenuView() {
       formData.append("food_type", menuDetails.food_type);
       formData.append("menu_cat_id", menuDetails.menu_cat_id);
       formData.append("spicy_index", menuDetails.spicy_index || "1");
-      formData.append("offer", menuDetails.offer || "");
-      formData.append("description", menuDetails.description || "");
-      formData.append("ingredients", menuDetails.ingredients || "");
+      formData.append("offer", menuDetails.offer || "0");
+      formData.append("description", menuDetails.description);
+      formData.append("ingredients", menuDetails.ingredients);
       formData.append("is_special", menuDetails.is_special ? "1" : "0");
 
       // Handle multiple images with proper naming
@@ -486,10 +481,16 @@ export default function CreateMenuView() {
   };
 
   const handleOfferChange = (text) => {
-    // Allow 0 at the start and only numbers
+    // If empty, set to "0" since API expects integer
+    if (!text) {
+      setMenuDetails((prev) => ({ ...prev, offer: "0" }));
+      return;
+    }
+
+    // Allow only numbers
     let sanitizedText = text.replace(/[^0-9]/g, "");
 
-    // Validate offer percentage (0-100)
+    // Validate offer percentage (0-100) only if there's a value
     if (sanitizedText && Number(sanitizedText) > 100) {
       sanitizedText = "100";
     }
@@ -569,10 +570,10 @@ export default function CreateMenuView() {
 
   // Modify the handleGenerateAI function
   const handleGenerateAI = async () => {
-    // First validate required fields
-    if (!validateRequiredFields()) {
+    // Only validate menu name
+    if (!menuDetails.name.trim()) {
       toast.show({
-        description: "Please fill name, price and category first",
+        description: "Please enter menu name",
         status: "error",
         duration: 3000,
         placement: "bottom",
@@ -584,34 +585,28 @@ export default function CreateMenuView() {
     setShowAIAnimation(true);
     
     try {
-      const response = await fetchWithAuth(`${getBaseUrl()}/menu`, {
+      const response = await fetchWithAuth(`${getBaseUrl()}/ai_genrate_menu_details`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           outlet_id: menuDetails.outlet_id,
-          menu_cat_id: menuDetails.menu_cat_id,
-          name: menuDetails.name,
-          category: categories.find(cat => cat.menu_cat_id === menuDetails.menu_cat_id)?.category_name || "",
-          full_price: menuDetails.full_price,
-          half_price: menuDetails.half_price || ""
+          name: menuDetails.name
         })
       });
 
       console.log("AI Response:", response);
 
-      // Check if response is valid and has the required fields
-      if (response && response.Description) {
+      // Check if response has the required fields with uppercase keys
+      if (response && response.Description) {  // Changed from lowercase to uppercase
         // Update menu details with AI generated content
         setMenuDetails(prev => ({
           ...prev,
-          description: response.Description,
-          ingredients: response.Ingredients,
-          food_type: foodTypes.find(type => 
-            type.name.toLowerCase() === response["Food Type"].toLowerCase()
-          )?.id || "",
-          spicy_index: response["Spicy Index"].toString()
+          description: response.Description,      // Changed from lowercase
+          ingredients: response.Ingredients,      // Changed from lowercase
+          food_type: response["Food Type"].toLowerCase(),  // Handle space in key name
+          spicy_index: response["Spicy Index"].toString() // Handle space in key name
         }));
 
         // Set form mode only after successful response
@@ -643,88 +638,53 @@ export default function CreateMenuView() {
     }
   };
 
-  // Modify the generateImages function
+  // Update the generateImages function
   const generateImages = async () => {
     try {
-      setLoading(true);
-      const basePrompt = `A professional food photography of ${menuDetails.name}, ${menuDetails.description}`;
+      setIsGeneratingImages(true);
       
-      const prompts = [
-        `${basePrompt}, top view, on a rustic wooden table with garnish`,
-        `${basePrompt}, side angle view, on a modern plate with restaurant presentation`
-      ];
-      
-      const imagePromises = prompts.map(prompt => 
-        fetch("https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": `Bearer ${STABILITY_API_KEY}`,
-          },
-          body: JSON.stringify({
-            text_prompts: [
-              {
-                text: prompt,
-                weight: 1
-              },
-              {
-                text: "text, watermark, logo, label, cartoon, anime, illustration, drawing, painting, blurry, low quality",
-                weight: -1
-              }
-            ],
-            cfg_scale: 7,
-            height: 1024,
-            width: 1024,
-            samples: 1,
-            steps: 30,
-          }),
-        })
-      );
-
-      const responses = await Promise.all(imagePromises);
-      
-      // Handle API responses
-      for (const response of responses) {
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `API request failed with status ${response.status}`);
-        }
-      }
-
-      // Process the responses and directly add to menuDetails
-      const base64Images = await Promise.all(
-        responses.map(async (response) => {
-          const data = await response.json();
-          return `data:image/png;base64,${data.artifacts[0].base64}`;
-        })
-      );
-
-      // Add both images directly to menuDetails
-      setMenuDetails(prev => ({
-        ...prev,
-        images: [...prev.images, ...base64Images]
-      }));
-      setImageSelected(true);
-
-      toast.show({
-        description: "Images generated successfully!",
-        status: "success",
-        duration: 3000,
-        placement: "bottom",
-        isClosable: true,
+      const response = await fetchWithAuth(`${getBaseUrl()}/ai_genrate_image_details`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: menuDetails.name,
+          description: menuDetails.description,
+          image_count: 1
+        }),
       });
+
+      if (response.st === 1 && response.image_urls?.length > 0) {
+        // Add the generated images to menuDetails
+        const newImages = response.image_urls.map(url => url);
+        setMenuDetails(prev => ({
+          ...prev,
+          images: [...prev.images, ...newImages]
+        }));
+        setImageSelected(true);
+
+        toast.show({
+          description: "Images generated successfully!",
+          status: "success",
+          duration: 3000,
+          placement: "bottom",
+          isClosable: true,
+        });
+      } else {
+        throw new Error("Failed to generate images");
+      }
     } catch (error) {
       console.error("Error generating images:", error);
       toast.show({
         description: error.message || "Failed to generate images. Please try again.",
         status: "error",
-        duration: 5000,
+        duration: 3000,
         placement: "bottom",
         isClosable: true,
       });
     } finally {
-      setLoading(false);
+      setIsGeneratingImages(false);
     }
   };
 
@@ -963,13 +923,13 @@ export default function CreateMenuView() {
                   </Text>
                   {formMode === 'ai' && (  // Only show generate button in AI mode
                     <Button
-                      size="sm"
-                      leftIcon={<Icon as={MaterialIcons} name="auto-awesome" size="sm" />}
                       onPress={generateImages}
-                      isLoading={loading}
-                      isLoadingText="Generating..."
+                      isDisabled={!menuDetails.name || loading}
                       bg="primary.600"
                       _pressed={{ bg: "primary.700" }}
+                      leftIcon={<Icon as={MaterialIcons} name="image" size="sm" />}
+                      isLoading={isGeneratingImages}
+                      isLoadingText="Generating..."
                     >
                       Generate Images
                     </Button>
@@ -1229,6 +1189,61 @@ export default function CreateMenuView() {
           </Modal.Body>
         </Modal.Content>
       </Modal>
+
+      {/* Add AI Animation Modal for image generation */}
+      {isGeneratingImages && (
+        <NativeModal
+          transparent={true}
+          animationType="fade"
+          visible={isGeneratingImages}
+        >
+          <Box 
+            flex={1} 
+            bg="rgba(0,0,0,0.7)" 
+            justifyContent="center" 
+            alignItems="center"
+          >
+            <Box 
+              bg="white" 
+              p={6} 
+              rounded="2xl" 
+              width="80%" 
+              alignItems="center"
+              shadow={5}
+            >
+              <LottieView
+                source={require('../../../assets/animations/ai-loading.json')}
+                autoPlay
+                loop
+                style={{ 
+                  width: 200, 
+                  height: 200,
+                  backgroundColor: 'transparent'
+                }}
+                renderMode="AUTOMATIC"
+                speed={0.8}
+              />
+              <Text 
+                fontSize="lg" 
+                fontWeight="bold" 
+                color="primary.600" 
+                mt={4}
+                textAlign="center"
+              >
+                Generating Images...
+              </Text>
+              <Text 
+                fontSize="sm" 
+                color="gray.500" 
+                mt={2}
+                textAlign="center"
+              >
+                Please wait while we create beautiful images for your menu
+              </Text>
+            </Box>
+          </Box>
+        </NativeModal>
+      )}
     </Box>
   );
 }
