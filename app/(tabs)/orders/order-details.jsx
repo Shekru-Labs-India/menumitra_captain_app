@@ -34,6 +34,7 @@ import base64 from "react-native-base64";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { Asset } from 'expo-asset';
 
 const formatTime = (dateTimeString) => {
   if (!dateTimeString) return "";
@@ -237,18 +238,36 @@ const getPaymentMethod = (orderDetails) => {
   return orderDetails.payment_method || 'Cash'; // Return 'Cash' if payment_method is null
 };
 
-// Then modify the payment section in the HTML template
-const generateInvoiceHTML = (orderDetails, menuItems) => {
+// Add this function to load the logo
+const getMenuMitraLogo = async () => {
+  try {
+    // Load the asset
+    const asset = Asset.fromModule(require('../../../assets/images/mm-logo.png')); // Adjust path as needed
+    await asset.downloadAsync();
+
+    // Read the file and convert to base64
+    const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    return `data:image/png;base64,${base64}`;
+  } catch (error) {
+    console.error('Error loading MenuMitra logo:', error);
+    return null;
+  }
+};
+
+// Modify the generateInvoiceHTML function to be async
+const generateInvoiceHTML = async (orderDetails, menuItems) => {
   try {
     // Safely handle date and time formatting
     const dateTime = (orderDetails?.datetime || '').split(' ');
     const date = dateTime[0] || '';
     const time = dateTime.length > 2 ? `${dateTime[1]} ${dateTime[2]}` : '';
 
-    // Ensure orderDetails and menuItems are valid
-    if (!orderDetails || !menuItems) {
-      throw new Error('Invalid order details or menu items');
-    }
+    // Get the logo as base64
+    const menuMitraLogo = await getMenuMitraLogo();
+    const logoPlaceholder = menuMitraLogo || ''; // Use empty string if logo loading fails
 
     return `
       <!DOCTYPE html>
@@ -317,7 +336,7 @@ const generateInvoiceHTML = (orderDetails, menuItems) => {
             grid-template-columns: 1fr 100px 120px;
             padding: 10px 4px;
             color: #444;
-            font-weight: 500;
+            font-weight: bold;
             font-size: 15px;
             border-bottom: 2px solid #dee2e6;
           }
@@ -344,11 +363,11 @@ const generateInvoiceHTML = (orderDetails, menuItems) => {
           .amount-row {
             display: flex;
             justify-content: flex-end;
-            margin: 5px 0;
+            margin: 3px 0;
             font-size: 14px;
           }
           .amount-label {
-            margin-right: 20px;
+            margin-right: 10px;
             color: #444;
             font-weight: 500;
           }
@@ -378,32 +397,60 @@ const generateInvoiceHTML = (orderDetails, menuItems) => {
             font-weight: 500;
           }
           .footer {
-            margin-top: 35px;
+            margin-top: 30px;
             text-align: center;
-            font-style: italic;
             color: #666;
-            font-size: 13px;
-            line-height: 1.6;
+            font-size: 14px;
+          }
+          .menu-item-name {
+            color: #dc3545;
+            font-weight: 500;
+          }
+          
+          .logo-img {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+          }
+          
+          .footer-logo-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 0;
+          }
+          
+          .footer-logo {
+            width: 30px;
+            height: 30px;
+            margin-right: 10px;
+          }
+          
+          .bill-label {
+            font-weight: bold;
           }
         </style>
       </head>
       <body>
         <div class="header">
           <div class="logo-section">
-            <span class="logo-text">MenuMitra</span>
+            ${logoPlaceholder ? `<img src="${logoPlaceholder}" alt="MenuMitra Logo" class="logo-img"/>` : ''}
+            <div class="logo-text">MenuMitra</div>
           </div>
-          <div class="invoice-label">Invoice</div>
+          <div>
+            <div class="invoice-label">INVOICE</div>
+          </div>
         </div>
 
         <div class="header-info">
           <div class="customer-info">
             <div class="greeting">
-              Hello, ${orderDetails.customer_name || 'Customer'}<br>
+              <strong>Hello</strong>, ${orderDetails.customer_name || ''}<br>
               Thank you for shopping from our store and for your order.
             </div>
           </div>
           <div class="bill-info">
-            Bill no: ${orderDetails.order_number || ''}<br>
+            <span class="bill-label">Bill no:</span> ${orderDetails.order_number || ''}<br>
             ${date}<br>
             ${time}
           </div>
@@ -411,14 +458,14 @@ const generateInvoiceHTML = (orderDetails, menuItems) => {
 
         <div class="items-section">
           <div class="items-header">
-            <span>Item</span>
-            <span>Quantity</span>
-            <span>Price</span>
+            <span><strong>Item</strong></span>
+            <span><strong>Quantity</strong></span>
+            <span><strong>Price</strong></span>
           </div>
           <div class="menu-items">
             ${(Array.isArray(menuItems) ? menuItems : []).map(item => `
               <div class="menu-item">
-                <span>${item.menu_name || ''}${item.half_or_full ? ` (${item.half_or_full})` : ''}</span>
+                <span class="menu-item-name">${item.menu_name || ''}${item.half_or_full ? ` (${item.half_or_full})` : ''}</span>
                 <span>${item.quantity || 0}</span>
                 <span>₹ ${Number(item.price || 0).toFixed(2)}</span>
               </div>
@@ -428,58 +475,86 @@ const generateInvoiceHTML = (orderDetails, menuItems) => {
 
         <div class="amount-details">
           <div class="amount-row">
-            <span class="amount-label">Total:</span>
+            <span class="amount-label" style="font-weight: 600;">Total:</span>
             <span class="amount-value">₹${Number(orderDetails.total_bill_amount || 0).toFixed(2)}</span>
           </div>
+
           ${orderDetails.discount_amount > 0 ? `
             <div class="amount-row">
-              <span class="amount-label">Discount (${orderDetails.discount_percent || 0}%):</span>
-              <span class="amount-value" style="color: #28a745">-₹${Number(orderDetails.discount_amount || 0).toFixed(2)}</span>
+              <span class="amount-label" style="font-weight: 600;">Discount (${orderDetails.discount_percent || 0}%):</span>
+              <span class="amount-value" style="color: #dc3545">-₹${Number(orderDetails.discount_amount || 0).toFixed(2)}</span>
             </div>
           ` : ''}
+
           ${orderDetails.special_discount > 0 ? `
             <div class="amount-row">
-              <span class="amount-label">Special Discount:</span>
-              <span class="amount-value" style="color: #28a745">-₹${Number(orderDetails.special_discount || 0).toFixed(2)}</span>
+              <span class="amount-label" style="font-weight: 600;">Special Discount:</span>
+              <span class="amount-value" style="color: #dc3545">-₹${Number(orderDetails.special_discount || 0).toFixed(2)}</span>
             </div>
           ` : ''}
+
+          ${orderDetails.extra_charges > 0 ? `
+            <div class="amount-row">
+              <span class="amount-label" style="font-weight: 600;">Extra Charges:</span>
+              <span class="amount-value" style="color: #28a745">+₹${Number(orderDetails.extra_charges || 0).toFixed(2)}</span>
+            </div>
+          ` : ''}
+
           <div class="amount-row">
-            <span class="amount-label">Total after Discount:</span>
-            <span class="amount-value">₹${(Number(orderDetails.total_bill_amount) - Number(orderDetails.discount_amount) - Number(orderDetails.special_discount || 0)).toFixed(2)}</span>
+            <span class="amount-label" style="font-weight: 600;">Subtotal:</span>
+            <span class="amount-value">₹${(
+              Number(orderDetails.total_bill_amount) - 
+              Number(orderDetails.discount_amount || 0) - 
+              Number(orderDetails.special_discount || 0) +
+              Number(orderDetails.extra_charges || 0)
+            ).toFixed(2)}</span>
           </div>
+
           <div class="amount-row">
-            <span class="amount-label">Extra Charges:</span>
-            <span class="amount-value">+₹${Number(orderDetails.extra_charges || 0).toFixed(2)}</span>
+            <span class="amount-label" style="font-weight: 600;">Service Charges (${orderDetails.service_charges_percent}%):</span>
+            <span class="amount-value" style="color: #28a745">+₹${Number(orderDetails.service_charges_amount).toFixed(2)}</span>
           </div>
+
           <div class="amount-row">
-            <span class="amount-label">Service Charges (${orderDetails.service_charges_percent}%):</span>
-            <span class="amount-value">+₹${Number(orderDetails.service_charges_amount).toFixed(2)}</span>
+            <span class="amount-label" style="font-weight: 600;">GST (${orderDetails.gst_percent}%):</span>
+            <span class="amount-value" style="color: #28a745">+₹${Number(orderDetails.gst_amount).toFixed(2)}</span>
           </div>
-          <div class="amount-row">
-            <span class="amount-label">GST (${orderDetails.gst_percent}%):</span>
-            <span class="amount-value">+₹${Number(orderDetails.gst_amount).toFixed(2)}</span>
-          </div>
+
+          ${orderDetails.tip > 0 ? `
+            <div class="amount-row">
+              <span class="amount-label" style="font-weight: 600;">Tip:</span>
+              <span class="amount-value" style="color: #28a745">+₹${Number(orderDetails.tip).toFixed(2)}</span>
+            </div>
+          ` : ''}
+
           <div class="divider"></div>
-          <div class="amount-row" style="font-weight: bold;">
+          
+          <div class="amount-row" style="font-weight: bold; font-size: 16px;">
             <span class="amount-label">Grand Total:</span>
             <span class="amount-value">₹${Number(orderDetails.grand_total).toFixed(2)}</span>
           </div>
         </div>
 
         <div class="payment-section">
-          <span class="payment-label">Payment Method:</span>
+          <span class="payment-label"><strong>Payment Method:</strong></span>
           <span>${getPaymentMethod(orderDetails)}</span>
         </div>
 
         <div class="billing-info">
           <strong>Billing Information</strong><br>
-          ▶ ${orderDetails.outlet_name}<br>
-          ▶ ${orderDetails.outlet_address || ''}<br>
-          ▶ ${orderDetails.outlet_mobile || ''}
+          <strong>▶</strong> ${orderDetails.outlet_name}<br>
+          <strong>▶</strong> ${orderDetails.outlet_address || ''}<br>
+          <strong>▶</strong> ${orderDetails.outlet_mobile || ''}
         </div>
 
         <div class="footer">
           Have a nice day.<br>
+          <div class="footer-logo-section">
+            ${logoPlaceholder ? `
+              <img src="${logoPlaceholder}" alt="MenuMitra Logo" class="footer-logo"/>
+              <span class="logo-text">MenuMitra</span>
+            ` : ''}
+          </div>
           info@menumitra.com<br>
           +91 9172530151
         </div>
@@ -568,7 +643,7 @@ export default function OrderDetailsScreen() {
       }
 
       // Generate the invoice HTML with safe access
-      const invoiceHTML = generateInvoiceHTML({
+      const invoiceHTML = await generateInvoiceHTML({
         datetime: orderDetails.datetime || '',
         order_number: orderDetails.order_number || '',
         customer_name: orderDetails.customer_name || '',

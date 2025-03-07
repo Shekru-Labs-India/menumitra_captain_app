@@ -35,6 +35,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../../../app/components/Header";
 import { getBaseUrl } from "../../../../config/api.config";
 import { fetchWithAuth } from "../../../../utils/apiInterceptor";
+import QRCode from 'react-native-qrcode-svg';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { QR_STYLES } from "../../../../app/styles/qrcode.styles";
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -125,6 +129,9 @@ export default function TableSectionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const refreshInterval = useRef(null);
   const [editingSectionId, setEditingSectionId] = useState(null);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedTableForQR, setSelectedTableForQR] = useState(null);
+  const qrRef = useRef(null);
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -825,35 +832,29 @@ export default function TableSectionsScreen() {
                                               }
                                               position="relative"
                                             >
-                                              {/* Show delete icon for last table when settings is active */}
-                                              {showEditIcons &&
-                                                table.table_id ===
-                                                  getLastTable(section.tables)
-                                                    ?.table_id &&
-                                                !isOccupied && (
-                                                  <IconButton
-                                                    position="absolute"
-                                                    top={-2}
-                                                    right={-2}
-                                                    zIndex={2}
-                                                    size="sm"
-                                                    rounded="full"
-                                                    colorScheme="red"
-                                                    icon={
-                                                      <MaterialIcons
-                                                        name="delete"
-                                                        size={16}
-                                                        color="red"
-                                                      />
-                                                    }
-                                                    onPress={() =>
-                                                      handleDeleteTable(
-                                                        section.id,
-                                                        table.table_id
-                                                      )
-                                                    }
-                                                  />
-                                                )}
+                                              {/* Show QR icon when settings is active */}
+                                              {showEditIcons && (
+                                                <IconButton
+                                                  position="absolute"
+                                                  top={-2}
+                                                  right={-2}
+                                                  zIndex={2}
+                                                  size="sm"
+                                                  rounded="full"
+                                                  bg="white"
+                                                  shadow={2}
+                                                  _pressed={{ bg: "gray.100" }}
+                                                  _hover={{ bg: "gray.50" }}
+                                                  icon={
+                                                    <MaterialIcons
+                                                      name="qr-code"
+                                                      size={16}
+                                                      color="gray"
+                                                    />
+                                                  }
+                                                  onPress={() => handleQRIconPress(table, section)}
+                                                />
+                                              )}
 
                                               {/* Show price banner for occupied tables */}
                                               {isOccupied && (
@@ -1365,6 +1366,109 @@ export default function TableSectionsScreen() {
     }
   }, [showEditIcons]);
 
+  // Replace the generateQRCodeURL function
+  const generateQRCodeURL = (outletId, sectionId, tableId, tableNumber) => {
+    // Use a simple static URL for testing to eliminate any potential issues
+    return `https://menumitra.com/order?o=${outletId}&s=${sectionId}&t=${tableId}&n=${tableNumber}`;
+  };
+
+  // Replace the handleShareQRCode function
+  const handleShareQRCode = async () => {
+    if (!qrRef.current) return;
+
+    try {
+      // Get the QR code as SVG string
+      const svgString = await qrRef.current.toDataURL();
+
+      // Convert base64 to file
+      const filePath = `${FileSystem.cacheDirectory}table-qr.png`;
+      await FileSystem.writeAsStringAsync(filePath, svgString, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Share the file
+      await Sharing.shareAsync(filePath);
+    } catch (error) {
+      console.error('Error sharing QR code:', error);
+      toast.show({
+        description: "Failed to share QR code",
+        status: "error"
+      });
+    }
+  };
+
+  // Update the QR Code Modal component
+  const QRCodeModal = () => {
+    if (!selectedTableForQR) return null;
+    
+    const qrValue = `https://menumitra.com/order?o=${outletId}&s=${selectedTableForQR.section_id}&t=${selectedTableForQR.table_id}&n=${selectedTableForQR.table_number}`;
+    
+    return (
+      <Modal isOpen={showQRModal} onClose={() => setShowQRModal(false)} size="md">
+        <Modal.Content 
+          borderRadius="xl" 
+          p={4}
+          width="90%"
+          maxWidth="350px"
+        >
+          <Modal.CloseButton />
+          <Modal.Header borderBottomWidth={0} alignItems="center">
+            <Text fontSize="lg" fontWeight="bold">
+              Table {selectedTableForQR?.table_number} QR Code
+            </Text>
+          </Modal.Header>
+          <Modal.Body alignItems="center">
+            <Box 
+              alignItems="center" 
+              bg="white" 
+              p={4}
+              borderRadius="2xl"
+              shadow={1}
+            >
+              <QRCode
+                value={qrValue}
+                size={QR_STYLES.DEFAULT.size}
+                logo={require('../../../../assets/images/mm-logo.png')}
+                logoSize={QR_STYLES.DEFAULT.logoSize}
+                logoBackgroundColor={QR_STYLES.DEFAULT.logoBackgroundColor}
+                logoMargin={QR_STYLES.DEFAULT.logoMargin}
+                logoBorderRadius={QR_STYLES.DEFAULT.logoBorderRadius}
+                backgroundColor="white"
+                color="black"
+                quietZone={QR_STYLES.DEFAULT.quietZone}
+                enableLinearGradient={false}
+                ecl="H"
+                getRef={(ref) => { qrRef.current = ref; }}
+              />
+              <VStack space={2} mt={4} w="100%">
+                <Button 
+                  leftIcon={<Icon as={MaterialIcons} name="share" size="sm" />}
+                  onPress={handleShareQRCode}
+                  size="md"
+                  borderRadius="full"
+                  bg="primary.500"
+                  _pressed={{ bg: "primary.600" }}
+                  shadow={1}
+                >
+                  Share QR Code
+                </Button>
+              </VStack>
+            </Box>
+          </Modal.Body>
+        </Modal.Content>
+      </Modal>
+    );
+  };
+
+  // Update the table QR icon press handler
+  const handleQRIconPress = (table, section) => {
+    setSelectedTableForQR({
+      ...table,
+      section_id: section.id
+    });
+    setShowQRModal(true);
+  };
+
   return (
     <Box flex={1} bg="coolGray.100" safeAreaTop>
       {/* Header Component */}
@@ -1479,6 +1583,9 @@ export default function TableSectionsScreen() {
 
       {/* Create Table Modal */}
       <CreateTableModal />
+
+      {/* Add QR Code Modal */}
+      <QRCodeModal />
     </Box>
   );
 }
