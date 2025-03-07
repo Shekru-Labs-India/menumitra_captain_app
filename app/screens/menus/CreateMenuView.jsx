@@ -31,6 +31,7 @@ import { fetchWithAuth } from "../../../utils/apiInterceptor";
 import { Modal as NativeModal } from 'react-native';
 import { Image } from 'expo-image';
 import { Buffer } from 'buffer';
+import { Animated, Easing } from 'react-native';
 
 export default function CreateMenuView() {
   const router = useRouter();
@@ -79,6 +80,19 @@ export default function CreateMenuView() {
 
   // Add new state for image generation loading
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+
+  // Add this style at the top of your component
+  const [buttonStyle, setButtonStyle] = useState({});
+
+  // Inside your component, add these states
+  const [rotateValue] = useState(new Animated.Value(0));
+  const [borderColors, setBorderColors] = useState([
+    '#3B82F6', // Blue
+    '#06B6D4', // Cyan
+    '#10B981', // Emerald
+    '#8B5CF6', // Violet
+    '#EC4899', // Pink
+  ]);
 
   useEffect(() => {
     fetchCategories();
@@ -688,6 +702,41 @@ export default function CreateMenuView() {
     }
   };
 
+  // Update the animation function
+  const startBorderAnimation = () => {
+    // Rotate colors in array instead of rotating the border
+    const rotateColors = () => {
+      setBorderColors(prevColors => {
+        const newColors = [...prevColors];
+        const firstColor = newColors.shift();
+        newColors.push(firstColor);
+        return newColors;
+      });
+    };
+
+    // Start color rotation interval
+    const interval = setInterval(rotateColors, 200); // Adjust speed as needed
+
+    return () => clearInterval(interval);
+  };
+
+  // Update the useEffect for animation
+  useEffect(() => {
+    let cleanup;
+    if (showAIAnimation) {
+      cleanup = startBorderAnimation();
+    }
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [showAIAnimation]);
+
+  // Create the rotating border style
+  const spin = rotateValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
+
   return (
     <Box flex={1} bg="coolGray.100" safeArea>
       <Header title="Create Menu" showBackButton />
@@ -746,372 +795,330 @@ export default function CreateMenuView() {
             </HStack>
 
             {formMode === 'initial' ? (
-              // Only show category in initial mode
-              <FormControl isRequired isInvalid={"menu_cat_id" in errors}>
-                <FormControl.Label>Category</FormControl.Label>
-                <Pressable onPress={() => setModalVisible(true)}>
-                  <Input
-                    value={categories.find((cat) => cat.menu_cat_id === menuDetails.menu_cat_id)?.category_name || ""}
-                    isReadOnly
-                    placeholder="Select category"
-                    borderColor={
-                      menuDetails.menu_cat_id && !errors.menu_cat_id ? "green.500" : 
-                      errors.menu_cat_id ? "red.500" : "coolGray.200"
-                    }
-                    _focus={{
-                      borderColor: menuDetails.menu_cat_id && !errors.menu_cat_id ? "green.500" : 
-                                  errors.menu_cat_id ? "red.500" : "blue.500",
-                    }}
-                    rightElement={
-                      <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
-                    }
-                  />
+              <HStack space={8} justifyContent="space-between" alignItems="center" mt={2}>
+                {/* Left text */}
+                <Pressable 
+                  onPress={handleManualFill}
+                  disabled={showAIAnimation}
+                  flex={1}
+                >
+                  <Text 
+                    color="coolGray.600" 
+                    fontSize="md"
+                    fontWeight="medium"
+                  >
+                    Fill Manually
+                  </Text>
                 </Pressable>
-                <FormControl.ErrorMessage>{errors.menu_cat_id}</FormControl.ErrorMessage>
-              </FormControl>
-            ) : (
-              // Show category and food type side by side after selection
-              <HStack space={4} justifyContent="space-between">
-                <FormControl flex={1} isRequired isInvalid={"menu_cat_id" in errors}>
-                  <FormControl.Label>Category</FormControl.Label>
-                  <Pressable onPress={() => setModalVisible(true)}>
-                    <Input
-                      value={categories.find((cat) => cat.menu_cat_id === menuDetails.menu_cat_id)?.category_name || ""}
-                      isReadOnly
-                      placeholder="Select Category"
-                      borderColor={
-                        menuDetails.menu_cat_id && !errors.menu_cat_id ? "green.500" : 
-                        errors.menu_cat_id ? "red.500" : "coolGray.200"
-                      }
-                      _focus={{
-                        borderColor: menuDetails.menu_cat_id && !errors.menu_cat_id ? "green.500" : 
-                                    errors.menu_cat_id ? "red.500" : "blue.500",
-                      }}
-                      rightElement={
-                        <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
-                      }
-                    />
-                  </Pressable>
-                  <FormControl.ErrorMessage>{errors.menu_cat_id}</FormControl.ErrorMessage>
-                </FormControl>
 
-                <FormControl flex={1} isRequired isInvalid={"food_type" in errors}>
-                  <FormControl.Label>Food Type</FormControl.Label>
-                  <Pressable onPress={() => setFoodTypeModalVisible(true)}>
-                    <Input
-                      value={foodTypes.find((type) => type.id === menuDetails.food_type)?.name || ""}
-                      isReadOnly
-                      placeholder="Select Food Type"
-                      borderColor={
-                        menuDetails.food_type && !errors.food_type ? "green.500" : 
-                        errors.food_type ? "red.500" : "coolGray.200"
-                      }
-                      rightElement={
-                        <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
-                      }
-                    />
-                  </Pressable>
-                  <FormControl.ErrorMessage>{errors.food_type}</FormControl.ErrorMessage>
-                </FormControl>
+                {/* Right rounded button */}
+                <Box position="relative">
+                  {showAIAnimation && (
+                    <>
+                      {/* Create multiple borders with different colors - reduced width and spacing */}
+                      <Box
+                        position="absolute"
+                        top={-2}
+                        left={-2}
+                        right={-2}
+                        bottom={-2}
+                        borderRadius="full"
+                        borderWidth={2}
+                        borderColor={borderColors[0]}
+                      />
+                      <Box
+                        position="absolute"
+                        top={-2}
+                        left={-2}
+                        right={-2}
+                        bottom={-2}
+                        borderRadius="full"
+                        borderWidth={2}
+                        borderColor={borderColors[1]}
+                        opacity={0.8}
+                      />
+                      <Box
+                        position="absolute"
+                        top={-2}
+                        left={-2}
+                        right={-2}
+                        bottom={-2}
+                        borderRadius="full"
+                        borderWidth={2}
+                        borderColor={borderColors[2]}
+                        opacity={0.6}
+                      />
+                      <Box
+                        position="absolute"
+                        top={-2}
+                        left={-2}
+                        right={-2}
+                        bottom={-2}
+                        borderRadius="full"
+                        borderWidth={2}
+                        borderColor={borderColors[3]}
+                        opacity={0.4}
+                      />
+                      <Box
+                        position="absolute"
+                        top={-2}
+                        left={-2}
+                        right={-2}
+                        bottom={-2}
+                        borderRadius="full"
+                        borderWidth={2}
+                        borderColor={borderColors[4]}
+                        opacity={0.2}
+                      />
+                    </>
+                  )}
+                  <Button
+                    onPress={handleGenerateAI}
+                    disabled={showAIAnimation}
+                    variant="outline"
+                    borderRadius="full"
+                    borderColor={showAIAnimation ? "transparent" : "primary.600"}
+                    borderWidth={1}
+                    _pressed={{ 
+                      bg: "transparent"
+                    }}
+                    flex={1}
+                    h="40px"
+                    overflow="hidden"
+                    px={3}
+                    style={{
+                      backgroundColor: 'transparent',
+                    }}
+                  >
+                    <HStack space={1.5} alignItems="center" justifyContent="center">
+                      {showAIAnimation ? (
+                        <>
+                          <Image
+                            source={require('../../../assets/animations/AI-animation-unscreen.gif')}
+                            alt="AI Generating"
+                            style={{
+                              width: 16,
+                              height: 16,
+                              resizeMode: 'contain'
+                            }}
+                            contentFit="contain"
+                            transition={0}
+                          />
+                          <Text color="primary.600" fontSize="sm" fontWeight="medium">
+                            Generate by AI
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <Icon 
+                            as={MaterialIcons} 
+                            name="auto-awesome" 
+                            size={4}
+                            color="primary.600" 
+                          />
+                          <Text color="primary.600" fontSize="sm" fontWeight="medium">
+                            Generate by AI
+                          </Text>
+                        </>
+                      )}
+                    </HStack>
+                  </Button>
+                </Box>
               </HStack>
-            )}
-          </VStack>
+            ) : (
+              // Additional Fields
+              <VStack space={3} bg="white" p={3} rounded="lg">
+                <HStack space={4} justifyContent="space-between">
+                  <FormControl flex={1}>
+                    <FormControl.Label>Spicy Level</FormControl.Label>
+                    <Pressable onPress={() => setSpicyModalVisible(true)}>
+                      <Input
+                        value={spicyLevels.find((level) => level.id === menuDetails.spicy_index)?.name || ""}
+                        isReadOnly
+                        placeholder="Select Spicy Level"
+                        rightElement={
+                          <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
+                        }
+                      />
+                    </Pressable>
+                  </FormControl>
 
-          {formMode === 'initial' ? (
-            // Action Buttons
-            <HStack space={4} justifyContent="center">
-              <Button
-                flex={1}
-                onPress={handleGenerateAI}
-                bg="primary.600"
-                _pressed={{ bg: "primary.700" }}
-              >
-                Generate by AI
-              </Button>
-              <Button
-                flex={1}
-                onPress={handleManualFill}
-                bg="secondary.600"
-                _pressed={{ bg: "secondary.700" }}
-              >
-                Fill Manually
-              </Button>
-            </HStack>
-          ) : (
-            // Additional Fields
-            <VStack space={3} bg="white" p={3} rounded="lg">
-              <HStack space={4} justifyContent="space-between">
-                <FormControl flex={1}>
-                  <FormControl.Label>Spicy Level</FormControl.Label>
-                  <Pressable onPress={() => setSpicyModalVisible(true)}>
+                  <FormControl flex={1}>
+                    <FormControl.Label>Offer (%)</FormControl.Label>
                     <Input
-                      value={spicyLevels.find((level) => level.id === menuDetails.spicy_index)?.name || ""}
-                      isReadOnly
-                      placeholder="Select Spicy Level"
-                      rightElement={
-                        <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
-                      }
+                      value={menuDetails.offer}
+                      onChangeText={handleOfferChange}
+                      keyboardType="numeric"
+                      placeholder="Enter offer percentage"
                     />
-                  </Pressable>
-                </FormControl>
-
-                <FormControl flex={1}>
-                  <FormControl.Label>Offer (%)</FormControl.Label>
+                  </FormControl>
+                </HStack>
+                <FormControl>
+                  <FormControl.Label>
+                    Description
+                    <Text fontSize="xs" color="coolGray.500" ml={1}>
+                      ({menuDetails.description.length}/500 characters)
+                    </Text>
+                  </FormControl.Label>
                   <Input
-                    value={menuDetails.offer}
-                    onChangeText={handleOfferChange}
-                    keyboardType="numeric"
-                    placeholder="Enter offer percentage"
+                    value={menuDetails.description}
+                    onChangeText={(value) => {
+                      if (value.length <= 500) {
+                        setMenuDetails((prev) => ({ ...prev, description: value }))
+                      }
+                    }}
+                    placeholder="Enter description"
+                    multiline
+                    numberOfLines={4}
+                    height={24}
+                    textAlignVertical="top"
+                    maxLength={500}
                   />
                 </FormControl>
-              </HStack>
-              <FormControl>
-                <FormControl.Label>
-                  Description
-                  <Text fontSize="xs" color="coolGray.500" ml={1}>
-                    ({menuDetails.description.length}/500 characters)
-                  </Text>
-                </FormControl.Label>
-                <Input
-                  value={menuDetails.description}
-                  onChangeText={(value) => {
-                    if (value.length <= 500) {
-                      setMenuDetails((prev) => ({ ...prev, description: value }))
+
+                <FormControl>
+                  <FormControl.Label>Ingredients</FormControl.Label>
+                  <Input
+                    value={menuDetails.ingredients}
+                    onChangeText={(value) =>
+                      setMenuDetails((prev) => ({ ...prev, ingredients: value }))
                     }
-                  }}
-                  placeholder="Enter description"
-                  multiline
-                  numberOfLines={4}
-                  height={24}
-                  textAlignVertical="top"
-                  maxLength={500}
-                />
-              </FormControl>
+                    placeholder="Enter ingredients"
+                    multiline
+                    numberOfLines={3}
+                    height={20}
+                    textAlignVertical="top"
+                  />
+                </FormControl>
 
-              <FormControl>
-                <FormControl.Label>Ingredients</FormControl.Label>
-                <Input
-                  value={menuDetails.ingredients}
-                  onChangeText={(value) =>
-                    setMenuDetails((prev) => ({ ...prev, ingredients: value }))
-                  }
-                  placeholder="Enter ingredients"
-                  multiline
-                  numberOfLines={3}
-                  height={20}
-                  textAlignVertical="top"
-                />
-              </FormControl>
+               
 
-             
-
-              {/* Mark as Special without card */}
-              <HStack py={2} alignItems="center" justifyContent="flex-end" >
-                <Text fontSize="md" mr={4}>Mark as Special</Text>
-                <Switch
-                  isChecked={menuDetails.is_special}
-                  onToggle={handleSpecialToggle}
-                  isDisabled={isSpecialLoading}
-                />
-              </HStack>
-
-              {/* Image Gallery moved to bottom */}
-              <Box>
-                <HStack mb={2} justifyContent="space-between" alignItems="center">
-                  <Text fontSize="md" fontWeight="bold">
-                    Menu Images ({menuDetails.images.length}/5)
-                  </Text>
-                  {formMode === 'ai' && (  // Only show generate button in AI mode
-                    <Button
-                      onPress={generateImages}
-                      isDisabled={!menuDetails.name || loading}
-                      bg="primary.600"
-                      _pressed={{ bg: "primary.700" }}
-                      leftIcon={<Icon as={MaterialIcons} name="image" size="sm" />}
-                      isLoading={isGeneratingImages}
-                      isLoadingText="Generating..."
-                    >
-                      Generate Images
-                    </Button>
-                  )}
+                {/* Mark as Special without card */}
+                <HStack py={2} alignItems="center" justifyContent="flex-end" >
+                  <Text fontSize="md" mr={4}>Mark as Special</Text>
+                  <Switch
+                    isChecked={menuDetails.is_special}
+                    onToggle={handleSpecialToggle}
+                    isDisabled={isSpecialLoading}
+                  />
                 </HStack>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <HStack space={2}>
-                    {menuDetails.images.map((uri, index) => (
-                      <Box key={index} position="relative">
-                        <Image
-                          source={{ uri }}
-                          alt={`Menu Image ${index + 1}`}
-                          style={{  // Changed to style prop
-                            width: 128,
-                            height: 128,
-                            borderRadius: 8
-                          }}
-                          contentFit="cover"  // Changed to cover
-                        />
-                        <IconButton
-                          position="absolute"
-                          top={1}
-                          right={1}
-                          size="sm"
-                          rounded="full"
-                          bg="red.500"
-                          icon={
-                            <Icon
-                              as={MaterialIcons}
-                              name="close"
-                              color="white"
-                              size="sm"
-                            />
-                          }
-                          onPress={() => removeImage(index)}
-                        />
-                      </Box>
-                    ))}
-                    {menuDetails.images.length < 5 && (
-                      <Pressable 
-                        onPress={pickImage}
-                        disabled={isGeneratingImages}  // Disable during generation
+                {/* Image Gallery moved to bottom */}
+                <Box>
+                  <HStack mb={2} justifyContent="space-between" alignItems="center">
+                    <Text fontSize="md" fontWeight="bold">
+                      Menu Images ({menuDetails.images.length}/5)
+                    </Text>
+                    {formMode === 'ai' && (  // Only show generate button in AI mode
+                      <Button
+                        onPress={generateImages}
+                        isDisabled={!menuDetails.name || loading}
+                        bg="primary.600"
+                        _pressed={{ bg: "primary.700" }}
+                        leftIcon={<Icon as={MaterialIcons} name="image" size="sm" />}
+                        isLoading={isGeneratingImages}
+                        isLoadingText="Generating..."
                       >
-                        <Box
-                          w="32"
-                          h="32"
-                          bg="white"
-                          rounded="lg"
-                          justifyContent="center"
-                          alignItems="center"
-                          borderWidth={1}
-                          borderStyle={isGeneratingImages ? "solid" : "dashed"}
-                          borderColor={isGeneratingImages ? "primary.500" : "gray.300"}
-                          overflow="hidden"  // Added to contain the GIF
-                        >
-                          {isGeneratingImages ? (
-                            <VStack space={2} alignItems="center">
-                              <Image
-                                source={require('../../../assets/animations/AI_animation.gif')}
-                                alt="AI Generating"
-                                style={{
-                                  width: 100,  // Adjusted size
-                                  height: 100,
-                                  resizeMode: 'contain'
-                                }}
-                                contentFit="contain"
-                                transition={0}
-                              />
-                              <Text 
-                                fontSize="2xs" 
-                                color="primary.600"
-                                textAlign="center"
-                                position="absolute"
-                                bottom={2}
-                              >
-                                Generating...
-                              </Text>
-                            </VStack>
-                          ) : (
-                            <Icon
-                              as={MaterialIcons}
-                              name="add"
-                              size={8}
-                              color="gray.400"
-                            />
-                          )}
-                        </Box>
-                      </Pressable>
+                        Generate Images
+                      </Button>
                     )}
                   </HStack>
-                </ScrollView>
-              </Box>
 
-              <Button
-                onPress={handleCreateMenu}
-                isLoading={loading}
-                isLoadingText="Creating..."
-                bg="primary.600"
-                _pressed={{ bg: "primary.700" }}
-                mb={6}
-              >
-                Create Menu
-              </Button>
-            </VStack>
-          )}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <HStack space={2}>
+                      {menuDetails.images.map((uri, index) => (
+                        <Box key={index} position="relative">
+                          <Image
+                            source={{ uri }}
+                            alt={`Menu Image ${index + 1}`}
+                            style={{  // Changed to style prop
+                              width: 128,
+                              height: 128,
+                              borderRadius: 8
+                            }}
+                            contentFit="cover"  // Changed to cover
+                          />
+                          <IconButton
+                            position="absolute"
+                            top={1}
+                            right={1}
+                            size="sm"
+                            rounded="full"
+                            bg="red.500"
+                            icon={
+                              <Icon
+                                as={MaterialIcons}
+                                name="close"
+                                color="white"
+                                size="sm"
+                              />
+                            }
+                            onPress={() => removeImage(index)}
+                          />
+                        </Box>
+                      ))}
+                      {menuDetails.images.length < 5 && (
+                        <Pressable 
+                          onPress={pickImage}
+                          disabled={isGeneratingImages}  // Disable during generation
+                        >
+                          <Box
+                            w="32"
+                            h="32"
+                            bg="white"
+                            rounded="lg"
+                            justifyContent="center"
+                            alignItems="center"
+                            borderWidth={1}
+                            borderStyle={isGeneratingImages ? "solid" : "dashed"}
+                            borderColor={isGeneratingImages ? "primary.500" : "gray.300"}
+                            overflow="hidden"  // Added to contain the GIF
+                          >
+                            {isGeneratingImages ? (
+                              <VStack space={2} alignItems="center">
+                                <Image
+                                  source={require('../../../assets/animations/AI-animation-unscreen.gif')}
+                                  alt="AI Generating"
+                                  style={{
+                                    width: 100,  // Adjusted size
+                                    height: 100,
+                                    resizeMode: 'contain'
+                                  }}
+                                  contentFit="contain"
+                                  transition={0}
+                                />
+                               
+                              </VStack>
+                            ) : (
+                              <Icon
+                                as={MaterialIcons}
+                                name="add"
+                                size={8}
+                                color="gray.400"
+                              />
+                            )}
+                          </Box>
+                        </Pressable>
+                      )}
+                    </HStack>
+                  </ScrollView>
+                </Box>
+
+                <Button
+                  onPress={handleCreateMenu}
+                  isLoading={loading}
+                  isLoadingText="Creating..."
+                  bg="primary.600"
+                  _pressed={{ bg: "primary.700" }}
+                  mb={6}
+                >
+                  Create Menu
+                </Button>
+              </VStack>
+            )}
+          </VStack>
         </VStack>
       </ScrollView>
-
-      {/* AI Animation Modal */}
-      {showAIAnimation && (
-        <NativeModal
-          transparent={true}
-          animationType="fade"
-          visible={showAIAnimation}
-        >
-          <Box 
-            flex={1} 
-            bg="rgba(0,0,0,0.7)" 
-            justifyContent="center" 
-            alignItems="center"
-          >
-            <Box 
-              bg="white" 
-              p={6} 
-              rounded="2xl" 
-              width="80%" 
-              alignItems="center"
-              shadow={5}
-              position="relative"
-            >
-              <IconButton
-                position="absolute"
-                right={2}
-                top={2}
-                zIndex={1}
-                variant="ghost"
-                _pressed={{ bg: 'coolGray.100' }}
-                icon={
-                  <Icon 
-                    as={MaterialIcons} 
-                    name="close" 
-                    size={6} 
-                    color="coolGray.500"
-                  />
-                }
-                onPress={() => {
-                  setShowAIAnimation(false);
-                  setFormMode('initial');
-                }}
-              />
-              <Image
-                source={require('../../../assets/animations/AI_animation.gif')}
-                style={{
-                  width: 200,
-                  height: 200,
-                  resizeMode: 'contain'
-                }}
-                contentFit="contain"
-                transition={0}
-              />
-              <Text 
-                fontSize="lg" 
-                fontWeight="bold" 
-                color="primary.600" 
-                mt={4}
-                textAlign="center"
-              >
-                AI is analyzing your menu...
-              </Text>
-              <Text 
-                fontSize="sm" 
-                color="gray.500" 
-                mt={2}
-                textAlign="center"
-              >
-                Please wait while we generate the perfect menu details
-              </Text>
-            </Box>
-          </Box>
-        </NativeModal>
-      )}
 
       {/* Category Modal */}
       <Modal isOpen={modalVisible} onClose={() => setModalVisible(false)}>
