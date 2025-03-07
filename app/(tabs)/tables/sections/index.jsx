@@ -40,6 +40,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { QR_STYLES } from "../../../../app/styles/qrcode.styles";
 import * as MediaLibrary from 'expo-media-library';
+import * as Print from 'expo-print';
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -135,6 +136,7 @@ export default function TableSectionsScreen() {
   const qrRef = useRef(null);
   const [isLoadingQr, setIsLoadingQr] = useState(false);
   const [qrData, setQrData] = useState(null);
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -199,6 +201,9 @@ export default function TableSectionsScreen() {
   useFocusEffect(
     useCallback(() => {
       const refreshSections = async () => {
+        // Skip refresh if QR modal is open
+        if (isQRModalOpen) return;
+
         try {
           const storedOutletId = await AsyncStorage.getItem("outlet_id");
           if (!storedOutletId) {
@@ -221,7 +226,7 @@ export default function TableSectionsScreen() {
       };
 
       refreshSections();
-    }, [])
+    }, [isQRModalOpen])
   );
 
   const getStoredData = async () => {
@@ -1443,6 +1448,53 @@ export default function TableSectionsScreen() {
     }
   };
 
+  // Add this function to handle PDF generation and download
+  const handlePDFDownload = async (qrRef) => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        toast.show({
+          description: "Need permission to save QR code",
+          status: "error"
+        });
+        return;
+      }
+
+      // Get QR code as PNG first
+      const pngData = await qrRef.current.toDataURL();
+      
+      // Create a temporary PNG file
+      const tempPngPath = `${FileSystem.cacheDirectory}temp-qr.png`;
+      await FileSystem.writeAsStringAsync(tempPngPath, pngData, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Save as PDF using react-native-html-to-pdf
+      const { uri: pdfUri } = await Print.printToFileAsync({
+        html: `
+          <div style="display: flex; justify-content: center; padding: 20px;">
+            <img src="file://${tempPngPath}" width="280" height="280" />
+          </div>
+        `,
+      });
+
+      // Save PDF to gallery
+      const asset = await MediaLibrary.createAssetAsync(pdfUri);
+      await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
+
+      toast.show({
+        description: "QR code saved as PDF",
+        status: "success"
+      });
+    } catch (error) {
+      console.error('Error saving PDF:', error);
+      toast.show({
+        description: "Failed to save PDF",
+        status: "error"
+      });
+    }
+  };
+
   // Update the QRCodeModal component
   const QRCodeModal = () => {
     if (!selectedTableForQR) return null;
@@ -1456,8 +1508,10 @@ export default function TableSectionsScreen() {
         onClose={() => {
           setShowQRModal(false);
           setQrData(null);
+          setIsQRModalOpen(false);
         }} 
         size="md"
+        closeOnOverlayClick={false}
       >
         <Modal.Content 
           borderRadius="xl" 
@@ -1465,7 +1519,13 @@ export default function TableSectionsScreen() {
           width="90%"
           maxWidth="350px"
         >
-          <Modal.CloseButton />
+          <Modal.CloseButton 
+            onPress={() => {
+              setShowQRModal(false);
+              setQrData(null);
+              setIsQRModalOpen(false);
+            }}
+          />
           <Modal.Header borderBottomWidth={0} alignItems="center">
             <Text fontSize="lg" fontWeight="bold">
               Table {qrData?.table_number || selectedTableForQR?.table_number} QR Code
@@ -1495,21 +1555,22 @@ export default function TableSectionsScreen() {
                   logoMargin={QR_STYLES.DEFAULT.logoMargin}
                   logoBorderRadius={QR_STYLES.DEFAULT.logoBorderRadius}
                   backgroundColor={QR_STYLES.DEFAULT.backgroundColor}
-                  color={QR_STYLES.DEFAULT.color}
+                  color={QR_STYLES.DEFAULT.dotColor}
                   enableLinearGradient={false}
                   ecl="H"
                   quietZone={16}
-                  dots={{
-                    type: QR_STYLES.DEFAULT.dotStyle,
-                    color: QR_STYLES.DEFAULT.color,
-                  }}
-                  cornersDots={{
-                    type: QR_STYLES.DEFAULT.cornersDotStyle,
-                    color: "#f48347",
+                  dotScale={1}
+                  dotsOptions={{
+                    type: 'rounded',
+                    color: '#086bf3'
                   }}
                   cornersSquareOptions={{
-                    type: QR_STYLES.DEFAULT.cornersSquareStyle,
-                    color: "#f48347",
+                    type: 'extra-rounded',
+                    color: '#f48347'
+                  }}
+                  cornersDotOptions={{
+                    type: 'dot',
+                    color: '#f48347'
                   }}
                   style={{
                     backgroundColor: 'white',
@@ -1519,29 +1580,37 @@ export default function TableSectionsScreen() {
                   getRef={(ref) => { qrRef.current = ref; }}
                 />
                 <VStack space={2} mt={4} w="100%">
-                  <Button 
-                    leftIcon={<Icon as={MaterialIcons} name="save" size="sm" />}
-                    onPress={() => saveToGallery(qrRef)}
-                    size="md"
-                    borderRadius="full"
-                    bg="primary.500"
-                    _pressed={{ bg: "primary.600" }}
-                    shadow={1}
+                  <Menu
+                    trigger={(triggerProps) => {
+                      return (
+                        <Button
+                          {...triggerProps}
+                          leftIcon={<Icon as={MaterialIcons} name="download" size="sm" />}
+                          size="md"
+                          borderRadius="full"
+                          bg="primary.500"
+                          _pressed={{ bg: "primary.600" }}
+                          shadow={1}
+                        >
+                          Download QR Code
+                        </Button>
+                      );
+                    }}
+                    placement="top"
                   >
-                    Save to Gallery
-                  </Button>
-                  <Button 
-                    leftIcon={<Icon as={MaterialIcons} name="share" size="sm" />}
-                    onPress={handleShareQRCode}
-                    size="md"
-                    borderRadius="full"
-                    variant="outline"
-                    borderColor="primary.500"
-                    _text={{ color: "primary.500" }}
-                    _pressed={{ bg: "primary.50" }}
-                  >
-                    Share QR Code
-                  </Button>
+                    <Menu.Item 
+                      onPress={() => saveToGallery(qrRef)}
+                      leftIcon={<Icon as={MaterialIcons} name="image" size="sm" color="gray.600" />}
+                    >
+                      Save as PNG
+                    </Menu.Item>
+                    <Menu.Item 
+                      onPress={() => handlePDFDownload(qrRef)}
+                      leftIcon={<Icon as={MaterialIcons} name="picture-as-pdf" size="sm" color="gray.600" />}
+                    >
+                      Save as PDF
+                    </Menu.Item>
+                  </Menu>
                 </VStack>
               </Box>
             ) : (
@@ -1556,6 +1625,7 @@ export default function TableSectionsScreen() {
   // Update the table QR icon press handler
   const handleQRIconPress = async (table, section) => {
     setIsLoadingQr(true);
+    setIsQRModalOpen(true);
     setShowQRModal(true);
     setSelectedTableForQR({
       ...table,
@@ -1576,16 +1646,13 @@ export default function TableSectionsScreen() {
 
       console.log("QR Response:", data);
 
-      // Check if we have all required fields instead of checking st
       if (!data.user_app_url || !data.outlet_code || !data.table_number || !data.section_id) {
         throw new Error("Invalid QR code data received");
       }
 
-      // Construct the QR code URL using the exact format from the API response
       const qrUrl = `${data.user_app_url}${data.outlet_code}/${data.table_number}/${data.section_id}`;
       console.log("Generated QR URL:", qrUrl);
 
-      // Update state with QR data
       setQrData({
         ...data,
         qr_code_url: qrUrl,
@@ -1600,6 +1667,7 @@ export default function TableSectionsScreen() {
         duration: 3000,
       });
       setShowQRModal(false);
+      setIsQRModalOpen(false);
     } finally {
       setIsLoadingQr(false);
     }

@@ -5,10 +5,11 @@ export const QR_STYLES = {
     logoMargin: 4,
     logoBorderRadius: 8,
     backgroundColor: "#ffffff",
-    color: "#086bf3", // Primary QR color
-    dotStyle: "extra-rounded", // Added for dots style
-    cornersDotStyle: "dot", // Added for corner dots style
-    cornersSquareStyle: "extra-rounded", // Added for corner squares style
+    dotColor: "#086bf3", // Blue for main dots
+    cornerColor: "#f48347", // Orange for corners
+    dotType: "rounded",
+    cornerType: "extra-rounded",
+    cornerDotType: "dot",
   },
   DARK: {
     // Remove DARK theme for now
