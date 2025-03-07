@@ -6,7 +6,6 @@ import {
   FormControl,
   Input,
   Button,
-  Image,
   Text,
   Pressable,
   Icon,
@@ -24,14 +23,13 @@ import {
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBaseUrl, HUGGING_FACE_TOKEN, STABILITY_API_KEY } from "../../../config/api.config";
 import Header from "../../components/Header";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
-import LottieView from 'lottie-react-native';
 import { Modal as NativeModal } from 'react-native';
+import { Image } from 'expo-image';
 import { Buffer } from 'buffer';
 
 export default function CreateMenuView() {
@@ -655,9 +653,9 @@ export default function CreateMenuView() {
       });
 
       if (response.st === 1 && response.images?.length > 0) {
-        // Convert base64 images to URLs
+        // Convert base64 images to URLs with proper MIME type
         const newImages = response.images.map(base64String => {
-          return `data:image/png;base64,${base64String}`;
+          return `data:image/jpeg;base64,${base64String}`;  // Changed to image/jpeg
         });
         
         setMenuDetails(prev => ({
@@ -780,7 +778,7 @@ export default function CreateMenuView() {
                     <Input
                       value={categories.find((cat) => cat.menu_cat_id === menuDetails.menu_cat_id)?.category_name || ""}
                       isReadOnly
-                      placeholder="Select category"
+                      placeholder="Select Category"
                       borderColor={
                         menuDetails.menu_cat_id && !errors.menu_cat_id ? "green.500" : 
                         errors.menu_cat_id ? "red.500" : "coolGray.200"
@@ -842,7 +840,7 @@ export default function CreateMenuView() {
           ) : (
             // Additional Fields
             <VStack space={3} bg="white" p={3} rounded="lg">
-       <HStack space={4} justifyContent="space-between">
+              <HStack space={4} justifyContent="space-between">
                 <FormControl flex={1}>
                   <FormControl.Label>Spicy Level</FormControl.Label>
                   <Pressable onPress={() => setSpicyModalVisible(true)}>
@@ -945,10 +943,12 @@ export default function CreateMenuView() {
                         <Image
                           source={{ uri }}
                           alt={`Menu Image ${index + 1}`}
-                          size="32"
-                          w="32"
-                          h="32"
-                          rounded="lg"
+                          style={{  // Changed to style prop
+                            width: 128,
+                            height: 128,
+                            borderRadius: 8
+                          }}
+                          contentFit="cover"  // Changed to cover
                         />
                         <IconButton
                           position="absolute"
@@ -970,24 +970,53 @@ export default function CreateMenuView() {
                       </Box>
                     ))}
                     {menuDetails.images.length < 5 && (
-                      <Pressable onPress={pickImage}>
+                      <Pressable 
+                        onPress={pickImage}
+                        disabled={isGeneratingImages}  // Disable during generation
+                      >
                         <Box
                           w="32"
                           h="32"
-                          bg="gray.100"
+                          bg="white"
                           rounded="lg"
                           justifyContent="center"
                           alignItems="center"
                           borderWidth={1}
-                          borderStyle="dashed"
-                          borderColor="gray.300"
+                          borderStyle={isGeneratingImages ? "solid" : "dashed"}
+                          borderColor={isGeneratingImages ? "primary.500" : "gray.300"}
+                          overflow="hidden"  // Added to contain the GIF
                         >
-                          <Icon
-                            as={MaterialIcons}
-                            name="add"
-                            size={8}
-                            color="gray.400"
-                          />
+                          {isGeneratingImages ? (
+                            <VStack space={2} alignItems="center">
+                              <Image
+                                source={require('../../../assets/animations/AI_animation.gif')}
+                                alt="AI Generating"
+                                style={{
+                                  width: 100,  // Adjusted size
+                                  height: 100,
+                                  resizeMode: 'contain'
+                                }}
+                                contentFit="contain"
+                                transition={0}
+                              />
+                              <Text 
+                                fontSize="2xs" 
+                                color="primary.600"
+                                textAlign="center"
+                                position="absolute"
+                                bottom={2}
+                              >
+                                Generating...
+                              </Text>
+                            </VStack>
+                          ) : (
+                            <Icon
+                              as={MaterialIcons}
+                              name="add"
+                              size={8}
+                              color="gray.400"
+                            />
+                          )}
                         </Box>
                       </Pressable>
                     )}
@@ -1052,18 +1081,15 @@ export default function CreateMenuView() {
                   setFormMode('initial');
                 }}
               />
-              <LottieView
-                source={require('../../../assets/animations/ai-loading.json')}
-                autoPlay
-                loop
-                style={{ 
-                  width: 200, 
+              <Image
+                source={require('../../../assets/animations/AI_animation.gif')}
+                style={{
+                  width: 200,
                   height: 200,
-                  backgroundColor: 'transparent'
+                  resizeMode: 'contain'
                 }}
-                renderMode="AUTOMATIC"
-                speed={0.8}
-                
+                contentFit="contain"
+                transition={0}
               />
               <Text 
                 fontSize="lg" 
@@ -1191,61 +1217,6 @@ export default function CreateMenuView() {
           </Modal.Body>
         </Modal.Content>
       </Modal>
-
-      {/* Add AI Animation Modal for image generation */}
-      {isGeneratingImages && (
-        <NativeModal
-          transparent={true}
-          animationType="fade"
-          visible={isGeneratingImages}
-        >
-          <Box 
-            flex={1} 
-            bg="rgba(0,0,0,0.7)" 
-            justifyContent="center" 
-            alignItems="center"
-          >
-            <Box 
-              bg="white" 
-              p={6} 
-              rounded="2xl" 
-              width="80%" 
-              alignItems="center"
-              shadow={5}
-            >
-              <LottieView
-                source={require('../../../assets/animations/ai-loading.json')}
-                autoPlay
-                loop
-                style={{ 
-                  width: 200, 
-                  height: 200,
-                  backgroundColor: 'transparent'
-                }}
-                renderMode="AUTOMATIC"
-                speed={0.8}
-              />
-              <Text 
-                fontSize="lg" 
-                fontWeight="bold" 
-                color="primary.600" 
-                mt={4}
-                textAlign="center"
-              >
-                Generating Images...
-              </Text>
-              <Text 
-                fontSize="sm" 
-                color="gray.500" 
-                mt={2}
-                textAlign="center"
-              >
-                Please wait while we create beautiful images for your menu
-              </Text>
-            </Box>
-          </Box>
-        </NativeModal>
-      )}
     </Box>
   );
 }

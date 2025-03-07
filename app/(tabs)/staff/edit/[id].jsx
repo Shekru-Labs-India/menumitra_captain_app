@@ -27,6 +27,7 @@ import Header from "../../../components/Header";
 import { getBaseUrl } from "../../../../config/api.config";
 import { fetchWithAuth } from "../../../../utils/apiInterceptor";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 
 export default function EditStaffScreen() {
   const router = useRouter();
@@ -366,19 +367,50 @@ export default function EditStaffScreen() {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.5,
+        exif: true,
       });
 
       if (!result.canceled) {
+        // Get file info
+        const { uri } = result.assets[0];
+        const fileInfo = await FileSystem.getInfoAsync(uri);
+        
+        // Check if fileInfo exists and has size
+        if (!fileInfo?.size) {
+          throw new Error("Couldn't get file size");
+        }
+        
+        // Convert bytes to MB
+        const fileSizeInMB = fileInfo.size / (1024 * 1024);
+        
+        // Check if file is larger than 3MB
+        if (fileSizeInMB > 3) {
+          toast.show({
+            description: "Image size must be less than 3MB",
+            status: "error",
+            duration: 3000,
+          });
+          return;
+        }
+
         setFormData(prev => ({
           ...prev,
           photo: result.assets[0].uri
         }));
+
+        // Show success toast
+        toast.show({
+          description: "Image selected successfully",
+          status: "success",
+          duration: 2000,
+        });
       }
     } catch (error) {
       console.error("Image picking error:", error);
       toast.show({
-        description: "Failed to pick image",
+        description: error.message || "Failed to pick image",
         status: "error",
+        duration: 3000,
       });
     }
   };

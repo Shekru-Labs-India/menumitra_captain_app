@@ -1430,14 +1430,18 @@ export default function TableSectionsScreen() {
                 size={QR_STYLES.DEFAULT.size}
                 logo={require('../../../../assets/images/mm-logo.png')}
                 logoSize={QR_STYLES.DEFAULT.logoSize}
-                logoBackgroundColor={QR_STYLES.DEFAULT.logoBackgroundColor}
+                logoBackgroundColor="white"
                 logoMargin={QR_STYLES.DEFAULT.logoMargin}
                 logoBorderRadius={QR_STYLES.DEFAULT.logoBorderRadius}
                 backgroundColor="white"
                 color="black"
-                quietZone={QR_STYLES.DEFAULT.quietZone}
                 enableLinearGradient={false}
                 ecl="H"
+                style={{
+                  backgroundColor: 'white',
+                  padding: 20,
+                  borderRadius: 16,
+                }}
                 getRef={(ref) => { qrRef.current = ref; }}
               />
               <VStack space={2} mt={4} w="100%">
