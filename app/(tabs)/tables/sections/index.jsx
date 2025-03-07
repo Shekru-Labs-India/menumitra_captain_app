@@ -692,84 +692,31 @@ export default function TableSectionsScreen() {
                         justifyContent="space-between"
                         alignItems="center"
                       >
-                        {editingSectionId === section.id && showEditIcons ? (
-                          <Input
-                            w="70%"
-                            value={section.name}
-                            onChangeText={(text) => {
-                              const updatedSections = sections.map((s) =>
-                                s.id === section.id ? { ...s, name: text } : s
-                              );
-                              setSections(updatedSections);
-                            }}
-                            onBlur={() => {
-                              handleEditSectionNameChange(section.name, section);
-                            }}
-                            onSubmitEditing={() => {
-                              handleEditSectionNameChange(section.name, section);
-                            }}
-                            autoFocus
-                            blurOnSubmit={false}
-                            returnKeyType="done"
-                            size="md"
-                            borderColor="primary.500"
-                            _focus={{
-                              borderColor: "primary.600",
-                              backgroundColor: "white",
-                            }}
-                          />
-                        ) : (
-                          <Text fontSize="lg" fontWeight="bold">
-                            {section.name}
-                          </Text>
-                        )}
-                        {showEditIcons && (
-                          <HStack space={2}>
-                            <IconButton
-                              icon={
-                                <MaterialIcons
-                                  name="edit"
-                                  size={18}
-                                  color="gray"
-                                />
-                              }
-                              bg="coolGray.100"
-                              rounded="full"
-                              _pressed={{ bg: "coolGray.200" }}
-                              onPress={() => setEditingSectionId(section.id)}
-                            />
-                            <IconButton
-                              icon={
-                                <MaterialIcons
-                                  name="delete"
-                                  size={18}
-                                  color="gray"
-                                />
-                              }
-                              bg="coolGray.100"
-                              rounded="full"
-                              _pressed={{ bg: "coolGray.200" }}
-                              onPress={() => {
-                                setActiveSection(section);
-                                setShowDeleteModal(true);
-                              }}
-                            />
+                        <Text fontSize="lg" fontWeight="bold">
+                          {section.name}
+                        </Text>
+                        
+                        {/* Replacing edit/delete buttons with legends */}
+                        <HStack space={3} alignItems="center">
+                          <HStack space={1} alignItems="center">
+                            <Box w={3} h={3} bg="gray.400" rounded="full" />
+                            <Text fontSize="xs" color="coolGray.600">
+                              Total: {section.totalTables}
+                            </Text>
                           </HStack>
-                        )}
-                      </HStack>
-
-                      {/* Stats Row */}
-                      <HStack space={20} mt={1}>
-                        <Text fontSize="sm" color="coolGray.500">
-                          Total: {section.totalTables}
-                        </Text>
-                        <Text fontSize="sm" color="red.500">
-                          Occupied: {section.engagedTables}
-                        </Text>
-                        <Text fontSize="sm" color="green.500">
-                          Available:{" "}
-                          {section.totalTables - section.engagedTables}
-                        </Text>
+                          <HStack space={1} alignItems="center">
+                            <Box w={3} h={3} bg="red.400" rounded="full" />
+                            <Text fontSize="xs" color="coolGray.600">
+                              Occupied: {section.engagedTables}
+                            </Text>
+                          </HStack>
+                          <HStack space={1} alignItems="center">
+                            <Box w={3} h={3} bg="green.400" rounded="full" />
+                            <Text fontSize="xs" color="coolGray.600">
+                              Available: {section.totalTables - section.engagedTables}
+                            </Text>
+                          </HStack>
+                        </HStack>
                       </HStack>
                     </VStack>
 
@@ -844,7 +791,7 @@ export default function TableSectionsScreen() {
                                               {showEditIcons && (
                                                 <IconButton
                                                   position="absolute"
-                                                  top={-2}
+                                                  bottom={-2}
                                                   right={-2}
                                                   zIndex={2}
                                                   size="sm"
@@ -861,6 +808,32 @@ export default function TableSectionsScreen() {
                                                     />
                                                   }
                                                   onPress={() => handleQRIconPress(table, section)}
+                                                />
+                                              )}
+                                              
+                                              {/* Show delete icon only for the last table and if it's not occupied */}
+                                              {showEditIcons && 
+                                                table.table_id === getLastTable(section.tables)?.table_id && 
+                                                table.is_occupied === 0 && (
+                                                <IconButton
+                                                  position="absolute"
+                                                  top={-2}
+                                                  right={-2}
+                                                  zIndex={2}
+                                                  size="sm"
+                                                  rounded="full"
+                                                  bg="white"
+                                                  shadow={2}
+                                                  _pressed={{ bg: "gray.100" }}
+                                                  _hover={{ bg: "gray.50" }}
+                                                  icon={
+                                                    <MaterialIcons
+                                                      name="delete"
+                                                      size={16}
+                                                      color="red.500"
+                                                    />
+                                                  }
+                                                  onPress={() => handleDeleteTable(section.id, table.table_id)}
                                                 />
                                               )}
 
@@ -1220,48 +1193,7 @@ export default function TableSectionsScreen() {
     );
   };
 
-  const handleEditSection = async () => {
-    if (!editSection?.name?.trim()) {
-      toast.show({
-        description: "Section name is required",
-        status: "warning",
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const data = await fetchWithAuth(`${getBaseUrl()}/section_update`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          outlet_id: outletId.toString(),
-          section_id: editSection.id.toString(),
-          section_name: editSection.name.trim(),
-        }),
-      });
-
-      if (data.st === 1) {
-        toast.show({
-          description: "Section updated successfully",
-          status: "success",
-        });
-        setShowEditModal(false);
-        setEditSection(null);
-        await fetchSections(outletId);
-      } else {
-        throw new Error(data.msg || "Failed to update section");
-      }
-    } catch (error) {
-      console.error("Edit Section Error:", error);
-      toast.show({
-        description: error.message || "Failed to update section",
-        status: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  
 
   const handleDeleteSection = async () => {
     try {
@@ -1312,10 +1244,10 @@ export default function TableSectionsScreen() {
       console.log("Create Table Response:", data);
 
       if (data.st === 1) {
-        toast.show({
+      toast.show({
           description: "Table created successfully",
-          status: "success",
-        });
+        status: "success",
+      });
         await fetchSections(outletId);
         setShowCreateTableModal(false);
       } else {
@@ -1502,7 +1434,7 @@ export default function TableSectionsScreen() {
     const qrValue = qrData?.qr_code_url || "";
     console.log("QR Value:", qrValue);
 
-    return (
+  return (
       <Modal 
         isOpen={showQRModal} 
         onClose={() => {
@@ -1538,8 +1470,8 @@ export default function TableSectionsScreen() {
               </Center>
             ) : qrValue ? (
               <Box 
-                alignItems="center" 
-                bg="white" 
+                alignItems="center"
+                bg="white"
                 p={4}
                 borderRadius="2xl"
                 borderWidth={1}
@@ -1559,18 +1491,18 @@ export default function TableSectionsScreen() {
                   enableLinearGradient={false}
                   ecl="H"
                   quietZone={16}
-                  dotScale={1}
-                  dotsOptions={{
-                    type: 'rounded',
-                    color: '#086bf3'
-                  }}
-                  cornersSquareOptions={{
-                    type: 'extra-rounded',
-                    color: '#f48347'
-                  }}
-                  cornersDotOptions={{
-                    type: 'dot',
-                    color: '#f48347'
+                  qrStyle={{
+                    dots: {
+                      style: 'dots'
+                    },
+                    cornersDots: {
+                      type: 'dot',
+                      color: '#f48347'
+                    },
+                    cornersSquare: {
+                      type: 'extra-rounded',
+                      color: '#f48347'
+                    }
                   }}
                   style={{
                     backgroundColor: 'white',
@@ -1706,7 +1638,7 @@ export default function TableSectionsScreen() {
         {loading ? (
           <Box flex={1} justifyContent="center" alignItems="center">
             <Spinner size="lg" />
-          </Box>
+                    </Box>
         ) : (
           <>
             {viewType === "grid"
@@ -1727,7 +1659,7 @@ export default function TableSectionsScreen() {
             />
           </>
         )}
-      </Box>
+                    </Box>
 
       {/* Add Section Modal */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)}>
@@ -1742,7 +1674,7 @@ export default function TableSectionsScreen() {
               Add New Section
             </Modal.Header>
             <Modal.CloseButton position="absolute" right={2} />
-          </HStack>
+                  </HStack>
           <Modal.Body>
             <FormControl isRequired>
               <FormControl.Label>
@@ -1777,7 +1709,7 @@ export default function TableSectionsScreen() {
               >
                 Add Section
               </Button>
-            </HStack>
+              </HStack>
           </Modal.Footer>
         </Modal.Content>
       </Modal>

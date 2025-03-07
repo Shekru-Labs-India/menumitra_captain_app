@@ -86,7 +86,8 @@
           ],
           "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to connect to bluetooth devices"
         }
-      ]
+      ],
+      "expo-build-properties"
     ],
     "extra": {
       "router": {
@@ -107,4 +108,3 @@
     "newArchEnabled": true
   }
 }
- 
