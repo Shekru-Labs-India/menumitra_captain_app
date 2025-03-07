@@ -39,6 +39,7 @@ import QRCode from 'react-native-qrcode-svg';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { QR_STYLES } from "../../../../app/styles/qrcode.styles";
+import * as MediaLibrary from 'expo-media-library';
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -132,6 +133,8 @@ export default function TableSectionsScreen() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedTableForQR, setSelectedTableForQR] = useState(null);
   const qrRef = useRef(null);
+  const [isLoadingQr, setIsLoadingQr] = useState(false);
+  const [qrData, setQrData] = useState(null);
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -1377,17 +1380,21 @@ export default function TableSectionsScreen() {
     if (!qrRef.current) return;
 
     try {
-      // Get the QR code as SVG string
-      const svgString = await qrRef.current.toDataURL();
-
+      // Get the QR code as PNG data URL
+      const pngData = await qrRef.current.toDataURL();
+      
       // Convert base64 to file
-      const filePath = `${FileSystem.cacheDirectory}table-qr.png`;
-      await FileSystem.writeAsStringAsync(filePath, svgString, {
+      const filePath = `${FileSystem.cacheDirectory}table-${selectedTableForQR?.table_number}-qr.png`;
+      await FileSystem.writeAsStringAsync(filePath, pngData, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
       // Share the file
-      await Sharing.shareAsync(filePath);
+      await Sharing.shareAsync(filePath, {
+        mimeType: 'image/png',
+        dialogTitle: `Share Table ${selectedTableForQR?.table_number} QR Code`,
+      });
+
     } catch (error) {
       console.error('Error sharing QR code:', error);
       toast.show({
@@ -1397,14 +1404,61 @@ export default function TableSectionsScreen() {
     }
   };
 
-  // Update the QR Code Modal component
+  // Add this function before the QRCodeModal component
+  const saveToGallery = async (qrRef) => {
+    try {
+      // Request permission to access media library
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        toast.show({
+          description: "Need permission to save QR code",
+          status: "error"
+        });
+        return;
+      }
+
+      // Get the QR code as PNG data URL
+      const pngData = await qrRef.current.toDataURL();
+      
+      // Convert base64 to file
+      const filePath = `${FileSystem.cacheDirectory}table-qr.png`;
+      await FileSystem.writeAsStringAsync(filePath, pngData, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Save to gallery
+      const asset = await MediaLibrary.createAssetAsync(filePath);
+      await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
+
+      toast.show({
+        description: "QR code saved to gallery",
+        status: "success"
+      });
+    } catch (error) {
+      console.error('Error saving QR code:', error);
+      toast.show({
+        description: "Failed to save QR code",
+        status: "error"
+      });
+    }
+  };
+
+  // Update the QRCodeModal component
   const QRCodeModal = () => {
     if (!selectedTableForQR) return null;
-    
-    const qrValue = `https://menumitra.com/order?o=${outletId}&s=${selectedTableForQR.section_id}&t=${selectedTableForQR.table_id}&n=${selectedTableForQR.table_number}`;
-    
+
+    const qrValue = qrData?.qr_code_url || "";
+    console.log("QR Value:", qrValue);
+
     return (
-      <Modal isOpen={showQRModal} onClose={() => setShowQRModal(false)} size="md">
+      <Modal 
+        isOpen={showQRModal} 
+        onClose={() => {
+          setShowQRModal(false);
+          setQrData(null);
+        }} 
+        size="md"
+      >
         <Modal.Content 
           borderRadius="xl" 
           p={4}
@@ -1414,50 +1468,85 @@ export default function TableSectionsScreen() {
           <Modal.CloseButton />
           <Modal.Header borderBottomWidth={0} alignItems="center">
             <Text fontSize="lg" fontWeight="bold">
-              Table {selectedTableForQR?.table_number} QR Code
+              Table {qrData?.table_number || selectedTableForQR?.table_number} QR Code
             </Text>
           </Modal.Header>
           <Modal.Body alignItems="center">
-            <Box 
-              alignItems="center" 
-              bg="white" 
-              p={4}
-              borderRadius="2xl"
-              shadow={1}
-            >
-              <QRCode
-                value={qrValue}
-                size={QR_STYLES.DEFAULT.size}
-                logo={require('../../../../assets/images/mm-logo.png')}
-                logoSize={QR_STYLES.DEFAULT.logoSize}
-                logoBackgroundColor="white"
-                logoMargin={QR_STYLES.DEFAULT.logoMargin}
-                logoBorderRadius={QR_STYLES.DEFAULT.logoBorderRadius}
-                backgroundColor="white"
-                color="black"
-                enableLinearGradient={false}
-                ecl="H"
-                style={{
-                  backgroundColor: 'white',
-                  padding: 20,
-                  borderRadius: 16,
-                }}
-                getRef={(ref) => { qrRef.current = ref; }}
-              />
-              <VStack space={2} mt={4} w="100%">
-                <Button 
-                  leftIcon={<Icon as={MaterialIcons} name="share" size="sm" />}
-                  onPress={handleShareQRCode}
-                  size="md"
-                  borderRadius="full"
-                  bg="primary.500"
-                  _pressed={{ bg: "primary.600" }}
-                  shadow={1}
-                >
-                  Share QR Code
-                </Button>
-              </VStack>
-            </Box>
+            {isLoadingQr ? (
+              <Center h={280} w={280}>
+                <Spinner size="lg" color="primary.500" />
+              </Center>
+            ) : qrValue ? (
+              <Box 
+                alignItems="center" 
+                bg="white" 
+                p={4}
+                borderRadius="2xl"
+                borderWidth={1}
+                borderColor="gray.300"
+                shadow={1}
+              >
+                <QRCode
+                  value={qrValue}
+                  size={QR_STYLES.DEFAULT.size}
+                  logo={require('../../../../assets/images/mm-logo.png')}
+                  logoSize={QR_STYLES.DEFAULT.logoSize}
+                  logoBackgroundColor="white"
+                  logoMargin={QR_STYLES.DEFAULT.logoMargin}
+                  logoBorderRadius={QR_STYLES.DEFAULT.logoBorderRadius}
+                  backgroundColor={QR_STYLES.DEFAULT.backgroundColor}
+                  color={QR_STYLES.DEFAULT.color}
+                  enableLinearGradient={false}
+                  ecl="H"
+                  quietZone={16}
+                  dots={{
+                    type: QR_STYLES.DEFAULT.dotStyle,
+                    color: QR_STYLES.DEFAULT.color,
+                  }}
+                  cornersDots={{
+                    type: QR_STYLES.DEFAULT.cornersDotStyle,
+                    color: "#f48347",
+                  }}
+                  cornersSquareOptions={{
+                    type: QR_STYLES.DEFAULT.cornersSquareStyle,
+                    color: "#f48347",
+                  }}
+                  style={{
+                    backgroundColor: 'white',
+                    padding: 20,
+                    borderRadius: 16,
+                  }}
+                  getRef={(ref) => { qrRef.current = ref; }}
+                />
+                <VStack space={2} mt={4} w="100%">
+                  <Button 
+                    leftIcon={<Icon as={MaterialIcons} name="save" size="sm" />}
+                    onPress={() => saveToGallery(qrRef)}
+                    size="md"
+                    borderRadius="full"
+                    bg="primary.500"
+                    _pressed={{ bg: "primary.600" }}
+                    shadow={1}
+                  >
+                    Save to Gallery
+                  </Button>
+                  <Button 
+                    leftIcon={<Icon as={MaterialIcons} name="share" size="sm" />}
+                    onPress={handleShareQRCode}
+                    size="md"
+                    borderRadius="full"
+                    variant="outline"
+                    borderColor="primary.500"
+                    _text={{ color: "primary.500" }}
+                    _pressed={{ bg: "primary.50" }}
+                  >
+                    Share QR Code
+                  </Button>
+                </VStack>
+              </Box>
+            ) : (
+              <Text color="red.500">Failed to generate QR code</Text>
+            )}
           </Modal.Body>
         </Modal.Content>
       </Modal>
@@ -1465,12 +1554,55 @@ export default function TableSectionsScreen() {
   };
 
   // Update the table QR icon press handler
-  const handleQRIconPress = (table, section) => {
+  const handleQRIconPress = async (table, section) => {
+    setIsLoadingQr(true);
+    setShowQRModal(true);
     setSelectedTableForQR({
       ...table,
       section_id: section.id
     });
-    setShowQRModal(true);
+
+    try {
+      const data = await fetchWithAuth(`${getBaseUrl()}/send_qr_link`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outlet_id: outletId.toString(),
+          table_id: table.table_id.toString(),
+        }),
+      });
+
+      console.log("QR Response:", data);
+
+      // Check if we have all required fields instead of checking st
+      if (!data.user_app_url || !data.outlet_code || !data.table_number || !data.section_id) {
+        throw new Error("Invalid QR code data received");
+      }
+
+      // Construct the QR code URL using the exact format from the API response
+      const qrUrl = `${data.user_app_url}${data.outlet_code}/${data.table_number}/${data.section_id}`;
+      console.log("Generated QR URL:", qrUrl);
+
+      // Update state with QR data
+      setQrData({
+        ...data,
+        qr_code_url: qrUrl,
+        table_number: data.table_number,
+      });
+
+    } catch (error) {
+      console.error("Error generating QR code:", error);
+      toast.show({
+        description: error.message || "Failed to generate QR code",
+        status: "error",
+        duration: 3000,
+      });
+      setShowQRModal(false);
+    } finally {
+      setIsLoadingQr(false);
+    }
   };
 
   return (

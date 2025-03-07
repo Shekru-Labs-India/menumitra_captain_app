@@ -1,10 +1,14 @@
 export const QR_STYLES = {
   DEFAULT: {
     size: 280,
-    logoSize: 65,
-    logoMargin: 5,
-    logoBorderRadius: 10,
-    quietZone: 20,
+    logoSize: 50,
+    logoMargin: 4,
+    logoBorderRadius: 8,
+    backgroundColor: "#ffffff",
+    color: "#086bf3", // Primary QR color
+    dotStyle: "extra-rounded", // Added for dots style
+    cornersDotStyle: "dot", // Added for corner dots style
+    cornersSquareStyle: "extra-rounded", // Added for corner squares style
   },
   DARK: {
     // Remove DARK theme for now

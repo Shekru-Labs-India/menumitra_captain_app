@@ -803,11 +803,11 @@ export default function CreateMenuView() {
                   flex={1}
                 >
                   <Text 
-                    color="coolGray.600" 
+                    color="gray.500" 
                     fontSize="md"
                     fontWeight="medium"
                   >
-                    Fill Manually
+                  Manually
                   </Text>
                 </Pressable>
 
