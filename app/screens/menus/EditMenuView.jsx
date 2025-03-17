@@ -47,7 +47,6 @@ export default function EditMenuView() {
   const [menuDetails, setMenuDetails] = useState({
     name: "",
     full_price: "",
-    half_price: "",
     food_type: "",
     menu_cat_id: "",
     spicy_index: "",
@@ -69,17 +68,20 @@ export default function EditMenuView() {
   // Add this at the top with other state declarations
   const [errors, setErrors] = useState({});
 
+  // Add this state variable with the other state declarations
+  const [imageSelected, setImageSelected] = useState(false);
+
   // Define fetchInitialData function
   const fetchInitialData = async () => {
     if (!menuId) {
       toast.show({
         description: "Menu ID is missing",
         status: "error",
-        duration: 3000, // Duration in milliseconds
+        duration: 3000,
       });
       setTimeout(() => {
         router.back();
-      }, 3000); // Wait for 3 seconds before navigating back
+      }, 3000);
       return;
     }
 
@@ -107,7 +109,7 @@ export default function EditMenuView() {
           ...menuDetails,
           name: menuData.name || "",
           full_price: menuData.full_price?.toString() || "",
-          half_price: menuData.half_price?.toString() || "",
+          
           food_type: menuData.food_type || "",
           menu_cat_id: menuData.menu_cat_id?.toString() || "",
           category_name: menuData.category_name || "",
@@ -120,6 +122,10 @@ export default function EditMenuView() {
           is_special: Boolean(Number(menuData.is_special)),
           outlet_id: outletId,
         });
+
+        // Log the rating value for debugging
+        console.log("Rating from API:", menuData.rating);
+        console.log("Converted rating:", menuData.rating?.toString());
       } else {
         throw new Error(data.msg || "Failed to fetch menu details");
       }
@@ -264,7 +270,7 @@ export default function EditMenuView() {
       formData.append("user_id", userId);
       formData.append("name", menuDetails.name);
       formData.append("full_price", menuDetails.full_price);
-      formData.append("half_price", menuDetails.half_price || "");
+    
       formData.append("food_type", menuDetails.food_type);
       formData.append("menu_cat_id", menuDetails.menu_cat_id);
       formData.append("spicy_index", menuDetails.spicy_index || "1");
@@ -399,47 +405,50 @@ export default function EditMenuView() {
     }));
   };
 
-  // Add image picker function
+  // Update the pickImage function to properly set imageSelected
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [1, 1],
+        aspect: [4, 3],
         quality: 1,
       });
 
       if (!result.canceled) {
-        // Get file size in MB
+        // Check file size
         const response = await fetch(result.assets[0].uri);
         const blob = await response.blob();
         const fileSizeInMB = blob.size / (1024 * 1024);
 
         if (fileSizeInMB > 3) {
-          toast.show({
-            description: "Image size should not exceed 3MB",
-            status: "error",
-            duration: 3000,
-            placement: "top",
-            isClosable: true,
-          });
+          setErrors((prev) => ({
+            ...prev,
+            image: "Image size should not exceed 3MB",
+          }));
           return;
         }
 
-        setMenuDetails(prev => ({
+        // Add the new image to the images array
+        setMenuDetails((prev) => ({
           ...prev,
-          images: [...prev.images, result.assets[0].uri]
+          images: [...prev.images, result.assets[0].uri],
         }));
+        
+        // Set imageSelected to true
         setImageSelected(true);
+        
+        // Clear any image errors
+        setErrors((prev) => {
+          const { image, ...rest } = prev;
+          return rest;
+        });
       }
     } catch (error) {
       console.error("Error picking image:", error);
       toast.show({
         description: "Failed to pick image",
         status: "error",
-        duration: 3000,
-        placement: "top",
-        isClosable: true,
       });
     }
   };
@@ -496,35 +505,7 @@ export default function EditMenuView() {
     }
   };
 
-  const handleHalfPriceChange = (text) => {
-    let sanitizedText = text.replace(/[^0-9.]/g, "").replace(/^0+/, "");
-    
-    if (text.startsWith("0.")) {
-      sanitizedText = "0" + sanitizedText;
-    }
-
-    const parts = sanitizedText.split(".");
-    const formattedText = parts[0] + (parts[1] ? "." + parts[1] : "");
-
-    setMenuDetails((prev) => ({ ...prev, half_price: formattedText }));
-
-    if (formattedText && menuDetails.full_price) {
-      const halfPrice = parseFloat(formattedText);
-      const fullPrice = parseFloat(menuDetails.full_price);
-      
-      if (halfPrice >= fullPrice) {
-        setErrors((prev) => ({ 
-          ...prev, 
-          half_price: "Half price must be less than full price" 
-        }));
-      } else {
-        setErrors((prev) => {
-          const { half_price, ...rest } = prev;
-          return rest;
-        });
-      }
-    }
-  };
+  
 
   const handleOfferChange = (text) => {
     // Allow 0 at the start and only numbers
@@ -711,24 +692,7 @@ export default function EditMenuView() {
                 <FormControl.ErrorMessage>{errors.full_price}</FormControl.ErrorMessage>
               </FormControl>
 
-              <FormControl>
-                <FormControl.Label>Half Price</FormControl.Label>
-                <Input
-                  value={menuDetails.half_price}
-                  onChangeText={handleHalfPriceChange}
-                  keyboardType="numeric"
-                  placeholder="Enter half price"
-                  borderColor={
-                    menuDetails.half_price && !errors.half_price ? "green.500" : 
-                    errors.half_price ? "red.500" : "coolGray.200"
-                  }
-                  _focus={{
-                    borderColor: menuDetails.half_price && !errors.half_price ? "green.500" : 
-                                errors.half_price ? "red.500" : "blue.500",
-                  }}
-                />
-                <FormControl.ErrorMessage>{errors.half_price}</FormControl.ErrorMessage>
-              </FormControl>
+              
 
               <FormControl isInvalid={"offer" in errors}>
                 <FormControl.Label>Offer (%)</FormControl.Label>
@@ -802,13 +766,11 @@ export default function EditMenuView() {
               </Pressable>
 
               {/* Rating Selector */}
-              <FormControl isRequired isInvalid={"rating" in errors}>
+              <FormControl>
                 <FormControl.Label>Rating</FormControl.Label>
                 <Pressable onPress={() => setRatingModalVisible(true)}>
                   <Input
-                    value={
-                      ratingList.find((item) => item.key === menuDetails.rating)?.name || ""
-                    }
+                    value={ratingList.find((item) => parseFloat(item.key) === parseFloat(menuDetails.rating))?.name || ""}
                     isReadOnly
                     placeholder="Select Rating"
                     rightElement={
@@ -976,7 +938,7 @@ export default function EditMenuView() {
               renderItem={({ item }) => (
                 <Pressable
                   p={3}
-                  bg={menuDetails.rating === item.key ? "primary.100" : "white"}
+                  bg={parseFloat(menuDetails.rating) === parseFloat(item.key) ? "primary.100" : "white"}
                   onPress={() => {
                     setMenuDetails((prev) => ({
                       ...prev,

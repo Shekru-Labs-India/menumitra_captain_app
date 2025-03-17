@@ -118,6 +118,19 @@ export default function EditCategoryView() {
     }
   };
 
+  const removeImage = () => {
+    setCategoryDetails(prev => ({ 
+      ...prev, 
+      image: null,
+      existing_image: null // Also clear existing image to indicate removal
+    }));
+    setImageSelected(false);
+    setErrors(prev => {
+      const { image, ...rest } = prev;
+      return rest;
+    });
+  };
+
   const handleCategoryNameChange = (text) => {
     const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setCategoryDetails((prev) => ({ ...prev, category_name: sanitizedText }));
@@ -167,7 +180,9 @@ export default function EditCategoryView() {
       formData.append("menu_cat_id", params.categoryId);
       formData.append("category_name", categoryDetails.category_name);
 
+      // Handle image cases
       if (categoryDetails.image) {
+        // New image selected
         const imageUri = categoryDetails.image;
         const filename = imageUri.split("/").pop();
         const match = /\.(\w+)$/.exec(filename);
@@ -178,7 +193,11 @@ export default function EditCategoryView() {
           name: filename,
           type,
         });
+      } else if (!categoryDetails.existing_image) {
+        // Image was removed (both image and existing_image are null)
+        formData.append("remove_image", "1");
       }
+      // If neither condition is met, keep existing image
 
       const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_update`, {
         method: "POST",
@@ -191,7 +210,7 @@ export default function EditCategoryView() {
           description: "Category updated successfully",
           status: "success",
           duration: 3000,
-          placement: "top",
+          placement: "bottom",
           isClosable: true,
         });
 
@@ -249,7 +268,7 @@ export default function EditCategoryView() {
               <Pressable onPress={pickImage}>
                 {(imageSelected && categoryDetails.image) ||
                 categoryDetails.existing_image ? (
-                  <Box alignItems="center">
+                  <Box alignItems="center" position="relative">
                     <Image
                       source={{
                         uri: categoryDetails.image || categoryDetails.existing_image,
@@ -258,8 +277,27 @@ export default function EditCategoryView() {
                       size="2xl"
                       rounded="lg"
                     />
+                    <Pressable
+                      position="absolute"
+                      top={2}
+                      right={2}
+                      bg="rgba(0,0,0,0.5)"
+                      rounded="full"
+                      p={1}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        removeImage();
+                      }}
+                    >
+                      <Icon
+                        as={MaterialIcons}
+                        name="close"
+                        size="sm"
+                        color="white"
+                      />
+                    </Pressable>
                     <Text mt={2} color="coolGray.500">
-                      Tap to change image (Max 3MB)
+                      Tap image to change
                     </Text>
                   </Box>
                 ) : (

@@ -1836,7 +1836,7 @@ export default function CreateOrderScreen() {
         ...textToBytes("\x1B\x61\x00"), // Left align
         ...textToBytes(`Bill Number: ${params?.orderId || "New"}\n`),
         ...textToBytes(`Table: ${params?.sectionName || "Dining"}${params?.tableNumber ? ` - ${params.tableNumber}` : ''}\n`),
-        ...textToBytes(`DateTime: ${formattedDate}\n`),
+        ...textToBytes(`DateTime: ${orderDetails?.datetime || formattedDate}\n`),
         ...textToBytes("--------------------------------\n"),
         ...textToBytes("Item           Qty  Rate     Amt\n"),
         ...textToBytes("--------------------------------\n"),

@@ -44,7 +44,6 @@ export default function CreateMenuView() {
   const [menuDetails, setMenuDetails] = useState({
     name: "",
     full_price: "",
-    half_price: "",
     food_type: "",
     menu_cat_id: "",
     spicy_index: "",
@@ -347,7 +346,6 @@ export default function CreateMenuView() {
       formData.append("user_id", userId);
       formData.append("name", menuDetails.name);
       formData.append("full_price", menuDetails.full_price);
-      formData.append("half_price", menuDetails.half_price || "");
       formData.append("food_type", menuDetails.food_type);
       formData.append("menu_cat_id", menuDetails.menu_cat_id);
       formData.append("spicy_index", menuDetails.spicy_index || "1");
@@ -397,7 +395,7 @@ export default function CreateMenuView() {
           description: "Menu created successfully",
           status: "success",
           duration: 3000,
-          placement: "top",
+          placement: "bottom",
           isClosable: true,
         });
         router.push("/screens/menus/MenuListView");
@@ -410,7 +408,7 @@ export default function CreateMenuView() {
         description: error.message || "Failed to create menu",
         status: "error",
         duration: 3000,
-        placement: "top",
+        placement: "bottom",
         isClosable: true,
       });
     } finally {
@@ -458,37 +456,6 @@ export default function CreateMenuView() {
         const { full_price, ...rest } = prev;
         return rest;
       });
-    }
-  };
-
-  const handleHalfPriceChange = (text) => {
-    let sanitizedText = text.replace(/[^0-9.]/g, "").replace(/^0+/, "");
-    
-    if (text.startsWith("0.")) {
-      sanitizedText = "0" + sanitizedText;
-    }
-
-    const parts = sanitizedText.split(".");
-    const formattedText = parts[0] + (parts[1] ? "." + parts[1] : "");
-
-    setMenuDetails((prev) => ({ ...prev, half_price: formattedText }));
-
-    // Validate half price is less than full price if both exist
-    if (formattedText && menuDetails.full_price) {
-      const halfPrice = parseFloat(formattedText);
-      const fullPrice = parseFloat(menuDetails.full_price);
-      
-      if (halfPrice >= fullPrice) {
-        setErrors((prev) => ({ 
-          ...prev, 
-          half_price: "Half price must be less than full price" 
-        }));
-      } else {
-        setErrors((prev) => {
-          const { half_price, ...rest } = prev;
-          return rest;
-        });
-      }
     }
   };
 
@@ -763,36 +730,47 @@ export default function CreateMenuView() {
               <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
             </FormControl>
 
-            <HStack space={4} justifyContent="space-between">
-              <FormControl flex={1} isRequired isInvalid={"full_price" in errors}>
-                <FormControl.Label>Full Price</FormControl.Label>
+            <FormControl flex={1} isRequired isInvalid={"full_price" in errors}>
+              <FormControl.Label>Price</FormControl.Label>
+              <Input
+                value={menuDetails.full_price}
+                onChangeText={handleFullPriceChange}
+                keyboardType="numeric"
+                placeholder="Enter price"
+                borderColor={
+                  menuDetails.full_price && !errors.full_price ? "green.500" : 
+                  errors.full_price ? "red.500" : "coolGray.200"
+                }
+                _focus={{
+                  borderColor: menuDetails.full_price && !errors.full_price ? "green.500" : 
+                              errors.full_price ? "red.500" : "blue.500",
+                }}
+              />
+              <FormControl.ErrorMessage>{errors.full_price}</FormControl.ErrorMessage>
+            </FormControl>
+
+            <FormControl isRequired isInvalid={"menu_cat_id" in errors}>
+              <FormControl.Label>Category</FormControl.Label>
+              <Pressable onPress={() => setModalVisible(true)}>
                 <Input
-                  value={menuDetails.full_price}
-                  onChangeText={handleFullPriceChange}
-                  keyboardType="numeric"
-                  placeholder="Enter full price"
+                  value={categories.find((cat) => cat.menu_cat_id === menuDetails.menu_cat_id)?.category_name || ""}
+                  isReadOnly
+                  placeholder="Select Category"
+                  rightElement={
+                    <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
+                  }
                   borderColor={
-                    menuDetails.full_price && !errors.full_price ? "green.500" : 
-                    errors.full_price ? "red.500" : "coolGray.200"
+                    menuDetails.menu_cat_id && !errors.menu_cat_id ? "green.500" : 
+                    errors.menu_cat_id ? "red.500" : "coolGray.200"
                   }
                   _focus={{
-                    borderColor: menuDetails.full_price && !errors.full_price ? "green.500" : 
-                                errors.full_price ? "red.500" : "blue.500",
+                    borderColor: menuDetails.menu_cat_id && !errors.menu_cat_id ? "green.500" : 
+                                errors.menu_cat_id ? "red.500" : "blue.500",
                   }}
                 />
-                <FormControl.ErrorMessage>{errors.full_price}</FormControl.ErrorMessage>
-              </FormControl>
-
-              <FormControl flex={1}>
-                <FormControl.Label>Half Price</FormControl.Label>
-                <Input
-                  value={menuDetails.half_price}
-                  onChangeText={handleHalfPriceChange}
-                  keyboardType="numeric"
-                  placeholder="Enter half price"
-                />
-              </FormControl>
-            </HStack>
+              </Pressable>
+              <FormControl.ErrorMessage>{errors.menu_cat_id}</FormControl.ErrorMessage>
+            </FormControl>
 
             {formMode === 'initial' ? (
               <HStack space={8} justifyContent="space-between" alignItems="center" mt={2}>
@@ -944,15 +922,30 @@ export default function CreateMenuView() {
                   </FormControl>
 
                   <FormControl flex={1}>
-                    <FormControl.Label>Offer (%)</FormControl.Label>
-                    <Input
-                      value={menuDetails.offer}
-                      onChangeText={handleOfferChange}
-                      keyboardType="numeric"
-                      placeholder="Enter offer percentage"
-                    />
+                    <FormControl.Label>Food Type</FormControl.Label>
+                    <Pressable onPress={() => setFoodTypeModalVisible(true)}>
+                      <Input
+                        value={foodTypes.find((type) => type.id === menuDetails.food_type)?.name || ""}
+                        isReadOnly
+                        placeholder="Select Food Type"
+                        rightElement={
+                          <Icon as={MaterialIcons} name="arrow-drop-down" size={6} mr={2} />
+                        }
+                      />
+                    </Pressable>
                   </FormControl>
                 </HStack>
+
+                <FormControl>
+                  <FormControl.Label>Offer (%)</FormControl.Label>
+                  <Input
+                    value={menuDetails.offer}
+                    onChangeText={handleOfferChange}
+                    keyboardType="numeric"
+                    placeholder="Enter offer percentage (optional)"
+                  />
+                </FormControl>
+
                 <FormControl>
                   <FormControl.Label>
                     Description

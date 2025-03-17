@@ -36,8 +36,8 @@ export default function ProfileScreen() {
   const { logout } = useAuth();
   const [profileImage, setProfileImage] = useState(null); // State to hold the profile image
   const [userData, setUserData] = useState({
-    captainName: "",
-    role: "",
+    captainName: "Cafe HashTag",
+    role: "Cafe Hashtag Owner",
     outletId: "",
     captainId: "",
   });
@@ -72,8 +72,8 @@ export default function ProfileScreen() {
         ]);
 
         setUserData({
-          captainName: captainName || "Captain",
-          role: "Captain", // This is fixed as it's a captain app
+          captainName: captainName || "Cafe HashTag",
+          role: "Cafe Hashtag Owner",
           mobile: mobile || "",
           captainId: captainId || "",
           outletId: outletId || "",
@@ -101,55 +101,66 @@ export default function ProfileScreen() {
   }, []);
 
   const profileMenuItems = [
-    // {
-    //   icon: "person-outline",
-    //   title: "Personal Information",
-    //   subtitle: "Update your personal details",
-    //   route: "/profile/personal-info",
-    // },
-    // {
-    //   icon: "history",
-    //   title: "Order History",
-    //   subtitle: "View your past orders",
-    //   route: "/profile/order-history",
-    // },
-    // {
-    //   icon: "help-outline",
-    //   title: "Help & Support",
-    //   subtitle: "Get help and contact support",
-    //   route: "/profile/support",
-    // },
+    {
+      icon: "restaurant",
+      title: "Restaurant Profile",
+      route: "/profile/restaurant-profile",
+    },
+    {
+      icon: "person-outline",
+      title: "My Profile", 
+      route: "/profile/personal-info",
+    },
+    {
+      icon:"history",
+      title:"Activity Log",
+      route:"/profile/activity-log",
+    },
+    {
+      icon: "lock-outline",
+      title: "Privacy Policy",
+      route: "/profile/privacy-policy",
+    },
+    
   ];
 
   const MenuItem = ({ item }) => (
     <Pressable
-      onPress={() => router.push(item.route)}
-      _pressed={{ bg: "coolGray.100" }}
+      onPress={() => {
+        if (item.route) {
+          router.push(item.route);
+        }
+      }}
+      _pressed={{ opacity: 0.8 }}
+      mb={4}
     >
-      <HStack space={4} py={4} px={6} alignItems="center">
-        <Box p={2} rounded="full" bg="primary.100">
+      <Box 
+        bg="white" 
+        rounded="lg" 
+        shadow={1}
+        px={4}
+        py={4}
+        mx={4}
+      >
+        <HStack space={4} alignItems="center">
           <Icon
             as={MaterialIcons}
             name={item.icon}
             size={6}
-            color="primary.600"
+            color={item.color || "blue.500"}
           />
-        </Box>
-        <VStack flex={1}>
-          <Text fontSize="md" fontWeight="600" color="coolGray.800">
+          <Text fontSize="md" fontWeight="medium" color="coolGray.800">
             {item.title}
           </Text>
-          <Text fontSize="sm" color="coolGray.500">
-            {item.subtitle}
-          </Text>
-        </VStack>
-        <Icon
-          as={MaterialIcons}
-          name="chevron-right"
-          size={6}
-          color="coolGray.400"
-        />
-      </HStack>
+          <Box flex={1} />
+          <Icon
+            as={MaterialIcons}
+            name="chevron-right"
+            size={6}
+            color="coolGray.400"
+          />
+        </HStack>
+      </Box>
     </Pressable>
   );
 
@@ -198,8 +209,8 @@ export default function ProfileScreen() {
                 },
                 body: JSON.stringify({
                   user_id: userData.captainId, // Using captain ID as user ID
-                  role: "captain", // Changed from 'owner' to 'captain'
-                  app: "captain", // Changed from 'owner' to 'captain'
+                  role: "captain",
+                  app: "captain", 
                 }),
               });
 
@@ -233,7 +244,8 @@ export default function ProfileScreen() {
   };
 
   return (
-    <Box flex={1} bg="white" safeArea>
+    <Box flex={1} bg="coolGray.100" safeArea>
+      {/* Restored Header with title and logout button */}
       <HStack
         px={4}
         py={3}
@@ -261,7 +273,7 @@ export default function ProfileScreen() {
           Profile
         </Heading>
         <IconButton
-          icon={<MaterialIcons name="logout" size={24} color="red.500" />}
+          icon={<MaterialIcons name="logout" size={24} color="red" />}
           onPress={handleLogout}
           variant="ghost"
           _pressed={{
@@ -270,47 +282,29 @@ export default function ProfileScreen() {
           borderRadius="full"
         />
       </HStack>
-      {/* Profile Header */}
-      <Box px={6} pt={6} pb={8} bg="primary.500">
-        <HStack space={4} alignItems="center">
-          <VStack flex={1}>
-            <Text color="white" fontSize="2xl" fontWeight="bold">
-              {userData.captainName}
-            </Text>
-            <Text color="white" fontSize="md">
-              {userData.role}
-            </Text>
 
-            {userData.mobile && (
-              <HStack space={2} mt={2} alignItems="center">
-                <Icon as={MaterialIcons} name="phone" size={4} color="white" />
-                <Text color="white" fontSize="sm">
-                  {userData.mobile}
-                </Text>
-              </HStack>
-            )}
-          </VStack>
-        </HStack>
+      {/* Header Card */}
+      <Box bg="white" p={4} rounded="lg" shadow={1} mx={4} mt={4} mb={4}>
+        <VStack>
+          <Text fontSize="xl" fontWeight="bold" color="coolGray.800">
+            {userData.captainName}
+          </Text>
+          <Text fontSize="sm" color="coolGray.500">
+            {userData.role}
+          </Text>
+        </VStack>
       </Box>
-
-      {/* Stats Section */}
 
       {/* Menu Items */}
       <ScrollView showsVerticalScrollIndicator={false}>
         <VStack space={0} py={2}>
           {profileMenuItems.map((item, index) => (
-            <Box key={index}>
-              <MenuItem item={item} />
-              {index < profileMenuItems.length - 1 && <Divider ml={20} />}
-            </Box>
+            <MenuItem key={index} item={item} />
           ))}
-          <Divider mt={2} />
         </VStack>
 
-        {/* Logout Button */}
-
-        {/* Footer Section */}
-        <Box borderTopColor="coolGray.200" p={4} mt={10}>
+        {/* Footer Section - keeping the existing footer */}
+        <Box p={4} mt={4}>
           <VStack space={3} alignItems="center">
             <HStack space={2} alignItems="center">
               <Image

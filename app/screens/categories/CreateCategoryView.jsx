@@ -13,6 +13,7 @@ import {
   useToast,
   Select,
   CheckIcon,
+  HStack,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -71,6 +72,15 @@ export default function CreateCategoryView() {
         image: "Error selecting image. Please try again."
       }));
     }
+  };
+
+  const removeImage = () => {
+    setCategoryDetails(prev => ({ ...prev, image: null }));
+    setImageSelected(false);
+    setErrors(prev => {
+      const { image, ...rest } = prev;
+      return rest;
+    });
   };
 
   const handleCategoryNameChange = (text) => {
@@ -173,15 +183,34 @@ export default function CreateCategoryView() {
             <FormControl isInvalid={"image" in errors}>
               <Pressable onPress={pickImage}>
                 {imageSelected && categoryDetails.image ? (
-                  <Box alignItems="center">
+                  <Box alignItems="center" position="relative">
                     <Image
                       source={{ uri: categoryDetails.image }}
                       alt="Category Image"
                       size="2xl"
                       rounded="lg"
                     />
+                    <Pressable
+                      position="absolute"
+                      top={2}
+                      right={2}
+                      bg="rgba(0,0,0,0.5)"
+                      rounded="full"
+                      p={1}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        removeImage();
+                      }}
+                    >
+                      <Icon
+                        as={MaterialIcons}
+                        name="close"
+                        size="sm"
+                        color="white"
+                      />
+                    </Pressable>
                     <Text mt={2} color="coolGray.500">
-                      Tap to change image
+                      Tap image to change
                     </Text>
                   </Box>
                 ) : (
@@ -243,7 +272,7 @@ export default function CreateCategoryView() {
             bg="primary.600"
             _pressed={{ bg: "primary.700" }}
             mb={6}
-            isDisabled={Object.keys(errors).length > 0 || !categoryDetails.category_name}
+            isDisabled={!categoryDetails.category_name}
           >
             Create Category
           </Button>
