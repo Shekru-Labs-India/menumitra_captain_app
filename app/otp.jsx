@@ -18,10 +18,7 @@ import { router } from "expo-router";
 import { Linking } from "react-native";
 import { useVersion } from "../context/VersionContext";
 import {
-  getDeviceToken,
-  generateUniqueToken,
-  invalidateOldSessions,
-  checkTokenStatus,
+  
   handleTokens,
   formatAlphanumericToken,
   testNotification,
@@ -200,6 +197,7 @@ export default function OtpScreen() {
           ["sessionToken", tokenData.sessionToken.toString()],
           ["expoPushToken", tokenData.pushToken.toString()],
           ["access", data.access || ""],
+          ["app_settings", JSON.stringify(data.settings || {})]
         ];
 
         await AsyncStorage.multiSet(dataToStore);

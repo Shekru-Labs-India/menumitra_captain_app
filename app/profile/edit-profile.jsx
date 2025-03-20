@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -18,65 +18,136 @@ import {
   Pressable,
   Icon,
 } from "native-base";
-import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getBaseUrl } from "../../config/api.config";
+import { fetchWithAuth } from "../../utils/apiInterceptor";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Platform } from "react-native";
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const toast = useToast();
-  
-  // Static user data for now (will be replaced with API data later)
-  const [formData, setFormData] = useState({
-    name: "Cafe HashTag",
-    email: "cafe.hashtag@example.com",
-    phone: "+91 9876543210",
-    address: "123 Cafe Street, Food District, City - 400001",
-  });
-  
-  const [profileImage, setProfileImage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [errors, setErrors] = useState({});
+  
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
 
-  const handleChange = (field, value) => {
-    setFormData({
-      ...formData,
-      [field]: value,
-    });
-  };
+    dob: "",
+  });
 
-  const pickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+  const fetchProfileData = async () => {
+    try {
+      const userId = await AsyncStorage.getItem("user_id");
+      if (!userId) {
+        toast.show({
+          description: "User ID not found. Please login again.",
+          status: "error",
+        });
+        return;
+      }
+
+      const data = await fetchWithAuth(`${getBaseUrl()}/view_profile_detail`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      });
+
+      if (data.st === 1 && data.Data?.user_details) {
+        const userDetails = data.Data.user_details;
+        setFormData({
+          name: userDetails.name || "",
+          email: userDetails.email || "",
+         
+          dob: userDetails.dob || "",
+        });
+      }
+    } catch (error) {
       toast.show({
-        description: "Permission to access photos is required!",
+        description: "Error fetching profile data",
         status: "error",
       });
-      return;
-    }
-    
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    
-    if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
     }
   };
 
-  const handleSubmit = () => {
-    setIsSubmitting(true);
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.name) {
+      newErrors.name = "Name is required";
+    }
+
+    if (!formData.email) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Invalid email format";
+    }
+
     
-    // Mock API call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      toast.show({
-        description: "Profile updated successfully",
-        status: "success",
+
+    if (!formData.dob) {
+      newErrors.dob = "Date of birth is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    try {
+      setIsSubmitting(true);
+      const userId = await AsyncStorage.getItem("user_id");
+
+      const data = await fetchWithAuth(`${getBaseUrl()}/update_profile_detail`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          ...formData
+        }),
       });
-      router.back();
-    }, 1000);
+
+      if (data.st === 1) {
+        toast.show({
+          description: data.msg || "Profile updated successfully",
+          status: "success",
+        });
+        router.back({
+          params: { profileUpdated: true }
+        });
+      } else {
+        toast.show({
+          description: data.msg || "Failed to update profile",
+          status: "error",
+        });
+      }
+    } catch (error) {
+      toast.show({
+        description: "Error updating profile",
+        status: "error",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const month = selectedDate.toLocaleString('default', { month: 'short' });
+      const year = selectedDate.getFullYear();
+      const formattedDate = `${day} ${month} ${year}`;
+      setFormData(prev => ({ ...prev, dob: formattedDate }));
+    }
   };
 
   return (
@@ -111,77 +182,61 @@ export default function EditProfileScreen() {
       </HStack>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Profile Image Picker */}
-        <Center mt={6} mb={4}>
-          <Pressable onPress={pickImage}>
-            <Avatar 
-              size="xl" 
-              source={profileImage ? {uri: profileImage} : {uri: "https://via.placeholder.com/150"}}
-              bg="blue.500"
-            >
-              {formData.name.charAt(0)}
-              <Avatar.Badge bg="blue.500">
-                <Icon
-                  as={MaterialIcons}
-                  name="camera-alt"
-                  color="white"
-                  size="sm"
-                />
-              </Avatar.Badge>
-            </Avatar>
-          </Pressable>
-          <Text mt={2} fontSize="sm" color="blue.500">
-            Tap to change photo
-          </Text>
-        </Center>
-
-        {/* Form */}
-        <Box bg="white" rounded="lg" shadow={1} mx={4} mb={8} p={4}>
+        <Box bg="white" rounded="lg" shadow={1} mx={4} my={4} p={4}>
           <VStack space={4}>
-            <FormControl>
+            <FormControl isRequired isInvalid={"name" in errors}>
               <FormControl.Label>Full Name</FormControl.Label>
               <Input
                 value={formData.name}
-                onChangeText={(value) => handleChange("name", value)}
+                onChangeText={(value) => setFormData(prev => ({ ...prev, name: value }))}
                 placeholder="Enter your full name"
               />
+              <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
             </FormControl>
 
-            <FormControl>
+            <FormControl isRequired isInvalid={"email" in errors}>
               <FormControl.Label>Email</FormControl.Label>
               <Input
                 value={formData.email}
-                onChangeText={(value) => handleChange("email", value)}
+                onChangeText={(value) => setFormData(prev => ({ ...prev, email: value }))}
                 placeholder="Enter your email"
                 keyboardType="email-address"
               />
+              <FormControl.ErrorMessage>{errors.email}</FormControl.ErrorMessage>
             </FormControl>
 
-            <FormControl>
-              <FormControl.Label>Phone Number</FormControl.Label>
-              <Input
-                value={formData.phone}
-                onChangeText={(value) => handleChange("phone", value)}
-                placeholder="Enter your phone number"
-                keyboardType="phone-pad"
-              />
+           
+
+            <FormControl isRequired isInvalid={"dob" in errors}>
+              <FormControl.Label>Date of Birth</FormControl.Label>
+              <Pressable onPress={() => setShowDatePicker(true)}>
+                <Input
+                  value={formData.dob}
+                  placeholder="Select date of birth"
+                  isReadOnly
+                  rightElement={
+                    <IconButton
+                      icon={<MaterialIcons name="calendar-today" size={24} color="gray" />}
+                      onPress={() => setShowDatePicker(true)}
+                    />
+                  }
+                />
+              </Pressable>
+              <FormControl.ErrorMessage>{errors.dob}</FormControl.ErrorMessage>
             </FormControl>
 
-            <FormControl>
-              <FormControl.Label>Address</FormControl.Label>
-              <Input
-                value={formData.address}
-                onChangeText={(value) => handleChange("address", value)}
-                placeholder="Enter your address"
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
+            {showDatePicker && (
+              <DateTimePicker
+                value={formData.dob ? new Date(formData.dob) : new Date()}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={handleDateChange}
+                maximumDate={new Date()}
               />
-            </FormControl>
+            )}
 
             <Button
               mt={4}
-              colorScheme="blue"
               onPress={handleSubmit}
               isLoading={isSubmitting}
               isLoadingText="Updating..."

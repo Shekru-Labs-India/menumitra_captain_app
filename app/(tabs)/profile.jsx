@@ -112,6 +112,11 @@ export default function ProfileScreen() {
       route: "/profile/personal-info",
     },
     {
+      icon: "settings",
+      title: "Settings",
+      route: "/profile/settings",
+    },
+    {
       icon:"history",
       title:"Activity Log",
       route:"/profile/activity-log",
@@ -121,7 +126,7 @@ export default function ProfileScreen() {
       title: "Privacy Policy",
       route: "/profile/privacy-policy",
     },
-    
+   
   ];
 
   const MenuItem = ({ item }) => (

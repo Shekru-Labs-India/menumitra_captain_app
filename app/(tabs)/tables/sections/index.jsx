@@ -28,7 +28,7 @@ import {
   Icon,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Platform, StatusBar, ScrollView, RefreshControl } from "react-native";
+import { Platform, StatusBar, ScrollView, RefreshControl, AppState } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -41,6 +41,8 @@ import * as Sharing from 'expo-sharing';
 import { QR_STYLES } from "../../../../app/styles/qrcode.styles";
 import * as MediaLibrary from 'expo-media-library';
 import * as Print from 'expo-print';
+import ViewShot from "react-native-view-shot";
+import { Alert } from "react-native";
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -137,6 +139,10 @@ export default function TableSectionsScreen() {
   const [isLoadingQr, setIsLoadingQr] = useState(false);
   const [qrData, setQrData] = useState(null);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [qrRefReady, setQrRefReady] = useState(false);
+  const [qrStableTimeout, setQrStableTimeout] = useState(null);
+  const [qrRenderAttempt, setQrRenderAttempt] = useState(0);
+  const appState = useRef(AppState.currentState);
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -202,7 +208,10 @@ export default function TableSectionsScreen() {
     useCallback(() => {
       const refreshSections = async () => {
         // Skip refresh if QR modal is open
-        if (isQRModalOpen) return;
+        if (isQRModalOpen || showQRModal) {
+          console.log("Skipping refresh because QR modal is open");
+          return;
+        }
 
         try {
           const storedOutletId = await AsyncStorage.getItem("outlet_id");
@@ -226,7 +235,7 @@ export default function TableSectionsScreen() {
       };
 
       refreshSections();
-    }, [isQRModalOpen])
+    }, [isQRModalOpen, showQRModal])
   );
 
   const getStoredData = async () => {
@@ -1312,136 +1321,184 @@ export default function TableSectionsScreen() {
     return `https://menumitra.com/order?o=${outletId}&s=${sectionId}&t=${tableId}&n=${tableNumber}`;
   };
 
-  // Replace the handleShareQRCode function
-  const handleShareQRCode = async () => {
-    if (!qrRef.current) return;
-
-    try {
-      // Get the QR code as PNG data URL
-      const pngData = await qrRef.current.toDataURL();
-      
-      // Convert base64 to file
-      const filePath = `${FileSystem.cacheDirectory}table-${selectedTableForQR?.table_number}-qr.png`;
-      await FileSystem.writeAsStringAsync(filePath, pngData, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // Share the file
-      await Sharing.shareAsync(filePath, {
-        mimeType: 'image/png',
-        dialogTitle: `Share Table ${selectedTableForQR?.table_number} QR Code`,
-      });
-
-    } catch (error) {
-      console.error('Error sharing QR code:', error);
-      toast.show({
-        description: "Failed to share QR code",
-        status: "error"
-      });
-    }
-  };
-
-  // Add this function before the QRCodeModal component
-  const saveToGallery = async (qrRef) => {
-    try {
-      // Request permission to access media library
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        toast.show({
-          description: "Need permission to save QR code",
-          status: "error"
-        });
-        return;
-      }
-
-      // Get the QR code as PNG data URL
-      const pngData = await qrRef.current.toDataURL();
-      
-      // Convert base64 to file
-      const filePath = `${FileSystem.cacheDirectory}table-qr.png`;
-      await FileSystem.writeAsStringAsync(filePath, pngData, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // Save to gallery
-      const asset = await MediaLibrary.createAssetAsync(filePath);
-      await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
-
-      toast.show({
-        description: "QR code saved to gallery",
-        status: "success"
-      });
-    } catch (error) {
-      console.error('Error saving QR code:', error);
-      toast.show({
-        description: "Failed to save QR code",
-        status: "error"
-      });
-    }
-  };
-
-  // Add this function to handle PDF generation and download
-  const handlePDFDownload = async (qrRef) => {
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        toast.show({
-          description: "Need permission to save QR code",
-          status: "error"
-        });
-        return;
-      }
-
-      // Get QR code as PNG first
-      const pngData = await qrRef.current.toDataURL();
-      
-      // Create a temporary PNG file
-      const tempPngPath = `${FileSystem.cacheDirectory}temp-qr.png`;
-      await FileSystem.writeAsStringAsync(tempPngPath, pngData, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // Save as PDF using react-native-html-to-pdf
-      const { uri: pdfUri } = await Print.printToFileAsync({
-        html: `
-          <div style="display: flex; justify-content: center; padding: 20px;">
-            <img src="file://${tempPngPath}" width="280" height="280" />
-          </div>
-        `,
-      });
-
-      // Save PDF to gallery
-      const asset = await MediaLibrary.createAssetAsync(pdfUri);
-      await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
-
-      toast.show({
-        description: "QR code saved as PDF",
-        status: "success"
-      });
-    } catch (error) {
-      console.error('Error saving PDF:', error);
-      toast.show({
-        description: "Failed to save PDF",
-        status: "error"
-      });
-    }
-  };
-
-  // Update the QRCodeModal component
+  // Update the QRCodeModal component with ViewShot approach
   const QRCodeModal = () => {
     if (!selectedTableForQR) return null;
 
     const qrValue = qrData?.qr_code_url || "";
-    console.log("QR Value:", qrValue);
+    const viewShotRef = useRef(null);
 
-  return (
+    const closeModal = () => {
+      setShowQRModal(false);
+      setQrData(null);
+      setIsQRModalOpen(false);
+      setQrRefReady(false);
+    };
+
+    // New capture method using ViewShot
+    const captureQR = async () => {
+      if (!viewShotRef.current) {
+        toast.show({
+          description: "QR code not ready. Please try again.",
+          status: "error"
+        });
+        return null;
+      }
+
+      try {
+        // Capture the QR code as an image
+        const uri = await viewShotRef.current.capture();
+        console.log("QR code captured successfully:", uri);
+        return uri;
+      } catch (error) {
+        console.error("Error capturing QR code:", error);
+        toast.show({
+          description: "Failed to capture QR code",
+          status: "error"
+        });
+        return null;
+      }
+    };
+
+    // New save to gallery function using captured image
+    const saveToGallery = async () => {
+      try {
+        setIsLoadingQr(true);
+        
+        // Request permissions
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status !== 'granted') {
+          toast.show({
+            description: "Permission needed to save QR code to gallery",
+            status: "error"
+          });
+          return;
+        }
+        
+        // Capture the QR code
+        const uri = await captureQR();
+        if (!uri) return;
+
+        // Save to media library
+        const asset = await MediaLibrary.createAssetAsync(uri);
+        await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
+        
+        toast.show({
+          description: "QR code saved to gallery successfully",
+          status: "success"
+        });
+      } catch (error) {
+        console.error("Error saving to gallery:", error);
+        toast.show({
+          description: `Failed to save: ${error.message}`,
+          status: "error"
+        });
+      } finally {
+        setIsLoadingQr(false);
+      }
+    };
+
+    // New PDF download function using captured image
+    const handlePDFDownload = async () => {
+      try {
+        setIsLoadingQr(true);
+        
+        // Request permissions
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status !== 'granted') {
+          toast.show({
+            description: "Permission needed to save QR code as PDF",
+            status: "error"
+          });
+          return;
+        }
+        
+        // Capture the QR code
+        const uri = await captureQR();
+        if (!uri) return;
+
+        // Generate PDF content with the captured image
+        const tableInfo = `Table ${selectedTableForQR?.table_number || "Unknown"}`;
+        const htmlContent = `
+          <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+                .container { max-width: 500px; margin: 0 auto; }
+                h1 { color: #333; }
+                .table-info { margin: 20px 0; font-size: 18px; }
+                .qr-container { margin: 30px 0; }
+                .footer { margin-top: 40px; font-size: 12px; color: #666; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h1>MenuMitra QR Code</h1>
+                <div class="table-info">${tableInfo}</div>
+                <div class="qr-container">
+                  <img src="file://${uri}" width="300" height="300" />
+                </div>
+                <div class="footer">
+                  Scan this QR code with your smartphone camera to access the digital menu
+                </div>
+              </div>
+            </body>
+          </html>
+        `;
+
+        // Create and save the PDF
+        const pdfFile = await Print.printToFileAsync({
+          html: htmlContent,
+          base64: false
+        });
+
+        // Save to media library
+        await MediaLibrary.createAssetAsync(pdfFile.uri);
+        
+        toast.show({
+          description: "QR code PDF saved successfully",
+          status: "success"
+        });
+      } catch (error) {
+        console.error("Error creating PDF:", error);
+        toast.show({
+          description: `Failed to create PDF: ${error.message}`,
+          status: "error"
+        });
+      } finally {
+        setIsLoadingQr(false);
+      }
+    };
+
+    // New share function using captured image
+    const handleShareQRCode = async () => {
+      try {
+        setIsLoadingQr(true);
+        
+        // Capture the QR code
+        const uri = await captureQR();
+        if (!uri) return;
+
+        // Share the file
+        await Sharing.shareAsync(uri, {
+          mimeType: 'image/png',
+          dialogTitle: `Share Table ${selectedTableForQR?.table_number || "Unknown"} QR Code`,
+        });
+      } catch (error) {
+        console.error("Error sharing QR code:", error);
+        toast.show({
+          description: `Failed to share: ${error.message}`,
+          status: "error"
+        });
+      } finally {
+        setIsLoadingQr(false);
+      }
+    };
+
+    return (
       <Modal 
         isOpen={showQRModal} 
-        onClose={() => {
-          setShowQRModal(false);
-          setQrData(null);
-          setIsQRModalOpen(false);
-        }} 
+        onClose={closeModal} 
         size="md"
         closeOnOverlayClick={false}
       >
@@ -1451,13 +1508,7 @@ export default function TableSectionsScreen() {
           width="90%"
           maxWidth="350px"
         >
-          <Modal.CloseButton 
-            onPress={() => {
-              setShowQRModal(false);
-              setQrData(null);
-              setIsQRModalOpen(false);
-            }}
-          />
+          <Modal.CloseButton onPress={closeModal} />
           <Modal.Header borderBottomWidth={0} alignItems="center">
             <Text fontSize="lg" fontWeight="bold">
               Table {qrData?.table_number || selectedTableForQR?.table_number} QR Code
@@ -1478,40 +1529,53 @@ export default function TableSectionsScreen() {
                 borderColor="gray.300"
                 shadow={1}
               >
-                <QRCode
-                  value={qrValue}
-                  size={QR_STYLES.DEFAULT.size}
-                  logo={require('../../../../assets/images/mm-logo.png')}
-                  logoSize={QR_STYLES.DEFAULT.logoSize}
-                  logoBackgroundColor="white"
-                  logoMargin={QR_STYLES.DEFAULT.logoMargin}
-                  logoBorderRadius={QR_STYLES.DEFAULT.logoBorderRadius}
-                  backgroundColor={QR_STYLES.DEFAULT.backgroundColor}
-                  color={QR_STYLES.DEFAULT.dotColor}
-                  enableLinearGradient={false}
-                  ecl="H"
-                  quietZone={16}
-                  qrStyle={{
-                    dots: {
-                      style: 'dots'
-                    },
-                    cornersDots: {
-                      type: 'dot',
-                      color: '#f48347'
-                    },
-                    cornersSquare: {
-                      type: 'extra-rounded',
-                      color: '#f48347'
-                    }
+                {/* Use ViewShot to capture the QR code */}
+                <ViewShot
+                  ref={viewShotRef}
+                  options={{
+                    format: "png",
+                    quality: 1,
+                    result: "tmpfile"
                   }}
                   style={{
                     backgroundColor: 'white',
                     padding: 20,
                     borderRadius: 16,
                   }}
-                  getRef={(ref) => { qrRef.current = ref; }}
-                />
-                <VStack space={2} mt={4} w="100%">
+                >
+                  {qrValue.length > 0 && (
+                    <QRCode
+                      value={qrValue}
+                      size={QR_STYLES.DEFAULT.size}
+                      logo={require('../../../../assets/images/mm-logo.png')}
+                      logoSize={QR_STYLES.DEFAULT.logoSize}
+                      logoBackgroundColor="white"
+                      logoMargin={QR_STYLES.DEFAULT.logoMargin}
+                      logoBorderRadius={QR_STYLES.DEFAULT.logoBorderRadius}
+                      backgroundColor={QR_STYLES.DEFAULT.backgroundColor}
+                      color={QR_STYLES.DEFAULT.dotColor}
+                      enableLinearGradient={false}
+                      ecl="H"
+                      quietZone={16}
+                      qrStyle={{
+                        dots: {
+                          style: 'dots'
+                        },
+                        cornersDots: {
+                          type: 'dot',
+                          color: '#f48347'
+                        },
+                        cornersSquare: {
+                          type: 'extra-rounded',
+                          color: '#f48347'
+                        }
+                      }}
+                    />
+                  )}
+                </ViewShot>
+                
+                <HStack space={4} mt={4} w="100%" justifyContent="center">
+                  {/* Download Button with Dropdown */}
                   <Menu
                     trigger={(triggerProps) => {
                       return (
@@ -1519,31 +1583,48 @@ export default function TableSectionsScreen() {
                           {...triggerProps}
                           leftIcon={<Icon as={MaterialIcons} name="download" size="sm" />}
                           size="md"
-                          borderRadius="full"
+                          flex={1}
+                          borderRadius="lg"
                           bg="primary.500"
                           _pressed={{ bg: "primary.600" }}
                           shadow={1}
+                          isDisabled={isLoadingQr}
                         >
-                          Download QR Code
+                          {isLoadingQr ? "Processing..." : "Download"}
                         </Button>
                       );
                     }}
                     placement="top"
                   >
                     <Menu.Item 
-                      onPress={() => saveToGallery(qrRef)}
+                      onPress={saveToGallery}
                       leftIcon={<Icon as={MaterialIcons} name="image" size="sm" color="gray.600" />}
                     >
                       Save as PNG
                     </Menu.Item>
                     <Menu.Item 
-                      onPress={() => handlePDFDownload(qrRef)}
+                      onPress={handlePDFDownload}
                       leftIcon={<Icon as={MaterialIcons} name="picture-as-pdf" size="sm" color="gray.600" />}
                     >
                       Save as PDF
                     </Menu.Item>
                   </Menu>
-                </VStack>
+                  
+                  {/* Share Button */}
+                  <Button
+                    leftIcon={<Icon as={MaterialIcons} name="share" size="sm" />}
+                    size="md"
+                    flex={1}
+                    borderRadius="lg"
+                    bg="blue.500"
+                    _pressed={{ bg: "blue.600" }}
+                    shadow={1}
+                    onPress={handleShareQRCode}
+                    isDisabled={isLoadingQr}
+                  >
+                    {isLoadingQr ? "Processing..." : "Share"}
+                  </Button>
+                </HStack>
               </Box>
             ) : (
               <Text color="red.500">Failed to generate QR code</Text>
@@ -1554,7 +1635,7 @@ export default function TableSectionsScreen() {
     );
   };
 
-  // Update the table QR icon press handler
+  // Update handleQRIconPress for simplicity - no need for complex ref handling
   const handleQRIconPress = async (table, section) => {
     setIsLoadingQr(true);
     setIsQRModalOpen(true);
@@ -1585,6 +1666,7 @@ export default function TableSectionsScreen() {
       const qrUrl = `${data.user_app_url}${data.outlet_code}/${data.table_number}/${data.section_id}`;
       console.log("Generated QR URL:", qrUrl);
 
+      // Set QR data immediately - no need for complex timing as we're using ViewShot
       setQrData({
         ...data,
         qr_code_url: qrUrl,
@@ -1604,6 +1686,32 @@ export default function TableSectionsScreen() {
       setIsLoadingQr(false);
     }
   };
+
+  // Add this useEffect to prevent refreshing when QR modal is open
+  useEffect(() => {
+    return () => {
+      // Clear any timeouts when component unmounts
+      if (qrStableTimeout) {
+        clearTimeout(qrStableTimeout);
+      }
+    };
+  }, []);
+
+  // Add this effect to handle app state changes
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      // If app comes back to foreground and QR modal is open, we might need to re-render
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active' && isQRModalOpen) {
+        // Force QR code re-render by incrementing the counter
+        setQrRenderAttempt(prev => prev + 1);
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isQRModalOpen]);
 
   return (
     <Box flex={1} bg="coolGray.100" safeAreaTop>
@@ -1638,7 +1746,7 @@ export default function TableSectionsScreen() {
         {loading ? (
           <Box flex={1} justifyContent="center" alignItems="center">
             <Spinner size="lg" />
-                    </Box>
+          </Box>
         ) : (
           <>
             {viewType === "grid"
@@ -1659,7 +1767,7 @@ export default function TableSectionsScreen() {
             />
           </>
         )}
-                    </Box>
+      </Box>
 
       {/* Add Section Modal */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)}>
@@ -1674,7 +1782,7 @@ export default function TableSectionsScreen() {
               Add New Section
             </Modal.Header>
             <Modal.CloseButton position="absolute" right={2} />
-                  </HStack>
+          </HStack>
           <Modal.Body>
             <FormControl isRequired>
               <FormControl.Label>
@@ -1709,7 +1817,7 @@ export default function TableSectionsScreen() {
               >
                 Add Section
               </Button>
-              </HStack>
+            </HStack>
           </Modal.Footer>
         </Modal.Content>
       </Modal>

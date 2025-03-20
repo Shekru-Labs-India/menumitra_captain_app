@@ -201,16 +201,7 @@ export default function CreateOrderScreen() {
   // Keep all existing states
   const [loading, setLoading] = useState(false);
   const [outletId, setOutletId] = useState(null);
-  const [orderType, setOrderType] = useState("Dine In");
-  const [orderItems, setOrderItems] = useState([
-    {
-      id: 1,
-      menuItem: "",
-      quantity: 1,
-      specialInstructions: "",
-      portionSize: "Full",
-    },
-  ]);
+  
   const [menuCategories, setMenuCategories] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [showSearch, setShowSearch] = useState(false);
@@ -549,7 +540,7 @@ export default function CreateOrderScreen() {
       setIsLoading(true);
       setLoadingMessage("Saving order...");
 
-      await createOrder("save");
+      await createOrder("create_order");
     } catch (error) {
       console.error("Error saving order:", error);
       toast.show({
@@ -1302,14 +1293,14 @@ export default function CreateOrderScreen() {
   }, [gstPercentage, serviceChargePercentage]);
 
   const handleAddItem = (item, selectedPortion) => {
+    // Always use "Full" regardless of the parameter passed
+    const portionSize = "Full";
+    
     const newItem = {
       ...item,
       quantity: 1,
-      portionSize: selectedPortion,
-      price:
-        selectedPortion === "Half"
-          ? Number(item.half_price)
-          : Number(item.full_price),
+      portionSize: portionSize,
+      price: Number(item.full_price),
       half_price: Number(item.half_price),
       full_price: Number(item.full_price),
       offer: Number(item.offer || 0),
@@ -1320,12 +1311,9 @@ export default function CreateOrderScreen() {
     };
 
     setSelectedItems((prevItems) => {
-      // Check if the same menu item with same portion exists in current items
+      // Check if the same menu item exists in current items (ignoring portion size)
       const existingItemIndex = prevItems.findIndex(
-        (prevItem) =>
-          String(prevItem.menu_id) === String(item.menu_id) &&
-          String(prevItem.portionSize).toLowerCase() ===
-            String(selectedPortion).toLowerCase()
+        (prevItem) => String(prevItem.menu_id) === String(item.menu_id)
       );
 
       // If item exists, update its quantity
@@ -1336,10 +1324,7 @@ export default function CreateOrderScreen() {
         // Check quantity limit
         if (existingItem.quantity < 20) {
           existingItem.quantity += 1;
-          existingItem.total_price =
-            selectedPortion === "Half"
-              ? Number(item.half_price) * existingItem.quantity
-              : Number(item.full_price) * existingItem.quantity;
+          existingItem.total_price = Number(item.full_price) * existingItem.quantity;
         }
 
         return updatedItems;
@@ -1348,10 +1333,7 @@ export default function CreateOrderScreen() {
       // If item doesn't exist, check in orderDetails (for existing orders)
       if (orderDetails?.menu_items) {
         const existingOrderItemIndex = orderDetails.menu_items.findIndex(
-          (orderItem) =>
-            String(orderItem.menu_id) === String(item.menu_id) &&
-            String(orderItem.portionSize).toLowerCase() ===
-              String(selectedPortion).toLowerCase()
+          (orderItem) => String(orderItem.menu_id) === String(item.menu_id)
         );
 
         if (existingOrderItemIndex !== -1) {
@@ -1360,20 +1342,12 @@ export default function CreateOrderScreen() {
             orderDetails.menu_items[existingOrderItemIndex];
           return [
             ...prevItems.filter(
-              (item) =>
-                !(
-                  String(item.menu_id) === String(existingOrderItem.menu_id) &&
-                  String(item.portionSize).toLowerCase() ===
-                    String(selectedPortion).toLowerCase()
-                )
+              (item) => String(item.menu_id) !== String(existingOrderItem.menu_id)
             ),
             {
               ...newItem,
               quantity: (existingOrderItem.quantity || 0) + 1,
-              total_price:
-                selectedPortion === "Half"
-                  ? Number(item.half_price) * (existingOrderItem.quantity + 1)
-                  : Number(item.full_price) * (existingOrderItem.quantity + 1),
+              total_price: Number(item.full_price) * (existingOrderItem.quantity + 1),
               specialInstructions: existingOrderItem.specialInstructions || "",
             },
           ];
@@ -1385,10 +1359,7 @@ export default function CreateOrderScreen() {
         ...prevItems,
         {
           ...newItem,
-          total_price:
-            selectedPortion === "Half"
-              ? Number(item.half_price)
-              : Number(item.full_price),
+          total_price: Number(item.full_price),
         },
       ];
     });
@@ -2152,8 +2123,12 @@ export default function CreateOrderScreen() {
                       borderWidth={1}
                       borderColor="coolGray.200"
                       onPress={() => {
-                        setSelectedItem(item);
-                        setShowActionSheet(true);
+                        // Directly add item without showing ActionSheet
+                        handleAddItem(item, "Full");
+                        // Clear search after adding
+                        setSearchQuery("");
+                        setSearchResults([]);
+                        setIsSearchOpen(false);
                       }}
                     >
                       <HStack space={2} alignItems="center">
@@ -2675,32 +2650,6 @@ export default function CreateOrderScreen() {
           </Box>
         </Box>
       )}
-
-      <Actionsheet
-        isOpen={showActionSheet}
-        onClose={() => setShowActionSheet(false)}
-      >
-        <Actionsheet.Content>
-          <Actionsheet.Item
-            onPress={() => {
-              handleAddItem(selectedItem, "Full");
-              setShowActionSheet(false);
-            }}
-          >
-            Full
-          </Actionsheet.Item>
-          {selectedItem && Number(selectedItem.half_price) > 0 && (
-            <Actionsheet.Item
-              onPress={() => {
-                handleAddItem(selectedItem, "Half");
-                setShowActionSheet(false);
-              }}
-            >
-              Half
-            </Actionsheet.Item>
-          )}
-        </Actionsheet.Content>
-      </Actionsheet>
 
       <DeviceSelectionModal
         visible={isModalVisible}
