@@ -55,34 +55,38 @@ export default function SettingsScreen() {
       const outlet_id = await AsyncStorage.getItem("outlet_id");
       const storedSettings = await AsyncStorage.getItem("app_settings");
 
-      // If we have stored settings, use them as initial state
-      if (storedSettings) {
+      // If this is just a regular component load (not a reset), and we have stored settings
+      // then use the stored settings and don't fetch from server
+      if (!showToast && storedSettings) {
         const parsedSettings = JSON.parse(storedSettings);
         setSettings({
-          theme: parsedSettings.theme || "system",
-          style: parsedSettings.style || "blue",
-          showMenuImages: parsedSettings.POS_show_menu_image || true,
+          theme: parsedSettings.theme ,
+          style: parsedSettings.style ,
+          showMenuImages: parsedSettings.POS_show_menu_image,
           orderTypes: {
-            dine_in: parsedSettings.has_dine_in || false,
-            parcel: parsedSettings.has_parcel || false,
-            counter: parsedSettings.has_counter || false,
-            delivery: parsedSettings.has_delivery || false,
-            driveThrough: parsedSettings.has_drive_through || false,
+            dine_in: parsedSettings.has_dine_in,
+            parcel: parsedSettings.has_parcel,
+            counter: parsedSettings.has_counter,
+            delivery: parsedSettings.has_delivery,
+            driveThrough: parsedSettings.has_drive_through,
           },
           orderManagement: {
-            print_and_save: parsedSettings.print_and_save || true,
-            KOT_and_save: parsedSettings.KOT_and_save || true,
-            settle: parsedSettings.settle || true,
-            reserve_table: parsedSettings.reserve_table || true,
-            cancel: parsedSettings.cancel || true,
+            print_and_save: parsedSettings.print_and_save,
+            KOT_and_save: parsedSettings.KOT_and_save,
+            settle: parsedSettings.settle,
+            reserve_table: parsedSettings.reserve_table,
+            cancel: parsedSettings.cancel,
           }
         });
+        setIsLoading(false);
+        return;
       }
 
+      // Only fetch from server if we're resetting settings or don't have stored settings
       const response = await fetchWithAuth(`${getBaseUrl()}/default_settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outlet_id: outlet_id || "13" })
+        body: JSON.stringify({ outlet_id: outlet_id  })
       });
 
       if (response.st === 1 && response.data) {
@@ -418,7 +422,10 @@ export default function SettingsScreen() {
             options={[
               { label: "Blue", value: "blue" },
               { label: "Green", value: "green" },
-              { label: "Purple", value: "purple" }
+              { label: "Red", value: "red" },
+              { label: "Orange", value: "orange" },
+              { label: "Gold", value: "gold" }
+
             ]}
             onSelect={handleStyleChange}
             isLast

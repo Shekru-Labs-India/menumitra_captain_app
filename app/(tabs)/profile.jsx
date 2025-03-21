@@ -111,11 +111,7 @@ export default function ProfileScreen() {
       title: "My Profile", 
       route: "/profile/personal-info",
     },
-    {
-      icon: "settings",
-      title: "Settings",
-      route: "/profile/settings",
-    },
+    
     {
       icon:"history",
       title:"Activity Log",
