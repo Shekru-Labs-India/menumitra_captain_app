@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   NativeModules,
   NativeEventEmitter,
-  Linking,
+  Linking,  
 } from "react-native";
 import {
   Box,
@@ -35,7 +35,8 @@ import {
   KeyboardAvoidingView,
   Center,
   Actionsheet,
-  Icon
+  Icon,
+  Checkbox
 } from "native-base";
 
 import { MaterialIcons } from "@expo/vector-icons";
@@ -2061,6 +2062,9 @@ export default function CreateOrderScreen() {
   const [connectionStatus, setConnectionStatus] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
 
+  // Add this state variable for controlling the additional options panel
+  const [isAdditionalOptionsOpen, setIsAdditionalOptionsOpen] = useState(false);
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -2260,8 +2264,8 @@ export default function CreateOrderScreen() {
                                   variant="ghost"
                                   _pressed={{ bg: "coolGray.100" }}
                                   onPress={async () => {
-    try {
-      setIsProcessing(true);
+                                    try {
+                                      setIsProcessing(true);
                                       setLoadingMessage(
                                         "Refreshing order details..."
                                       );
@@ -2362,7 +2366,7 @@ export default function CreateOrderScreen() {
                               <HStack space={1} alignItems="center">
                                 <IconButton
                                   borderWidth={1}
-                                  borderColor="gray.400"
+                                  borderColor="gray.300"
                                   icon={
                                     <MaterialIcons
                                       name="remove"
@@ -2372,6 +2376,8 @@ export default function CreateOrderScreen() {
                                   }
                                   size="xs"
                                   variant="outline"
+                                  borderRadius="sm"
+                                  bg="white"
                                   _pressed={{ bg: "transparent" }}
                                   onPress={() => {
                                     if (item.quantity > 1) {
@@ -2397,7 +2403,7 @@ export default function CreateOrderScreen() {
                                 </Text>
                                 <IconButton
                                   borderWidth={1}
-                                  borderColor="gray.400"
+                                  borderColor="gray.300"
                                   icon={
                                     <MaterialIcons
                                       name="add"
@@ -2407,6 +2413,8 @@ export default function CreateOrderScreen() {
                                   }
                                   size="xs"
                                   variant="outline"
+                                  borderRadius="sm"
+                                  bg="white"
                                   _pressed={{ bg: "transparent" }}
                                   onPress={() => {
                                     if (item.quantity < 20) {
@@ -2447,6 +2455,147 @@ export default function CreateOrderScreen() {
               </ScrollView>
             </Box>
 
+            {/* Card 1: Additional options/charges card outside main container */}
+            {selectedItems.length > 0 && (
+              <>
+                <Box
+                  position="absolute"
+                  bottom={205}
+                  left={4}
+                  right={4}
+                  bg="white"
+                  borderWidth={1}
+                  borderColor="gray.200"
+                  borderRadius="xl"
+                  overflow="hidden"
+                  shadow={1}
+                  zIndex={10}
+                >
+                  <Pressable onPress={() => setIsAdditionalOptionsOpen(!isAdditionalOptionsOpen)}>
+                    <Box py={2} borderBottomWidth={0}>
+                      <Icon 
+                        as={MaterialIcons} 
+                        name={isAdditionalOptionsOpen ? "keyboard-arrow-down" : "keyboard-arrow-up"}
+                        size="sm" 
+                        alignSelf="center"
+                        color="gray.500" 
+                      />
+                    </Box>
+                  </Pressable>
+
+                  {isAdditionalOptionsOpen && (
+                    <Box p={4} pt={2}>
+                      <VStack space={4}>
+                        <HStack space={4} justifyContent="space-between">
+                          <VStack flex={1}>
+                            <Text fontSize="sm" color="gray.600" mb={1}>Special Discount</Text>
+                            <Input 
+                              value="0"
+                              textAlign="center"
+                              keyboardType="numeric"
+                              borderRadius="md"
+                              borderColor="gray.300"
+                              h={10}
+                              fontSize="md"
+                            />
+                          </VStack>
+                          
+                          <VStack flex={1}>
+                            <Text fontSize="sm" color="gray.600" mb={1}>Extra Charges</Text>
+                            <Input 
+                              value="0"
+                              textAlign="center"
+                              keyboardType="numeric" 
+                              borderRadius="md"
+                              borderColor="gray.300"
+                              h={10}
+                              fontSize="md"
+                            />
+                          </VStack>
+                          
+                          <VStack flex={1}>
+                            <Text fontSize="sm" color="gray.600" mb={1}>Tip</Text>
+                            <Input 
+                              value="0"
+                              textAlign="center"
+                              keyboardType="numeric"
+                              borderRadius="md"
+                              borderColor="gray.300"
+                              h={10}
+                              fontSize="md"
+                            />
+                          </VStack>
+                        </HStack>
+                        
+                        <HStack justifyContent="space-between" alignItems="center">
+                          <Checkbox colorScheme="blue" value="complementary" borderRadius="sm" size="md">
+                            <Text fontSize="sm">Complementary</Text>
+                          </Checkbox>
+                          
+                          <Checkbox colorScheme="blue" value="paid" borderRadius="sm" size="md">
+                            <Text fontSize="sm">Paid</Text>
+                          </Checkbox>
+                        </HStack>
+                      </VStack>
+                    </Box>
+                  )}
+                </Box>
+
+                {/* Card 2: Price summary row with actual calculated values */}
+                <Box 
+                  position="absolute"
+                  bottom={125}
+                  left={4}
+                  right={4}
+                  bg="white" 
+                  borderWidth={1}
+                  borderColor="gray.200"
+                  borderRadius="xl"
+                  overflow="hidden"
+                  shadow={1}
+                  p={3}
+                  zIndex={10}
+                >
+                  <HStack space={3} justifyContent="space-between" alignItems="center">
+                    <Box flex={1}>
+                      <Text fontSize="lg" textAlign="center" color="black" fontWeight="semibold">
+                        ₹{calculateSubtotal(selectedItems).toFixed(2)}
+                      </Text>
+                      <Text fontSize="xs" textAlign="center" color="gray.500">Total</Text>
+                    </Box>
+                    
+                    <Box flex={1}>
+                      <Text fontSize="lg" textAlign="center" color="red.500" fontWeight="semibold">
+                        -₹{calculateDiscount(selectedItems).toFixed(2)}
+                      </Text>
+                      <Text fontSize="xs" textAlign="center" color="gray.500">Disc</Text>
+                    </Box>
+                    
+                    <Box flex={1}>
+                      <Text fontSize="lg" textAlign="center" color="gray.500" fontWeight="semibold">
+                        +₹{calculateServiceCharges(selectedItems, serviceChargePercentage).toFixed(2)}
+                      </Text>
+                      <Text fontSize="xs" textAlign="center" color="gray.500">Service</Text>
+                    </Box>
+                    
+                    <Box flex={1}>
+                      <Text fontSize="lg" textAlign="center" color="gray.500" fontWeight="semibold">
+                        +₹{calculateGST(selectedItems, gstPercentage).toFixed(2)}
+                      </Text>
+                      <Text fontSize="xs" textAlign="center" color="gray.500">GST</Text>
+                    </Box>
+                    
+                    <Box flex={1}>
+                      <Text fontSize="lg" textAlign="center" color="green.500" fontWeight="semibold">
+                        ₹{calculateTotal(selectedItems, serviceChargePercentage, gstPercentage).toFixed(2)}
+                      </Text>
+                      <Text fontSize="xs" textAlign="center" color="gray.500">Grand</Text>
+                    </Box>
+                  </HStack>
+                </Box>
+              </>
+            )}
+
             {selectedItems.length > 0 && (
               <Box
                 position="absolute"
@@ -2455,7 +2604,7 @@ export default function CreateOrderScreen() {
                 right={0}
                 bg="white"
                 px={4}
-                py={2}
+                py={4}
                 borderTopWidth={1}
                 borderTopColor="coolGray.200"
                 style={{
@@ -2469,192 +2618,82 @@ export default function CreateOrderScreen() {
                   elevation: 5,
                 }}
               >
-                <VStack space={2} mb={3}>
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text fontSize="sm" color="gray.600">
-                      Total Amount
-                    </Text>
-                    <Text fontSize="sm" fontWeight="600">
-                      ₹{calculateSubtotal(selectedItems).toFixed(2)}
-                    </Text>
+                {/* Updated button layout to match screenshot */}
+                <VStack space={3}>
+                  <HStack space={3} justifyContent="space-between">
+                    <Button
+                      flex={1}
+                      bg="#FF9800"
+                      leftIcon={<Icon as={MaterialIcons} name="print" size="sm" color="white" />}
+                      _text={{ color: "white", fontWeight: "semibold" }}
+                      onPress={handlePrint}
+                      borderRadius="md"
+                      py={2.5}
+                      height={12}
+                    >
+                      Print & Save
+                    </Button>
+                    
+                    <Button
+                      flex={1}
+                      bg="black"
+                      _text={{ color: "white", fontWeight: "semibold" }}
+                      onPress={handleKOT}
+                      borderRadius="md"
+                      py={2.5}
+                      height={12}
+                    >
+                      <HStack space={2} alignItems="center">
+                        <Icon as={MaterialIcons} name="receipt" size="sm" color="white" />
+                        <Text color="white" fontWeight="semibold">KOT</Text>
+                      </HStack>
+                    </Button>
+                    
+                    <Button
+                      flex={1}
+                      bg="blue.500"
+                      _text={{ color: "white", fontWeight: "semibold" }}
+                      onPress={handleSettle}
+                      borderRadius="md"
+                      py={2.5}
+                      height={12}
+                    >
+                      <HStack space={2} alignItems="center">
+                        <Icon as={MaterialIcons} name="check-circle" size="sm" color="white" />
+                        <Text color="white" fontWeight="semibold">Settle</Text>
+                      </HStack>
+                    </Button>
                   </HStack>
-
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text fontSize="sm" color="gray.600">
-                      Discount (
-                      {calculateTotalDiscountPercentage(selectedItems)}%)
-                    </Text>
-                    <Text fontSize="sm" fontWeight="600" color="red.500">
-                      -₹{calculateDiscount(selectedItems).toFixed(2)}
-                    </Text>
-                  </HStack>
-
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text fontSize="sm" color="gray.600">
-                      Total After Discount
-                    </Text>
-                    <Text fontSize="sm" fontWeight="600">
-                      ₹
-                      {(
-                        calculateSubtotal(selectedItems) -
-                        calculateDiscount(selectedItems)
-                      ).toFixed(2)}
-                    </Text>
-                  </HStack>
-
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text fontSize="sm" color="gray.600">
-                      Service Charge ({serviceChargePercentage}%)
-                    </Text>
-                    <Text fontSize="sm" fontWeight="600">
-                      ₹
-                      {calculateServiceCharges(
-                        selectedItems,
-                        serviceChargePercentage
-                      ).toFixed(2)}
-                    </Text>
-                  </HStack>
-
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text fontSize="sm" color="gray.600">
-                      GST ({gstPercentage}%)
-                    </Text>
-                    <Text fontSize="sm" fontWeight="600">
-                      ₹{calculateGST(selectedItems, gstPercentage).toFixed(2)}
-                    </Text>
-                  </HStack>
-
-                  <Divider my={1} />
-
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text fontSize="md" fontWeight="600">
-                      Grand Total
-                    </Text>
-                    <Text fontSize="lg" fontWeight="700" color="green.600">
-                      ₹
-                      {calculateTotal(
-                        selectedItems,
-                        serviceChargePercentage,
-                        gstPercentage
-                      ).toFixed(2)}
-                    </Text>
+                  
+                  <HStack space={3} justifyContent="space-between">
+                    <Button
+                      flex={5}
+                      bg="black"
+                      _text={{ color: "white", fontWeight: "semibold" }}
+                      onPress={() => {/* Handle KOT & Save */}}
+                      borderRadius="md"
+                      py={2.5}
+                      height={12}
+                    >
+                      <HStack space={2} alignItems="center">
+                        <Icon as={MaterialIcons} name="receipt" size="sm" color="white" />
+                        <Text color="white" fontWeight="semibold">KOT & Save</Text>
+                      </HStack>
+                    </Button>
+                    
+                    <Button
+                      flex={1}
+                      bg="red.500"
+                      _text={{ color: "white", fontWeight: "semibold" }}
+                      onPress={() => router.replace("/(tabs)/tables/sections")}
+                      borderRadius="md"
+                      py={2.5}
+                      height={12}
+                    >
+                      <Icon as={MaterialIcons} name="close" size="sm" color="white" />
+                    </Button>
                   </HStack>
                 </VStack>
-
-                <HStack
-                  space={2}
-                  justifyContent="space-between"
-                  alignItems="center"
-                  py={2}
-                >
-                  <TouchableOpacity
-                    onPress={handleHold}
-                    disabled={Boolean(
-                      loadingMessage && loadingMessage !== "Saving order..."
-                    )}
-                    style={{
-                      padding: 8,
-                      borderRadius: 8,
-                      backgroundColor: "transparent",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      minWidth: 44,
-                      minHeight: 44,
-                    }}
-                  >
-                    <MaterialIcons
-                      name="save"
-                      size={28}
-                      color={
-                        loadingMessage === "Saving order..." ? "#999" : "#666"
-                      }
-                    />
-                  </TouchableOpacity>
-
-                  <Button
-                    flex={1}
-                    bg="black"
-                    height="44px"
-                    leftIcon={
-                      <MaterialIcons
-                        name="receipt"
-                        size={24}
-                        color="white"
-                        style={{ marginRight: 4 }}
-                      />
-                    }
-                    onPress={handleKOT}
-                    _text={{
-                      color: "white",
-                      fontSize: "md",
-                      fontWeight: "600",
-                    }}
-                    isDisabled={Boolean(
-                      loadingMessage && loadingMessage !== "Processing KOT..."
-                    )}
-                    isLoading={loadingMessage === "Processing KOT..."}
-                  >
-                    {loadingMessage === "Processing KOT..."
-                      ? "Processing..."
-                      : "KOT"}
-                  </Button>
-
-                  <Button
-                    flex={1}
-                    variant="outline"
-                    bg="black"
-                    height="44px"
-                    leftIcon={
-                      <MaterialIcons
-                        name="print"
-                        size={24}
-                        color="white"
-                        style={{ marginRight: 4 }}
-                      />
-                    }
-                    onPress={handlePrint}
-                    _text={{
-                      color: "white",
-                      fontSize: "md",
-                      fontWeight: "600",
-                    }}
-                    isDisabled={Boolean(
-                      loadingMessage && loadingMessage !== "Printing..."
-                    )}
-                    isLoading={loadingMessage === "Printing..."}
-                  >
-                    {loadingMessage === "Printing..." ? "Printing..." : "Print"}
-                  </Button>
-
-                  <Button
-                    flex={1}
-                    bg="blue.500"
-                    height="44px"
-                    leftIcon={
-                      <MaterialIcons
-                        name="payment"
-                        size={24}
-                        color="white"
-                        style={{ marginRight: 4 }}
-                      />
-                    }
-                    onPress={handleSettle}
-                    _pressed={{ bg: "blue.600" }}
-                    _text={{
-                      color: "white",
-                      fontSize: "md",
-                      fontWeight: "600",
-                    }}
-                    isDisabled={Boolean(
-                      loadingMessage && loadingMessage !== "Settling order..."
-                    )}
-                    isLoading={loadingMessage === "Settling order..."}
-                  >
-                    {loadingMessage === "Settling order..."
-                      ? "Settling..."
-                      : "Settle"}
-                  </Button>
-                </HStack>
               </Box>
             )}
           </VStack>
@@ -2662,24 +2701,26 @@ export default function CreateOrderScreen() {
       )}
 
       {isProcessing && (
-        <Box
-          position="absolute"
-          top={0}
-          left={0}
-          right={0}
-          bottom={0}
-          bg="rgba(0,0,0,0.3)"
-          zIndex={999}
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Box bg="white" p={4} rounded="lg" minW="200">
-            <VStack space={3} alignItems="center">
-              <Spinner size="lg" color="blue.500" />
-              <Text fontWeight="medium">{loadingMessage}</Text>
-            </VStack>
+        <>
+          <Box
+            position="absolute"
+            top={0}
+            left={0}
+            right={0}
+            bottom={0}
+            bg="rgba(0,0,0,0.3)"
+            zIndex={999}
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Box bg="white" p={4} rounded="lg" minW="200">
+              <VStack space={3} alignItems="center">
+                <Spinner size="lg" color="blue.500" />
+                <Text fontWeight="medium">{loadingMessage}</Text>
+              </VStack>
+            </Box>
           </Box>
-        </Box>
+        </>
       )}
 
       <DeviceSelectionModal
