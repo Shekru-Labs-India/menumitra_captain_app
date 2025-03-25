@@ -2467,6 +2467,7 @@ export default function CreateOrderScreen() {
                   borderRadius="xl"
                   overflow="hidden"
                   shadow={1}
+                  mb={3}
                   zIndex={10}
                 >
                   <Pressable onPress={() => setIsAdditionalOptionsOpen(!isAdditionalOptionsOpen)}>
@@ -2598,6 +2599,7 @@ export default function CreateOrderScreen() {
                   overflow="hidden"
                   shadow={1}
                   p={3}
+                  mb={3}
                   zIndex={10}
                 >
                   <HStack space={3} justifyContent="space-between" alignItems="center">
