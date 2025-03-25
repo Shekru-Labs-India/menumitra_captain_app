@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   NativeModules,
   NativeEventEmitter,
-  Linking,  
+  Linking,
 } from "react-native";
 import {
   Box,
@@ -306,6 +306,7 @@ export default function CreateOrderScreen() {
   const [paymentMethod, setPaymentMethod] = useState('CARD');
   const [isPaid, setIsPaid] = useState(false);
   const [isComplementary, setIsComplementary] = useState(false);
+  const [isAdditionalOptionsOpen, setIsAdditionalOptionsOpen] = useState(false);
   
   // Add this function to handle customer details changes
   const handleCustomerDetailsChange = (field, value) => {
@@ -415,17 +416,17 @@ export default function CreateOrderScreen() {
               setIsComplementary(true);
             }
           }
-        }
-      } catch (error) {
-        console.error("Error initializing order:", error);
-        toast.show({
-          description: "Error loading order details",
-          status: "error",
-        });
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+        console.error("Error initializing order:", error);
+      toast.show({
+          description: "Error loading order details",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
     initializeOrder();
   }, [params?.orderId, params?.orderNumber]);
@@ -1537,7 +1538,7 @@ export default function CreateOrderScreen() {
       if (params?.orderId) {
         await createOrder("print");
       } else {
-        const response = await createOrder("print", true);
+        const response = await createOrder("print_and_save", true);
         if (!response?.order_id) {
           throw new Error("Failed to create order");
         }
@@ -2030,7 +2031,132 @@ export default function CreateOrderScreen() {
   const [isConnecting, setIsConnecting] = useState(false);
 
   // Add this state variable for controlling the additional options panel
-  const [isAdditionalOptionsOpen, setIsAdditionalOptionsOpen] = useState(false);
+  // const [isAdditionalOptionsOpen, setIsAdditionalOptionsOpen] = useState(false);
+
+  const createOrder = async (orderStatus, returnResponse = false) => {
+    if (selectedItems.length === 0) {
+      toast.show({
+        description: "Please add items to the order",
+        status: "warning",
+        duration: 2000,
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const [storedCaptainId, storedUserId, storedOutletId] = await Promise.all([
+        AsyncStorage.getItem("captain_id"),
+        AsyncStorage.getItem("user_id"),
+        AsyncStorage.getItem("outlet_id"),
+      ]);
+
+      const captain_id = storedCaptainId || params?.captainId;
+      const user_id = storedUserId || params?.userId;
+      const outlet_id = storedOutletId || params?.outletId;
+
+      if (!captain_id || !user_id || !outlet_id) {
+        throw new Error("Missing required information");
+      }
+
+      const orderItems = selectedItems.map((item) => ({
+        menu_id: item.menu_id.toString(),
+        quantity: parseInt(item.quantity) || 1,
+        comment: item.specialInstructions || "",
+        half_or_full: (item.portionSize || "full").toLowerCase(),
+        price: parseFloat(item.price) || 0,
+        total_price: parseFloat(item.total_price) || 0,
+      }));
+
+      // Determine payment status based on checkboxes
+      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
+
+      const orderData = {
+        user_id: user_id.toString(),
+        outlet_id: outlet_id.toString(),
+        order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
+        order_items: orderItems,
+        grand_total: orderItems.reduce(
+          (sum, item) => sum + (item.total_price || 0),
+          0
+        ),
+        action: orderStatus,
+        // Add customer details
+        customer_name: customerDetails.customer_name || "",
+        customer_mobile: customerDetails.customer_mobile || "",
+        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+        customer_address: customerDetails.customer_address || "",
+        customer_landmark: customerDetails.customer_landmark || "",
+        // Add payment information
+        is_paid: paymentStatus,
+        payment_method: isPaid ? paymentMethod : "",
+        // Add additional charges
+        special_discount: specialDiscount.toString(),
+        charges: extraCharges.toString(),
+        tip: tip.toString(),
+      };
+
+      if (!params?.isSpecialOrder) {
+        if (!params.tableNumber || !params.sectionId) {
+          throw new Error("Missing table or section information for dine-in order");
+        }
+        orderData.tables = [params.tableNumber.toString()];
+        orderData.section_id = params.sectionId.toString();
+      }
+
+      const isUpdate = !params?.isSpecialOrder && params?.orderId && params?.isOccupied === "1";
+      const endpoint = isUpdate ? `${getBaseUrl()}/update_order` : `${getBaseUrl()}/create_order`;
+
+      if (isUpdate) {
+        orderData.order_id = params.orderId.toString();
+      }
+
+      const result = await fetchWithAuth(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
+      });
+
+      if (result.st === 1) {
+        if (isUpdate) {
+          await refreshOrderDetails();
+        }
+
+        toast.show({
+          description: isUpdate
+            ? "Order updated successfully"
+            : `Order ${result.order_id || ""} created successfully`,
+          status: "success",
+          duration: 2000,
+        });
+
+        if (returnResponse) {
+          return result;
+        }
+
+        // Always navigate to orders screen instead of tables
+        router.replace({
+          pathname: "/(tabs)/orders",
+          params: { 
+            refresh: Date.now().toString(),
+            status: "pending"  // or whatever status you want to show
+          }
+        });
+      } else {
+        throw new Error(result.msg || `Failed to ${isUpdate ? "update" : "create"} order`);
+      }
+    } catch (error) {
+      console.error(`${orderStatus.toUpperCase()} Error:`, error);
+      toast.show({
+        description: error.message || "Failed to process order",
+        status: "error",
+        duration: 3000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Box flex={1} bg="white" safeArea>
@@ -2262,8 +2388,8 @@ export default function CreateOrderScreen() {
                                   variant="ghost"
                                   _pressed={{ bg: "coolGray.100" }}
                                   onPress={async () => {
-                                    try {
-                                      setIsProcessing(true);
+    try {
+      setIsProcessing(true);
                                       setLoadingMessage(
                                         "Refreshing order details..."
                                       );
@@ -2653,7 +2779,7 @@ export default function CreateOrderScreen() {
                 py={4}
                 borderTopWidth={1}
                 borderTopColor="coolGray.200"
-                style={{
+                    style={{
                   shadowColor: "#000",
                   shadowOffset: {
                     width: 0,
@@ -2679,12 +2805,12 @@ export default function CreateOrderScreen() {
                     >
                       Print & Save
                     </Button>
-                    
-                    <Button
-                      flex={1}
-                      bg="black"
+
+                  <Button
+                    flex={1}
+                    bg="black"
                       _text={{ color: "white", fontWeight: "semibold" }}
-                      onPress={handleKOT}
+                    onPress={handleKOT}
                       borderRadius="md"
                       py={2.5}
                       height={12}
@@ -2693,10 +2819,10 @@ export default function CreateOrderScreen() {
                         <Icon as={MaterialIcons} name="receipt" size="sm" color="white" />
                         <Text color="white" fontWeight="semibold">KOT</Text>
                       </HStack>
-                    </Button>
-                    
-                    <Button
-                      flex={1}
+                  </Button>
+
+                  <Button
+                    flex={1}
                       bg="blue.500"
                       _text={{ color: "white", fontWeight: "semibold" }}
                       onPress={handleSettle}
@@ -2714,7 +2840,7 @@ export default function CreateOrderScreen() {
                   <HStack space={3} justifyContent="space-between">
                     <Button
                       flex={5}
-                      bg="black"
+                    bg="black"
                       _text={{ color: "white", fontWeight: "semibold" }}
                       onPress={() => {/* Handle KOT & Save */}}
                       borderRadius="md"
@@ -2725,10 +2851,10 @@ export default function CreateOrderScreen() {
                         <Icon as={MaterialIcons} name="receipt" size="sm" color="white" />
                         <Text color="white" fontWeight="semibold">KOT & Save</Text>
                       </HStack>
-                    </Button>
-                    
-                    <Button
-                      flex={1}
+                  </Button>
+
+                  <Button
+                    flex={1}
                       bg="red.500"
                       _text={{ color: "white", fontWeight: "semibold" }}
                       onPress={() => router.replace("/(tabs)/tables/sections")}
@@ -2737,8 +2863,8 @@ export default function CreateOrderScreen() {
                       height={12}
                     >
                       <Icon as={MaterialIcons} name="close" size="sm" color="white" />
-                    </Button>
-                  </HStack>
+                  </Button>
+                </HStack>
                 </VStack>
               </Box>
             )}
@@ -2812,24 +2938,24 @@ export default function CreateOrderScreen() {
 
       {isProcessing && (
         <>
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            right={0}
-            bottom={0}
-            bg="rgba(0,0,0,0.3)"
-            zIndex={999}
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Box bg="white" p={4} rounded="lg" minW="200">
-              <VStack space={3} alignItems="center">
-                <Spinner size="lg" color="blue.500" />
-                <Text fontWeight="medium">{loadingMessage}</Text>
-              </VStack>
-            </Box>
+        <Box
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          bg="rgba(0,0,0,0.3)"
+          zIndex={999}
+          justifyContent="center"
+          alignItems="center"
+        >
+          <Box bg="white" p={4} rounded="lg" minW="200">
+            <VStack space={3} alignItems="center">
+              <Spinner size="lg" color="blue.500" />
+              <Text fontWeight="medium">{loadingMessage}</Text>
+            </VStack>
           </Box>
+        </Box>
         </>
       )}
 
