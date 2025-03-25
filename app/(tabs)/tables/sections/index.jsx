@@ -451,8 +451,9 @@ export default function TableSectionsScreen() {
               specialInstructions: item.comment || "",
             }));
 
+            // Navigate to the new menu-selection screen instead
             router.push({
-              pathname: "/screens/orders/create-order",
+              pathname: "/screens/orders/menu-selection",
               params: {
                 ...baseParams,
                 orderId: table.order_id.toString(),
@@ -479,9 +480,9 @@ export default function TableSectionsScreen() {
           });
         }
       } else {
-        // For new orders
+        // For new orders, also navigate to menu-selection
         router.push({
-          pathname: "/screens/orders/create-order",
+          pathname: "/screens/orders/menu-selection",
           params: {
             ...baseParams,
             orderType: "dine-in",
@@ -1039,7 +1040,7 @@ export default function TableSectionsScreen() {
             <Pressable
               onPress={() =>
                 router.replace({
-                  pathname: "/screens/orders/create-order",
+                  pathname: "/screens/orders/menu-selection",
                   params: {
                     isSpecialOrder: "true",
                     orderType: "parcel",
@@ -1073,7 +1074,7 @@ export default function TableSectionsScreen() {
             <Pressable
               onPress={() =>
                 router.replace({
-                  pathname: "/screens/orders/create-order",
+                  pathname: "/screens/orders/menu-selection",
                   params: {
                     isSpecialOrder: "true",
                     orderType: "drive-through",
@@ -1107,7 +1108,7 @@ export default function TableSectionsScreen() {
             <Pressable
               onPress={() =>
                 router.replace({
-                  pathname: "/screens/orders/create-order",
+                  pathname: "/screens/orders/menu-selection",
                   params: {
                     isSpecialOrder: "true",
                     orderType: "counter",
