@@ -79,13 +79,41 @@ export default function MenuSelectionScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [existingOrderDetails, setExistingOrderDetails] = useState(null);
+  const [existingMenuQuantities, setExistingMenuQuantities] = useState({});
 
   // Initialize cart from existing order if available
   useEffect(() => {
     if (orderDetails?.menu_items && orderDetails.menu_items.length > 0) {
-      setCart(orderDetails.menu_items);
+      // Create a map of menu_id to quantity from existing order
+      const quantityMap = {};
+      orderDetails.menu_items.forEach(item => {
+        quantityMap[item.menu_id] = parseInt(item.quantity) || 0;
+      });
+      setExistingMenuQuantities(quantityMap);
+      
+      // Initialize cart with existing menu items
+      const cartItems = orderDetails.menu_items.map(item => ({
+        menu_id: item.menu_id,
+        name: item.menu_name || item.name,
+        price: parseFloat(item.price) || 0,
+        quantity: parseInt(item.quantity) || 1,
+        total_price: parseFloat(item.total_price) || parseFloat(item.price) * (parseInt(item.quantity) || 1),
+        offer: parseFloat(item.offer) || 0,
+        specialInstructions: item.specialInstructions || "",
+        category_name: item.category_name || "",
+        food_type: item.food_type || "",
+        isNewItem: false
+      }));
+      setCart(cartItems);
     }
   }, [orderDetails]);
+
+  // Fetch existing order details if orderId exists
+  useEffect(() => {
+    if (params.orderId) {
+      fetchExistingOrder();
+    }
+  }, [params.orderId]);
 
   // Fetch menu data on component mount
   useEffect(() => {
@@ -153,6 +181,49 @@ export default function MenuSelectionScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  // Function to fetch existing order
+  const fetchExistingOrder = async () => {
+    try {
+      const response = await fetchWithAuth(`${getBaseUrl()}/order_view`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: params.orderId
+        }),
+      });
+
+      if (response.st === 1 && response.lists) {
+        setExistingOrderDetails(response.lists.order_details);
+        
+        // Create a map of menu_id to quantity from existing order
+        const quantityMap = {};
+        response.lists.menu_details.forEach(item => {
+          quantityMap[item.menu_id] = item.quantity;
+        });
+        setExistingMenuQuantities(quantityMap);
+        
+        // Initialize cart with existing menu items
+        const cartItems = response.lists.menu_details.map(item => ({
+          menu_id: item.menu_id,
+          name: item.menu_name,
+          price: parseFloat(item.price) || 0,
+          quantity: parseInt(item.quantity) || 1,
+          total_price: parseFloat(item.price) * (parseInt(item.quantity) || 1),
+          offer: parseFloat(item.offer) || 0,
+          specialInstructions: item.comment || "",
+          isNewItem: false
+        }));
+        setCart(cartItems);
+      }
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+      toast.show({
+        description: "Error loading order details",
+        status: "error"
+      });
     }
   };
 
@@ -343,14 +414,25 @@ export default function MenuSelectionScreen() {
         ]}
         onPress={() => filterByCategory(item.category_name)}
       >
-        <Box alignItems="center">
+        <Box alignItems="center" position="relative">
           <Box w={50} h={50} bg="gray.200" borderRadius={25} mb={1} justifyContent="center" alignItems="center">
             <MaterialIcons name="restaurant" size={24} color="#999" />
           </Box>
           <Text fontSize="sm" fontWeight="bold" textAlign="center">{item.category_name}</Text>
           
           {badgeCount > 0 && (
-            <Box position="absolute" top={0} right={0} bg="red.500" w={5} h={5} borderRadius={10} justifyContent="center" alignItems="center">
+            <Box 
+              position="absolute" 
+              top={-5} 
+              right={-5} 
+              bg="red.500" 
+              w={5} 
+              h={5} 
+              borderRadius={10} 
+              justifyContent="center" 
+              alignItems="center"
+              shadow={2}
+            >
               <Text color="white" fontSize="2xs" fontWeight="bold">{badgeCount}</Text>
             </Box>
           )}
@@ -359,10 +441,11 @@ export default function MenuSelectionScreen() {
     );
   };
 
-  // Render menu item
+  // Render menu item with quantity badge
   const renderMenuItem = ({ item }) => {
     const cartItem = cart.find(cartItem => cartItem.menu_id === item.menu_id);
-    const quantity = cartItem ? cartItem.quantity : 0;
+    const existingQuantity = existingMenuQuantities[item.menu_id] || 0;
+    const quantity = cartItem ? cartItem.quantity : existingQuantity;
     const foodTypeColor = getFoodTypeColor(item.food_type);
 
     return (
@@ -388,7 +471,7 @@ export default function MenuSelectionScreen() {
       >
         <Box position="absolute" bottom={0} left={0} right={0} h={1} bg={foodTypeColor} />
         
-        <Box w="100%" h={120} bg="gray.100" borderRadius={8} mb={1} justifyContent="center" alignItems="center" overflow="hidden">
+        <Box w="100%" h={120} bg="gray.100" borderRadius={8} mb={1} justifyContent="center" alignItems="center" overflow="hidden" position="relative">
           {item.image ? (
             <Image
               source={{ uri: item.image }}
@@ -399,6 +482,23 @@ export default function MenuSelectionScreen() {
             <Center h="100%" w="100%">
               <MaterialIcons name="restaurant" size={40} color="#999" />
             </Center>
+          )}
+          
+          {quantity > 0 && (
+            <Box 
+              position="absolute" 
+              top={2} 
+              right={2} 
+              bg="cyan.500" 
+              w={6} 
+              h={6} 
+              borderRadius={12} 
+              justifyContent="center" 
+              alignItems="center"
+              shadow={2}
+            >
+              <Text color="white" fontSize="xs" fontWeight="bold">{quantity}</Text>
+            </Box>
           )}
         </Box>
         
@@ -413,12 +513,6 @@ export default function MenuSelectionScreen() {
             </Text>
           )}
         </HStack>
-        
-        {quantity > 0 && (
-          <Box position="absolute" top={2} right={2} bg="cyan.500" w={6} h={6} borderRadius={12} justifyContent="center" alignItems="center">
-            <Text color="white" fontSize="xs" fontWeight="bold">{quantity}</Text>
-          </Box>
-        )}
         
         {item.category_name && item.category_name.toLowerCase().trim() !== selectedCategory.toLowerCase().trim() && (
           <Text fontSize="2xs" color="gray.500" fontStyle="italic" mt={1}>
