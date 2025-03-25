@@ -36,7 +36,8 @@ import {
   Center,
   Actionsheet,
   Icon,
-  Checkbox
+  Checkbox,
+  Radio
 } from "native-base";
 
 import { MaterialIcons } from "@expo/vector-icons";
@@ -289,6 +290,31 @@ export default function CreateOrderScreen() {
     return new BleManager();
   });
 
+  // Add these new state variables for customer details and payment options
+  const [customerDetails, setCustomerDetails] = useState({
+    customer_name: "",
+    customer_mobile: "",
+    customer_alternate_mobile: "",
+    customer_address: "",
+    customer_landmark: ""
+  });
+  
+  const [showCustomerDetailsModal, setShowCustomerDetailsModal] = useState(false);
+  const [specialDiscount, setSpecialDiscount] = useState('0');
+  const [extraCharges, setExtraCharges] = useState('0');
+  const [tip, setTip] = useState('0');
+  const [paymentMethod, setPaymentMethod] = useState('CARD');
+  const [isPaid, setIsPaid] = useState(false);
+  const [isComplementary, setIsComplementary] = useState(false);
+  
+  // Add this function to handle customer details changes
+  const handleCustomerDetailsChange = (field, value) => {
+    setCustomerDetails(prevDetails => ({
+      ...prevDetails,
+      [field]: value
+    }));
+  };
+
   // Update the useEffect for session handling
 
   // Add this function to fetch order details
@@ -362,6 +388,32 @@ export default function CreateOrderScreen() {
             setGstPercentage(
               parseFloat(orderDetails.order_details.gst_percent)
             );
+
+            // Set customer details
+            if (orderDetails.order_details.customer_name) {
+              setCustomerDetails({
+                customer_name: orderDetails.order_details.customer_name || "",
+                customer_mobile: orderDetails.order_details.customer_mobile || "",
+                customer_alternate_mobile: orderDetails.order_details.customer_alternate_mobile || "",
+                customer_address: orderDetails.order_details.customer_address || "",
+                customer_landmark: orderDetails.order_details.customer_landmark || ""
+              });
+            }
+
+            // Set additional charges
+            setSpecialDiscount(orderDetails.order_details.special_discount?.toString() || "0");
+            setExtraCharges(orderDetails.order_details.charges?.toString() || "0");
+            setTip(orderDetails.order_details.tip?.toString() || "0");
+
+            // Set payment information
+            if (orderDetails.order_details.is_paid === "paid") {
+              setIsPaid(true);
+              setIsComplementary(false);
+              setPaymentMethod(orderDetails.order_details.payment_method?.toUpperCase() || "CARD");
+            } else if (orderDetails.order_details.is_paid === "complementary") {
+              setIsPaid(false);
+              setIsComplementary(true);
+            }
           }
         }
       } catch (error) {
@@ -377,162 +429,6 @@ export default function CreateOrderScreen() {
 
     initializeOrder();
   }, [params?.orderId, params?.orderNumber]);
-
-  useEffect(() => {
-    const getStoredData = async () => {
-      const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      setOutletId(storedOutletId);
-    };
-    getStoredData();
-  }, []);
-
-  useEffect(() => {
-    if (outletId) {
-      fetchMenuItems();
-    }
-  }, [outletId]);
-
-  const fetchMenuItems = async () => {
-    if (!outletId) return;
-
-    setLoading(true);
-    try {
-      const data = await fetchWithAuth(
-        `${getBaseUrl()}/get_all_menu_list_by_category`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            outlet_id: outletId.toString(),
-          }),
-        }
-      );
-
-      console.log("API Response:", data); // Debug log
-
-      if (data.st === 1 && data.data) {
-        setMenuCategories(data.data.category);
-        setMenuItems(data.data.menus); // Store raw data directly
-      }
-    } catch (error) {
-      console.error("Error fetching menu items:", error);
-      toast.show({
-        description: "Failed to load menu items",
-        status: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createOrder = async (orderStatus, returnResponse = false) => {
-    if (selectedItems.length === 0) {
-      toast.show({
-        description: "Please add items to the order",
-        status: "warning",
-        duration: 2000,
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const [storedCaptainId, storedUserId, storedOutletId] = await Promise.all([
-        AsyncStorage.getItem("captain_id"),
-        AsyncStorage.getItem("user_id"),
-        AsyncStorage.getItem("outlet_id"),
-      ]);
-
-      const captain_id = storedCaptainId || params?.captainId;
-      const user_id = storedUserId || params?.userId;
-      const outlet_id = storedOutletId || params?.outletId;
-
-      if (!captain_id || !user_id || !outlet_id) {
-        throw new Error("Missing required information");
-      }
-
-      const orderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id.toString(),
-        quantity: parseInt(item.quantity) || 1,
-        comment: item.specialInstructions || "",
-        half_or_full: (item.portionSize || "full").toLowerCase(),
-        price: parseFloat(item.price) || 0,
-        total_price: parseFloat(item.total_price) || 0,
-      }));
-
-      const orderData = {
-        user_id: user_id.toString(),
-        outlet_id: outlet_id.toString(),
-        order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
-        order_items: orderItems,
-        grand_total: orderItems.reduce(
-          (sum, item) => sum + (item.total_price || 0),
-          0
-        ),
-        action: orderStatus,
-      };
-
-      if (!params?.isSpecialOrder) {
-        if (!params.tableNumber || !params.sectionId) {
-          throw new Error("Missing table or section information for dine-in order");
-        }
-        orderData.tables = [params.tableNumber.toString()];
-        orderData.section_id = params.sectionId.toString();
-      }
-
-      const isUpdate = !params?.isSpecialOrder && params?.orderId && params?.isOccupied === "1";
-      const endpoint = isUpdate ? `${getBaseUrl()}/update_order` : `${getBaseUrl()}/create_order`;
-
-      if (isUpdate) {
-        orderData.order_id = params.orderId.toString();
-      }
-
-      const result = await fetchWithAuth(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
-      });
-
-      if (result.st === 1) {
-        if (isUpdate) {
-          await refreshOrderDetails();
-        }
-
-        toast.show({
-          description: isUpdate
-            ? "Order updated successfully"
-            : `Order ${result.order_id || ""} created successfully`,
-          status: "success",
-          duration: 2000,
-        });
-
-        if (returnResponse) {
-          return result;
-        }
-
-        // Always navigate to orders screen instead of tables
-        router.replace({
-          pathname: "/(tabs)/orders",
-          params: { 
-            refresh: Date.now().toString(),
-            status: "pending"  // or whatever status you want to show
-          }
-        });
-      } else {
-        throw new Error(result.msg || `Failed to ${isUpdate ? "update" : "create"} order`);
-      }
-    } catch (error) {
-      console.error(`${orderStatus.toUpperCase()} Error:`, error);
-      toast.show({
-        description: error.message || "Failed to process order",
-        status: "error",
-        duration: 3000,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleHold = async () => {
     if (isLoading) return; // Prevent multiple calls
@@ -744,6 +640,9 @@ export default function CreateOrderScreen() {
         gstPercentage
       ).toString();
 
+      // Determine payment status based on complementary and paid checkboxes
+      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
+
       // Base request body for all order types
       const baseRequestBody = {
         user_id: storedUserId.toString(),
@@ -753,6 +652,19 @@ export default function CreateOrderScreen() {
         service_charges_percent: serviceChargePercentage?.toString() || "0",
         gst_percent: gstPercentage?.toString() || "0",
         action: "settle",
+        // Add customer details
+        customer_name: customerDetails.customer_name || "",
+        customer_mobile: customerDetails.customer_mobile || "",
+        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+        customer_address: customerDetails.customer_address || "",
+        customer_landmark: customerDetails.customer_landmark || "",
+        // Add payment information
+        is_paid: paymentStatus,
+        payment_method: isPaid ? paymentMethod : "",
+        // Add additional charges
+        special_discount: specialDiscount.toString(),
+        charges: extraCharges.toString(),
+        tip: tip.toString(),
       };
 
       // For existing orders
@@ -783,6 +695,9 @@ export default function CreateOrderScreen() {
           order_id: params.orderId.toString(),
           order_status: "paid",
           user_id: storedUserId.toString(),
+          // Include payment information in status update
+          is_paid: paymentStatus,
+          payment_method: isPaid ? paymentMethod : "",
         };
 
         const settleResult = await fetchWithAuth(
@@ -1128,6 +1043,32 @@ export default function CreateOrderScreen() {
             parseFloat(orderData.order_details.service_charges_percent)
           );
           setGstPercentage(parseFloat(orderData.order_details.gst_percent));
+          
+          // Set customer details
+          if (orderData.order_details.customer_name) {
+            setCustomerDetails({
+              customer_name: orderData.order_details.customer_name || "",
+              customer_mobile: orderData.order_details.customer_mobile || "",
+              customer_alternate_mobile: orderData.order_details.customer_alternate_mobile || "",
+              customer_address: orderData.order_details.customer_address || "",
+              customer_landmark: orderData.order_details.customer_landmark || ""
+            });
+          }
+
+          // Set additional charges
+          setSpecialDiscount(orderData.order_details.special_discount?.toString() || "0");
+          setExtraCharges(orderData.order_details.charges?.toString() || "0");
+          setTip(orderData.order_details.tip?.toString() || "0");
+
+          // Set payment information
+          if (orderData.order_details.is_paid === "paid") {
+            setIsPaid(true);
+            setIsComplementary(false);
+            setPaymentMethod(orderData.order_details.payment_method?.toUpperCase() || "CARD");
+          } else if (orderData.order_details.is_paid === "complementary") {
+            setIsPaid(false);
+            setIsComplementary(true);
+          }
         }
       }
     } catch (error) {
@@ -1209,6 +1150,32 @@ export default function CreateOrderScreen() {
                 setGstPercentage(
                   parseFloat(orderData.order_details.gst_percent)
                 );
+                
+                // Set customer details
+                if (orderData.order_details.customer_name) {
+                  setCustomerDetails({
+                    customer_name: orderData.order_details.customer_name || "",
+                    customer_mobile: orderData.order_details.customer_mobile || "",
+                    customer_alternate_mobile: orderData.order_details.customer_alternate_mobile || "",
+                    customer_address: orderData.order_details.customer_address || "",
+                    customer_landmark: orderData.order_details.customer_landmark || ""
+                  });
+                }
+
+                // Set additional charges
+                setSpecialDiscount(orderData.order_details.special_discount?.toString() || "0");
+                setExtraCharges(orderData.order_details.charges?.toString() || "0");
+                setTip(orderData.order_details.tip?.toString() || "0");
+
+                // Set payment information
+                if (orderData.order_details.is_paid === "paid") {
+                  setIsPaid(true);
+                  setIsComplementary(false);
+                  setPaymentMethod(orderData.order_details.payment_method?.toUpperCase() || "CARD");
+                } else if (orderData.order_details.is_paid === "complementary") {
+                  setIsPaid(false);
+                  setIsComplementary(true);
+                }
               }
             }
           } catch (error) {
@@ -2087,6 +2054,37 @@ export default function CreateOrderScreen() {
         >
           <VStack flex={1} bg="coolGray.100" px={4}>
             {isOccupied === "1" && orderNumber && <OrderSummary />}
+            
+            {/* Customer Details Section */}
+            <HStack space={2} mt={2} mb={2}>
+              <Input
+                flex={1}
+                placeholder="Customer Name"
+                value={customerDetails.customer_name}
+                onChangeText={(text) => handleCustomerDetailsChange("customer_name", text)}
+                borderColor="gray.300"
+                bg="white"
+                fontSize="md"
+              />
+              <Input
+                flex={1}
+                placeholder="Mobile Number"
+                value={customerDetails.customer_mobile}
+                onChangeText={(text) => handleCustomerDetailsChange("customer_mobile", text)}
+                keyboardType="phone-pad"
+                borderColor="gray.300"
+                bg="white"
+                fontSize="md"
+              />
+              <IconButton
+                icon={<Icon as={MaterialIcons} name="add" size="sm" color="gray.600" />}
+                borderRadius="md"
+                bg="gray.100"
+                borderWidth={1}
+                borderColor="gray.300"
+                onPress={() => setShowCustomerDetailsModal(true)}
+              />
+            </HStack>
 
             <Box mb={2}>
               <Input
@@ -2490,7 +2488,8 @@ export default function CreateOrderScreen() {
                           <VStack flex={1}>
                             <Text fontSize="sm" color="gray.600" mb={1}>Special Discount</Text>
                             <Input 
-                              value="0"
+                              value={specialDiscount}
+                              onChangeText={setSpecialDiscount}
                               textAlign="center"
                               keyboardType="numeric"
                               borderRadius="md"
@@ -2503,7 +2502,8 @@ export default function CreateOrderScreen() {
                           <VStack flex={1}>
                             <Text fontSize="sm" color="gray.600" mb={1}>Extra Charges</Text>
                             <Input 
-                              value="0"
+                              value={extraCharges}
+                              onChangeText={setExtraCharges}
                               textAlign="center"
                               keyboardType="numeric" 
                               borderRadius="md"
@@ -2516,7 +2516,8 @@ export default function CreateOrderScreen() {
                           <VStack flex={1}>
                             <Text fontSize="sm" color="gray.600" mb={1}>Tip</Text>
                             <Input 
-                              value="0"
+                              value={tip}
+                              onChangeText={setTip}
                               textAlign="center"
                               keyboardType="numeric"
                               borderRadius="md"
@@ -2528,11 +2529,54 @@ export default function CreateOrderScreen() {
                         </HStack>
                         
                         <HStack justifyContent="space-between" alignItems="center">
-                          <Checkbox colorScheme="blue" value="complementary" borderRadius="sm" size="md">
-                            <Text fontSize="sm">Complementary</Text>
-                          </Checkbox>
+                          {/* If Paid is NOT checked, show Complementary option */}
+                          {!isPaid && (
+                            <Checkbox 
+                              colorScheme="blue" 
+                              isChecked={isComplementary}
+                              onChange={setIsComplementary}
+                              borderRadius="sm" 
+                              size="md"
+                            >
+                              <Text fontSize="sm">Complementary</Text>
+                            </Checkbox>
+                          )}
                           
-                          <Checkbox colorScheme="blue" value="paid" borderRadius="sm" size="md">
+                          {/* If Paid IS checked, show payment methods */}
+                          {isPaid && (
+                            <HStack space={4} flex={1}>
+                              <Radio.Group 
+                                name="paymentMethod" 
+                                value={paymentMethod} 
+                                onChange={setPaymentMethod}
+                              >
+                                <HStack space={4}>
+                                  <Radio value="CASH" size="sm">
+                                    <Text fontSize="sm">CASH</Text>
+                                  </Radio>
+                                  <Radio value="UPI" size="sm">
+                                    <Text fontSize="sm">UPI</Text>
+                                  </Radio>
+                                  <Radio value="CARD" size="sm">
+                                    <Text fontSize="sm">CARD</Text>
+                                  </Radio>
+                                </HStack>
+                              </Radio.Group>
+                            </HStack>
+                          )}
+                          
+                          <Checkbox 
+                            colorScheme="blue" 
+                            isChecked={isPaid}
+                            onChange={(newValue) => {
+                              setIsPaid(newValue);
+                              if (newValue) {
+                                setIsComplementary(false);
+                              }
+                            }}
+                            borderRadius="sm" 
+                            size="md"
+                          >
                             <Text fontSize="sm">Paid</Text>
                           </Checkbox>
                         </HStack>
@@ -2699,6 +2743,70 @@ export default function CreateOrderScreen() {
           </VStack>
         </KeyboardAvoidingView>
       )}
+
+      {/* Customer Details Modal */}
+      <Modal isOpen={showCustomerDetailsModal} onClose={() => setShowCustomerDetailsModal(false)}>
+        <Modal.Content maxW="90%">
+          <Modal.Header>
+            <HStack justifyContent="space-between" alignItems="center">
+              <Text fontSize="lg" fontWeight="bold">Additional Customer Details</Text>
+              <IconButton 
+                icon={<Icon as={MaterialIcons} name="close" size="sm" color="gray.500" />} 
+                onPress={() => setShowCustomerDetailsModal(false)}
+              />
+            </HStack>
+          </Modal.Header>
+          <Modal.Body>
+            <VStack space={3}>
+              <FormControl>
+                <FormControl.Label>Alternate Mobile</FormControl.Label>
+                <Input
+                  value={customerDetails.customer_alternate_mobile}
+                  onChangeText={(text) => handleCustomerDetailsChange("customer_alternate_mobile", text)}
+                  keyboardType="phone-pad"
+                />
+              </FormControl>
+              
+              <FormControl>
+                <FormControl.Label>Address</FormControl.Label>
+                <Input
+                  value={customerDetails.customer_address}
+                  onChangeText={(text) => handleCustomerDetailsChange("customer_address", text)}
+                  multiline
+                  numberOfLines={3}
+                  h={20}
+                  textAlignVertical="top"
+                />
+              </FormControl>
+              
+              <FormControl>
+                <FormControl.Label>Landmark</FormControl.Label>
+                <Input
+                  value={customerDetails.customer_landmark}
+                  onChangeText={(text) => handleCustomerDetailsChange("customer_landmark", text)}
+                />
+              </FormControl>
+            </VStack>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button.Group space={2}>
+              <Button 
+                variant="ghost" 
+                colorScheme="blueGray" 
+                onPress={() => setShowCustomerDetailsModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                colorScheme="blue" 
+                onPress={() => setShowCustomerDetailsModal(false)}
+              >
+                Save
+              </Button>
+            </Button.Group>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
 
       {isProcessing && (
         <>
