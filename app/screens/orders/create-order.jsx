@@ -1150,6 +1150,37 @@ export default function CreateOrderScreen() {
       setGstPercentage(0);
       setIsLoadingOrder(true);
 
+      // Process menu items passed from menu-selection screen
+      if (params?.orderDetails) {
+        try {
+          const orderDetailsObj = JSON.parse(params.orderDetails);
+          if (orderDetailsObj.menu_items && orderDetailsObj.menu_items.length > 0) {
+            console.log("Found menu items in params:", orderDetailsObj.menu_items.length);
+            
+            // Transform menu items to the expected format
+            const transformedItems = orderDetailsObj.menu_items.map(item => ({
+              menu_id: item.menu_id,
+              menu_name: item.name,
+              price: parseFloat(item.price),
+              quantity: parseInt(item.quantity) || 1,
+              total_price: parseFloat(item.price) * (parseInt(item.quantity) || 1),
+              portionSize: item.portion === 'half' ? 'Half' : 'Full',
+              offer: parseFloat(item.offer) || 0,
+              specialInstructions: item.specialInstructions || "",
+              isNewlyAdded: item.isNewItem,
+              // Include these fields if they exist in the menu item
+              half_price: item.half_price || 0,
+              full_price: item.full_price || item.price,
+            }));
+            
+            setSelectedItems(transformedItems);
+            console.log("Set selected items from menu-selection:", transformedItems.length);
+          }
+        } catch (error) {
+          console.error("Error parsing orderDetails:", error);
+        }
+      }
+
       // Load order details if exists
       const loadExistingOrder = async () => {
         if (params?.isOccupied === "1" && params?.orderNumber) {
@@ -1202,7 +1233,7 @@ export default function CreateOrderScreen() {
         setGstPercentage(0);
         setIsLoadingOrder(false);
       };
-    }, [params?.orderNumber, params?.isOccupied]) // Dependencies
+    }, [params?.orderNumber, params?.isOccupied, params?.orderDetails]) // Dependencies
   );
 
   // Update the useEffect to fetch stored GST and service charges with correct keys

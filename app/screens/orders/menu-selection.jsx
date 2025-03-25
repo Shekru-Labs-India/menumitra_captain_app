@@ -269,6 +269,26 @@ export default function MenuSelectionScreen() {
 
   // Navigate to create order screen with cart items
   const navigateToCreateOrder = () => {
+    // Format cart items with consistent structure to match create-order expectations
+    const formattedCartItems = cart.map(item => ({
+      menu_id: item.menu_id,
+      name: item.name,
+      price: parseFloat(item.price) || 0,
+      quantity: parseInt(item.quantity) || 1,
+      total_price: parseFloat(item.price) * (parseInt(item.quantity) || 1),
+      portion: item.portion || 'full',
+      offer: parseFloat(item.offer) || 0,
+      specialInstructions: item.specialInstructions || "",
+      isNewItem: true,
+      half_price: item.half_price || 0,
+      full_price: item.full_price || item.price,
+      category_name: item.category_name || "",
+      food_type: item.food_type || ""
+    }));
+
+    // Log the data being passed
+    console.log("Navigating to create-order with cart items:", formattedCartItems.length);
+
     router.push({
       pathname: "/screens/orders/create-order",
       params: {
@@ -283,7 +303,7 @@ export default function MenuSelectionScreen() {
         orderType: orderType,
         orderDetails: JSON.stringify({
           ...orderDetails,
-          menu_items: cart
+          menu_items: formattedCartItems
         })
       }
     });
