@@ -401,10 +401,69 @@ export default function MenuSelectionScreen() {
   // Render category item
   const renderCategoryItem = ({ item }) => {
     // Calculate badge count (items in cart from this category)
-    const badgeCount = cart.filter(cartItem => {
-      const menuItem = menuItems.find(menu => menu.menu_id === cartItem.menu_id);
-      return menuItem && menuItem.category_name === item.category_name;
-    }).length;
+    const badgeCount = cart.reduce((total, cartItem) => {
+      // For ALL category, show total quantity of all items
+      if (item.category_name === "ALL") {
+        return total + (parseInt(cartItem.quantity) || 0);
+      }
+      
+      // For specific categories, only count items from that category
+      if (cartItem.category_name.toLowerCase().trim() === item.category_name.toLowerCase().trim()) {
+        return total + (parseInt(cartItem.quantity) || 0);
+      }
+      return total;
+    }, 0);
+
+    // Also check existingMenuQuantities for the category if it's a new session
+    if (!badgeCount && item.category_name !== "ALL") {
+      // Get all menu items for this category
+      const categoryMenuIds = menuItems
+        .filter(menuItem => menuItem.category_name.toLowerCase().trim() === item.category_name.toLowerCase().trim())
+        .map(menuItem => menuItem.menu_id);
+
+      // Sum up quantities from existingMenuQuantities for this category's items
+      const existingCount = Object.entries(existingMenuQuantities)
+        .reduce((total, [menuId, quantity]) => {
+          if (categoryMenuIds.includes(parseInt(menuId))) {
+            return total + (parseInt(quantity) || 0);
+          }
+          return total;
+        }, 0);
+
+      if (existingCount > 0) {
+        return (
+          <Pressable
+            style={[
+              styles.categoryItem,
+              selectedCategory === item.category_name && styles.activeCategoryItem,
+            ]}
+            onPress={() => filterByCategory(item.category_name)}
+          >
+            <Box alignItems="center" position="relative">
+              <Box w={50} h={50} bg="gray.200" borderRadius={25} mb={1} justifyContent="center" alignItems="center">
+                <MaterialIcons name="restaurant" size={24} color="#999" />
+              </Box>
+              <Text fontSize="sm" fontWeight="bold" textAlign="center">{item.category_name}</Text>
+              
+              <Box 
+                position="absolute" 
+                top={-5} 
+                right={-5} 
+                bg="red.500" 
+                w={5} 
+                h={5} 
+                borderRadius={10} 
+                justifyContent="center" 
+                alignItems="center"
+                shadow={2}
+              >
+                <Text color="white" fontSize="2xs" fontWeight="bold">{existingCount}</Text>
+              </Box>
+            </Box>
+          </Pressable>
+        );
+      }
+    }
     
     return (
       <Pressable
@@ -420,7 +479,7 @@ export default function MenuSelectionScreen() {
           </Box>
           <Text fontSize="sm" fontWeight="bold" textAlign="center">{item.category_name}</Text>
           
-          {badgeCount > 0 && (
+          {(badgeCount > 0 || (item.category_name === "ALL" && Object.values(existingMenuQuantities).reduce((a, b) => a + (parseInt(b) || 0), 0) > 0)) && (
             <Box 
               position="absolute" 
               top={-5} 
@@ -433,7 +492,11 @@ export default function MenuSelectionScreen() {
               alignItems="center"
               shadow={2}
             >
-              <Text color="white" fontSize="2xs" fontWeight="bold">{badgeCount}</Text>
+              <Text color="white" fontSize="2xs" fontWeight="bold">
+                {item.category_name === "ALL" 
+                  ? Object.values(existingMenuQuantities).reduce((a, b) => a + (parseInt(b) || 0), 0) + badgeCount
+                  : badgeCount || 0}
+              </Text>
             </Box>
           )}
         </Box>
