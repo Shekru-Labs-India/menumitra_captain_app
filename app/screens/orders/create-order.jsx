@@ -937,42 +937,65 @@ export default function CreateOrderScreen() {
   };
 
   const SelectedItemsList = () => {
+    console.log("Rendering SelectedItemsList with items:", selectedItems.length);
+    console.log("Items with isNewlyAdded flag:", selectedItems.filter(item => item.isNewlyAdded).length);
+    
     return (
-      <VStack space={2}>
-        {selectedItems.map((item, index) => (
-          <Box key={index} borderBottomWidth={1} borderColor="gray.200" pb={2}>
-            <HStack justifyContent="space-between" alignItems="center">
-              <VStack flex={1}>
-                <Text fontWeight="bold">{item.menu_name}</Text>
-                <HStack space={2} alignItems="center">
-                  {item.half_price > 0 && (
-                    <Text fontSize={14}>Half: ₹{item.half_price}</Text>
-                  )}
-                  <Text fontSize={14}>Full: ₹{item.full_price}</Text>
+      <Box bg="white" borderWidth={1} borderColor="gray.200" borderRadius="md" p={3}>
+        <VStack space={2}>
+          <HStack justifyContent="space-between" alignItems="center">
+            <Text fontSize="md" fontWeight="bold">Selected Items</Text>
+            {selectedItems.length > 0 && (
+              <Badge rounded="full" colorScheme="cyan">
+                {selectedItems.length}
+              </Badge>
+            )}
+          </HStack>
+          {selectedItems.map((item, index) => {
+            console.log(`Item ${index} details:`, JSON.stringify({
+              id: item.menu_id,
+              name: item.name, 
+              menu_name: item.menu_name,
+              isNewlyAdded: item.isNewlyAdded,
+              price: item.price,
+              quantity: item.quantity
+            }));
+            return (
+              <Box key={index} borderBottomWidth={1} borderColor="gray.200" pb={2}>
+                <HStack justifyContent="space-between" alignItems="center">
+                  <VStack flex={1}>
+                    <Text fontWeight="bold">{item.menu_name || item.name}</Text>
+                    <HStack space={2} alignItems="center">
+                      {item.half_price > 0 && (
+                        <Text fontSize={14}>Half: ₹{item.half_price}</Text>
+                      )}
+                      <Text fontSize={14}>Full: ₹{item.full_price}</Text>
+                    </HStack>
+                    {item.specialInstructions && (
+                      <Text fontSize="xs" color="gray.500">
+                        Note: {item.specialInstructions}
+                      </Text>
+                    )}
+                  </VStack>
+                  <VStack alignItems="flex-end">
+                    <Text fontWeight="bold">
+                      ₹
+                      {(item.menu_sub_total || item.price * item.quantity).toFixed(
+                        2
+                      )}
+                    </Text>
+                    <Badge
+                      colorScheme={item.portionSize === "Half" ? "orange" : "blue"}
+                    >
+                      {item.portionSize}
+                    </Badge>
+                  </VStack>
                 </HStack>
-                {item.specialInstructions && (
-                  <Text fontSize="xs" color="gray.500">
-                    Note: {item.specialInstructions}
-                  </Text>
-                )}
-              </VStack>
-              <VStack alignItems="flex-end">
-                <Text fontWeight="bold">
-                  ₹
-                  {(item.menu_sub_total || item.price * item.quantity).toFixed(
-                    2
-                  )}
-                </Text>
-                <Badge
-                  colorScheme={item.portionSize === "Half" ? "orange" : "blue"}
-                >
-                  {item.portionSize}
-                </Badge>
-              </VStack>
-            </HStack>
-          </Box>
-        ))}
-      </VStack>
+              </Box>
+            );
+          })}
+        </VStack>
+      </Box>
     );
   };
 
@@ -1084,52 +1107,34 @@ export default function CreateOrderScreen() {
   // Add this to clear states when leaving the screen
   useFocusEffect(
     React.useCallback(() => {
+      console.log("=== useFocusEffect triggered ===");
       // Clear states when entering the screen
-      setSelectedItems([]);
       setSearchQuery("");
       setSearchResults([]);
       setIsSearchOpen(false);
       setServiceChargePercentage(0);
       setGstPercentage(0);
       setIsLoadingOrder(true);
+      
+      // Don't clear selectedItems at the start - we'll handle that based on conditional logic
 
-      // Process menu items passed from menu-selection screen
-      if (params?.orderDetails) {
-        try {
-          const orderDetailsObj = JSON.parse(params.orderDetails);
-          if (orderDetailsObj.menu_items && orderDetailsObj.menu_items.length > 0) {
-            console.log("Found menu items in params:", orderDetailsObj.menu_items.length);
-            
-            // Transform menu items to the expected format
-            const transformedItems = orderDetailsObj.menu_items.map(item => ({
-              menu_id: item.menu_id,
-              menu_name: item.name,
-              price: parseFloat(item.price),
-              quantity: parseInt(item.quantity) || 1,
-              total_price: parseFloat(item.price) * (parseInt(item.quantity) || 1),
-              portionSize: item.portion === 'half' ? 'Half' : 'Full',
-              offer: parseFloat(item.offer) || 0,
-              specialInstructions: item.specialInstructions || "",
-              isNewlyAdded: item.isNewItem,
-              // Include these fields if they exist in the menu item
-              half_price: item.half_price || 0,
-              full_price: item.full_price || item.price,
-            }));
-            
-            setSelectedItems(transformedItems);
-            console.log("Set selected items from menu-selection:", transformedItems.length);
-          }
-        } catch (error) {
-          console.error("Error parsing orderDetails:", error);
-        }
-      }
-
-      // Load order details if exists
-      const loadExistingOrder = async () => {
-        if (params?.isOccupied === "1" && params?.orderNumber) {
+      // First determine if we need to load existing order
+      const hasExistingOrder = params?.isOccupied === "1" && params?.orderNumber;
+      const hasNewItems = params?.orderDetails ? true : false;
+      
+      console.log("Order initialization state:", { hasExistingOrder, hasNewItems });
+      
+      // Using async IIFE to handle the async operations in sequence
+      (async () => {
+        // Clear the selectedItems first to avoid merging with previous state
+        setSelectedItems([]);
+        
+        // Then load existing items if needed
+        if (hasExistingOrder && userData?.outlet_id) {
           try {
+            console.log("Loading existing order first...");
             const orderData = await fetchOrderDetails(params.orderNumber);
-
+            
             if (orderData) {
               const existingItems = orderData.menu_details.map((item) => ({
                 menu_id: item.menu_id.toString(),
@@ -1141,9 +1146,11 @@ export default function CreateOrderScreen() {
                 offer: parseFloat(item.offer || 0),
                 specialInstructions: item.comment || "",
               }));
-
+              
+              console.log("Setting existing items:", existingItems.length);
               setSelectedItems(existingItems);
-
+              
+              // Set other order details
               if (orderData.order_details) {
                 setServiceChargePercentage(
                   parseFloat(orderData.order_details.service_charges_percent)
@@ -1181,28 +1188,82 @@ export default function CreateOrderScreen() {
             }
           } catch (error) {
             console.error("Error loading existing order:", error);
+          }
+        }
+        
+        // After existing items are handled, now process new items if they exist
+        if (hasNewItems) {
+          try {
+            console.log("Processing new items from params...");
+            const orderDetailsObj = JSON.parse(params.orderDetails);
+            
+            if (orderDetailsObj.menu_items && orderDetailsObj.menu_items.length > 0) {
+              const newItems = orderDetailsObj.menu_items.map(item => ({
+                menu_id: item.menu_id,
+                menu_name: item.name,
+                name: item.name,
+                price: parseFloat(item.price),
+                quantity: parseInt(item.quantity) || 1,
+                total_price: parseFloat(item.price) * (parseInt(item.quantity) || 1),
+                portionSize: item.portion === 'half' ? 'Half' : 'Full',
+                offer: parseFloat(item.offer) || 0,
+                specialInstructions: item.specialInstructions || "",
+                isNewlyAdded: item.isNewItem,
+                half_price: item.half_price || 0,
+                full_price: item.full_price || item.price,
+              }));
+              
+              console.log("Setting new items:", newItems.length);
+              
+              // If we already loaded existing items, merge them with new ones
+              if (hasExistingOrder) {
+                setSelectedItems(currentItems => {
+                  // Create a map of existing items by menu_id
+                  const existingItemsMap = {};
+                  currentItems.forEach(item => {
+                    existingItemsMap[item.menu_id] = item;
+                  });
+                  
+                  // Merge new items, updating quantities for existing ones
+                  const mergedItems = [...currentItems];
+                  
+                  newItems.forEach(newItem => {
+                    const existingItem = existingItemsMap[newItem.menu_id];
+                    if (existingItem) {
+                      // Update existing item's quantity
+                      existingItem.quantity += newItem.quantity;
+                      existingItem.total_price = existingItem.price * existingItem.quantity;
+                    } else {
+                      // Add new item
+                      mergedItems.push(newItem);
+                    }
+                  });
+                  
+                  console.log("Final merged items count:", mergedItems.length);
+                  return mergedItems;
+                });
+              } else {
+                // If no existing items, just set the new ones
+                setSelectedItems(newItems);
+              }
+            }
+          } catch (error) {
+            console.error("Error processing new items:", error);
             toast.show({
-              description: "Error loading existing order",
+              description: "Error processing menu items",
               status: "error",
             });
           }
         }
+        
         setIsLoadingOrder(false);
-      };
+      })();
 
-      loadExistingOrder();
-
-      // Cleanup function when leaving the screen
+      // Return a cleanup function
       return () => {
-        setSelectedItems([]);
-        setSearchQuery("");
-        setSearchResults([]);
-        setIsSearchOpen(false);
-        setServiceChargePercentage(0);
-        setGstPercentage(0);
-        setIsLoadingOrder(false);
+        console.log("=== useFocusEffect cleanup triggered ===");
       };
-    }, [params?.orderNumber, params?.isOccupied, params?.orderDetails]) // Dependencies
+    }, [params, userData])
   );
 
   // Update the useEffect to fetch stored GST and service charges with correct keys
@@ -1295,6 +1356,7 @@ export default function CreateOrderScreen() {
   const handleAddItem = (item, selectedPortion) => {
     // Always use "Full" regardless of the parameter passed
     const portionSize = "Full";
+    console.log("Adding item to cart:", JSON.stringify(item));
     
     const newItem = {
       ...item,
@@ -1308,13 +1370,17 @@ export default function CreateOrderScreen() {
       menu_food_type: item.menu_food_type,
       image: item.image,
       isNewlyAdded: true,
+      name: item.name || item.menu_name,
+      menu_name: item.menu_name || item.name,
     };
+    console.log("Formatted new item:", JSON.stringify(newItem));
 
     setSelectedItems((prevItems) => {
       // Check if the same menu item exists in current items (ignoring portion size)
       const existingItemIndex = prevItems.findIndex(
         (prevItem) => String(prevItem.menu_id) === String(item.menu_id)
       );
+      console.log("Existing item index:", existingItemIndex);
 
       // If item exists, update its quantity
       if (existingItemIndex !== -1) {
@@ -1372,26 +1438,36 @@ export default function CreateOrderScreen() {
 
   // Update the removeFromCart function
   const removeFromCart = (menuId, portionSize) => {
-    setSelectedItems((prevItems) =>
-      prevItems.filter((item) => {
+    console.log("Removing item from cart:", menuId, portionSize);
+    console.log("Current items count:", selectedItems.length);
+    console.log("Item to remove isNewlyAdded check:", 
+      selectedItems.find(item => item.menu_id === menuId && item.portionSize === portionSize)?.isNewlyAdded);
+
+    setSelectedItems((prevItems) => {
+      const filteredItems = prevItems.filter((item) => {
         // Keep the item if:
         // 1. It's not the item we want to remove (different menu_id or portionSize)
         // 2. OR it's an existing item (not newly added)
-        return !(
+        const shouldKeep = !(
           item.menu_id === menuId &&
           item.portionSize === portionSize &&
           item.isNewlyAdded
         );
-      })
-    );
+        return shouldKeep;
+      });
+      console.log("Items remaining after removal:", filteredItems.length);
+      return filteredItems;
+    });
   };
 
   const initializeOrderDetails = async (orderData) => {
+    console.log("Initializing order details:", orderData?.menu_details?.length);
     if (orderData?.menu_details) {
       const transformedItems = await Promise.all(
         orderData.menu_details.map(async (item) => {
           // Find the full menu item details from menuItems
           const menuItem = menuItems.find((m) => m.menu_id === item.menu_id);
+          console.log("Processing menu item:", item.menu_id, item.menu_name);
 
           return {
             menu_id: item.menu_id,
@@ -1407,6 +1483,7 @@ export default function CreateOrderScreen() {
           };
         })
       );
+      console.log("Transformed items count:", transformedItems.length);
       setSelectedItems(transformedItems);
     }
   };
@@ -2157,6 +2234,14 @@ export default function CreateOrderScreen() {
       setLoading(false);
     }
   };
+
+  // Add a useEffect to track selectedItems changes
+  useEffect(() => {
+    console.log("selectedItems state changed - new count:", selectedItems.length);
+    if (selectedItems.length > 0) {
+      console.log("First few items:", JSON.stringify(selectedItems.slice(0, 3)));
+    }
+  }, [selectedItems]);
 
   return (
     <Box flex={1} bg="white" safeArea>

@@ -359,6 +359,8 @@ export default function MenuSelectionScreen() {
 
     // Log the data being passed
     console.log("Navigating to create-order with cart items:", formattedCartItems.length);
+    console.log("Cart items details:", JSON.stringify(formattedCartItems));
+    console.log("New items in cart:", formattedCartItems.filter(item => item.isNewItem).length);
 
     router.push({
       pathname: "/screens/orders/create-order",
