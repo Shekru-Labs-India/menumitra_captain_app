@@ -2664,9 +2664,9 @@ export default function CreateOrderScreen() {
               </ScrollView>
             </Box>
 
-            {/* Card 1: Additional options/charges card outside main container */}
             {selectedItems.length > 0 && (
               <>
+                {/* Card 1: Additional options/charges card */}
                 <Box
                   position="absolute"
                   bottom={205}
@@ -2678,8 +2678,8 @@ export default function CreateOrderScreen() {
                   borderRadius="xl"
                   overflow="hidden"
                   shadow={1}
-                  mb={3}
-                  zIndex={10}
+                  mb={8}
+                  zIndex={1100}
                 >
                   <Pressable onPress={() => setIsAdditionalOptionsOpen(!isAdditionalOptionsOpen)}>
                     <Box py={2} borderBottomWidth={0}>
@@ -2741,7 +2741,6 @@ export default function CreateOrderScreen() {
                         </HStack>
                         
                         <HStack justifyContent="space-between" alignItems="center">
-                          {/* If Paid is NOT checked, show Complementary option */}
                           {!isPaid && (
                             <Checkbox 
                               colorScheme="blue" 
@@ -2754,7 +2753,6 @@ export default function CreateOrderScreen() {
                             </Checkbox>
                           )}
                           
-                          {/* If Paid IS checked, show payment methods */}
                           {isPaid && (
                             <HStack space={4} flex={1}>
                               <Radio.Group 
@@ -2797,7 +2795,7 @@ export default function CreateOrderScreen() {
                   )}
                 </Box>
 
-                {/* Card 2: Price summary row with actual calculated values */}
+                {/* Card 2: Price summary row */}
                 <Box 
                   position="absolute"
                   bottom={125}
@@ -2809,45 +2807,35 @@ export default function CreateOrderScreen() {
                   borderRadius="xl"
                   overflow="hidden"
                   shadow={1}
-                  p={3}
+                  p={4}
                   mb={3}
                   zIndex={10}
                 >
-                  <HStack space={3} justifyContent="space-between" alignItems="center">
-                    <Box flex={1}>
-                      <Text fontSize="lg" textAlign="center" color="black" fontWeight="semibold">
-                        ₹{calculateSubtotal(selectedItems).toFixed(2)}
-                      </Text>
-                      <Text fontSize="xs" textAlign="center" color="gray.500">Total</Text>
-                    </Box>
-                    
-                    <Box flex={1}>
-                      <Text fontSize="lg" textAlign="center" color="red.500" fontWeight="semibold">
-                        -₹{calculateDiscount(selectedItems).toFixed(2)}
-                      </Text>
-                      <Text fontSize="xs" textAlign="center" color="gray.500">Disc</Text>
-                    </Box>
-                    
-                    <Box flex={1}>
-                      <Text fontSize="lg" textAlign="center" color="gray.500" fontWeight="semibold">
-                        +₹{calculateServiceCharges(selectedItems, serviceChargePercentage).toFixed(2)}
-                      </Text>
-                      <Text fontSize="xs" textAlign="center" color="gray.500">Service</Text>
-                    </Box>
-                    
-                    <Box flex={1}>
-                      <Text fontSize="lg" textAlign="center" color="gray.500" fontWeight="semibold">
-                        +₹{calculateGST(selectedItems, gstPercentage).toFixed(2)}
-                      </Text>
-                      <Text fontSize="xs" textAlign="center" color="gray.500">GST</Text>
-                    </Box>
-                    
-                    <Box flex={1}>
-                      <Text fontSize="lg" textAlign="center" color="green.500" fontWeight="semibold">
-                        ₹{calculateTotal(selectedItems, serviceChargePercentage, gstPercentage).toFixed(2)}
-                      </Text>
-                      <Text fontSize="xs" textAlign="center" color="gray.500">Grand</Text>
-                    </Box>
+                  <HStack space={2} justifyContent="space-between">
+                    <VStack flex={1} alignItems="flex-start">
+                      <Text fontSize="md" color="black">₹{calculateSubtotal(selectedItems).toFixed(2)}</Text>
+                      <Text fontSize="xs" color="gray.500">Total</Text>
+                    </VStack>
+
+                    <VStack flex={1} alignItems="flex-start">
+                      <Text fontSize="md" color="red.500">-₹{calculateDiscount(selectedItems).toFixed(2)}</Text>
+                      <Text fontSize="xs" color="gray.500">Disc (0%)</Text>
+                    </VStack>
+
+                    <VStack flex={1} alignItems="flex-start">
+                      <Text fontSize="md" color="black">+₹{calculateServiceCharges(selectedItems, serviceChargePercentage).toFixed(2)}</Text>
+                      <Text fontSize="xs" color="gray.500">Service (2%)</Text>
+                    </VStack>
+
+                    <VStack flex={1} alignItems="flex-start">
+                      <Text fontSize="md" color="black">+₹{calculateGST(selectedItems, gstPercentage).toFixed(2)}</Text>
+                      <Text fontSize="xs" color="gray.500">GST (4%)</Text>
+                    </VStack>
+
+                    <VStack flex={1} alignItems="flex-start">
+                      <Text fontSize="md" color="green.500" fontWeight="600">₹{calculateTotal(selectedItems, serviceChargePercentage, gstPercentage).toFixed(2)}</Text>
+                      <Text fontSize="xs" color="gray.500">Grand Total</Text>
+                    </VStack>
                   </HStack>
                 </Box>
               </>
