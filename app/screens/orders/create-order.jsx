@@ -2668,13 +2668,11 @@ export default function CreateOrderScreen() {
               <>
                 {/* Card 1: Additional options/charges card */}
                 <Box
-                  position="absolute"
+                  position="fixed"
                   bottom={205}
-                  left={4}
-                  right={4}
                   bg="white"
                   borderWidth={1}
-                  marginBottom={16}
+                  marginBottom={6}
                   borderColor="gray.200"
                   borderRadius="xl"
                   overflow="hidden"
@@ -2808,33 +2806,33 @@ export default function CreateOrderScreen() {
                   borderRadius="xl"
                   overflow="hidden"
                   shadow={1}
-                  p={4}
+                  p={3}
                   mb={3}
                   zIndex={10}
                 >
-                  <HStack space={1} justifyContent="space-between">
+                  <HStack space={0.5} justifyContent="space-between">
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="md" fontWeight="semibold" color="black">₹{calculateSubtotal(selectedItems).toFixed(2)}</Text>
+                      <Text fontSize="sm" fontWeight="semibold" color="black">₹{calculateSubtotal(selectedItems).toFixed(2)}</Text>
                       <Text fontSize="xs" color="gray.500">Total</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="md" fontWeight="semibold" color="red.500">-₹{calculateDiscount(selectedItems).toFixed(2)}</Text>
+                      <Text fontSize="sm" fontWeight="semibold" color="red.500">-₹{calculateDiscount(selectedItems).toFixed(2)}</Text>
                       <Text fontSize="xs" color="gray.500">Disc (0%)</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="md" fontWeight="semibold" color="black">+₹{calculateServiceCharges(selectedItems, serviceChargePercentage).toFixed(2)}</Text>
+                      <Text fontSize="sm" fontWeight="semibold" color="black">+₹{calculateServiceCharges(selectedItems, serviceChargePercentage).toFixed(2)}</Text>
                       <Text fontSize="xs" color="gray.500">Service (2%)</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="md" fontWeight="semibold" color="black">+₹{calculateGST(selectedItems, gstPercentage).toFixed(2)}</Text>
+                      <Text fontSize="sm" fontWeight="semibold" color="black">+₹{calculateGST(selectedItems, gstPercentage).toFixed(2)}</Text>
                       <Text fontSize="xs" color="gray.500">GST (4%)</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="md" fontWeight="semibold" color="green.500" >₹{calculateTotal(selectedItems, serviceChargePercentage, gstPercentage).toFixed(2)}</Text>
+                      <Text fontSize="sm" fontWeight="semibold" color="green.500" >₹{calculateTotal(selectedItems, serviceChargePercentage, gstPercentage).toFixed(2)}</Text>
                       <Text fontSize="xs" color="gray.500">Grand Total</Text>
                     </VStack>
                   </HStack>
