@@ -2674,12 +2674,13 @@ export default function CreateOrderScreen() {
                   right={4}
                   bg="white"
                   borderWidth={1}
+                  marginBottom={16}
                   borderColor="gray.200"
                   borderRadius="xl"
                   overflow="hidden"
                   shadow={1}
                   mb={8}
-                  zIndex={1100}
+                  zIndex={1}
                 >
                   <Pressable onPress={() => setIsAdditionalOptionsOpen(!isAdditionalOptionsOpen)}>
                     <Box py={2} borderBottomWidth={0}>
