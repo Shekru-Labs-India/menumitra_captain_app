@@ -1738,7 +1738,7 @@ export default function OrderDetailsScreen() {
             {Number(orderDetails.extra_charges) > 0 && (
               <HStack justifyContent="space-between">
                 <Text color="coolGray.600">Extra Charges</Text>
-                <Text>+₹{Number(orderDetails.extra_charges || 0).toFixed(2)}</Text>
+                <Text color="green.600">+₹{Number(orderDetails.extra_charges || 0).toFixed(2)}</Text>
               </HStack>
             )}
 
@@ -1759,7 +1759,7 @@ export default function OrderDetailsScreen() {
                 <Text color="coolGray.600">
                   Service Charge ({orderDetails.service_charges_percent || 0}%)
                 </Text>
-                <Text>+₹{Number(orderDetails.service_charges_amount || 0).toFixed(2)}</Text>
+                <Text color="green.600">+₹{Number(orderDetails.service_charges_amount || 0).toFixed(2)}</Text>
               </HStack>
             )}
 
@@ -1769,7 +1769,7 @@ export default function OrderDetailsScreen() {
                 <Text color="coolGray.600">
                   GST ({orderDetails.gst_percent || 0}%)
                 </Text>
-                <Text>+₹{Number(orderDetails.gst_amount || 0).toFixed(2)}</Text>
+                <Text color="green.600">+₹{Number(orderDetails.gst_amount || 0).toFixed(2)}</Text>
               </HStack>
             )}
 
@@ -1777,7 +1777,7 @@ export default function OrderDetailsScreen() {
             {Number(orderDetails.tip) > 0 && (
               <HStack justifyContent="space-between">
                 <Text color="coolGray.600">Tip</Text>
-                <Text>+₹{Number(orderDetails.tip || 0).toFixed(2)}</Text>
+                <Text color="green.600">+₹{Number(orderDetails.tip || 0).toFixed(2)}</Text>
               </HStack>
             )}
 

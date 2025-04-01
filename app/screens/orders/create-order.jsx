@@ -854,60 +854,66 @@ export default function CreateOrderScreen() {
 
   const calculateSubtotal = (items) => {
     return items.reduce((sum, item) => {
-      const price =
-        item.portionSize === "Half"
-          ? Number(item.half_price || item.price)
-          : Number(item.full_price || item.price);
+      const price = item.portionSize === "Half" ? Number(item.half_price || item.price) : Number(item.full_price || item.price);
       return sum + price * Number(item.quantity);
     }, 0);
   };
 
-  const calculateDiscount = (items) => {
+  const calculateItemDiscount = (items) => {
     return items.reduce((sum, item) => {
-      const price =
-        item.portionSize === "Half"
-          ? Number(item.half_price || item.price)
-          : Number(item.full_price || item.price);
+      const price = item.portionSize === "Half" ? Number(item.half_price || item.price) : Number(item.full_price || item.price);
       const itemTotal = price * Number(item.quantity);
       return sum + (itemTotal * Number(item.offer)) / 100;
     }, 0);
   };
 
-  const calculateTotalAfterDiscount = (selectedItems) => {
+  const calculateTotalAfterDiscounts = (selectedItems, specialDiscount) => {
     const subtotal = calculateSubtotal(selectedItems);
-    const discount = calculateDiscount(selectedItems);
+    const itemDiscounts = calculateItemDiscount(selectedItems);
     const specialDiscountAmount = parseFloat(specialDiscount) || 0;
-    return subtotal - discount - specialDiscountAmount;
+    return subtotal - itemDiscounts - specialDiscountAmount;
   };
 
-  const calculateServiceCharges = (selectedItems, serviceChargePercentage) => {
-    const totalAfterDiscount = calculateTotalAfterDiscount(selectedItems);
-    const serviceCharge = (totalAfterDiscount * serviceChargePercentage) / 100;
-    // Truncate to 2 decimal places to match API (0.525 → 0.52)
-    return parseFloat(((serviceCharge * 100) / 100).toFixed(2));
-  };
-
-  const calculateGST = (selectedItems, gstPercentage) => {
-    const totalAfterDiscount = calculateTotalAfterDiscount(selectedItems);
-    const gst = (totalAfterDiscount * gstPercentage) / 100;
-    // Truncate to 2 decimal places to match API (0.525 → 0.52)
-    return parseFloat(((gst * 100) / 100).toFixed(2));
-  };
-
-  const calculateTotal = (
-    selectedItems,
-    serviceChargePercentage,
-    gstPercentage
-  ) => {
-    const totalAfterDiscount = calculateTotalAfterDiscount(selectedItems);
-    const serviceCharges = calculateServiceCharges(
-      selectedItems,
-      serviceChargePercentage
-    );
-    const gst = calculateGST(selectedItems, gstPercentage);
+  const calculateTotalAfterExtraCharges = (totalAfterDiscounts, extraCharges) => {
     const extraChargesAmount = parseFloat(extraCharges) || 0;
+    return totalAfterDiscounts + extraChargesAmount;
+  };
+
+  const calculateServiceCharges = (amount, serviceChargePercentage) => {
+    return (amount * serviceChargePercentage) / 100;
+  };
+
+  const calculateGST = (amount, gstPercentage) => {
+    return (amount * gstPercentage) / 100;
+  };
+
+  const calculateGrandTotal = (selectedItems, specialDiscount, extraCharges, serviceChargePercentage, gstPercentage, tip) => {
+    // 1. Start with items total
+    const itemsTotal = calculateSubtotal(selectedItems);
+    
+    // 2. Subtract item discounts
+    const itemDiscounts = calculateItemDiscount(selectedItems);
+    
+    // 3. Subtract special discount
+    const specialDiscountAmount = parseFloat(specialDiscount) || 0;
+    
+    // 4. Add extra charges
+    const extraChargesAmount = parseFloat(extraCharges) || 0;
+    
+    // 5. Calculate subtotal after discounts and extra charges
+    const subtotalAfterDiscountsAndExtra = itemsTotal - itemDiscounts - specialDiscountAmount + extraChargesAmount;
+    
+    // 6. Calculate and add service charges
+    const serviceCharges = calculateServiceCharges(subtotalAfterDiscountsAndExtra, serviceChargePercentage);
+    
+    // 7. Calculate and add GST
+    const gst = calculateGST(subtotalAfterDiscountsAndExtra + serviceCharges, gstPercentage);
+    
+    // 8. Add tip
     const tipAmount = parseFloat(tip) || 0;
-    return totalAfterDiscount + serviceCharges + parseFloat(gst) + extraChargesAmount + tipAmount;
+    
+    // 9. Return grand total
+    return subtotalAfterDiscountsAndExtra + serviceCharges + gst + tipAmount;
   };
 
   const handleAssignWaiter = async (waiterId) => {
@@ -2707,27 +2713,45 @@ export default function CreateOrderScreen() {
                 >
                   <HStack space={0.5} justifyContent="space-between">
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="sm" fontWeight="semibold" color="black">₹{calculateSubtotal(selectedItems).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Total</Text>
+                      <Text fontSize="13px" fontWeight="semibold" color="black">₹{calculateSubtotal(selectedItems).toFixed(2)}</Text>
+                      <Text fontSize="xs" color="gray.500">Items Total</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="sm" fontWeight="semibold" color="red.500">-₹{(calculateDiscount(selectedItems) + (parseFloat(specialDiscount) || 0)).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Disc ({calculateTotalDiscountPercentage(selectedItems)}%)</Text>
+                      <Text fontSize="13px" fontWeight="semibold" color="red.500">-₹{calculateItemDiscount(selectedItems).toFixed(2)}</Text>
+                      <Text fontSize="xs" color="gray.500">Item Disc</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="sm" fontWeight="semibold" color="black">+₹{calculateServiceCharges(selectedItems, serviceChargePercentage).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Service ({serviceChargePercentage}%)</Text>
+                      <Text fontSize="13px" fontWeight="semibold" color="black">+₹{calculateServiceCharges(
+                        calculateTotalAfterDiscounts(selectedItems, specialDiscount) + parseFloat(extraCharges || 0),
+                        serviceChargePercentage
+                      ).toFixed(2)}</Text>
+                      <Text fontSize="xs" color="gray.500">Service</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="sm" fontWeight="semibold" color="black">+₹{calculateGST(selectedItems, gstPercentage).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">GST ({gstPercentage}%)</Text>
+                      <Text fontSize="13px" fontWeight="semibold" color="black">+₹{calculateGST(
+                        calculateTotalAfterDiscounts(selectedItems, specialDiscount) + 
+                        parseFloat(extraCharges || 0) + 
+                        calculateServiceCharges(
+                          calculateTotalAfterDiscounts(selectedItems, specialDiscount) + parseFloat(extraCharges || 0),
+                          serviceChargePercentage
+                        ),
+                        gstPercentage
+                      ).toFixed(2)}</Text>
+                      <Text fontSize="xs" color="gray.500">GST</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="sm" fontWeight="semibold" color="green.500">₹{calculateTotal(selectedItems, serviceChargePercentage, gstPercentage).toFixed(2)}</Text>
+                      <Text fontSize="13px" fontWeight="semibold" color="green.500">₹{calculateGrandTotal(
+                        selectedItems,
+                        specialDiscount,
+                        extraCharges,
+                        serviceChargePercentage,
+                        gstPercentage,
+                        tip
+                      ).toFixed(2)}</Text>
                       <Text fontSize="xs" color="gray.500">Grand Total</Text>
                     </VStack>
                   </HStack>
