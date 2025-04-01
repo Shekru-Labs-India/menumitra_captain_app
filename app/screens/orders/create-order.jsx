@@ -194,6 +194,13 @@ const textToBytes = (text) => {
   return Array.from(encoder.encode(text));
 };
 
+// Add this helper function at the top level
+const calculateItemTotal = (price, quantity, offer = 0) => {
+  const total = price * quantity;
+  const discount = (total * offer) / 100;
+  return total - discount;
+};
+
 export default function CreateOrderScreen() {
   const router = useRouter();
   const toast = useToast();
@@ -362,8 +369,6 @@ export default function CreateOrderScreen() {
           }),
         });
 
-        console.log("Order details response:", data);
-
         if (data.st === 1 && data.lists) {
           const orderDetails = data.lists;
 
@@ -429,7 +434,7 @@ export default function CreateOrderScreen() {
   };
 
     initializeOrder();
-  }, [params?.orderId, params?.orderNumber]);
+  }, [params?.orderId, params?.orderNumber]); // Add proper dependencies
 
   const handleHold = async () => {
     if (isLoading) return; // Prevent multiple calls
@@ -1098,32 +1103,21 @@ export default function CreateOrderScreen() {
   // Add this to clear states when leaving the screen
   useFocusEffect(
     React.useCallback(() => {
-      console.log("=== useFocusEffect triggered ===");
-      // Clear states when entering the screen
-      setSearchQuery("");
-      setSearchResults([]);
-      setIsSearchOpen(false);
-      setServiceChargePercentage(0);
-      setGstPercentage(0);
-      setIsLoadingOrder(true);
-      
-      // Don't clear selectedItems at the start - we'll handle that based on conditional logic
-
-      // First determine if we need to load existing order
-      const hasExistingOrder = params?.isOccupied === "1" && params?.orderNumber;
-      const hasNewItems = params?.orderDetails ? true : false;
-      
-      console.log("Order initialization state:", { hasExistingOrder, hasNewItems });
-      
-      // Using async IIFE to handle the async operations in sequence
-      (async () => {
-        // Clear the selectedItems first to avoid merging with previous state
-        setSelectedItems([]);
+      const initializeScreen = async () => {
+        setSearchQuery("");
+        setSearchResults([]);
+        setIsSearchOpen(false);
+        setIsLoadingOrder(true);
         
-        // Then load existing items if needed
-        if (hasExistingOrder && userData?.outlet_id) {
-          try {
-            console.log("Loading existing order first...");
+        const hasExistingOrder = params?.isOccupied === "1" && params?.orderNumber;
+        const hasNewItems = params?.orderDetails ? true : false;
+        
+        try {
+          // Clear the selectedItems first
+          setSelectedItems([]);
+          
+          // Load existing order if needed
+          if (hasExistingOrder && userData?.outlet_id) {
             const orderData = await fetchOrderDetails(params.orderNumber);
             
             if (orderData) {
@@ -1138,19 +1132,12 @@ export default function CreateOrderScreen() {
                 specialInstructions: item.comment || "",
               }));
               
-              console.log("Setting existing items:", existingItems.length);
               setSelectedItems(existingItems);
               
-              // Set other order details
               if (orderData.order_details) {
-                setServiceChargePercentage(
-                  parseFloat(orderData.order_details.service_charges_percent)
-                );
-                setGstPercentage(
-                  parseFloat(orderData.order_details.gst_percent)
-                );
+                setServiceChargePercentage(parseFloat(orderData.order_details.service_charges_percent || 0));
+                setGstPercentage(parseFloat(orderData.order_details.gst_percent || 0));
                 
-                // Set customer details
                 if (orderData.order_details.customer_name) {
                   setCustomerDetails({
                     customer_name: orderData.order_details.customer_name || "",
@@ -1161,12 +1148,10 @@ export default function CreateOrderScreen() {
                   });
                 }
 
-                // Set additional charges
                 setSpecialDiscount(orderData.order_details.special_discount?.toString() || "0");
                 setExtraCharges(orderData.order_details.charges?.toString() || "0");
                 setTip(orderData.order_details.tip?.toString() || "0");
 
-                // Set payment information
                 if (orderData.order_details.is_paid === "paid") {
                   setIsPaid(true);
                   setIsComplementary(false);
@@ -1177,248 +1162,146 @@ export default function CreateOrderScreen() {
                 }
               }
             }
-          } catch (error) {
-            console.error("Error loading existing order:", error);
           }
-        }
-        
-        // After existing items are handled, now process new items if they exist
-        if (hasNewItems) {
-          try {
-            console.log("Processing new items from params...");
-            const orderDetailsObj = JSON.parse(params.orderDetails);
-            
-            if (orderDetailsObj.menu_items && orderDetailsObj.menu_items.length > 0) {
-              const newItems = orderDetailsObj.menu_items.map(item => ({
-                menu_id: item.menu_id,
-                menu_name: item.name,
-                name: item.name,
-                price: parseFloat(item.price),
-                quantity: parseInt(item.quantity) || 1,
-                total_price: parseFloat(item.price) * (parseInt(item.quantity) || 1),
-                portionSize: item.portion === 'half' ? 'Half' : 'Full',
-                offer: parseFloat(item.offer) || 0,
-                specialInstructions: item.specialInstructions || "",
-                isNewlyAdded: item.isNewItem,
-                half_price: item.half_price || 0,
-                full_price: item.full_price || item.price,
-              }));
+          
+          // Process new items if they exist
+          if (hasNewItems && params.orderDetails) {
+            try {
+              const orderDetailsObj = JSON.parse(params.orderDetails);
               
-              console.log("Setting new items:", newItems.length);
-              
-              // If we already loaded existing items, merge them with new ones
-              if (hasExistingOrder) {
-                setSelectedItems(currentItems => {
-                  // Create a map of existing items by menu_id
+              if (orderDetailsObj.menu_items?.length > 0) {
+                const newItems = orderDetailsObj.menu_items.map(item => ({
+                  menu_id: item.menu_id,
+                  menu_name: item.name,
+                  name: item.name,
+                  price: parseFloat(item.price),
+                  quantity: parseInt(item.quantity) || 1,
+                  total_price: parseFloat(item.price) * (parseInt(item.quantity) || 1),
+                  portionSize: item.portion === 'half' ? 'Half' : 'Full',
+                  offer: parseFloat(item.offer) || 0,
+                  specialInstructions: item.specialInstructions || "",
+                  isNewlyAdded: true,
+                  half_price: parseFloat(item.half_price) || 0,
+                  full_price: parseFloat(item.full_price) || parseFloat(item.price),
+                }));
+                
+                setSelectedItems(prevItems => {
+                  if (!hasExistingOrder) return newItems;
+                  
                   const existingItemsMap = {};
-                  currentItems.forEach(item => {
+                  prevItems.forEach(item => {
                     existingItemsMap[item.menu_id] = item;
                   });
                   
-                  // Merge new items, updating quantities for existing ones
-                  const mergedItems = [...currentItems];
-                  
+                  const mergedItems = [...prevItems];
                   newItems.forEach(newItem => {
                     const existingItem = existingItemsMap[newItem.menu_id];
                     if (existingItem) {
-                      // Update existing item's quantity
                       existingItem.quantity += newItem.quantity;
-                      existingItem.total_price = existingItem.price * existingItem.quantity;
+                      existingItem.total_price = calculateItemTotal(
+                        existingItem.price,
+                        existingItem.quantity,
+                        existingItem.offer
+                      );
                     } else {
-                      // Add new item
                       mergedItems.push(newItem);
                     }
                   });
                   
-                  console.log("Final merged items count:", mergedItems.length);
                   return mergedItems;
                 });
-              } else {
-                // If no existing items, just set the new ones
-                setSelectedItems(newItems);
               }
-            }
-          } catch (error) {
-            console.error("Error processing new items:", error);
-            toast.show({
-              description: "Error processing menu items",
-              status: "error",
-            });
-          }
-        }
-        
-        setIsLoadingOrder(false);
-      })();
-
-      // Return a cleanup function
-      return () => {
-        console.log("=== useFocusEffect cleanup triggered ===");
-      };
-    }, [params, userData])
-  );
-
-  // Update the useEffect to fetch stored GST and service charges with correct keys
-  useFocusEffect(
-    React.useCallback(() => {
-      const fetchStoredCharges = async () => {
-        try {
-          // First attempt: Get from AsyncStorage
-          let [gst, serviceCharges] = await Promise.all([
-            AsyncStorage.getItem("gst"),
-            AsyncStorage.getItem("service_charges"),
-          ]);
-
-          console.log("Initial fetch from storage:", { gst, serviceCharges });
-
-          // If values are missing, try fetching from OTP response in storage
-          if (!gst || !serviceCharges) {
-            const userSession = await AsyncStorage.getItem("userSession");
-            if (userSession) {
-              const sessionData = JSON.parse(userSession);
-              gst = sessionData.gst;
-              serviceCharges = sessionData.service_charges;
-              console.log("Fetched from session:", { gst, serviceCharges });
-
-              // Store these values in AsyncStorage for future use
-              if (gst) await AsyncStorage.setItem("gst", gst.toString());
-              if (serviceCharges)
-                await AsyncStorage.setItem(
-                  "service_charges",
-                  serviceCharges.toString()
-                );
+            } catch (error) {
+              console.error("Error processing new items:", error);
             }
           }
-
-          // Set the values if we have them
-          if (gst) {
-            const gstValue = parseFloat(gst);
-            console.log("Setting GST:", gstValue);
-            setGstPercentage(gstValue);
-          }
-
-          if (serviceCharges) {
-            const serviceValue = parseFloat(serviceCharges);
-            console.log("Setting Service Charge:", serviceValue);
-            setServiceChargePercentage(serviceValue);
-          }
-
-          setChargesFetched(true);
         } catch (error) {
-          console.error("Error fetching charges:", error);
+          console.error("Error in initializeScreen:", error);
+        } finally {
+          setIsLoadingOrder(false);
         }
       };
 
-      // Fetch charges when screen comes into focus
-      fetchStoredCharges();
-
-      // Cleanup function
-      return () => {
-        setChargesFetched(false);
-      };
-    }, []) // Empty dependency array for mount-only execution
+      initializeScreen();
+    }, [params?.orderNumber, params?.orderDetails, userData?.outlet_id])
   );
 
-  // Add a backup useEffect in case the first one fails
+  // Update the charges fetching useEffect
   useEffect(() => {
-    if (!gstPercentage || !serviceChargePercentage) {
-      const retryFetch = async () => {
-        try {
+    const fetchCharges = async () => {
+      if (chargesFetched) return;
+
+      try {
+        const [gst, serviceCharges] = await Promise.all([
+          AsyncStorage.getItem("gst"),
+          AsyncStorage.getItem("service_charges"),
+        ]);
+
+        if (!gst || !serviceCharges) {
           const userSession = await AsyncStorage.getItem("userSession");
           if (userSession) {
             const sessionData = JSON.parse(userSession);
-            if (sessionData.gst && !gstPercentage) {
-              setGstPercentage(parseFloat(sessionData.gst));
-            }
-            if (sessionData.service_charges && !serviceChargePercentage) {
-              setServiceChargePercentage(
-                parseFloat(sessionData.service_charges)
-              );
-            }
+            if (sessionData.gst) await AsyncStorage.setItem("gst", sessionData.gst.toString());
+            if (sessionData.service_charges) await AsyncStorage.setItem("service_charges", sessionData.service_charges.toString());
+            
+            setGstPercentage(parseFloat(sessionData.gst || 0));
+            setServiceChargePercentage(parseFloat(sessionData.service_charges || 0));
           }
-        } catch (error) {
-          console.error("Backup fetch error:", error);
+        } else {
+          setGstPercentage(parseFloat(gst));
+          setServiceChargePercentage(parseFloat(serviceCharges));
         }
-      };
-
-      retryFetch();
-    }
-  }, [gstPercentage, serviceChargePercentage]);
-
-  const handleAddItem = (item, selectedPortion) => {
-    // Always use "Full" regardless of the parameter passed
-    const portionSize = "Full";
-    console.log("Adding item to cart:", JSON.stringify(item));
-    
-    const newItem = {
-      ...item,
-      quantity: 1,
-      portionSize: portionSize,
-      price: Number(item.full_price),
-      half_price: Number(item.half_price),
-      full_price: Number(item.full_price),
-      offer: Number(item.offer || 0),
-      specialInstructions: "",
-      menu_food_type: item.menu_food_type,
-      image: item.image,
-      isNewlyAdded: true,
-      name: item.name || item.menu_name,
-      menu_name: item.menu_name || item.name,
+        
+        setChargesFetched(true);
+      } catch (error) {
+        console.error("Error fetching charges:", error);
+      }
     };
-    console.log("Formatted new item:", JSON.stringify(newItem));
 
-    setSelectedItems((prevItems) => {
-      // Check if the same menu item exists in current items (ignoring portion size)
+    fetchCharges();
+  }, []);
+
+  // Update handleAddItem to use the calculateItemTotal helper
+  const handleAddItem = (item, selectedPortion) => {
+    const portionSize = "Full"; // Always use "Full" as default
+    
+    setSelectedItems(prevItems => {
       const existingItemIndex = prevItems.findIndex(
-        (prevItem) => String(prevItem.menu_id) === String(item.menu_id)
+        prevItem => String(prevItem.menu_id) === String(item.menu_id)
       );
-      console.log("Existing item index:", existingItemIndex);
 
-      // If item exists, update its quantity
       if (existingItemIndex !== -1) {
         const updatedItems = [...prevItems];
         const existingItem = updatedItems[existingItemIndex];
-
-        // Check quantity limit
+        
         if (existingItem.quantity < 20) {
           existingItem.quantity += 1;
-          existingItem.total_price = Number(item.full_price) * existingItem.quantity;
+          existingItem.total_price = calculateItemTotal(
+            Number(item.full_price),
+            existingItem.quantity,
+            Number(item.offer || 0)
+          );
         }
-
+        
         return updatedItems;
       }
 
-      // If item doesn't exist, check in orderDetails (for existing orders)
-      if (orderDetails?.menu_items) {
-        const existingOrderItemIndex = orderDetails.menu_items.findIndex(
-          (orderItem) => String(orderItem.menu_id) === String(item.menu_id)
-        );
+      const newItem = {
+        menu_id: item.menu_id,
+        menu_name: item.menu_name || item.name,
+        name: item.name || item.menu_name,
+        price: Number(item.full_price),
+        quantity: 1,
+        portionSize,
+        half_price: Number(item.half_price || 0),
+        full_price: Number(item.full_price),
+        offer: Number(item.offer || 0),
+        specialInstructions: "",
+        isNewlyAdded: true,
+        total_price: calculateItemTotal(Number(item.full_price), 1, Number(item.offer || 0))
+      };
 
-        if (existingOrderItemIndex !== -1) {
-          // Item exists in order details, add with increased quantity
-          const existingOrderItem =
-            orderDetails.menu_items[existingOrderItemIndex];
-          return [
-            ...prevItems.filter(
-              (item) => String(item.menu_id) !== String(existingOrderItem.menu_id)
-            ),
-            {
-              ...newItem,
-              quantity: (existingOrderItem.quantity || 0) + 1,
-              total_price: Number(item.full_price) * (existingOrderItem.quantity + 1),
-              specialInstructions: existingOrderItem.specialInstructions || "",
-            },
-          ];
-        }
-      }
-
-      // If item doesn't exist anywhere, add as new
-      return [
-        ...prevItems,
-        {
-          ...newItem,
-          total_price: Number(item.full_price),
-        },
-      ];
+      return [...prevItems, newItem];
     });
 
     // Clear search after adding
