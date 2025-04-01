@@ -2238,7 +2238,29 @@ export default function CreateOrderScreen() {
     <Box flex={1} bg="white" safeArea>
       <Header
         title={isOccupied === "1" ? "Update Order" : "Create Order"}
-        onBackPress={() => router.replace("/(tabs)/tables/sections")}
+        onBackPress={() => router.replace({
+          pathname: "/screens/orders/menu-selection",
+          params: {
+            tableId: params.tableId,
+            tableNumber: params.tableNumber,
+            sectionId: params.sectionId,
+            sectionName: params.sectionName,
+            outletId: params.outletId,
+            orderId: params.orderId,
+            orderNumber: params.orderNumber,
+            orderType: params.orderType || "dine-in",
+            orderDetails: JSON.stringify({
+              order_id: params.orderId,
+              menu_items: selectedItems,
+              grand_total: calculateTotal(selectedItems, serviceChargePercentage, gstPercentage),
+              table_id: params.tableId,
+              table_number: params.tableNumber,
+              section_id: params.sectionId,
+              section_name: params.sectionName,
+              outlet_id: params.outletId,
+            }),
+          },
+        })}
         rightComponent={<OrderBadge />}
       />
 
