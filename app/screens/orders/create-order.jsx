@@ -883,7 +883,8 @@ export default function CreateOrderScreen() {
   const calculateTotalAfterDiscount = (selectedItems) => {
     const subtotal = calculateSubtotal(selectedItems);
     const discount = calculateDiscount(selectedItems);
-    return subtotal - discount;
+    const specialDiscountAmount = parseFloat(specialDiscount) || 0;
+    return subtotal - discount - specialDiscountAmount;
   };
 
   const calculateServiceCharges = (selectedItems, serviceChargePercentage) => {
@@ -911,7 +912,9 @@ export default function CreateOrderScreen() {
       serviceChargePercentage
     );
     const gst = calculateGST(selectedItems, gstPercentage);
-    return totalAfterDiscount + serviceCharges + parseFloat(gst);
+    const extraChargesAmount = parseFloat(extraCharges) || 0;
+    const tipAmount = parseFloat(tip) || 0;
+    return totalAfterDiscount + serviceCharges + parseFloat(gst) + extraChargesAmount + tipAmount;
   };
 
   const handleAssignWaiter = async (waiterId) => {
@@ -1002,14 +1005,14 @@ export default function CreateOrderScreen() {
   // Update the useEffect for handling existing orders
   useEffect(() => {
     const loadExistingOrder = async () => {
-      if (params?.isOccupied === "1" && params?.orderId) {
+      if (params?.isOccupied === "1" && params?.orderId && userData?.outlet_id) {
         try {
           const data = await fetchWithAuth(`${getBaseUrl()}/order_menu_details`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               order_id: params.orderId,
-              outlet_id: userData?.outlet_id,
+              outlet_id: userData.outlet_id,
             }),
           });
 
@@ -1036,10 +1039,8 @@ export default function CreateOrderScreen() {
       }
     };
 
-    if (userData?.outlet_id) {
-      loadExistingOrder();
-    }
-  }, [params, userData]);
+    loadExistingOrder();
+  }, [params?.isOccupied, params?.orderId, userData?.outlet_id]); // Add proper dependencies
 
   // Add this function to refresh order details
   const refreshOrderDetails = async () => {
@@ -1108,6 +1109,7 @@ export default function CreateOrderScreen() {
   useFocusEffect(
     React.useCallback(() => {
       console.log("=== useFocusEffect triggered ===");
+      
       // Clear states when entering the screen
       setSearchQuery("");
       setSearchResults([]);
@@ -1116,23 +1118,10 @@ export default function CreateOrderScreen() {
       setGstPercentage(0);
       setIsLoadingOrder(true);
       
-      // Don't clear selectedItems at the start - we'll handle that based on conditional logic
-
-      // First determine if we need to load existing order
-      const hasExistingOrder = params?.isOccupied === "1" && params?.orderNumber;
-      const hasNewItems = params?.orderDetails ? true : false;
-      
-      console.log("Order initialization state:", { hasExistingOrder, hasNewItems });
-      
-      // Using async IIFE to handle the async operations in sequence
-      (async () => {
-        // Clear the selectedItems first to avoid merging with previous state
-        setSelectedItems([]);
-        
-        // Then load existing items if needed
-        if (hasExistingOrder && userData?.outlet_id) {
+      // Only proceed with order initialization if we have the necessary data
+      if (params?.orderNumber && userData?.outlet_id) {
+        const initializeOrder = async () => {
           try {
-            console.log("Loading existing order first...");
             const orderData = await fetchOrderDetails(params.orderNumber);
             
             if (orderData) {
@@ -1147,10 +1136,8 @@ export default function CreateOrderScreen() {
                 specialInstructions: item.comment || "",
               }));
               
-              console.log("Setting existing items:", existingItems.length);
               setSelectedItems(existingItems);
               
-              // Set other order details
               if (orderData.order_details) {
                 setServiceChargePercentage(
                   parseFloat(orderData.order_details.service_charges_percent)
@@ -1159,7 +1146,6 @@ export default function CreateOrderScreen() {
                   parseFloat(orderData.order_details.gst_percent)
                 );
                 
-                // Set customer details
                 if (orderData.order_details.customer_name) {
                   setCustomerDetails({
                     customer_name: orderData.order_details.customer_name || "",
@@ -1170,12 +1156,10 @@ export default function CreateOrderScreen() {
                   });
                 }
 
-                // Set additional charges
                 setSpecialDiscount(orderData.order_details.special_discount?.toString() || "0");
                 setExtraCharges(orderData.order_details.charges?.toString() || "0");
                 setTip(orderData.order_details.tip?.toString() || "0");
 
-                // Set payment information
                 if (orderData.order_details.is_paid === "paid") {
                   setIsPaid(true);
                   setIsComplementary(false);
@@ -1187,83 +1171,27 @@ export default function CreateOrderScreen() {
               }
             }
           } catch (error) {
-            console.error("Error loading existing order:", error);
-          }
-        }
-        
-        // After existing items are handled, now process new items if they exist
-        if (hasNewItems) {
-          try {
-            console.log("Processing new items from params...");
-            const orderDetailsObj = JSON.parse(params.orderDetails);
-            
-            if (orderDetailsObj.menu_items && orderDetailsObj.menu_items.length > 0) {
-              const newItems = orderDetailsObj.menu_items.map(item => ({
-                menu_id: item.menu_id,
-                menu_name: item.name,
-                name: item.name,
-                price: parseFloat(item.price),
-                quantity: parseInt(item.quantity) || 1,
-                total_price: parseFloat(item.price) * (parseInt(item.quantity) || 1),
-                portionSize: item.portion === 'half' ? 'Half' : 'Full',
-                offer: parseFloat(item.offer) || 0,
-                specialInstructions: item.specialInstructions || "",
-                isNewlyAdded: item.isNewItem,
-                half_price: item.half_price || 0,
-                full_price: item.full_price || item.price,
-              }));
-              
-              console.log("Setting new items:", newItems.length);
-              
-              // If we already loaded existing items, merge them with new ones
-              if (hasExistingOrder) {
-                setSelectedItems(currentItems => {
-                  // Create a map of existing items by menu_id
-                  const existingItemsMap = {};
-                  currentItems.forEach(item => {
-                    existingItemsMap[item.menu_id] = item;
-                  });
-                  
-                  // Merge new items, updating quantities for existing ones
-                  const mergedItems = [...currentItems];
-                  
-                  newItems.forEach(newItem => {
-                    const existingItem = existingItemsMap[newItem.menu_id];
-                    if (existingItem) {
-                      // Update existing item's quantity
-                      existingItem.quantity += newItem.quantity;
-                      existingItem.total_price = existingItem.price * existingItem.quantity;
-                    } else {
-                      // Add new item
-                      mergedItems.push(newItem);
-                    }
-                  });
-                  
-                  console.log("Final merged items count:", mergedItems.length);
-                  return mergedItems;
-                });
-              } else {
-                // If no existing items, just set the new ones
-                setSelectedItems(newItems);
-              }
-            }
-          } catch (error) {
-            console.error("Error processing new items:", error);
+            console.error("Error initializing order:", error);
             toast.show({
-              description: "Error processing menu items",
+              description: "Error loading order details",
               status: "error",
             });
+          } finally {
+            setIsLoadingOrder(false);
           }
-        }
-        
-        setIsLoadingOrder(false);
-      })();
+        };
 
-      // Return a cleanup function
+        initializeOrder();
+      } else {
+        setIsLoadingOrder(false);
+      }
+
+      // Cleanup function
       return () => {
         console.log("=== useFocusEffect cleanup triggered ===");
+        setIsLoadingOrder(false);
       };
-    }, [params, userData])
+    }, [params?.orderNumber, userData?.outlet_id]) // Add proper dependencies
   );
 
   // Update the useEffect to fetch stored GST and service charges with correct keys
@@ -2237,11 +2165,10 @@ export default function CreateOrderScreen() {
 
   // Add a useEffect to track selectedItems changes
   useEffect(() => {
-    console.log("selectedItems state changed - new count:", selectedItems.length);
     if (selectedItems.length > 0) {
-      console.log("First few items:", JSON.stringify(selectedItems.slice(0, 3)));
+      console.log("Selected items updated:", selectedItems.length);
     }
-  }, [selectedItems]);
+  }, [selectedItems.length]); // Only track length changes
 
   return (
     <Box flex={1} bg="white" safeArea>
@@ -2671,8 +2598,7 @@ export default function CreateOrderScreen() {
                   position="fixed"
                   bottom={205}
                   bg="white"
-                  borderWidth={1}
-                  marginBottom={6}
+                  borderWidth={1}   
                   borderColor="gray.200"
                   borderRadius="xl"
                   overflow="hidden"
@@ -2817,22 +2743,22 @@ export default function CreateOrderScreen() {
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="sm" fontWeight="semibold" color="red.500">-₹{calculateDiscount(selectedItems).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Disc (0%)</Text>
+                      <Text fontSize="sm" fontWeight="semibold" color="red.500">-₹{(calculateDiscount(selectedItems) + (parseFloat(specialDiscount) || 0)).toFixed(2)}</Text>
+                      <Text fontSize="xs" color="gray.500">Disc ({calculateTotalDiscountPercentage(selectedItems)}%)</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
                       <Text fontSize="sm" fontWeight="semibold" color="black">+₹{calculateServiceCharges(selectedItems, serviceChargePercentage).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Service (2%)</Text>
+                      <Text fontSize="xs" color="gray.500">Service ({serviceChargePercentage}%)</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
                       <Text fontSize="sm" fontWeight="semibold" color="black">+₹{calculateGST(selectedItems, gstPercentage).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">GST (4%)</Text>
+                      <Text fontSize="xs" color="gray.500">GST ({gstPercentage}%)</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
-                      <Text fontSize="sm" fontWeight="semibold" color="green.500" >₹{calculateTotal(selectedItems, serviceChargePercentage, gstPercentage).toFixed(2)}</Text>
+                      <Text fontSize="sm" fontWeight="semibold" color="green.500">₹{calculateTotal(selectedItems, serviceChargePercentage, gstPercentage).toFixed(2)}</Text>
                       <Text fontSize="xs" color="gray.500">Grand Total</Text>
                     </VStack>
                   </HStack>
