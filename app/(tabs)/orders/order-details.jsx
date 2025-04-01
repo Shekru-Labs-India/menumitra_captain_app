@@ -626,6 +626,8 @@ export default function OrderDetailsScreen() {
     }
     return new BleManager();
   });
+  const [timelineData, setTimelineData] = useState([]);
+  const [isTimelineModalVisible, setIsTimelineModalVisible] = useState(false);
 
   // Update the handleDownloadInvoice function with better error handling
   const handleDownloadInvoice = async () => {
@@ -1389,6 +1391,90 @@ export default function OrderDetailsScreen() {
     </Modal>
   );
 
+  // Add fetchTimeline function
+  const fetchTimeline = async () => {
+    try {
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const response = await fetchWithAuth(`${getBaseUrl()}/order_timeline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: order_id,
+          outlet_id: storedOutletId
+        }),
+      });
+
+      if (response.st === 1 && response.timeline) {
+        setTimelineData(response.timeline);
+      } else {
+        throw new Error(response.msg || "Failed to fetch timeline");
+      }
+    } catch (error) {
+      console.error("Timeline fetch error:", error);
+      toast.show({
+        description: "Failed to fetch order timeline",
+        status: "error",
+        duration: 3000,
+        placement: "bottom",
+      });
+    }
+  };
+
+  // Add Timeline Modal Component
+  const TimelineModal = ({ isOpen, onClose, data }) => (
+    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      <Modal.Content maxWidth="400px">
+        <Modal.Header>Order Timeline - #{orderDetails?.order_number}</Modal.Header>
+        <Modal.Body>
+          <VStack space={4}>
+            {data.map((item, index) => (
+              <HStack key={item.order_time_line_id} space={3} alignItems="flex-start">
+                <VStack alignItems="center" space={0}>
+                  <Box
+                    w="12px"
+                    h="12px"
+                    rounded="full"
+                    bg="green.500"
+                  />
+                  {index !== data.length - 1 && (
+                    <Box
+                      w="2px"
+                      h="50px"
+                      bg="gray.200"
+                    />
+                  )}
+                </VStack>
+                <VStack flex={1} space={1}>
+                  <HStack justifyContent="space-between" alignItems="center">
+                    <Text fontWeight="bold" textTransform="capitalize">
+                      {item.user_name} ({item.user_role})
+                    </Text>
+                  </HStack>
+                  <Text color="gray.600">
+                    Status: <Text color="green.600" fontWeight="semibold" textTransform="capitalize">{item.order_status}</Text>
+                  </Text>
+                  <Text fontSize="sm" color="gray.500">
+                    {item.created_on}
+                  </Text>
+                </VStack>
+              </HStack>
+            ))}
+          </VStack>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button onPress={onClose}>Close</Button>
+        </Modal.Footer>
+      </Modal.Content>
+    </Modal>
+  );
+
+  // Add useEffect to fetch timeline when order_id changes
+  useEffect(() => {
+    if (order_id) {
+      fetchTimeline();
+    }
+  }, [order_id]);
+
   if (isLoading) {
     return (
       <Box flex={1} bg="white" safeArea>
@@ -1414,13 +1500,40 @@ export default function OrderDetailsScreen() {
 
   return (
     <Box flex={1} bg="white" safeArea>
-      <Header title="Order Details" showBack />
+      <Header 
+        title="Order Details" 
+        showBack 
+        rightComponent={
+          orderDetails && 
+          orderDetails.order_status?.toLowerCase() !== "paid" && 
+          orderDetails.order_status?.toLowerCase() !== "cancelled" ? (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Icon as={MaterialIcons} name="edit" size="sm" />}
+              onPress={() => router.push({
+                pathname: "/screens/orders/create-order",
+                params: { order_id: orderDetails.order_id }
+              })}
+            >
+              Edit
+            </Button>
+          ) : null
+        }
+      />
+
+      {/* Add Timeline Modal */}
+      <TimelineModal
+        isOpen={isTimelineModalVisible}
+        onClose={() => setIsTimelineModalVisible(false)}
+        data={timelineData}
+      />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Order Summary Card */}
         <Box m={4} p={4} bg="white" rounded="lg" shadow={1}>
           <VStack space={3}>
-            <HStack justifyContent="space-between" alignItems="center">
+            <HStack justifyContent="space-between" alignItems="flex-start">
               <VStack space={2}>
                 <Heading size="md">Order #{orderDetails.order_number}</Heading>
                 <Text fontSize="sm" color="coolGray.600">
@@ -1428,24 +1541,37 @@ export default function OrderDetailsScreen() {
                 </Text>
                 {renderTimer()}
               </VStack>
-              <Badge
-                px={3}
-                py={1}
-                rounded="full"
-                colorScheme={
-                  orderDetails.order_status === "cooking"
-                    ? "orange"
-                    : orderDetails.order_status === "paid"
-                    ? "green"
-                    : orderDetails.order_status === "placed"
-                    ? "purple"
-                    : "red"
-                }
-              >
-                {orderDetails.order_status?.toUpperCase()}
-              </Badge>
+              <VStack space={2} alignItems="flex-end">
+                <Badge
+                  px={3}
+                  py={1}
+                  rounded="full"
+                  colorScheme={
+                    orderDetails.order_status === "cooking"
+                      ? "orange"
+                      : orderDetails.order_status === "paid"
+                      ? "green"
+                      : orderDetails.order_status === "placed"
+                      ? "purple"
+                      : "red"
+                  }
+                >
+                  {orderDetails.order_status?.toUpperCase()}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  px={1}
+                  py={1}
+                  borderRadius={10}
+                  leftIcon={<Icon as={MaterialIcons} name="schedule" size="sm" />}
+                  onPress={() => setIsTimelineModalVisible(true)}
+                >
+                  Timeline
+                </Button>
+              </VStack>
             </HStack>
-
+            
             <HStack space={4} alignItems="center">
               <HStack space={2} alignItems="center">
                 {orderDetails && (
@@ -1462,6 +1588,7 @@ export default function OrderDetailsScreen() {
                 )}
               </HStack>
             </HStack>
+           
           </VStack>
         </Box>
 
