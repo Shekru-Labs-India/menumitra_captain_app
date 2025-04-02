@@ -598,6 +598,327 @@ export default function CreateOrderScreen() {
   `;
   };
 
+  const handleKOTAndSave = async () => {
+    try {
+      // Dismiss keyboard to ensure text inputs are properly committed
+      Keyboard.dismiss();
+      
+      // Wait a moment to ensure state updates are processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      setIsLoading(true);
+      setLoadingMessage("Processing order...");
+
+      if (selectedItems.length === 0) {
+        Alert.alert("Error", "Please add items to cart before generating KOT");
+        return;
+      }
+
+      const [storedUserId, storedOutletId] = await Promise.all([
+        AsyncStorage.getItem("user_id"),
+        AsyncStorage.getItem("outlet_id"),
+      ]);
+
+      if (!storedUserId || !storedOutletId) {
+        toast.show({
+          description: "Missing required data. Please try again.",
+          status: "error"
+        });
+        return;
+      }
+
+      const orderItems = selectedItems.map((item) => ({
+        menu_id: item.menu_id.toString(),
+        quantity: item.quantity.toString(),
+        comment: item.specialInstructions || "",
+        half_or_full: (item.portionSize || "full").toLowerCase(),
+        price: item.price?.toString() || "0",
+        total_price: item.total_price?.toString() || "0",
+      }));
+
+      // Determine payment status based on complementary and paid checkboxes
+      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
+      
+      // Use the selected payment method
+      const effectivePaymentMethod = isPaid ? paymentMethod.toLowerCase() : "";
+
+      // Base request body for all order types
+      const baseRequestBody = {
+        user_id: storedUserId.toString(),
+        outlet_id: storedOutletId.toString(),
+        order_type: params?.orderType || "dine-in",
+        order_items: orderItems,
+        grand_total: calculateGrandTotal(
+          selectedItems,
+          specialDiscount,
+          extraCharges,
+          serviceChargePercentage,
+          gstPercentage,
+          tip
+        ).toString(),
+        action: "KOT_and_save",
+        is_paid: paymentStatus,
+        payment_method: effectivePaymentMethod,
+        special_discount: parseFloat(specialDiscount) || 0,
+        charges: parseFloat(extraCharges) || 0,
+        tip: parseFloat(tip) || 0,
+        customer_name: customerDetails.customer_name || "",
+        customer_mobile: customerDetails.customer_mobile || "",
+        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+        customer_address: customerDetails.customer_address || "",
+        customer_landmark: customerDetails.customer_landmark || "",
+        order_status: "served" // Changed from "placed" to "served" as per API requirement
+      };
+      
+      let apiResponse;
+
+      // For existing orders
+      if (params?.orderId) {
+        const updateRequestBody = {
+          ...baseRequestBody,
+          order_id: params.orderId.toString(),
+          ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+            tables: [params.tableNumber.toString()],
+            section_id: params.sectionId.toString(),
+          }),
+        };
+
+        console.log(
+          "KOT Update Body:",
+          JSON.stringify(updateRequestBody, null, 2)
+        );
+
+        const updateResponse = await fetchWithAuth(
+          `${getBaseUrl()}/update_order`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updateRequestBody),
+          }
+        );
+
+        if (updateResponse.st !== 1) {
+          throw new Error(updateResponse.msg || "Failed to update order");
+        }
+
+        // Then update status
+        const statusRequestBody = {
+          outlet_id: storedOutletId.toString(),
+          order_id: params.orderId.toString(),
+          order_status: "served", // Changed from "placed" to "served" as per API requirement
+          user_id: storedUserId.toString(),
+          action: "KOT_and_save",
+          order_type: params?.orderType || "dine-in",
+          is_paid: paymentStatus,
+          payment_method: effectivePaymentMethod,
+          // Include customer details
+          customer_name: customerDetails.customer_name || "",
+          customer_mobile: customerDetails.customer_mobile || "",
+          customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+          customer_address: customerDetails.customer_address || "",
+          customer_landmark: customerDetails.customer_landmark || "",
+          special_discount: parseFloat(specialDiscount) || 0,
+          charges: parseFloat(extraCharges) || 0,
+          tip: parseFloat(tip) || 0,
+          ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+            tables: [params.tableNumber.toString()],
+            section_id: params.sectionId.toString(),
+          }),
+        };
+
+        console.log(
+          "KOT Status Body:",
+          JSON.stringify(statusRequestBody, null, 2)
+        );
+
+        const statusResponse = await fetchWithAuth(
+          `${getBaseUrl()}/update_order_status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(statusRequestBody),
+          }
+        );
+
+        if (statusResponse.st !== 1) {
+          throw new Error(statusResponse.msg || "Failed to update order status");
+        }
+
+        apiResponse = updateResponse;
+      } else {
+        // For new orders
+        const createRequestBody = {
+          ...baseRequestBody,
+          order_status: "served", // Changed from "placed" to "served" as per API requirement
+          ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+            tables: [params.tableNumber.toString()],
+            section_id: params.sectionId.toString(),
+          }),
+        };
+
+        console.log(
+          "KOT Create Body:",
+          JSON.stringify(createRequestBody, null, 2)
+        );
+
+        const response = await fetchWithAuth(
+          `${getBaseUrl()}/create_order`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(createRequestBody),
+          }
+        );
+
+        if (response.st !== 1) {
+          throw new Error(response.msg || "Failed to create order");
+        }
+
+        // For new orders, update status with the same status
+        const statusRequestBody = {
+          outlet_id: storedOutletId.toString(),
+          order_id: response.order_id.toString(),
+          order_status: "served", // Changed from "placed" to "served" as per API requirement
+          user_id: storedUserId.toString(),
+          action: "KOT_and_save",
+          order_type: params?.orderType || "dine-in",
+          is_paid: paymentStatus,
+          payment_method: effectivePaymentMethod,
+          // Include customer details
+          customer_name: customerDetails.customer_name || "",
+          customer_mobile: customerDetails.customer_mobile || "",
+          customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+          customer_address: customerDetails.customer_address || "",
+          customer_landmark: customerDetails.customer_landmark || "",
+          special_discount: parseFloat(specialDiscount) || 0,
+          charges: parseFloat(extraCharges) || 0,
+          tip: parseFloat(tip) || 0,
+          ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+            tables: [params.tableNumber.toString()],
+            section_id: params.sectionId.toString(),
+          }),
+        };
+
+        console.log(
+          "New Order KOT Status Body:",
+          JSON.stringify(statusRequestBody, null, 2)
+        );
+
+        const statusResponse = await fetchWithAuth(
+          `${getBaseUrl()}/update_order_status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(statusRequestBody),
+          }
+        );
+
+        if (statusResponse.st !== 1) {
+          throw new Error(statusResponse.msg || "Failed to update order status");
+        }
+
+        apiResponse = response;
+      }
+
+      // Continue with KOT printing logic
+      if (apiResponse.st === 1) {
+        setLoadingMessage("Processing KOT...");
+
+        // For new orders, add the order number to the API response
+        if (!params?.orderId) {
+          apiResponse.order_number =
+            apiResponse.order_number || String(apiResponse.order_id);
+        }
+      
+        if (printerDevice && isConnected) {
+          try {
+            // Generate KOT commands for both new and existing orders
+            const kotCommands = await generateKOTCommands(apiResponse);
+            
+            // Use sendToDevice directly like in printReceipt
+            await sendToDevice(kotCommands, printerDevice, isConnected);
+            
+            // Clear selected items and navigate
+            setSelectedItems([]);
+            router.replace({
+              pathname: "/(tabs)/orders",
+              params: { 
+                refresh: Date.now().toString(),
+                status: "pending"
+              }
+            });
+          } catch (error) {
+            console.error("KOT print error:", error);
+            // Don't show error alert, just log it and continue
+            console.log("Continuing despite print error");
+          }
+        } else {
+          // Check if running in Expo Go
+          if (Constants.appOwnership === "expo") {
+            try {
+              await Print.printAsync({
+                html: await generateKOTHTML(apiResponse),
+                orientation: "portrait",
+              });
+              // Clear selected items and navigate
+              setSelectedItems([]);
+              router.replace({
+                pathname: "/(tabs)/orders",
+                params: { 
+                  refresh: Date.now().toString(),
+                  status: "pending"
+                }
+              });
+            } catch (error) {
+              console.error("PDF print error:", error);
+              // Don't show error alert, just log it and continue
+              console.log("Continuing despite PDF print error");
+              // Clear selected items and navigate anyway
+              setSelectedItems([]);
+              router.replace({
+                pathname: "/(tabs)/orders",
+                params: { 
+                  refresh: Date.now().toString(),
+                  status: "pending"
+                }
+              });
+            }
+          } else {
+            // Production build options - show printer connection dialog
+            setIsModalVisible(true);
+            scanForPrinters();
+            
+            // Set a flag to indicate we need to print after connecting
+            // This will be handled in the handleDeviceSelection function
+          }
+        }
+      }
+    } catch (error) {
+      console.error("KOT error:", error);
+      // Show a more user-friendly error message
+      toast.show({
+        description: "Order saved but there was an issue with printing. You can try printing again later.",
+        status: "warning",
+        duration: 5000
+      });
+      
+      // Still navigate to orders screen even if there was an error
+      setSelectedItems([]);
+      router.replace({
+        pathname: "/(tabs)/orders",
+        params: { 
+          refresh: Date.now().toString(),
+          status: "pending"
+        }
+      });
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage("");
+    }
+  };
+
+
+
   // Add this function before handleSettle
   const calculateTotal = (items) => {
     return items.reduce((total, item) => {
@@ -2962,7 +3283,7 @@ const handleSettleOrder = async () => {
                       flex={5}
                     bg="black"
                       _text={{ color: "white", fontWeight: "semibold" }}
-                      onPress={() => {/* Handle KOT & Save */}}
+                      onPress={() => {handleKOTAndSave();}}
                       borderRadius="md"
                       py={2.5}
                       height={12}
