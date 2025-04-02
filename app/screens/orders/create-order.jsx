@@ -37,7 +37,7 @@ import {
   Actionsheet,
   Icon,
   Checkbox,
-  Radio
+  Radio,
 } from "native-base";
 
 import { MaterialIcons } from "@expo/vector-icons";
@@ -384,7 +384,7 @@ export default function CreateOrderScreen() {
             menu_sub_total: parseFloat(item.menu_sub_total),
           }));
 
-          setSelectedItems(transformedItems);
+          // setSelectedItems(transformedItems);
 
           // Set tax details
           if (orderDetails.order_details) {
@@ -627,6 +627,13 @@ export default function CreateOrderScreen() {
         return;
       }
 
+      // Create a map of all current items to ensure we don't lose any
+      const currentItemsMap = {};
+      selectedItems.forEach(item => {
+        const key = `${item.menu_id}-${item.portionSize}`;
+        currentItemsMap[key] = item;
+      });
+
       const orderItems = selectedItems.map((item) => ({
         menu_id: item.menu_id.toString(),
         quantity: item.quantity.toString(),
@@ -667,7 +674,7 @@ export default function CreateOrderScreen() {
         customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
         customer_address: customerDetails.customer_address || "",
         customer_landmark: customerDetails.customer_landmark || "",
-        order_status: "served" // Changed from "placed" to "served" as per API requirement
+        order_status: "placed"
       };
       
       let apiResponse;
@@ -705,7 +712,7 @@ export default function CreateOrderScreen() {
         const statusRequestBody = {
           outlet_id: storedOutletId.toString(),
           order_id: params.orderId.toString(),
-          order_status: "served", // Changed from "placed" to "served" as per API requirement
+          order_status: "served", // Changed from "placed" to "served" for cooking orders
           user_id: storedUserId.toString(),
           action: "KOT_and_save",
           order_type: params?.orderType || "dine-in",
@@ -749,7 +756,7 @@ export default function CreateOrderScreen() {
         // For new orders
         const createRequestBody = {
           ...baseRequestBody,
-          order_status: "served", // Changed from "placed" to "served" as per API requirement
+          order_status: "served", // Changed from "placed" to "served" for cooking orders
           ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
             tables: [params.tableNumber.toString()],
             section_id: params.sectionId.toString(),
@@ -778,7 +785,7 @@ export default function CreateOrderScreen() {
         const statusRequestBody = {
           outlet_id: storedOutletId.toString(),
           order_id: response.order_id.toString(),
-          order_status: "served", // Changed from "placed" to "served" as per API requirement
+          order_status: "placed",
           user_id: storedUserId.toString(),
           action: "KOT_and_save",
           order_type: params?.orderType || "dine-in",
@@ -852,45 +859,39 @@ export default function CreateOrderScreen() {
             // Don't show error alert, just log it and continue
             console.log("Continuing despite print error");
           }
-        } else {
-          // Check if running in Expo Go
-          if (Constants.appOwnership === "expo") {
-            try {
-              await Print.printAsync({
-                html: await generateKOTHTML(apiResponse),
-                orientation: "portrait",
-              });
-              // Clear selected items and navigate
-              setSelectedItems([]);
-              router.replace({
-                pathname: "/(tabs)/orders",
-                params: { 
-                  refresh: Date.now().toString(),
-                  status: "pending"
-                }
-              });
-            } catch (error) {
-              console.error("PDF print error:", error);
-              // Don't show error alert, just log it and continue
-              console.log("Continuing despite PDF print error");
-              // Clear selected items and navigate anyway
-              setSelectedItems([]);
-              router.replace({
-                pathname: "/(tabs)/orders",
-                params: { 
-                  refresh: Date.now().toString(),
-                  status: "pending"
-                }
-              });
-            }
-          } else {
-            // Production build options - show printer connection dialog
-            setIsModalVisible(true);
-            scanForPrinters();
-            
-            // Set a flag to indicate we need to print after connecting
-            // This will be handled in the handleDeviceSelection function
+      
+          try {
+            await Print.printAsync({
+              html: await generateKOTHTML(apiResponse),
+              orientation: "portrait",
+            });
+            // Clear selected items and navigate
+            setSelectedItems([]);
+            router.replace({
+              pathname: "/(tabs)/orders",
+              params: { 
+                refresh: Date.now().toString(),
+                status: "pending"
+              }
+            });
+          } catch (error) {
+            console.error("PDF print error:", error);
+            // Don't show error alert, just log it and continue
+            console.log("Continuing despite PDF print error");
+            // Clear selected items and navigate anyway
+            setSelectedItems([]);
+            router.replace({
+              pathname: "/(tabs)/orders",
+              params: { 
+                refresh: Date.now().toString(),
+                status: "pending"
+              }
+            });
           }
+        } else {
+          // Production build options - show printer connection dialog
+          setIsModalVisible(true);
+          scanForPrinters();
         }
       }
     } catch (error) {
@@ -1403,48 +1404,50 @@ const handleSettleOrder = async () => {
   };
 
   // Update the useEffect for handling existing orders
-  useEffect(() => {
-    const loadExistingOrder = async () => {
-      if (params?.isOccupied === "1" && params?.orderId) {
-        try {
-          const data = await fetchWithAuth(`${getBaseUrl()}/order_menu_details`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              order_id: params.orderId,
-              outlet_id: userData?.outlet_id,
-            }),
-          });
+  // useEffect(() => {
+  //   const loadExistingOrder = async () => {
+  //     if (params?.isOccupied === "1" && params?.orderId) {
+  //       try {
+  //         const data = await fetchWithAuth(`${getBaseUrl()}/order_menu_details`, {
+  //           method: "POST",
+  //           headers: { "Content-Type": "application/json" },
+  //           body: JSON.stringify({
+  //             order_id: params.orderId,
+  //             outlet_id: userData?.outlet_id,
+  //           }),
+  //         });
 
-          if (data.st === 1) {
-            const existingItems = data.data.map((item) => ({
-              menu_id: item.menu_id.toString(),
-              menu_name: item.name,
-              price: item.price,
-              quantity: item.quantity,
-              total_price: item.total_price,
-              portionSize: item.half_or_full === "half" ? "Half" : "Full",
-              specialInstructions: "",
-            }));
+  //         if (data.st === 1) {
+  //           const existingItems = data.data.map((item) => ({
+  //             menu_id: item.menu_id.toString(),
+  //             menu_name: item.name,
+  //             price: item.price,
+  //             quantity: item.quantity,
+  //             total_price: item.total_price,
+  //             portionSize: item.half_or_full === "half" ? "Half" : "Full",
+  //             specialInstructions: "",
+  //           }));
 
-            setSelectedItems(existingItems);
-          }
-        } catch (error) {
-          console.error("Error loading existing order:", error);
-          toast.show({
-            description: "Error loading existing order",
-            status: "error",
-          });
-        }
-      }
-    };
+  //           setSelectedItems(existingItems);
+  //         }
+  //       } catch (error) {
+  //         console.error("Error loading existing order:", error);
+  //         toast.show({
+  //           description: "Error loading existing order",
+  //           status: "error",
+  //         });
+  //       }
+  //     }
+  //   };
 
-    if (userData?.outlet_id) {
-      loadExistingOrder();
-    }
-  }, [params, userData]);
+  //   if (userData?.outlet_id) {
+  //     loadExistingOrder();
+  //   }
+  // }, [params, userData]);
 
   // Add this function to refresh order details
+
+
   const refreshOrderDetails = async () => {
     if (!params?.orderNumber) return;
 
@@ -1452,7 +1455,11 @@ const handleSettleOrder = async () => {
       const orderData = await fetchOrderDetails(params.orderNumber);
 
       if (orderData) {
-        const updatedItems = orderData.menu_details.map((item) => ({
+        // Get existing items with isNewlyAdded flag
+        const existingNewItems = selectedItems.filter(item => item.isNewlyAdded);
+        
+        // Transform order data items
+        const orderItems = orderData.menu_details.map((item) => ({
           menu_id: item.menu_id.toString(),
           menu_name: item.menu_name,
           price: parseFloat(item.price),
@@ -1463,7 +1470,32 @@ const handleSettleOrder = async () => {
           specialInstructions: item.comment || "",
         }));
 
-        setSelectedItems(updatedItems);
+        // Merge existing new items with order items
+        const mergedItems = [...orderItems];
+        
+        // Add new items that aren't already in the order
+        existingNewItems.forEach(newItem => {
+          const existingItemIndex = mergedItems.findIndex(
+            item => item.menu_id === newItem.menu_id
+          );
+          
+          if (existingItemIndex === -1) {
+            // Item doesn't exist in order, add it
+            mergedItems.push({
+              ...newItem,
+              isNewlyAdded: true
+            });
+          } else {
+            // Item exists, update quantity if needed
+            mergedItems[existingItemIndex].quantity += newItem.quantity;
+            mergedItems[existingItemIndex].total_price = 
+              parseFloat(mergedItems[existingItemIndex].price) * 
+              mergedItems[existingItemIndex].quantity;
+          }
+        });
+
+        // Update selected items with merged list
+        setSelectedItems(mergedItems);
 
         if (orderData.order_details) {
           setServiceChargePercentage(
@@ -2619,7 +2651,7 @@ const handleSettleOrder = async () => {
             {isOccupied === "1" && orderNumber && <OrderSummary />}
             
             {/* Customer Details Section */}
-            <HStack space={2} mt={2} mb={2}>
+            <HStack space={2} mt={1} mb={1}>
               <Input
                 flex={1}
                 placeholder="Customer Name"
@@ -2627,17 +2659,17 @@ const handleSettleOrder = async () => {
                 onChangeText={(text) => handleCustomerDetailsChange("customer_name", text)}
                 borderColor="gray.300"
                 bg="white"
-                fontSize="md"
+                fontSize="sm"
               />
               <Input
                 flex={1}
-                placeholder="Mobile Number"
+                placeholder="Mob no."
                 value={customerDetails.customer_mobile}
                 onChangeText={(text) => handleCustomerDetailsChange("customer_mobile", text)}
                 keyboardType="phone-pad"
                 borderColor="gray.300"
                 bg="white"
-                fontSize="md"
+                fontSize="sm"
               />
               <IconButton
                 icon={<Icon as={MaterialIcons} name="add" size="sm" color="gray.600" />}

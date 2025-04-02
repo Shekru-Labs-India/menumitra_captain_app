@@ -423,6 +423,17 @@ const OrdersScreen = () => {
   const onDateChange = (event, selectedDate) => {
     setShowPicker(false);
     if (selectedDate) {
+      // Ensure the selected date is not in the future
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      if (selectedDate > today) {
+        toast.show({
+          description: "Cannot select future dates",
+          status: "warning",
+          duration: 3000,
+        });
+        return;
+      }
       setPickerDate(selectedDate);
       const formattedDate = formatDateString(selectedDate);
       console.log("Selected and formatted date:", formattedDate);
@@ -508,12 +519,19 @@ const OrdersScreen = () => {
   useEffect(() => {
     fetchOrders();
 
-    const refreshInterval = setInterval(() => {
-      console.log("Auto-refreshing orders for date:", date); // Debug log
-      fetchOrders(true);
-    }, 60000);
+    // Only set up auto-refresh if the selected date is today
+    const today = new Date();
+    const [selectedDay, selectedMonth, selectedYear] = date.split(" ");
+    const selectedDate = new Date(`${selectedMonth} ${selectedDay}, ${selectedYear}`);
+    
+    if (selectedDate.toDateString() === today.toDateString()) {
+      const refreshInterval = setInterval(() => {
+        console.log("Auto-refreshing orders for date:", date);
+        fetchOrders(true);
+      }, 60000);
 
-    return () => clearInterval(refreshInterval);
+      return () => clearInterval(refreshInterval);
+    }
   }, [date]); // Keep date in dependencies to re-fetch when date changes
 
   const handleTimerEnd = useCallback(async (orderId) => {
@@ -758,6 +776,7 @@ const OrdersScreen = () => {
           mode="date"
           display="default"
           onChange={onDateChange}
+          maximumDate={new Date()} // Prevent selecting future dates
         />
       )}
 
