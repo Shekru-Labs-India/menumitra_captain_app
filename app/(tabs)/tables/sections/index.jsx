@@ -551,12 +551,20 @@ export default function TableSectionsScreen() {
   const handleDeleteTable = async (sectionId, tableId) => {
     try {
       setLoading(true);
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      
+      if (!storedUserId) {
+        throw new Error("User ID not found. Please login again.");
+      }
+
       const data = await fetchWithAuth(`${getBaseUrl()}/table_delete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId?.toString() || "",
           section_id: (sectionId || "").toString(),
+          user_id: storedUserId.toString(),
+          table_id: (tableId || "").toString()
         }),
       });
 
@@ -1242,22 +1250,29 @@ export default function TableSectionsScreen() {
   const handleCreateTable = async () => {
     try {
       setLoading(true);
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      
+      if (!storedUserId) {
+        throw new Error("User ID not found. Please login again.");
+      }
+
       const data = await fetchWithAuth(`${getBaseUrl()}/table_create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
           section_id: selectedSection.toString(),
+          user_id: storedUserId.toString()
         }),
       });
 
       console.log("Create Table Response:", data);
 
       if (data.st === 1) {
-      toast.show({
+        toast.show({
           description: "Table created successfully",
-        status: "success",
-      });
+          status: "success",
+        });
         await fetchSections(outletId);
         setShowCreateTableModal(false);
       } else {

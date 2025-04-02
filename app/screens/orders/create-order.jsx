@@ -384,7 +384,7 @@ export default function CreateOrderScreen() {
             menu_sub_total: parseFloat(item.menu_sub_total),
           }));
 
-          // setSelectedItems(transformedItems);
+          setSelectedItems(transformedItems);
 
           // Set tax details
           if (orderDetails.order_details) {
@@ -627,13 +627,6 @@ export default function CreateOrderScreen() {
         return;
       }
 
-      // Create a map of all current items to ensure we don't lose any
-      const currentItemsMap = {};
-      selectedItems.forEach(item => {
-        const key = `${item.menu_id}-${item.portionSize}`;
-        currentItemsMap[key] = item;
-      });
-
       const orderItems = selectedItems.map((item) => ({
         menu_id: item.menu_id.toString(),
         quantity: item.quantity.toString(),
@@ -859,7 +852,7 @@ export default function CreateOrderScreen() {
             // Don't show error alert, just log it and continue
             console.log("Continuing despite print error");
           }
-      
+        } else if (Constants.appOwnership === "expo") {
           try {
             await Print.printAsync({
               html: await generateKOTHTML(apiResponse),
@@ -905,13 +898,7 @@ export default function CreateOrderScreen() {
       
       // Still navigate to orders screen even if there was an error
       setSelectedItems([]);
-      router.replace({
-        pathname: "/(tabs)/orders",
-        params: { 
-          refresh: Date.now().toString(),
-          status: "pending"
-        }
-      });
+      router.replace("/(tabs)/orders");
     } finally {
       setIsLoading(false);
       setLoadingMessage("");
@@ -2604,6 +2591,9 @@ const handleSettleOrder = async () => {
       });
     }
   };
+
+
+  
 
   return (
     <Box flex={1} bg="white" safeArea>
