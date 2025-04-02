@@ -598,173 +598,106 @@ export default function CreateOrderScreen() {
   `;
   };
 
+  // Add this function before handleSettle
+  const calculateTotal = (items) => {
+    return items.reduce((total, item) => {
+      const itemTotal = parseFloat(item.total_price) || 0;
+      return total + itemTotal;
+    }, 0);
+  };
+
   const handleSettle = async () => {
-    if (selectedItems.length === 0) {
-      toast.show({
-        description: "Please add items to the order",
-        status: "warning",
-      });
-      return;
-    }
-
     try {
-      setIsProcessing(true);
-      setLoadingMessage("Processing order...");
-
-      const [storedCaptainId, storedOutletId, storedUserId] = await Promise.all([
-        AsyncStorage.getItem("captain_id"),
-        AsyncStorage.getItem("outlet_id"),
-        AsyncStorage.getItem("user_id"),
-      ]);
-
-      if (!storedOutletId || !storedCaptainId || !storedUserId) {
-        throw new Error("Required data not found");
+      if (!selectedItems.length) {
+        toast.show({
+          description: "Please add items to the order",
+          status: "warning"
+        });
+        return;
       }
 
-      // Format order items with proper string conversion and decimal handling
-      const orderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id?.toString() || "",
-        quantity: item.quantity?.toString() || "1",
-        comment: item.specialInstructions?.toString() || "",
-        half_or_full: (item.portionSize || "full").toLowerCase(),
-        price: Number(item.price || (item.portionSize === "Half" ? item.half_price : item.full_price) || 0).toFixed(2),
-        total_price: Number((item.price || (item.portionSize === "Half" ? item.half_price : item.full_price) || 0) * (item.quantity || 1)).toFixed(2),
-      }));
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      const storedWaiterId = await AsyncStorage.getItem("waiter_id");
 
-      // Calculate total with proper decimal handling
-      const grandTotal = Number(calculateTotal(selectedItems, serviceChargePercentage, gstPercentage)).toFixed(2);
+      if (!storedOutletId || !storedUserId || !storedWaiterId) {
+        toast.show({
+          description: "Missing required data. Please try again.",
+          status: "error"
+        });
+        return;
+      }
 
-      // Determine payment status based on complementary and paid checkboxes
-      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
-
-      // Base request body for all order types with proper decimal handling
-      const baseRequestBody = {
-        user_id: storedUserId.toString(),
-        outlet_id: storedOutletId.toString(),
-        order_items: orderItems,
-        grand_total: grandTotal,
-        service_charges_percent: Number(serviceChargePercentage || 0).toFixed(2),
-        gst_percent: Number(gstPercentage || 0).toFixed(2),
-        action: "settle",
-        // Add customer details
+      const orderData = {
+        user_id: storedUserId,
+        outlet_id: storedOutletId,
+        waiter_id: storedWaiterId,
+        order_items: selectedItems.map(item => ({
+          menu_id: item.menu_id,
+          quantity: item.quantity,
+          price: item.price,
+          total_price: item.total_price,
+          offer: item.offer || 0,
+          specialInstructions: item.specialInstructions || "",
+          category_name: item.category_name || "",
+          food_type: item.food_type || ""
+        })),
+        total_amount: calculateTotal(selectedItems),
         customer_name: customerDetails.customer_name || "",
         customer_mobile: customerDetails.customer_mobile || "",
         customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
         customer_address: customerDetails.customer_address || "",
         customer_landmark: customerDetails.customer_landmark || "",
-        // Add payment information
-        is_paid: paymentStatus,
-        payment_method: isPaid ? paymentMethod : "",
-        // Add additional charges with proper decimal handling
-        special_discount: Number(specialDiscount || 0).toFixed(2),
-        charges: Number(extraCharges || 0).toFixed(2),
-        tip: Number(tip || 0).toFixed(2),
+        order_type: orderType,
+        order_status: "completed",
+        payment_status: "paid",
+        payment_method: "cash",
+        discount_amount: calculateDiscount(selectedItems),
+        special_discount: specialDiscount || 0,
+        extra_charges: extraCharges || 0,
+        service_charges_amount: calculateServiceCharges(selectedItems, serviceChargePercentage),
+        gst_amount: calculateGST(selectedItems, gstPercentage),
+        tip: tip || 0,
+        grand_total: calculateGrandTotal(
+          selectedItems,
+          specialDiscount,
+          extraCharges,
+          serviceChargePercentage,
+          gstPercentage,
+          tip
+        )
       };
 
-      // For existing orders
-      if (params?.orderId) {
-        setLoadingMessage("Updating order...");
-        const updateRequestBody = {
-          ...baseRequestBody,
-          order_id: params.orderId.toString(),
-          order_type: "dine-in",
-          ...(params?.tableNumber && {
-            tables: [params.tableNumber.toString()],
-            section_id: params.sectionId?.toString() || "",
-          }),
-        };
-
-        const updateResult = await fetchWithAuth(`${getBaseUrl()}/update_order`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updateRequestBody),
-        });
-
-        if (updateResult.st !== 1) {
-          throw new Error(updateResult.msg || "Failed to update order");
-        }
-
-        const settleRequestBody = {
-          outlet_id: storedOutletId.toString(),
-          order_id: params.orderId.toString(),
-          order_status: "paid",
-          user_id: storedUserId.toString(),
-          // Include payment information in status update
-          is_paid: paymentStatus,
-          payment_method: isPaid ? paymentMethod : "",
-        };
-
-        const settleResult = await fetchWithAuth(
-          `${getBaseUrl()}/update_order_status`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(settleRequestBody),
-          }
-        );
-
-        if (settleResult.st !== 1) {
-          throw new Error(settleResult.msg || "Failed to mark as paid");
-        }
-      } else {
-        // For new orders (both special and regular)
-        const createRequestBody = {
-          ...baseRequestBody,
-          captain_id: storedCaptainId.toString(),
-          order_type: params?.isSpecialOrder
-            ? (params.orderType || "").toLowerCase()
-            : "dine-in",
-          ...(params?.isSpecialOrder
-            ? { tables: [] }
-            : {
-                tables: [params.tableNumber?.toString() || ""],
-                section_id: params.sectionId?.toString() || "",
-              }),
-        };
-
-        const createResult = await fetchWithAuth(`${getBaseUrl()}/create_order`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(createRequestBody),
-        });
-
-        if (createResult.st !== 1) {
-          throw new Error(createResult.msg || "Failed to create order");
-        }
+      // Add table and section details if it's a dine-in order
+      if (orderType === "dine-in" && params?.tableId && params?.sectionId) {
+        orderData.table_id = params.tableId;
+        orderData.section_id = params.sectionId;
       }
 
-      // Clear states
-      setSelectedItems([]);
-      setSearchQuery("");
-      setOrderDetails({});
-      setServiceCharges(0);
-      setGstAmount(0);
-      setDiscountAmount(0);
-
-      toast.show({
-        description: "Order settled successfully",
-        status: "success",
-        duration: 2000,
+      const response = await fetchWithAuth(`${getBaseUrl()}/create_order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
       });
 
-      router.replace({
-        pathname: "/(tabs)/orders",
-        params: {
-          refresh: Date.now().toString(),
-          status: "paid",
-          fromSettle: true,
-        },
-      });
+      if (response.st === 1) {
+        toast.show({
+          description: "Order settled successfully",
+          status: "success"
+        });
+        router.replace("/screens/orders/order-details");
+      } else {
+        toast.show({
+          description: response.msg || "Failed to settle order",
+          status: "error"
+        });
+      }
     } catch (error) {
-      console.error("Settle Error:", error);
+      console.error("Error settling order:", error);
       toast.show({
-        description: error.message || "Failed to settle order",
-        status: "error",
-        duration: 3000,
+        description: "Failed to settle order",
+        status: "error"
       });
-    } finally {
-      setIsProcessing(false);
-      setLoadingMessage("");
     }
   };
 
@@ -2123,6 +2056,55 @@ export default function CreateOrderScreen() {
     }
   }, [selectedItems]);
 
+  const handleForceCancel = async () => {
+    try {
+      if (!params?.orderId) {
+        toast.show({
+          description: "No order to cancel",
+          status: "warning"
+        });
+        return;
+      }
+
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      if (!storedUserId) {
+        toast.show({
+          description: "User ID not found",
+          status: "error"
+        });
+        return;
+      }
+
+      const response = await fetchWithAuth(`${getBaseUrl()}/force_cancel_order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: params.orderId,
+          user_id: storedUserId
+        })
+      });
+
+      if (response.st === 1) {
+        toast.show({
+          description: "Order cancelled successfully",
+          status: "success"
+        });
+        router.replace("/(tabs)/tables/sections");
+      } else {
+        toast.show({
+          description: response.msg || "Failed to cancel order",
+          status: "error"
+        });
+      }
+    } catch (error) {
+      console.error("Error cancelling order:", error);
+      toast.show({
+        description: "Failed to cancel order",
+        status: "error"
+      });
+    }
+  };
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -2848,7 +2830,7 @@ export default function CreateOrderScreen() {
                     flex={1}
                       bg="red.500"
                       _text={{ color: "white", fontWeight: "semibold" }}
-                      onPress={() => router.replace("/(tabs)/tables/sections")}
+                      onPress={handleForceCancel}
                       borderRadius="md"
                       py={2.5}
                       height={12}
