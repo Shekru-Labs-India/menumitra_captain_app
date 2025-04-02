@@ -606,100 +606,247 @@ export default function CreateOrderScreen() {
     }, 0);
   };
 
-  const handleSettle = async () => {
-    try {
-      if (!selectedItems.length) {
-        toast.show({
-          description: "Please add items to the order",
-          status: "warning"
-        });
-        return;
+
+// handle settle order
+const handleSettleOrder = async () => {
+  try {
+    if (selectedItems.length === 0) {
+      toast.show({
+        description: "Please add items to the order",
+        status: "warning"
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadingMessage("Processing order...");
+
+    const [storedUserId, storedOutletId] = await Promise.all([
+      AsyncStorage.getItem("user_id"),
+      AsyncStorage.getItem("outlet_id"),
+    ]);
+
+    if (!storedUserId || !storedOutletId) {
+      toast.show({
+        description: "Missing required data. Please try again.",
+        status: "error"
+      });
+      return;
+    }
+
+    const orderItems = selectedItems.map((item) => ({
+      menu_id: item.menu_id.toString(),
+      quantity: item.quantity.toString(),
+      comment: item.specialInstructions || "",
+      half_or_full: (item.portionSize || "full").toLowerCase(),
+      price: item.price?.toString() || "0",
+      total_price: item.total_price?.toString() || "0",
+    }));
+
+    // Determine payment status based on complementary and paid checkboxes
+    const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
+    
+    // Use the selected payment method
+    const effectivePaymentMethod = isPaid ? paymentMethod.toLowerCase() : "";
+
+    // Base request body for all order types
+    const baseRequestBody = {
+      user_id: storedUserId.toString(),
+      outlet_id: storedOutletId.toString(),
+      order_type: params?.orderType || "dine-in",
+      order_items: orderItems,
+      grand_total: calculateGrandTotal(
+        selectedItems,
+        specialDiscount,
+        extraCharges,
+        serviceChargePercentage,
+        gstPercentage,
+        tip
+      ).toString(),
+      action: "settle",
+      is_paid: paymentStatus,
+      payment_method: effectivePaymentMethod,
+      special_discount: parseFloat(specialDiscount) || 0,
+      charges: parseFloat(extraCharges) || 0,
+      tip: parseFloat(tip) || 0,
+      customer_name: customerDetails.customer_name || "",
+      customer_mobile: customerDetails.customer_mobile || "",
+      customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+      customer_address: customerDetails.customer_address || "",
+      customer_landmark: customerDetails.customer_landmark || "",
+    };
+    
+    let apiResponse;
+
+    // For existing orders
+    if (params?.orderId) {
+      const updateRequestBody = {
+        ...baseRequestBody,
+        order_id: params.orderId.toString(),
+        ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+          tables: [params.tableNumber.toString()],
+          section_id: params.sectionId.toString(),
+        }),
+      };
+
+      console.log(
+        "Settle Update Body:",
+        JSON.stringify(updateRequestBody, null, 2)
+      );
+
+      const updateResponse = await fetchWithAuth(
+        `${getBaseUrl()}/update_order`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updateRequestBody),
+        }
+      );
+
+      if (updateResponse.st !== 1) {
+        throw new Error(updateResponse.msg || "Failed to update order");
       }
 
-      const storedOutletId = await AsyncStorage.getItem("outlet_id");
-      const storedUserId = await AsyncStorage.getItem("user_id");
-      const storedWaiterId = await AsyncStorage.getItem("waiter_id");
-
-      if (!storedOutletId || !storedUserId || !storedWaiterId) {
-        toast.show({
-          description: "Missing required data. Please try again.",
-          status: "error"
-        });
-        return;
-      }
-
-      const orderData = {
-        user_id: storedUserId,
-        outlet_id: storedOutletId,
-        waiter_id: storedWaiterId,
-        order_items: selectedItems.map(item => ({
-          menu_id: item.menu_id,
-          quantity: item.quantity,
-          price: item.price,
-          total_price: item.total_price,
-          offer: item.offer || 0,
-          specialInstructions: item.specialInstructions || "",
-          category_name: item.category_name || "",
-          food_type: item.food_type || ""
-        })),
-        total_amount: calculateTotal(selectedItems),
+      // Then mark as paid with payment information
+      const settleRequestBody = {
+        outlet_id: storedOutletId.toString(),
+        order_id: params.orderId.toString(),
+        order_status: "paid", // For settle, always mark as paid
+        user_id: storedUserId.toString(),
+        action: "settle",
+        order_type: params?.orderType || "dine-in",
+        is_paid: "paid", // For settle, always mark as paid
+        payment_method: effectivePaymentMethod,
+        // Include customer details
         customer_name: customerDetails.customer_name || "",
         customer_mobile: customerDetails.customer_mobile || "",
         customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
         customer_address: customerDetails.customer_address || "",
         customer_landmark: customerDetails.customer_landmark || "",
-        order_type: orderType,
-        order_status: "completed",
-        payment_status: "paid",
-        payment_method: "cash",
-        discount_amount: calculateDiscount(selectedItems),
-        special_discount: specialDiscount || 0,
-        extra_charges: extraCharges || 0,
-        service_charges_amount: calculateServiceCharges(selectedItems, serviceChargePercentage),
-        gst_amount: calculateGST(selectedItems, gstPercentage),
-        tip: tip || 0,
-        grand_total: calculateGrandTotal(
-          selectedItems,
-          specialDiscount,
-          extraCharges,
-          serviceChargePercentage,
-          gstPercentage,
-          tip
-        )
+        special_discount: parseFloat(specialDiscount) || 0,
+        charges: parseFloat(extraCharges) || 0,
+        tip: parseFloat(tip) || 0,
+        ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+          tables: [params.tableNumber.toString()],
+          section_id: params.sectionId.toString(),
+        }),
       };
 
-      // Add table and section details if it's a dine-in order
-      if (orderType === "dine-in" && params?.tableId && params?.sectionId) {
-        orderData.table_id = params.tableId;
-        orderData.section_id = params.sectionId;
+      console.log(
+        "Settle Status Body:",
+        JSON.stringify(settleRequestBody, null, 2)
+      );
+
+      const settleResponse = await fetchWithAuth(
+        `${getBaseUrl()}/update_order_status`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(settleRequestBody),
+        }
+      );
+
+      if (settleResponse.st !== 1) {
+        throw new Error(settleResponse.msg || "Failed to settle order");
+      }
+    } else {
+      // For new orders
+      const createRequestBody = {
+        ...baseRequestBody,
+        ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+          tables: [params.tableNumber.toString()],
+          section_id: params.sectionId.toString(),
+        }),
+      };
+
+      console.log(
+        "Settle Create Body:",
+        JSON.stringify(createRequestBody, null, 2)
+      );
+
+      const response = await fetchWithAuth(
+        `${getBaseUrl()}/create_order`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(createRequestBody),
+        }
+      );
+
+      if (response.st !== 1) {
+        throw new Error(response.msg || "Failed to create order");
       }
 
-      const response = await fetchWithAuth(`${getBaseUrl()}/create_order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
-      });
+      // For new orders, immediately mark as paid with payment method
+      const settleRequestBody = {
+        outlet_id: storedOutletId.toString(),
+        order_id: response.order_id.toString(),
+        order_status: "paid",
+        user_id: storedUserId.toString(),
+        action: "settle",
+        order_type: params?.orderType || "dine-in",
+        is_paid: "paid",
+        payment_method: effectivePaymentMethod,
+        // Include customer details
+        customer_name: customerDetails.customer_name || "",
+        customer_mobile: customerDetails.customer_mobile || "",
+        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+        customer_address: customerDetails.customer_address || "",
+        customer_landmark: customerDetails.customer_landmark || "",
+        special_discount: parseFloat(specialDiscount) || 0,
+        charges: parseFloat(extraCharges) || 0,
+        tip: parseFloat(tip) || 0,
+        ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+          tables: [params.tableNumber.toString()],
+          section_id: params.sectionId.toString(),
+        }),
+      };
 
-      if (response.st === 1) {
-        toast.show({
-          description: "Order settled successfully",
-          status: "success"
-        });
-        router.replace("/screens/orders/order-details");
-      } else {
-        toast.show({
-          description: response.msg || "Failed to settle order",
-          status: "error"
-        });
+      console.log(
+        "New Order Settle Status Body:",
+        JSON.stringify(settleRequestBody, null, 2)
+      );
+
+      const settleResponse = await fetchWithAuth(
+        `${getBaseUrl()}/update_order_status`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(settleRequestBody),
+        }
+      );
+
+      if (settleResponse.st !== 1) {
+        throw new Error(settleResponse.msg || "Failed to settle the new order");
       }
-    } catch (error) {
-      console.error("Error settling order:", error);
-      toast.show({
-        description: "Failed to settle order",
-        status: "error"
-      });
     }
-  };
+
+    setIsLoading(false);
+    toast.show({
+      description: "Order settled successfully!",
+      status: "success"
+    });
+    
+    // Navigate back to orders screen
+    router.replace("/(tabs)/orders");
+  } catch (error) {
+    console.error("Error handling order:", error);
+    setIsLoading(false);
+    
+    // Improved error message handling
+    let errorMessage = "Failed to process order. Please try again.";
+    
+    if (error.message) {
+      errorMessage = error.message;
+    }
+
+    toast.show({
+      description: errorMessage,
+      status: "error"
+    });
+  }
+};
+
 
   useEffect(() => {
     const keyboardDidHideListener = Keyboard.addListener(
@@ -2798,7 +2945,7 @@ export default function CreateOrderScreen() {
                     flex={1}
                       bg="blue.500"
                       _text={{ color: "white", fontWeight: "semibold" }}
-                      onPress={handleSettle}
+                      onPress={handleSettleOrder}
                       borderRadius="md"
                       py={2.5}
                       height={12}
