@@ -313,9 +313,17 @@ export default function TableSectionsScreen() {
 
     // Apply search filter
     if (searchQuery) {
-      filtered = filtered.filter((section) =>
-        section.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      filtered = filtered.filter((section) => {
+        // Check if section name matches
+        const sectionNameMatch = section.name.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        // Check if any table number matches
+        const tableNumberMatch = section.tables.some(table => 
+          table.table_number.toString().includes(searchQuery)
+        );
+        
+        return sectionNameMatch || tableNumberMatch;
+      });
     }
 
     // Apply sorting
@@ -1146,6 +1154,39 @@ export default function TableSectionsScreen() {
                 </Text>
               </Box>
             </Pressable>
+            <Pressable
+              onPress={() =>
+                router.replace({
+                  pathname: "/screens/orders/menu-selection",
+                  params: {
+                    isSpecialOrder: "true",
+                    orderType: "delivery",
+                    clearPrevious: "true",
+                  },
+                })
+              }
+            >
+              <Box
+                px={4}
+                py={1.5}
+                bg="green.500"
+                borderWidth={1}
+                borderColor="green.500"
+                rounded="md"
+                flexDirection="row"
+                alignItems="center"
+              >
+                <MaterialIcons
+                  name="delivery-dining"
+                  size={16}
+                  color="white"
+                  style={{ marginRight: 4 }}
+                />
+                <Text color="white" fontSize="sm" fontWeight="medium">
+                  Delivery
+                </Text>
+              </Box>
+            </Pressable>
           </HStack>
         </ScrollView>
       </Box>
@@ -1395,6 +1436,10 @@ export default function TableSectionsScreen() {
         const uri = await captureQR();
         if (!uri) return;
 
+        // Create a unique filename
+        const timestamp = new Date().getTime();
+        const fileName = `table_${selectedTableForQR?.table_number}_${timestamp}.png`;
+        
         // Save to media library
         const asset = await MediaLibrary.createAssetAsync(uri);
         await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
@@ -1463,13 +1508,18 @@ export default function TableSectionsScreen() {
         `;
 
         // Create and save the PDF
-        const pdfFile = await Print.printToFileAsync({
+        const { uri: pdfUri } = await Print.printToFileAsync({
           html: htmlContent,
           base64: false
         });
 
+        // Create a unique filename
+        const timestamp = new Date().getTime();
+        const fileName = `table_${selectedTableForQR?.table_number}_${timestamp}.pdf`;
+
         // Save to media library
-        await MediaLibrary.createAssetAsync(pdfFile.uri);
+        const asset = await MediaLibrary.createAssetAsync(pdfUri);
+        await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
         
         toast.show({
           description: "QR code PDF saved successfully",
@@ -1495,10 +1545,15 @@ export default function TableSectionsScreen() {
         const uri = await captureQR();
         if (!uri) return;
 
+        // Create a unique filename
+        const timestamp = new Date().getTime();
+        const fileName = `table_${selectedTableForQR?.table_number}_${timestamp}.png`;
+
         // Share the file
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
           dialogTitle: `Share Table ${selectedTableForQR?.table_number || "Unknown"} QR Code`,
+          UTI: 'public.png'
         });
       } catch (error) {
         console.error("Error sharing QR code:", error);
@@ -1753,6 +1808,45 @@ export default function TableSectionsScreen() {
         }
       />
       {/* Search and Filters */}
+      <Box px={4} py={2} bg="white">
+        <Input
+          placeholder="Search section "
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          variant="filled"
+          bg="coolGray.100"
+          borderRadius="10"
+          py="2"
+          px="1"
+          fontSize="md"
+          borderWidth={1}
+          borderColor="black"
+          _focus={{
+            borderColor: "primary.500",
+            bg: "coolGray.100",
+          }}
+          InputLeftElement={
+            <Icon
+              as={<MaterialIcons name="search" />}
+              size={5}
+              ml="2"
+              color="coolGray.400"
+            />
+          }
+          InputRightElement={
+            searchQuery ? (
+              <Pressable onPress={() => setSearchQuery("")}>
+                <Icon
+                  as={<MaterialIcons name="close" />}
+                  size={5}
+                  mr="2"
+                  color="coolGray.400"
+                />
+              </Pressable>
+            ) : null
+          }
+        />
+      </Box>
 
       {/* Filter Buttons */}
       <FilterButtons />
