@@ -322,8 +322,9 @@ export default function OtpScreen() {
               color="coolGray.600"
               textAlign="center"
             >
-              {formatMobileNumber(mobileNumber)}
+              {formatMobileNumber(mobileNumber)}  
             </Text>
+            <Text fontSize="md" color="coolGray.600" textAlign="center">to verify your account</Text>
           </VStack>
 
           <HStack space={2} justifyContent="center" mb={4}>
@@ -430,7 +431,7 @@ export default function OtpScreen() {
         </VStack>
       </Box>
 
-      <Box borderTopWidth={1} borderTopColor="coolGray.200" p={0}>
+      {/* <Box borderTopWidth={1} borderTopColor="coolGray.200" p={0}>
         <VStack space={3} alignItems="center">
           <HStack space={2} alignItems="center">
             <Image
@@ -527,7 +528,7 @@ export default function OtpScreen() {
             </Text>
           </VStack>
         </VStack>
-      </Box>
+      </Box> */}
     </Box>
   );
 }

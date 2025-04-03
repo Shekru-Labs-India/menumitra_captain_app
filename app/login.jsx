@@ -180,7 +180,7 @@ export default function LoginScreen() {
                 color="coolGray.700"
                 pl={1}
               >
-                Mobile Number
+                Enter your mobile number to receive OTP
               </Text>
               <HStack
                 space={2}
@@ -259,7 +259,7 @@ export default function LoginScreen() {
         </VStack>
       </Box>
 
-      <Box borderTopWidth={1} borderTopColor="coolGray.200" p={4}>
+      {/* <Box borderTopWidth={1} borderTopColor="coolGray.200" p={4}>
         <VStack space={3} alignItems="center">
           <HStack space={2} alignItems="center">
             <Image
@@ -356,7 +356,7 @@ export default function LoginScreen() {
             </Text>
           </VStack>
         </VStack>
-      </Box>
+      </Box> */}
     </Box>
   );
 }
