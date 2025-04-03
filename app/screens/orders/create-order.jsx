@@ -524,7 +524,7 @@ export default function CreateOrderScreen() {
       setGstAmount(0);
       setDiscountAmount(0);
 
-      // Navigate to tables screen instead of orders
+      // Navigate to tables screen
       router.replace({
         pathname: "/(tabs)/tables",
         params: {
@@ -1981,51 +1981,51 @@ const handleSettleOrder = async () => {
   };
 
   // Update the scanForPrinters function to include Expo Go check
-  const scanForPrinters = async () => {
-    try {
-      // Check if running in Expo Go or web
-      const isExpoGo = Constants.executionEnvironment === "storeClient";
-      const isWeb = Platform.OS === "web";
+  // const scanForPrinters = async () => {
+  //   try {
+  //     // Check if running in Expo Go or web
+  //     const isExpoGo = Constants.executionEnvironment === "storeClient";
+  //     const isWeb = Platform.OS === "web";
 
      
 
-      if (!bleManager) {
-        Alert.alert(
-          "Feature Not Available",
-          "Bluetooth printing is only available in development or production builds."
-        );
-        return;
-      }
+  //     if (!bleManager) {
+  //       Alert.alert(
+  //         "Feature Not Available",
+  //         "Bluetooth printing is only available in development or production builds."
+  //       );
+  //       return;
+  //     }
 
-      const hasPermissions = await requestPermissions(bleManager);
-      if (!hasPermissions) {
-        Alert.alert("Permission Error", "Bluetooth permissions not granted");
-        return;
-      }
+  //     const hasPermissions = await requestPermissions(bleManager);
+  //     if (!hasPermissions) {
+  //       Alert.alert("Permission Error", "Bluetooth permissions not granted");
+  //       return;
+  //     }
 
-      setIsScanning(true);
-      setAvailableDevices([]);
-      setIsModalVisible(true);
+  //     setIsScanning(true);
+  //     setAvailableDevices([]);
+  //     setIsModalVisible(true);
 
-      bleManager.startDeviceScan(null, null, (error, device) => {
-        if (error) {
-          console.error("Scan error:", error);
-          return;
-        }
-        if (device) {
-          setAvailableDevices((prevDevices) => {
-            if (!prevDevices.find((d) => d.id === device.id)) {
-              return [...prevDevices, device];
-            }
-            return prevDevices;
-          });
-        }
-      });
-    } catch (error) {
-      console.error("Scan error:", error);
-      Alert.alert("Error", "Failed to start scanning");
-    }
-  };
+  //     bleManager.startDeviceScan(null, null, (error, device) => {
+  //       if (error) {
+  //         console.error("Scan error:", error);
+  //         return;
+  //       }
+  //       if (device) {
+  //         setAvailableDevices((prevDevices) => {
+  //           if (!prevDevices.find((d) => d.id === device.id)) {
+  //             return [...prevDevices, device];
+  //           }
+  //           return prevDevices;
+  //         });
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error("Scan error:", error);
+  //     Alert.alert("Error", "Failed to start scanning");
+  //   }
+  // };
 
   // Update handleDeviceSelection to handle both KOT and receipt printing the same way
   const handleDeviceSelection = async (device) => {
