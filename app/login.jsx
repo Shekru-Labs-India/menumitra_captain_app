@@ -144,7 +144,7 @@ export default function LoginScreen() {
 
           router.push({ pathname: "/otp", params: { mobile: mobileNumber } });
         } else {
-          setApiError("Access denied. Only captains can use this app.");
+          setApiError("Access denied for this role.");
         }
       } else {
         setApiError("Access denied. Please check your credentials.");
