@@ -1578,125 +1578,86 @@ export default function TableSectionsScreen() {
           p={4}
           width="90%"
           maxWidth="350px"
+          bg="white"
         >
-          <Modal.CloseButton onPress={closeModal} />
-          <Modal.Header borderBottomWidth={0} alignItems="center">
-            <Text fontSize="lg" fontWeight="bold">
+          <HStack alignItems="center" justifyContent="space-between" mb={4}>
+            <Text fontSize="xl" fontWeight="medium">
               Table {qrData?.table_number || selectedTableForQR?.table_number} QR Code
             </Text>
-          </Modal.Header>
-          <Modal.Body alignItems="center">
+            <Pressable onPress={closeModal}>
+              <Icon as={MaterialIcons} name="close" size="md" color="gray.500" />
+            </Pressable>
+          </HStack>
+          <Modal.Body alignItems="center" p={0}>
             {isLoadingQr ? (
               <Center h={280} w={280}>
                 <Spinner size="lg" color="primary.500" />
               </Center>
             ) : qrValue ? (
-              <Box 
-                alignItems="center"
-                bg="white"
-                p={4}
-                borderRadius="2xl"
-                borderWidth={1}
-                borderColor="gray.300"
-                shadow={1}
-              >
-                {/* Use ViewShot to capture the QR code */}
-                <ViewShot
-                  ref={viewShotRef}
-                  options={{
-                    format: "png",
-                    quality: 1,
-                    result: "tmpfile"
-                  }}
-                  style={{
-                    backgroundColor: 'white',
-                    padding: 20,
-                    borderRadius: 16,
-                  }}
+              <VStack space={6} alignItems="center" width="100%">
+                <Box 
+                  alignItems="center"
+                  bg="white"
+                  borderRadius="lg"
+                  borderWidth={1}
+                  borderColor="red.500"
+                  p={4}
                 >
-                  {qrValue.length > 0 && (
+                  {/* Use ViewShot to capture the QR code */}
+                  <ViewShot
+                    ref={viewShotRef}
+                    options={{
+                      format: "png",
+                      quality: 1,
+                      result: "tmpfile"
+                    }}
+                  >
                     <QRCode
                       value={qrValue}
-                      size={QR_STYLES.DEFAULT.size}
+                      size={280}
                       logo={require('../../../../assets/images/mm-logo.png')}
-                      logoSize={QR_STYLES.DEFAULT.logoSize}
+                      logoSize={50}
                       logoBackgroundColor="white"
-                      logoMargin={QR_STYLES.DEFAULT.logoMargin}
-                      logoBorderRadius={QR_STYLES.DEFAULT.logoBorderRadius}
-                      backgroundColor={QR_STYLES.DEFAULT.backgroundColor}
-                      color={QR_STYLES.DEFAULT.dotColor}
+                      logoMargin={4}
+                      logoBorderRadius={8}
+                      backgroundColor="white"
+                      color="#0000FF"
                       enableLinearGradient={false}
                       ecl="H"
                       quietZone={16}
-                      qrStyle={{
-                        dots: {
-                          style: 'dots'
-                        },
-                        cornersDots: {
-                          type: 'dot',
-                          color: '#f48347'
-                        },
-                        cornersSquare: {
-                          type: 'extra-rounded',
-                          color: '#f48347'
-                        }
-                      }}
                     />
-                  )}
-                </ViewShot>
-                
-                <HStack space={4} mt={4} w="100%" justifyContent="center">
-                  {/* Download Button with Dropdown */}
-                  <Menu
-                    trigger={(triggerProps) => {
-                      return (
-                        <Button
-                          {...triggerProps}
-                          leftIcon={<Icon as={MaterialIcons} name="download" size="sm" />}
-                          size="md"
-                          flex={1}
-                          borderRadius="lg"
-                          bg="primary.500"
-                          _pressed={{ bg: "primary.600" }}
-                          shadow={1}
-                          isDisabled={isLoadingQr}
-                        >
-                          {isLoadingQr ? "Processing..." : "Download"}
-                        </Button>
-                      );
-                    }}
-                    placement="top"
-                  >
-                    <Menu.Item 
-                      onPress={saveToGallery}
-                      leftIcon={<Icon as={MaterialIcons} name="image" size="sm" color="gray.600" />}
-                    >
-                      Save as PNG
-                    </Menu.Item>
-                    <Menu.Item 
-                      onPress={handlePDFDownload}
-                      leftIcon={<Icon as={MaterialIcons} name="picture-as-pdf" size="sm" color="gray.600" />}
-                    >
-                      Save as PDF
-                    </Menu.Item>
-                  </Menu>
-                  
-                  {/* Share Button */}
+                  </ViewShot>
+                </Box>
+
+                <Text fontSize="md" color="gray.600">
+                  Scan to place your order
+                </Text>
+
+                <HStack space={4} width="100%" px={4}>
                   <Button
-                    leftIcon={<Icon as={MaterialIcons} name="share" size="sm" />}
-                    size="md"
                     flex={1}
-                    borderRadius="lg"
-                    bg="blue.500"
-                    _pressed={{ bg: "blue.600" }}
-                    shadow={1}
+                    size="lg"
+                    bg="cyan.500"
+                    _pressed={{ bg: "cyan.600" }}
+                    leftIcon={<Icon as={MaterialIcons} name="download" size="sm" color="white" />}
+                    onPress={saveToGallery}
+                    isDisabled={isLoadingQr}
+                  >
+                    Download
+                  </Button>
+                  <Button
+                    flex={1}
+                    size="lg"
+                    bg="green.600"
+                    _pressed={{ bg: "green.700" }}
+                    leftIcon={<Icon as={MaterialIcons} name="share" size="sm" color="white" />}
                     onPress={handleShareQRCode}
                     isDisabled={isLoadingQr}
                   >
-                    {isLoadingQr ? "Processing..." : "Share"}
+                    Share
                   </Button>
                 </HStack>
-              </Box>
+              </VStack>
             ) : (
               <Text color="red.500">Failed to generate QR code</Text>
             )}
