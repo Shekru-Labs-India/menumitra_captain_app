@@ -1813,6 +1813,8 @@ const handleSettleOrder = async () => {
     <Box
       position="absolute"
       right={4}
+      marginLeft={10}
+      top= {1}
       borderWidth={1}
       borderStyle="dashed"
       borderColor={
@@ -1842,8 +1844,8 @@ const handleSettleOrder = async () => {
             : "green.100"
         }
         rounded="lg"
-        px={3}
-        py={1}
+        px={0.1}
+        py={0.1}
       >
         <VStack alignItems="center">
           {params?.isSpecialOrder ? (
@@ -1855,7 +1857,7 @@ const handleSettleOrder = async () => {
                   ? "purple.800"
                   : "indigo.800"
               }
-              fontSize="sm"
+              fontSize="xs"
               fontWeight="medium"
               numberOfLines={1}
             >
@@ -1865,14 +1867,26 @@ const handleSettleOrder = async () => {
                   params.orderType.slice(1)}
             </Text>
           ) : (
-            <Text
-              color={params?.isOccupied === "1" ? "red.800" : "green.800"}
-              fontSize="sm"
-              fontWeight="bold"
-              numberOfLines={1}
-            >
-              {params.sectionName} - {params.tableNumber}
-            </Text>
+            <>
+              <Text
+                color={params?.isOccupied === "1" ? "red.800" : "green.800"}
+                fontSize="xs"
+                fontWeight="bold"
+                numberOfLines={1}
+              >
+                {params.sectionName} - {params.tableNumber}
+              </Text>
+              {params?.orderNumber && (
+                <Text
+                  color={params?.isOccupied === "1" ? "red.800" : "green.800"}
+                  fontSize="xs"
+                  fontWeight="medium"
+                  numberOfLines={1}
+                >
+                  Bill #{params.orderNumber}
+                </Text>
+              )}
+            </>
           )}
         </VStack>
       </Badge>
@@ -2626,7 +2640,7 @@ const handleSettleOrder = async () => {
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
-        title={isOccupied === "1" ? "Update Order" : "Create Order"}
+        title={params?.orderId ? "Update Order" : "Create Order"}
         onBackPress={() => router.replace({
           pathname: "/screens/orders/menu-selection",
           params: {
@@ -2650,7 +2664,11 @@ const handleSettleOrder = async () => {
             }),
           },
         })}
-        rightComponent={<OrderBadge />}
+        rightComponent={
+          <Box position="absolute" right={-5} top={-2}>
+            <OrderBadge />
+          </Box>
+        }
       />
 
       {isLoadingOrder ? (
@@ -3248,7 +3266,7 @@ const handleSettleOrder = async () => {
                   <HStack space={3} justifyContent="space-between">
                     <Button
                       flex={5}
-                    bg="black"
+                      bg="black"
                       _text={{ color: "white", fontWeight: "semibold" }}
                       onPress={() => {handleKOTAndSave();}}
                       borderRadius="md"
@@ -3259,20 +3277,22 @@ const handleSettleOrder = async () => {
                         <Icon as={MaterialIcons} name="receipt" size="sm" color="white" />
                         <Text color="white" fontWeight="semibold">KOT & Save</Text>
                       </HStack>
-                  </Button>
+                    </Button>
 
-                  <Button
-                    flex={1}
-                      bg="red.500"
-                      _text={{ color: "white", fontWeight: "semibold" }}
-                      onPress={handleForceCancel}
-                      borderRadius="md"
-                      py={2.5}
-                      height={12}
-                    >
-                      <Icon as={MaterialIcons} name="close" size="sm" color="white" />
-                  </Button>
-                </HStack>
+                    {params?.isOccupied === "1" && params?.orderId && (
+                      <Button
+                        flex={1}
+                        bg="red.500"
+                        _text={{ color: "white", fontWeight: "semibold" }}
+                        onPress={handleForceCancel}
+                        borderRadius="md"
+                        py={2.5}
+                        height={12}
+                      >
+                        <Icon as={MaterialIcons} name="close" size="sm" color="white" />
+                      </Button>
+                    )}
+                  </HStack>
                 </VStack>
               </Box>
             )}
