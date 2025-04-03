@@ -3136,7 +3136,7 @@ const handleSettleOrder = async () => {
 
                     <VStack flex={1} alignItems="center">
                       <Text fontSize="13px" fontWeight="semibold" color="red.500">-₹{calculateItemDiscount(selectedItems).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Item Disc</Text>
+                      <Text fontSize="xs" color="gray.500">Item Disc({specialDiscount}%)</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
@@ -3144,7 +3144,7 @@ const handleSettleOrder = async () => {
                         calculateTotalAfterDiscounts(selectedItems, specialDiscount) + parseFloat(extraCharges || 0),
                         serviceChargePercentage
                       ).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Service</Text>
+                      <Text fontSize="xs" color="gray.500">Service ({serviceChargePercentage}%)</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
@@ -3157,7 +3157,7 @@ const handleSettleOrder = async () => {
                         ),
                         gstPercentage
                       ).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">GST</Text>
+                      <Text fontSize="xs" color="gray.500">GST({gstPercentage}%)</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">

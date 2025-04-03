@@ -34,8 +34,8 @@ export default function EditProfileScreen() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-
     dob: "",
+    aadhar_number: "",
   });
 
   useEffect(() => {
@@ -64,8 +64,8 @@ export default function EditProfileScreen() {
         setFormData({
           name: userDetails.name || "",
           email: userDetails.email || "",
-         
           dob: userDetails.dob || "",
+          aadhar_number: userDetails.aadhar_number || "",
         });
       }
     } catch (error) {
@@ -205,7 +205,27 @@ export default function EditProfileScreen() {
               <FormControl.ErrorMessage>{errors.email}</FormControl.ErrorMessage>
             </FormControl>
 
-           
+            <FormControl>
+              <FormControl.Label>Aadhar Number</FormControl.Label>
+              <Input
+                value={formData.aadhar_number}
+                placeholder="Aadhar Number"
+                isReadOnly
+                bg="coolGray.100"
+                _focus={{ bg: "coolGray.100" }}
+                InputRightElement={
+                  <Icon
+                    as={<MaterialIcons name="lock" />}
+                    size={5}
+                    mr="2"
+                    color="coolGray.400"
+                  />
+                }
+              />
+              <FormControl.HelperText>
+                Aadhar number cannot be modified
+              </FormControl.HelperText>
+            </FormControl>
 
             <FormControl isRequired isInvalid={"dob" in errors}>
               <FormControl.Label>Date of Birth</FormControl.Label>

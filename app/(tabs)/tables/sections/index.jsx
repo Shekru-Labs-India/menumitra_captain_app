@@ -1423,37 +1423,74 @@ export default function TableSectionsScreen() {
       try {
         setIsLoadingQr(true);
         
-        // Request permissions
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        if (status !== 'granted') {
+        // Request permissions first
+        const { status: mediaStatus } = await MediaLibrary.requestPermissionsAsync();
+        if (mediaStatus !== 'granted') {
           toast.show({
             description: "Permission needed to save QR code to gallery",
-            status: "error"
+            status: "error",
+            duration: 3000
           });
           return;
         }
-        
-        // Capture the QR code
-        const uri = await captureQR();
-        if (!uri) return;
 
-        // Create a unique filename
-        const timestamp = new Date().getTime();
-        const fileName = `table_${selectedTableForQR?.table_number}_${timestamp}.png`;
-        
-        // Save to media library
-        const asset = await MediaLibrary.createAssetAsync(uri);
-        await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
-        
-        toast.show({
-          description: "QR code saved to gallery successfully",
-          status: "success"
-        });
+        // Ensure viewShotRef is ready
+        if (!viewShotRef.current) {
+          toast.show({
+            description: "QR code not ready. Please try again.",
+            status: "error",
+            duration: 3000
+          });
+          return;
+        }
+
+        // Capture the QR code with higher quality
+        const uri = await viewShotRef.current.capture();
+        console.log("Captured URI:", uri);
+
+        if (!uri) {
+          throw new Error("Failed to capture QR code");
+        }
+
+        // Save to media library with error handling
+        try {
+          const asset = await MediaLibrary.createAssetAsync(uri);
+          console.log("Created asset:", asset);
+
+          if (!asset) {
+            throw new Error("Failed to create asset");
+          }
+
+          // Create album and add asset
+          const album = await MediaLibrary.getAlbumAsync('MenuMitra QR Codes');
+          if (album) {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+          } else {
+            await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
+          }
+
+          toast.show({
+            description: "QR code saved to gallery successfully",
+            status: "success",
+            duration: 3000
+          });
+        } catch (saveError) {
+          console.error("Error saving to gallery:", saveError);
+          // Try alternative save method
+          await MediaLibrary.saveToLibraryAsync(uri);
+          toast.show({
+            description: "QR code saved to gallery successfully",
+            status: "success",
+            duration: 3000
+          });
+        }
+
       } catch (error) {
-        console.error("Error saving to gallery:", error);
+        console.error("QR Save Error:", error);
         toast.show({
-          description: `Failed to save: ${error.message}`,
-          status: "error"
+          description: error.message || "Failed to save QR code",
+          status: "error",
+          duration: 3000
         });
       } finally {
         setIsLoadingQr(false);
@@ -1749,20 +1786,21 @@ export default function TableSectionsScreen() {
   // Update the getRestaurantName function to use AsyncStorage
   const getRestaurantName = async () => {
     try {
-      const name = await AsyncStorage.getItem("outlet_name"); // This will be set during OTP verification
-      if (name) {
-        setRestaurantName(name);
+      const outletName = await AsyncStorage.getItem("outlet_name");
+      if (outletName) {
+        setRestaurantName(outletName);
       }
     } catch (error) {
-      console.error("Error getting restaurant name:", error);
+      console.error("Error getting outlet name:", error);
       toast.show({
-        description: "Failed to get restaurant name",
-        status: "error"
+        description: "Failed to get outlet name",
+        status: "error",
+        duration: 3000
       });
     }
   };
 
-  // Update useEffect to fetch restaurant name when component mounts
+  // Call getRestaurantName when component mounts
   useEffect(() => {
     getRestaurantName();
   }, []);

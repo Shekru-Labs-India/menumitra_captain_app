@@ -102,9 +102,9 @@ export default function ProfileScreen() {
 
   const profileMenuItems = [
     {
-      icon: "restaurant",
-      title: "Restaurant Profile",
-      route: "/profile/restaurant-profile",
+      icon: "settings",
+      title: "Settings",
+      route: "/profile/settings",
     },
     {
       icon: "person-outline",
