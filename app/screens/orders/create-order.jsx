@@ -397,8 +397,7 @@ export default function CreateOrderScreen() {
             menu_sub_total: parseFloat(item.menu_sub_total),
           }));
 
-          setSelectedItems(transformedItems);
-
+        
           // Set tax details
           if (orderDetails.order_details) {
             setServiceChargePercentage(
