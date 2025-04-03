@@ -2668,6 +2668,40 @@ const handleSettleOrder = async () => {
           <VStack flex={1} bg="coolGray.100" px={4}>
             {isOccupied === "1" && orderNumber && <OrderSummary />}
             
+            {/* Add More Items Button */}
+            <Button
+              mb={2}
+              leftIcon={<Icon as={MaterialIcons} name="add-shopping-cart" size="sm" color="white" />}
+              bg="cyan.500"
+              _text={{ color: "white", fontWeight: "semibold" }}
+              _pressed={{ bg: "cyan.600" }}
+              onPress={() => router.replace({
+                pathname: "/screens/orders/menu-selection",
+                params: {
+                  tableId: params.tableId,
+                  tableNumber: params.tableNumber,
+                  sectionId: params.sectionId,
+                  sectionName: params.sectionName,
+                  outletId: params.outletId,
+                  orderId: params.orderId,
+                  orderNumber: params.orderNumber,
+                  orderType: params.orderType || "dine-in",
+                  orderDetails: JSON.stringify({
+                    order_id: params.orderId,
+                    menu_items: selectedItems,
+                    grand_total: calculateTotal(selectedItems, serviceChargePercentage, gstPercentage),
+                    table_id: params.tableId,
+                    table_number: params.tableNumber,
+                    section_id: params.sectionId,
+                    section_name: params.sectionName,
+                    outlet_id: params.outletId,
+                  }),
+                },
+              })}
+            >
+              Add More Items
+            </Button>
+            
             {/* Customer Details Section */}
             <HStack space={2} mt={1} mb={1}>
               <Input
