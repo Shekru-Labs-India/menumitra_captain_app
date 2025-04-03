@@ -143,6 +143,7 @@ export default function TableSectionsScreen() {
   const [qrStableTimeout, setQrStableTimeout] = useState(null);
   const [qrRenderAttempt, setQrRenderAttempt] = useState(0);
   const appState = useRef(AppState.currentState);
+  const [restaurantName, setRestaurantName] = useState("");
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -1745,6 +1746,27 @@ export default function TableSectionsScreen() {
     };
   }, [isQRModalOpen]);
 
+  // Update the getRestaurantName function to use AsyncStorage
+  const getRestaurantName = async () => {
+    try {
+      const name = await AsyncStorage.getItem("outlet_name"); // This will be set during OTP verification
+      if (name) {
+        setRestaurantName(name);
+      }
+    } catch (error) {
+      console.error("Error getting restaurant name:", error);
+      toast.show({
+        description: "Failed to get restaurant name",
+        status: "error"
+      });
+    }
+  };
+
+  // Update useEffect to fetch restaurant name when component mounts
+  useEffect(() => {
+    getRestaurantName();
+  }, []);
+
   return (
     <Box flex={1} bg="coolGray.100" safeAreaTop>
       {/* Header Component */}
@@ -1768,10 +1790,21 @@ export default function TableSectionsScreen() {
           />
         }
       />
+
+      {/* Restaurant Name */}
+      <Box px={4} py={2} bg="white">
+        <HStack alignItems="center" space={2}>
+          <Icon as={MaterialIcons} name="restaurant" size="sm" color="coolGray.600" />
+          <Text fontSize="lg" fontWeight="medium" color="coolGray.800">
+            {restaurantName || "Restaurant"}
+          </Text>
+        </HStack>
+      </Box>
+
       {/* Search and Filters */}
       <Box px={4} py={2} bg="white">
         <Input
-          placeholder="Search section "
+          placeholder="Search section"
           value={searchQuery}
           onChangeText={setSearchQuery}
           variant="filled"

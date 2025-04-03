@@ -518,6 +518,14 @@ export default function MenuSelectionScreen() {
         style={styles.menuItem}
         onPress={() => {
           if (cartItem) {
+            if (cartItem.quantity >= 20) {
+              toast.show({
+                description: "Maximum 20 items allowed per menu",
+                status: "warning",
+                duration: 2000
+              });
+              return;
+            }
             const updatedCart = cart.map(ci => 
               ci.menu_id === item.menu_id 
                 ? {...ci, quantity: ci.quantity + 1}
@@ -536,7 +544,7 @@ export default function MenuSelectionScreen() {
       >
         <Box position="absolute" bottom={0} left={0} right={0} h={1} bg={foodTypeColor} />
         
-        <Box w="100%" h={120} bg="gray.100" borderRadius={8} mb={1} justifyContent="center" alignItems="center" overflow="hidden" position="relative">
+        <Box w="100%" h={120} bg={item.is_reserved ? "gray.200" : "gray.100"} borderRadius={8} mb={1} justifyContent="center" alignItems="center" overflow="hidden" position="relative">
           {item.image ? (
             <Image
               source={{ uri: item.image }}
@@ -565,6 +573,40 @@ export default function MenuSelectionScreen() {
               <Text color="white" fontSize="xs" fontWeight="bold">{quantity}</Text>
             </Box>
           )}
+
+          {item.is_reserved && (
+            <Box
+              position="absolute"
+              top={2}
+              right={quantity > 0 ? 10 : 2}
+              bg="gray.500"
+              px={2}
+              py={0.5}
+              rounded="sm"
+              zIndex={1}
+            >
+              <Text color="black" fontSize="2xs" fontWeight="bold">
+                Reserved
+              </Text>
+            </Box>
+          )}
+
+          {item.offer > 0 && (
+            <Box
+              position="absolute"
+              left={2}
+              top={2}
+              bg="red.500"
+              px={1}
+              py={0.5}
+              rounded="sm"
+              zIndex={1}
+            >
+              <Text color="white" fontSize="2xs" fontWeight="bold">
+                {item.offer}% OFF
+              </Text>
+            </Box>
+          )}
         </Box>
         
         <Text fontSize="sm" numberOfLines={2} mb={1}>{item.name}</Text>
@@ -572,11 +614,11 @@ export default function MenuSelectionScreen() {
         <HStack justifyContent="space-between" alignItems="center">
           <Text fontWeight="bold" color="cyan.500">₹{item.price}</Text>
           
-          {item.offer > 0 && (
+          {/* {item.offer > 0 && (
             <Text fontSize="2xs" color="green.500" fontWeight="bold">
               Offer: {item.offer}%
             </Text>
-          )}
+          )} */}
         </HStack>
         
         {item.category_name && item.category_name.toLowerCase().trim() !== selectedCategory.toLowerCase().trim() && (
