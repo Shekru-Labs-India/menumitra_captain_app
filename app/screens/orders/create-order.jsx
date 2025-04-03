@@ -213,11 +213,7 @@ export default function CreateOrderScreen() {
   
   const [menuCategories, setMenuCategories] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [serviceCharges, setServiceCharges] = useState(0);
   const [gstAmount, setGstAmount] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -315,12 +311,29 @@ export default function CreateOrderScreen() {
   const [isComplementary, setIsComplementary] = useState(false);
   const [isAdditionalOptionsOpen, setIsAdditionalOptionsOpen] = useState(false);
   
-  // Add this function to handle customer details changes
+  // Add this validation function near the top of your component
+  const validateMobileNumber = (number) => {
+    const regex = /^[0-9]{0,10}$/; // Only allows up to 10 digits
+    return regex.test(number);
+  };
+
+  // Update the handleCustomerDetailsChange function
   const handleCustomerDetailsChange = (field, value) => {
-    setCustomerDetails(prevDetails => ({
-      ...prevDetails,
-      [field]: value
-    }));
+    if ((field === "customer_mobile" || field === "customer_alternate_mobile")) {
+      // Only update if the value matches our validation or is empty
+      if (validateMobileNumber(value) || value === "") {
+        setCustomerDetails(prevDetails => ({
+          ...prevDetails,
+          [field]: value
+        }));
+      }
+    } else {
+      // For other fields, update normally
+      setCustomerDetails(prevDetails => ({
+        ...prevDetails,
+        [field]: value
+      }));
+    }
   };
 
   // Update the useEffect for session handling
@@ -505,22 +518,21 @@ export default function CreateOrderScreen() {
         throw new Error(settleResult.msg || "Failed to mark as paid");
       }
 
-      // Clear states and navigate
+      // Clear states and navigate to tables screen
       setSelectedItems([]);
-      setSearchQuery("");
       setOrderDetails({});
       setServiceCharges(0);
       setGstAmount(0);
       setDiscountAmount(0);
 
+      // Navigate to tables screen instead of orders
       router.replace({
-        pathname: "/(tabs)/orders",
+        pathname: "/(tabs)/tables",
         params: {
-          refresh: Date.now().toString(),
-          status: "paid",
-          fromKOT: true,
-        },
+          refresh: Date.now().toString()
+        }
       });
+
     } catch (error) {
       console.error("KOT error:", error);
       Alert.alert("Error", error.message || "Failed to process KOT");
@@ -841,10 +853,9 @@ export default function CreateOrderScreen() {
             // Clear selected items and navigate
             setSelectedItems([]);
             router.replace({
-              pathname: "/(tabs)/orders",
+              pathname: "/(tabs)/tables",
               params: { 
-                refresh: Date.now().toString(),
-                status: "pending"
+                refresh: Date.now().toString()
               }
             });
           } catch (error) {
@@ -861,10 +872,9 @@ export default function CreateOrderScreen() {
             // Clear selected items and navigate
             setSelectedItems([]);
             router.replace({
-              pathname: "/(tabs)/orders",
+              pathname: "/(tabs)/tables",
               params: { 
-                refresh: Date.now().toString(),
-                status: "pending"
+                refresh: Date.now().toString()
               }
             });
           } catch (error) {
@@ -874,10 +884,9 @@ export default function CreateOrderScreen() {
             // Clear selected items and navigate anyway
             setSelectedItems([]);
             router.replace({
-              pathname: "/(tabs)/orders",
+              pathname: "/(tabs)/tables",
               params: { 
-                refresh: Date.now().toString(),
-                status: "pending"
+                refresh: Date.now().toString()
               }
             });
           }
@@ -896,9 +905,14 @@ export default function CreateOrderScreen() {
         duration: 5000
       });
       
-      // Still navigate to orders screen even if there was an error
+      // Still navigate to tables page even if there was an error
       setSelectedItems([]);
-      router.replace("/(tabs)/orders");
+      router.replace({
+        pathname: "/(tabs)/tables",
+        params: { 
+          refresh: Date.now().toString()
+        }
+      });
     } finally {
       setIsLoading(false);
       setLoadingMessage("");
@@ -1170,20 +1184,6 @@ const handleSettleOrder = async () => {
       keyboardDidHideListener.remove();
     };
   }, []);
-
-  const handleSearch = (text) => {
-    setSearchQuery(text);
-    if (text.length >= 2) {
-      const filtered = menuItems.filter((item) =>
-        item.menu_name.toLowerCase().includes(text.toLowerCase())
-      );
-      setSearchResults(filtered);
-      setIsSearchOpen(true);
-    } else {
-      setSearchResults([]);
-      setIsSearchOpen(false);
-    }
-  };
 
   const handlePortionSelect = (item, portionValue) => {
     const newItem = {
@@ -1530,9 +1530,6 @@ const handleSettleOrder = async () => {
   useFocusEffect(
     React.useCallback(() => {
       const initializeScreen = async () => {
-        setSearchQuery("");
-        setSearchResults([]);
-        setIsSearchOpen(false);
         setIsLoadingOrder(true);
         
         const hasExistingOrder = params?.isOccupied === "1" && params?.orderNumber;
@@ -1802,7 +1799,6 @@ const handleSettleOrder = async () => {
     // Clear all states if it's a special order
     if (params.isSpecialOrder === "true") {
       setSelectedItems([]);
-      setSearchQuery("");
       setOrderDetails({});
       setServiceCharges(0);
       setGstAmount(0);
@@ -1924,14 +1920,47 @@ const handleSettleOrder = async () => {
       // After order is created/updated, proceed with printing
       if (printerDevice && isConnected) {
         await printReceipt();
+        
+        // Clear states and navigate to tables page
+        setSelectedItems([]);
+        router.replace({
+          pathname: "/(tabs)/tables",
+          params: {
+            refresh: Date.now().toString(),
+          },
+        });
       } else {
-        setIsModalVisible(true);
-        scanForPrinters();
+        // Show a single message when printer is not connected
+        toast.show({
+          description: "Printer not connected. Please connect a printer to print receipts.",
+          status: "warning",
+          duration: 5000,
+        });
+        
+        // Still navigate to tables page
+        setSelectedItems([]);
+        router.replace({
+          pathname: "/(tabs)/tables",
+          params: {
+            refresh: Date.now().toString(),
+          },
+        });
       }
-
     } catch (error) {
       console.error("Print error:", error);
-      Alert.alert("Error", "Failed to print receipt. Please try again.");
+      toast.show({
+        description: error.message || "Failed to print receipt. Please try again.",
+        status: "error",
+      });
+      
+      // Still navigate to tables page even if there was an error
+      setSelectedItems([]);
+      router.replace({
+        pathname: "/(tabs)/tables",
+        params: {
+          refresh: Date.now().toString(),
+        },
+      });
     } finally {
       setIsProcessing(false);
       setLoadingMessage("");
@@ -2656,10 +2685,22 @@ const handleSettleOrder = async () => {
                 placeholder="Mob no."
                 value={customerDetails.customer_mobile}
                 onChangeText={(text) => handleCustomerDetailsChange("customer_mobile", text)}
-                keyboardType="phone-pad"
-                borderColor="gray.300"
+                keyboardType="numeric"
+                maxLength={10}
+                borderColor={customerDetails.customer_mobile && customerDetails.customer_mobile.length !== 10 ? "red.500" : "gray.300"}
                 bg="white"
                 fontSize="sm"
+                InputRightElement={
+                  customerDetails.customer_mobile && customerDetails.customer_mobile.length !== 10 ? (
+                    <Icon
+                      as={MaterialIcons}
+                      name="error"
+                      size="sm"
+                      color="red.500"
+                      mr={2}
+                    />
+                  ) : null
+                }
               />
               <IconButton
                 icon={<Icon as={MaterialIcons} name="add" size="sm" color="gray.600" />}
@@ -2670,134 +2711,6 @@ const handleSettleOrder = async () => {
                 onPress={() => setShowCustomerDetailsModal(true)}
               />
             </HStack>
-
-            <Box mb={2}>
-              <Input
-                placeholder="Search menu items..."
-                value={searchQuery}
-                mt={2}
-                rounded="lg"
-                borderWidth={1}
-                borderColor="coolGray.400"
-                bg="white"
-                fontSize={18}
-                h={12}
-                py={3}
-                InputLeftElement={
-                  <MaterialIcons
-                    name="search"
-                    size={24}
-                    color="gray"
-                    style={{ marginLeft: 10 }}
-                  />
-                }
-                InputRightElement={
-                  searchQuery ? (
-                    <IconButton
-                      icon={
-                        <MaterialIcons name="close" size={24} color="gray" />
-                      }
-                      size="md"
-                      rounded="full"
-                      mr={1}
-                      onPress={() => {
-                        setSearchQuery("");
-                        setSearchResults([]);
-                        setIsSearchOpen(false);
-                      }}
-                    />
-                  ) : null
-                }
-                onChangeText={handleSearch}
-              />
-            </Box>
-
-            {isSearchOpen && searchResults.length > 0 && (
-              <Box
-                position="absolute"
-                top={16}
-                left={4}
-                right={4}
-                bg="white"
-                rounded="lg"
-                shadow={3}
-                zIndex={2000}
-                maxH="60%"
-                borderWidth={1}
-                borderColor="coolGray.200"
-                overflow="hidden"
-              >
-                <ScrollView
-                  nestedScrollEnabled={true}
-                  keyboardShouldPersistTaps="always"
-                >
-                  {searchResults.map((item) => (
-                    <Pressable
-                      key={item.menu_id}
-                      bg="white"
-                      p={2}
-                      mb={1}
-                      rounded="lg"
-                      borderWidth={1}
-                      borderColor="coolGray.200"
-                      onPress={() => {
-                        // Directly add item without showing ActionSheet
-                        handleAddItem(item, "Full");
-                        // Clear search after adding
-                        setSearchQuery("");
-                        setSearchResults([]);
-                        setIsSearchOpen(false);
-                      }}
-                    >
-                      <HStack space={2} alignItems="center">
-                        <Box size={16} rounded="md" overflow="hidden">
-                          {item.image ? (
-                            <Image
-                              source={{ uri: item.image }}
-                              alt={item.menu_name}
-                              size="full"
-                              resizeMode="cover"
-                            />
-                          ) : (
-                            <Center bg="gray.200" size="full">
-                              <MaterialIcons
-                                name="restaurant-menu"
-                                size={24}
-                                color="gray"
-                              />
-                            </Center>
-                          )}
-                        </Box>
-
-                        <VStack flex={1} space={1}>
-                          <HStack space={2} alignItems="center">
-                            <Text fontSize={16} fontWeight="600">
-                              {item.menu_name}
-                              {item.offer > 0 && (
-                                <Text color="green.600" fontSize={14}>
-                                  {" "}
-                                  ({item.offer}% off)
-                                </Text>
-                              )}
-                            </Text>
-                          </HStack>
-                          <HStack space={4}>
-                            {Number(item.half_price) > 0 && (
-                              <Text fontSize={14} color="gray.600">
-                                Half: ₹{Number(item.half_price)}
-                              </Text>
-                            )}
-                            <Text fontSize={14} color="gray.600">
-                              Full: ₹{Number(item.full_price)}
-                            </Text>
-                          </HStack>
-                        </VStack>
-                      </HStack>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </Box>
-            )}
 
             <Box flex={1}>
               <ScrollView
@@ -2878,7 +2791,6 @@ const handleSettleOrder = async () => {
                               _text={{ color: "gray.500" }}
                               onPress={() => {
                                 setSelectedItems([]);
-                                setSearchQuery("");
                                 toast.show({
                                   description: "All items cleared",
                                   status: "info",
@@ -3354,8 +3266,32 @@ const handleSettleOrder = async () => {
                 <Input
                   value={customerDetails.customer_alternate_mobile}
                   onChangeText={(text) => handleCustomerDetailsChange("customer_alternate_mobile", text)}
-                  keyboardType="phone-pad"
+                  keyboardType="numeric"
+                  maxLength={10}
+                  borderColor={
+                    customerDetails.customer_alternate_mobile && 
+                    customerDetails.customer_alternate_mobile.length !== 10 ? 
+                    "red.500" : "gray.300"
+                  }
+                  InputRightElement={
+                    customerDetails.customer_alternate_mobile && 
+                    customerDetails.customer_alternate_mobile.length !== 10 ? (
+                      <Icon
+                        as={MaterialIcons}
+                        name="error"
+                        size="sm"
+                        color="red.500"
+                        mr={2}
+                      />
+                    ) : null
+                  }
                 />
+                {customerDetails.customer_alternate_mobile && 
+                 customerDetails.customer_alternate_mobile.length !== 10 && (
+                  <FormControl.HelperText color="red.500">
+                    Mobile number must be 10 digits
+                  </FormControl.HelperText>
+                )}
               </FormControl>
               
               <FormControl>
