@@ -126,27 +126,32 @@ export default function LoginScreen() {
         },
         body: JSON.stringify({
           mobile: mobileNumber,
-          role: "captain",
         }),
       });
 
       const data = await response.json();
 
       if (data && data.st === 1) {
-        await AsyncStorage.setItem("tempMobile", mobileNumber);
-        console.log("data", data);
+        // Check if the user has captain role
+        if (data.role && data.role.toLowerCase() === "captain") {
+          await AsyncStorage.setItem("tempMobile", mobileNumber);
+          console.log("data", data);
 
-        const otpMatch = data.msg.match(/\d{4}/);
-        if (otpMatch) {
-          await AsyncStorage.setItem("currentOtp", otpMatch[0]);
+          const otpMatch = data.msg.match(/\d{4}/);
+          if (otpMatch) {
+            await AsyncStorage.setItem("currentOtp", otpMatch[0]);
+          }
+
+          router.push({ pathname: "/otp", params: { mobile: mobileNumber } });
+        } else {
+          setApiError("Access denied. Only captains can use this app.");
         }
-
-        router.push({ pathname: "/otp", params: { mobile: mobileNumber } });
       } else {
-        setApiError("Access denied for this role");
+        setApiError("Access denied. Please check your credentials.");
       }
     } catch (error) {
-      setApiError("Access denied for this role");
+      setApiError("An error occurred. Please try again.");
+      console.error("Login error:", error);
     } finally {
       setIsLoading(false);
     }
