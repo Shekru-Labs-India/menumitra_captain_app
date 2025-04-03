@@ -92,7 +92,7 @@ const SalesSummary = memo(({ liveSales, todayTotalSales }) => (
         ₹{Number(todayTotalSales).toFixed(2)}
       </Text>
       <Text mt={2} color="coolGray.500">
-        Today's Revenue
+        Today's Sale
       </Text>
     </VStack>
   </HStack>

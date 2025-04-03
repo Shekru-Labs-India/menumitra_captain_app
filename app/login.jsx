@@ -143,10 +143,10 @@ export default function LoginScreen() {
 
         router.push({ pathname: "/otp", params: { mobile: mobileNumber } });
       } else {
-        setApiError("This mobile number is not registered");
+        setApiError("Access denied for this role");
       }
     } catch (error) {
-      setApiError("This mobile number is not registered");
+      setApiError("Access denied for this role");
     } finally {
       setIsLoading(false);
     }
@@ -214,12 +214,12 @@ export default function LoginScreen() {
               </HStack>
 
               {errorMessage ? (
-                <Text color="red.500" fontSize="xs" pl={2}>
+                <Text color="red.500" fontSize="xs" pl={2} textAlign="center" w="100%">
                   {errorMessage}
                 </Text>
               ) : null}
               {apiError ? (
-                <Text color="red.500" fontSize="xs" pl={2}>
+                <Text color="red.500" fontSize="xs" pl={2} textAlign="center" w="100%">
                   {apiError}
                 </Text>
               ) : null}
