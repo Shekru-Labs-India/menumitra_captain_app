@@ -719,30 +719,70 @@ export default function TableSectionsScreen() {
                         justifyContent="space-between"
                         alignItems="center"
                       >
-                        <Text fontSize="lg" fontWeight="bold">
-                          {section.name}
-                        </Text>
+                        <HStack space={2} alignItems="center" flex={1}>
+                          {editingSectionId === section.id ? (
+                            <Input
+                              value={section.name}
+                              onChangeText={(text) => handleEditSectionNameChange(text, section)}
+                              autoFocus
+                              size="lg"
+                              variant="unstyled"
+                              px={2}
+                              py={1}
+                              bg="coolGray.100"
+                              rounded="md"
+                              onBlur={() => setEditingSectionId(null)}
+                              onSubmitEditing={() => setEditingSectionId(null)}
+                            />
+                          ) : (
+                            <Text fontSize="lg" fontWeight="bold">
+                              {section.name}
+                            </Text>
+                          )}
+                        </HStack>
                         
-                        {/* Replacing edit/delete buttons with legends */}
-                        <HStack space={3} alignItems="center">
-                          <HStack space={1} alignItems="center">
-                            <Box w={3} h={3} bg="gray.400" rounded="full" />
-                            <Text fontSize="xs" color="coolGray.600">
-                              Total: {section.totalTables}
-                            </Text>
+                        {showEditIcons && (
+                          <HStack space={2} alignItems="center">
+                            <IconButton
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="blue"
+                              icon={<MaterialIcons name="edit" size={20} color="blue.500" />}
+                              onPress={() => setEditingSectionId(section.id)}
+                            />
+                            <IconButton
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="red"
+                              icon={<MaterialIcons name="delete" size={20} color="red.500" />}
+                              onPress={() => {
+                                setActiveSection(section);
+                                setShowDeleteModal(true);
+                              }}
+                            />
                           </HStack>
-                          <HStack space={1} alignItems="center">
-                            <Box w={3} h={3} bg="red.400" rounded="full" />
-                            <Text fontSize="xs" color="coolGray.600">
-                              Occupied: {section.engagedTables}
-                            </Text>
-                          </HStack>
-                          <HStack space={1} alignItems="center">
-                            <Box w={3} h={3} bg="green.400" rounded="full" />
-                            <Text fontSize="xs" color="coolGray.600">
-                              Available: {section.totalTables - section.engagedTables}
-                            </Text>
-                          </HStack>
+                        )}
+                      </HStack>
+                      
+                      {/* Section Stats */}
+                      <HStack space={3} alignItems="center">
+                        <HStack space={1} alignItems="center">
+                          <Box w={3} h={3} bg="gray.400" rounded="full" />
+                          <Text fontSize="xs" color="coolGray.600">
+                            Total: {section.totalTables}
+                          </Text>
+                        </HStack>
+                        <HStack space={1} alignItems="center">
+                          <Box w={3} h={3} bg="red.400" rounded="full" />
+                          <Text fontSize="xs" color="coolGray.600">
+                            Occupied: {section.engagedTables}
+                          </Text>
+                        </HStack>
+                        <HStack space={1} alignItems="center">
+                          <Box w={3} h={3} bg="green.400" rounded="full" />
+                          <Text fontSize="xs" color="coolGray.600">
+                            Available: {section.totalTables - section.engagedTables}
+                          </Text>
                         </HStack>
                       </HStack>
                     </VStack>
