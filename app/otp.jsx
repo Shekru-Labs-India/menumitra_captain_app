@@ -138,35 +138,40 @@ export default function OtpScreen() {
   };
 
   const handleVerifyOtp = async () => {
-    if (otp.some((digit) => !digit)) {
-      setError("Please enter complete OTP");
-      return;
-    }
-
-    setIsLoading(true);
-    setIsVerifying(true);
-    setLoadingMessage("Verifying OTP...");
-
     try {
-      const response = await fetch(`${getBaseUrl()}/verify_otp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          mobile: mobileNumber,
-          otp: otp.join(""),
-          role: params.role || "captain",
-        }),
-      });
+      setError("");
+      setIsLoading(true);
+      setIsVerifying(true);
+      setLoadingMessage("Verifying OTP...");
 
-      let data;
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        throw new Error("The OTP you entered is incorrect. Please try again with the correct OTP.");
-      }
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      setLoadingMessage("Generating device tokens...");
+
+      const tokenData = await handleTokens(false);
+      const cleanPushToken = tokenData.pushToken;
+
+      setLoadingMessage("Connecting to server...");
+      const requestBody = {
+        mobile: mobileNumber,
+        otp: otp.join(""),
+        device_sessid: tokenData.sessionToken,
+        fcm_token: cleanPushToken,
+      };
+
+      const response = await fetch(
+        // "https://menusmitra.xyz/captain_api/captain_verify_otp",  //production
+        "https://men4u.xyz/captain_api/captain_verify_otp", //development
+
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      const data = await response.json();
 
       if (data.st === 1) {
         setLoadingMessage("Login successful! Redirecting...");
@@ -177,7 +182,6 @@ export default function OtpScreen() {
           userId: data.user_id,
           captainId: data.captain_id,
           outletId: data.outlet_id,
-          role: params.role || "captain", // Store the role in session data
         };
         await AsyncStorage.setItem("userSession", JSON.stringify(sessionData));
 
@@ -193,8 +197,7 @@ export default function OtpScreen() {
           ["sessionToken", tokenData.sessionToken.toString()],
           ["expoPushToken", tokenData.pushToken.toString()],
           ["access", data.access || ""],
-          ["app_settings", JSON.stringify(data.settings || {})],
-          ["user_role", params.role || "captain"] // Store the user role
+          ["app_settings", JSON.stringify(data.settings || {})]
         ];
 
         await AsyncStorage.multiSet(dataToStore);
@@ -210,16 +213,16 @@ export default function OtpScreen() {
 
         router.replace("/(tabs)");
       } else {
-        throw new Error("The OTP you entered is incorrect. Please try again with the correct OTP.");
+        throw new Error(data.msg || "Invalid OTP");
       }
     } catch (error) {
-      // console.error("Verification error:", error);
-      setError("The OTP you entered is incorrect. Please try again with the correct OTP.");
-      // toast.show({
-      //   description: "The OTP you entered is incorrect. Please try again with the correct OTP.",
-      //   status: "error",
-      //   duration: 3000,
-      // });
+      console.error("Verification error:", error);
+      setError(error.message || "Verification failed");
+      toast.show({
+        description: error.message || "Verification failed. Please try again.",
+        status: "error",
+        duration: 3000,
+      });
     } finally {
       setIsLoading(false);
       setIsVerifying(false);
@@ -364,7 +367,7 @@ export default function OtpScreen() {
           </HStack>
 
           {error ? (
-            <Text color="red.500" fontSize="xs" mb={4} textAlign="center" w="100%">
+            <Text color="red.500" fontSize="xs" mb={4}>
               {error}
             </Text>
           ) : null}
