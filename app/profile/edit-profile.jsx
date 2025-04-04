@@ -209,21 +209,13 @@ export default function EditProfileScreen() {
               <FormControl.Label>Aadhar Number</FormControl.Label>
               <Input
                 value={formData.aadhar_number}
-                placeholder="Aadhar Number"
-                isReadOnly
-                bg="coolGray.100"
-                _focus={{ bg: "coolGray.100" }}
-                InputRightElement={
-                  <Icon
-                    as={<MaterialIcons name="lock" />}
-                    size={5}
-                    mr="2"
-                    color="coolGray.400"
-                  />
-                }
+                onChangeText={(value) => setFormData(prev => ({ ...prev, aadhar_number: value }))}
+                placeholder="Enter your Aadhar Number"
+                keyboardType="numeric"
+                maxLength={12}
               />
               <FormControl.HelperText>
-                Aadhar number cannot be modified
+                Enter your 12-digit Aadhar number
               </FormControl.HelperText>
             </FormControl>
 
