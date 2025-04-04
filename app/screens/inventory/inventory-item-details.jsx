@@ -320,20 +320,21 @@ export default function InventoryItemDetailsScreen() {
               </VStack>
             </HStack>
 
-            <HStack justifyContent="space-between">
-              <VStack space={1}>
-                <Text fontSize="xl" fontWeight="bold">
+            <VStack space={2}>
+              <Box>
+                <Text color="gray.500" mb={1}>Created On</Text>
+                <Text fontSize="md" fontWeight="bold" isTruncated numberOfLines={2}>
                   {item?.createdOn || "03 Apr 2025 01:04:08 PM"}
                 </Text>
-                <Text color="gray.500">Created On</Text>
-              </VStack>
-              <VStack space={1} alignItems="flex-end">
-                <Text fontSize="xl" fontWeight="bold">
+              </Box>
+              
+              <Box mt={2}>
+                <Text color="gray.500" mb={1}>Updated On</Text>
+                <Text fontSize="md" fontWeight="bold" isTruncated numberOfLines={2}>
                   {item?.updatedOn || "04 Apr 2025 11:10:14 AM"}
                 </Text>
-                <Text color="gray.500">Updated On</Text>
-              </VStack>
-            </HStack>
+              </Box>
+            </VStack>
 
             <HStack justifyContent="flex-start">
               <VStack space={1}>
