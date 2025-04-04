@@ -493,10 +493,10 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
             </div>
           ` : ''}
 
-          ${orderDetails.extra_charges > 0 ? `
+          ${orderDetails.charges > 0 ? `
             <div class="amount-row">
               <span class="amount-label" style="font-weight: 600;">Extra Charges:</span>
-              <span class="amount-value" style="color: #28a745">+₹${Number(orderDetails.extra_charges || 0).toFixed(2)}</span>
+              <span class="amount-value" style="color: #28a745">+₹${Number(orderDetails.charges || 0).toFixed(2)}</span>
             </div>
           ` : ''}
 
@@ -506,7 +506,7 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
               Number(orderDetails.total_bill_amount) - 
               Number(orderDetails.discount_amount || 0) - 
               Number(orderDetails.special_discount || 0) +
-              Number(orderDetails.extra_charges || 0)
+              Number(orderDetails.charges || 0)
             ).toFixed(2)}</span>
           </div>
 
@@ -653,7 +653,7 @@ export default function OrderDetailsScreen() {
         discount_amount: orderDetails.discount_amount || 0,
         discount_percent: orderDetails.discount_percent || 0,
         special_discount: orderDetails.special_discount || 0,
-        extra_charges: orderDetails.extra_charges || 0,
+        charges: orderDetails.charges || 0,
         service_charges_amount: orderDetails.service_charges_amount || 0,
         service_charges_percent: orderDetails.service_charges_percent || 0,
         gst_amount: orderDetails.gst_amount || 0,
@@ -1699,103 +1699,100 @@ export default function OrderDetailsScreen() {
 
         {/* Bill Details Card */}
         <Box mx={4} mb={4} p={4} bg="white" rounded="lg" shadow={1}>
-          <Heading size="sm" mb={4}>
-            Bill Details
-          </Heading>
+          <Heading size="sm" mb={4}>Bill Details</Heading>
           <VStack space={3}>
-            {/* Item Total */}
+            {/* Items Total */}
             <HStack justifyContent="space-between">
-              <Text color="coolGray.600">Item Total</Text>
+              <Text color="coolGray.600">Items Total</Text>
               <Text>₹{Number(orderDetails.total_bill_amount || 0).toFixed(2)}</Text>
             </HStack>
 
-            {/* Discount */}
+            {/* Total Discounts Section */}
             {(Number(orderDetails.discount_amount) > 0 || Number(orderDetails.special_discount) > 0) && (
-              <>
+              <VStack space={2}>
                 {Number(orderDetails.discount_amount) > 0 && (
                   <HStack justifyContent="space-between">
-                    <Text color="red.600">
-                      Discount ({orderDetails.discount_percent || 0}%)
-                    </Text>
-                    <Text color="red.600">
-                      -₹{Number(orderDetails.discount_amount || 0).toFixed(2)}
-                    </Text>
+                    <Text color="red.600">Discount ({orderDetails.discount_percent}%)</Text>
+                    <Text color="red.600">-₹{Number(orderDetails.discount_amount).toFixed(2)}</Text>
                   </HStack>
                 )}
-                
                 {Number(orderDetails.special_discount) > 0 && (
                   <HStack justifyContent="space-between">
                     <Text color="red.600">Special Discount</Text>
-                    <Text color="red.600">
-                      -₹{Number(orderDetails.special_discount || 0).toFixed(2)}
-                    </Text>
+                    <Text color="red.600">-₹{Number(orderDetails.special_discount).toFixed(2)}</Text>
                   </HStack>
                 )}
-              </>
+                
+              </VStack>
             )}
 
-            {/* Extra Charges if any */}
-            {Number(orderDetails.extra_charges) > 0 && (
+            {/* Extra Charges - Always show this section */}
+            <VStack space={2}>
               <HStack justifyContent="space-between">
-                <Text color="coolGray.600">Extra Charges</Text>
-                <Text color="green.600">+₹{Number(orderDetails.extra_charges || 0).toFixed(2)}</Text>
+                <Text color="green.600">Extra Charges</Text>
+                <Text color="green.600">+₹{Number(orderDetails.charges || 0).toFixed(2)}</Text>
               </HStack>
-            )}
 
-            {/* Subtotal after discounts and extra charges */}
-            <HStack justifyContent="space-between" pt={2} borderTopWidth={1} borderColor="coolGray.200">
-              <Text color="coolGray.600">Subtotal</Text>
-              <Text>₹{(
-                Number(orderDetails.total_bill_amount || 0) -
-                Number(orderDetails.discount_amount || 0) -
-                Number(orderDetails.special_discount || 0) +
-                Number(orderDetails.extra_charges || 0)
-              ).toFixed(2)}</Text>
-            </HStack>
+              <HStack justifyContent="space-between" pt={2} borderTopWidth={1} borderColor="coolGray.200">
+                <Text fontWeight="medium">Subtotal </Text>
+                <Text fontWeight="medium">
+                  ₹{(
+                    Number(orderDetails.total_bill_amount || 0) -
+                    Number(orderDetails.discount_amount || 0) -
+                    Number(orderDetails.special_discount || 0) +
+                    Number(orderDetails.charges || 0)
+                  ).toFixed(2)}
+                </Text>
+              </HStack>
+            </VStack>
 
-            {/* Service Charge */}
+            {/* Service Charge (calculated on subtotal) */}
             {Number(orderDetails.service_charges_amount) > 0 && (
               <HStack justifyContent="space-between">
-                <Text color="coolGray.600">
-                  Service Charge ({orderDetails.service_charges_percent || 0}%)
-                </Text>
-                <Text color="green.600">+₹{Number(orderDetails.service_charges_amount || 0).toFixed(2)}</Text>
+                <Text color="coolGray.600">Service Charge ({orderDetails.service_charges_percent}%)</Text>
+                <Text color="green.600">+₹{Number(orderDetails.service_charges_amount).toFixed(2)}</Text>
               </HStack>
             )}
 
-            {/* GST */}
-            {Number(orderDetails.gst_amount) > 0 && (
-              <HStack justifyContent="space-between">
-                <Text color="coolGray.600">
-                  GST ({orderDetails.gst_percent || 0}%)
-                </Text>
-                <Text color="green.600">+₹{Number(orderDetails.gst_amount || 0).toFixed(2)}</Text>
-              </HStack>
-            )}
-
-            {/* Tip if any */}
-            {Number(orderDetails.tip) > 0 && (
-              <HStack justifyContent="space-between">
-                <Text color="coolGray.600">Tip</Text>
-                <Text color="green.600">+₹{Number(orderDetails.tip || 0).toFixed(2)}</Text>
-              </HStack>
-            )}
-
-            {/* Grand Total */}
-            <HStack
-              justifyContent="space-between"
-              pt={2}
-              mt={2}
-              borderTopWidth={2}
-              borderColor="coolGray.200"
-            >
-              <Text fontWeight="bold">Grand Total</Text>
-              <Text fontWeight="bold" fontSize="lg">
+            {/* Total after service charge */}
+            <HStack justifyContent="space-between">
+              <Text fontWeight="medium">Total after Service Charge</Text>
+              <Text fontWeight="medium">
                 ₹{(
                   Number(orderDetails.total_bill_amount || 0) -
                   Number(orderDetails.discount_amount || 0) -
                   Number(orderDetails.special_discount || 0) +
-                  Number(orderDetails.extra_charges || 0) +
+                  Number(orderDetails.charges || 0) +
+                  Number(orderDetails.service_charges_amount || 0)
+                ).toFixed(2)}
+              </Text>
+            </HStack>
+
+            {/* GST */}
+            {Number(orderDetails.gst_amount) > 0 && (
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">GST ({orderDetails.gst_percent}%)</Text>
+                <Text color="green.600">+₹{Number(orderDetails.gst_amount).toFixed(2)}</Text>
+              </HStack>
+            )}
+
+            {/* Tip */}
+            {Number(orderDetails.tip) > 0 && (
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Tip</Text>
+                <Text color="green.600">+₹{Number(orderDetails.tip).toFixed(2)}</Text>
+              </HStack>
+            )}
+
+            {/* Grand Total */}
+            <HStack justifyContent="space-between" pt={3} mt={2} borderTopWidth={2} borderColor="coolGray.200">
+              <Text fontSize="lg" fontWeight="bold">Grand Total</Text>
+              <Text fontSize="lg" fontWeight="bold">
+                ₹{(
+                  Number(orderDetails.total_bill_amount || 0) -
+                  Number(orderDetails.discount_amount || 0) -
+                  Number(orderDetails.special_discount || 0) +
+                  Number(orderDetails.charges || 0) +
                   Number(orderDetails.service_charges_amount || 0) +
                   Number(orderDetails.gst_amount || 0) +
                   Number(orderDetails.tip || 0)
@@ -1803,7 +1800,7 @@ export default function OrderDetailsScreen() {
               </Text>
             </HStack>
 
-            {/* Payment Status if paid */}
+            {/* Payment Status */}
             {orderDetails.is_paid === "paid" && (
               <HStack justifyContent="space-between" mt={2} bg="green.50" p={2} rounded="md">
                 <Text color="green.600" fontWeight="medium">Payment Status</Text>
