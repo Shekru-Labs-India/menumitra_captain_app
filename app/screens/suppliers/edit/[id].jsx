@@ -15,10 +15,11 @@ import {
   CheckIcon,
   Divider,
   HStack,
+  Pressable,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Platform, StatusBar } from "react-native";
+import { Platform, StatusBar, Keyboard } from "react-native";
 import { SupplierContext } from "../../../../context/SupplierContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../../components/Header";
@@ -236,12 +237,11 @@ export default function EditSupplierScreen() {
   const handleAddressChange = (text) => {
     setFormData((prev) => ({ ...prev, address: text }));
 
-    if (!text.trim()) {
-      setErrors((prev) => ({ ...prev, address: "Address is required" }));
-    } else if (text.trim().length < 5) {
+    // Only validate address if it's not empty
+    if (text.trim().length > 0 && text.trim().length < 5) {
       setErrors((prev) => ({ ...prev, address: "Address must be at least 5 characters" }));
     } else {
-      // Clear error when valid
+      // Clear error when valid or empty
       setErrors((prev) => {
         const { address, ...rest } = prev;
         return rest;
@@ -350,10 +350,8 @@ export default function EditSupplierScreen() {
       newErrors.ownerName = "Owner name should only contain letters and spaces";
     }
 
-    // Address validation (Required)
-    if (!formData.address?.trim()) {
-      newErrors.address = "Address is required";
-    } else if (formData.address.trim().length < 5) {
+    // Address validation (Optional)
+    if (formData.address?.trim() && formData.address.trim().length < 5) {
       newErrors.address = "Address must be at least 5 characters";
     }
 
@@ -505,23 +503,35 @@ export default function EditSupplierScreen() {
 
               <FormControl>
                 <FormControl.Label>Status</FormControl.Label>
-                <Select
-                  selectedValue={formData.status}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, status: value })
-                  }
-                  placeholder="Select status"
-                  bg="white"
-                  borderColor={
-                    formData.status ? "green.500" : "coolGray.200"
-                  }
-                  _focus={{
-                    borderColor: formData.status ? "green.500" : "blue.500",
+                <Pressable
+                  onPress={() => {
+                    // Dismiss keyboard before opening the dropdown
+                    Keyboard.dismiss();
+                    // Add a small delay before focusing on the select
+                    setTimeout(() => {
+                      // Focus on the select component
+                    }, 100);
                   }}
                 >
-                  <Select.Item label="Active" value="active" />
-                  <Select.Item label="Inactive" value="inactive" />
-                </Select>
+                  <Select
+                    selectedValue={formData.status}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, status: value })
+                    }
+                    placeholder="Select status"
+                    bg="white"
+                    borderColor={
+                      formData.status ? "green.500" : "coolGray.200"
+                    }
+                    _focus={{
+                      borderColor: formData.status ? "green.500" : "blue.500",
+                    }}
+                    isReadOnly={true}
+                  >
+                    <Select.Item label="Active" value="active" />
+                    <Select.Item label="Inactive" value="inactive" />
+                  </Select>
+                </Pressable>
               </FormControl>
             </VStack>
           </Box>
@@ -624,32 +634,44 @@ export default function EditSupplierScreen() {
 
               <FormControl>
                 <FormControl.Label>Credit Rating</FormControl.Label>
-                <Select
-                  selectedValue={formData.creditRating}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, creditRating: value })
-                  }
-                  placeholder="Select credit rating"
-                  bg="white"
-                  borderColor={
-                    formData.creditRating ? "green.500" : "coolGray.200"
-                  }
-                  _focus={{
-                    borderColor: formData.creditRating ? "green.500" : "blue.500",
-                  }}
-                  _selectedItem={{
-                    bg: "coolGray.100",
-                    endIcon: <MaterialIcons name="check" size={20} color="green.500" />
+                <Pressable
+                  onPress={() => {
+                    // Dismiss keyboard before opening the dropdown
+                    Keyboard.dismiss();
+                    // Add a small delay before focusing on the select
+                    setTimeout(() => {
+                      // Focus on the select component
+                    }, 100);
                   }}
                 >
-                  {creditRatings.map((rating) => (
-                    <Select.Item
-                      key={rating.value}
-                      label={rating.label}
-                      value={rating.value}
-                    />
-                  ))}
-                </Select>
+                  <Select
+                    selectedValue={formData.creditRating}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, creditRating: value })
+                    }
+                    placeholder="Select credit rating"
+                    bg="white"
+                    borderColor={
+                      formData.creditRating ? "green.500" : "coolGray.200"
+                    }
+                    _focus={{
+                      borderColor: formData.creditRating ? "green.500" : "blue.500",
+                    }}
+                    _selectedItem={{
+                      bg: "coolGray.100",
+                      endIcon: <MaterialIcons name="check" size={20} color="green.500" />
+                    }}
+                    isReadOnly={true}
+                  >
+                    {creditRatings.map((rating) => (
+                      <Select.Item
+                        key={rating.value}
+                        label={rating.label}
+                        value={rating.value}
+                      />
+                    ))}
+                  </Select>
+                </Pressable>
               </FormControl>
 
               <FormControl isRequired isInvalid={"creditLimit" in errors}>
@@ -716,12 +738,12 @@ export default function EditSupplierScreen() {
                 </FormControl.ErrorMessage>
               </FormControl>
 
-              <FormControl isRequired isInvalid={"address" in errors}>
-                <FormControl.Label>Address</FormControl.Label>
+              <FormControl isInvalid={"address" in errors}>
+                <FormControl.Label>Address (Optional)</FormControl.Label>
                 <TextArea
                   value={formData.address}
                   onChangeText={handleAddressChange}
-                  placeholder="Enter complete address"
+                  placeholder="Enter complete address (optional)"
                   autoCompleteType={undefined}
                   h={20}
                   bg="white"
@@ -734,6 +756,7 @@ export default function EditSupplierScreen() {
                                 errors.address ? "red.500" : "blue.500",
                   }}
                 />
+                <FormControl.HelperText>This field is optional</FormControl.HelperText>
                 <FormControl.ErrorMessage>
                   {errors.address}
                 </FormControl.ErrorMessage>

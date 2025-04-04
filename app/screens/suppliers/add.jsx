@@ -170,29 +170,33 @@ export default function AddSupplierScreen() {
       case "mobilleNumber2":
         const sanitizedNumber = value.replace(/[^0-9]/g, "");
         
-        if (sanitizedNumber.length > 0) {
+        // If this is the first digit or we're pasting a new number
+        if (sanitizedNumber.length === 1 || (field === "mobileNumber1" ? formData.mobileNumber1 === "" : formData.mobilleNumber2 === "") && sanitizedNumber.length > 0) {
+          // Check if the first digit is valid (6-9)
           const firstDigit = sanitizedNumber[0];
           if (!["6", "7", "8", "9"].includes(firstDigit)) {
-            setErrors((prev) => ({
-              ...prev,
-              [field]: "Number must start with 6, 7, 8 or 9",
-            }));
-          } else if (sanitizedNumber.length !== 10) {
-            setErrors((prev) => ({
-              ...prev,
-              [field]: "Mobile number must be 10 digits",
-            }));
-          } else {
-            setErrors((prev) => {
-              const newErrors = { ...prev };
-              delete newErrors[field];
-              return newErrors;
+            toast.show({
+              description: "Mobile number must start with 6, 7, 8 or 9",
+              status: "warning",
+              duration: 2000,
             });
+            return; // Don't update state with invalid first digit
           }
-        } else if (field === "mobileNumber1") {
+        }
+        
+        // Update state with valid input
+        setFormData((prev) => ({ ...prev, [field]: sanitizedNumber }));
+        
+        // Handle validation for display
+        if (sanitizedNumber.length === 0 && field === "mobileNumber1") {
           setErrors((prev) => ({
             ...prev,
             [field]: "Primary mobile number is required",
+          }));
+        } else if (sanitizedNumber.length > 0 && sanitizedNumber.length !== 10) {
+          setErrors((prev) => ({
+            ...prev,
+            [field]: "Mobile number must be 10 digits",
           }));
         } else {
           setErrors((prev) => {
@@ -201,8 +205,6 @@ export default function AddSupplierScreen() {
             return newErrors;
           });
         }
-        
-        setFormData((prev) => ({ ...prev, [field]: sanitizedNumber }));
         break;
 
       case "website":
@@ -275,9 +277,8 @@ export default function AddSupplierScreen() {
 
       case "address":
         setFormData((prev) => ({ ...prev, address: value }));
-        if (!value.trim()) {
-          setErrors((prev) => ({ ...prev, address: "Address is required" }));
-        } else if (value.trim().length < 5) {
+        // Only validate address if it's not empty
+        if (value.trim().length > 0 && value.trim().length < 5) {
           setErrors((prev) => ({ ...prev, address: "Address must be at least 5 characters" }));
         } else {
           setErrors((prev) => {
@@ -295,9 +296,8 @@ export default function AddSupplierScreen() {
   const handleAddressChange = (text) => {
     setFormData({ ...formData, address: text });
 
-    if (!text.trim()) {
-      setErrors((prev) => ({ ...prev, address: "Address is required" }));
-    } else if (text.trim().length < 5) {
+    // Only validate address if it's not empty
+    if (text.trim().length > 0 && text.trim().length < 5) {
       setErrors((prev) => ({
         ...prev,
         address: "Address must be at least 5 characters",
@@ -337,9 +337,8 @@ export default function AddSupplierScreen() {
       newErrors.creditLimit = "Credit limit is required";
     }
 
-    if (!formData.address?.trim()) {
-      newErrors.address = "Address is required";
-    } else if (!validateAddress(formData.address)) {
+    // Address is now optional - only validate if provided
+    if (formData.address?.trim() && !validateAddress(formData.address)) {
       newErrors.address = "Address must be at least 5 characters long";
     }
 
@@ -570,7 +569,7 @@ export default function AddSupplierScreen() {
                 </Heading>
               </HStack>
 
-              <FormControl>
+              <FormControl isRequired isInvalid={"creditRating" in errors}>
                 <FormControl.Label>Credit Rating</FormControl.Label>
                 <Pressable
                   onPress={() => {
@@ -671,12 +670,12 @@ export default function AddSupplierScreen() {
                 </FormControl.ErrorMessage>
               </FormControl>
 
-              <FormControl isRequired isInvalid={"address" in errors}>
-                <FormControl.Label>Address</FormControl.Label>
+              <FormControl isInvalid={"address" in errors}>
+                <FormControl.Label>Address (Optional)</FormControl.Label>
                 <TextArea
                   value={formData.address}
                   onChangeText={(text) => handleFormChange("address", text)}
-                  placeholder="Enter complete address"
+                  placeholder="Enter complete address (optional)"
                   autoCompleteType={undefined}
                   h={20}
                   bg="white"
@@ -689,6 +688,7 @@ export default function AddSupplierScreen() {
                                 errors.address ? "red.500" : "blue.500",
                   }}
                 />
+                <FormControl.HelperText>This field is optional</FormControl.HelperText>
                 <FormControl.ErrorMessage>
                   {errors.address}
                 </FormControl.ErrorMessage>
