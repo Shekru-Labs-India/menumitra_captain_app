@@ -56,6 +56,7 @@ export default function EditMenuView() {
     rating: "",
     images: [],
     is_special: false,
+    is_active: true,
     outlet_id: "",
     category_name: "",
   });
@@ -70,6 +71,9 @@ export default function EditMenuView() {
 
   // Add this state variable with the other state declarations
   const [imageSelected, setImageSelected] = useState(false);
+
+  // Add this state variable with the other state variables
+  const [isActiveLoading, setIsActiveLoading] = useState(false);
 
   // Define fetchInitialData function
   const fetchInitialData = async () => {
@@ -109,7 +113,6 @@ export default function EditMenuView() {
           ...menuDetails,
           name: menuData.name || "",
           full_price: menuData.full_price?.toString() || "",
-          
           food_type: menuData.food_type || "",
           menu_cat_id: menuData.menu_cat_id?.toString() || "",
           category_name: menuData.category_name || "",
@@ -120,6 +123,7 @@ export default function EditMenuView() {
           rating: menuData.rating?.toString() || "",
           images: menuData.images || [],
           is_special: Boolean(Number(menuData.is_special)),
+          is_active: menuData.is_active !== undefined ? Boolean(Number(menuData.is_active)) : true,
           outlet_id: outletId,
         });
 
@@ -279,6 +283,7 @@ export default function EditMenuView() {
       formData.append("ingredients", menuDetails.ingredients || "");
       formData.append("rating", menuDetails.rating || "0");
       formData.append("is_special", menuDetails.is_special ? "1" : "0");
+      formData.append("is_active", menuDetails.is_active ? "1" : "0");
 
       // Handle images
       if (menuDetails.images.length > 0) {
@@ -338,7 +343,21 @@ export default function EditMenuView() {
     try {
       setIsSpecialLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const userId = await AsyncStorage.getItem("user_id");
+      
+      // Check if user_id is available
+      if (!userId) {
+        console.error("User ID is missing");
+        toast.show({
+          description: "Unable to update special status: User ID is missing",
+          status: "error",
+          duration: 3000,
+        });
+        return;
+      }
 
+      console.log("Toggling special status with user_id:", userId);
+      
       const data = await fetchWithAuth(
         `${getBaseUrl()}/make_menu_special_non_special`,
         {
@@ -347,9 +366,12 @@ export default function EditMenuView() {
           body: JSON.stringify({
             outlet_id: outletId,
             menu_id: menuId,
+            user_id: userId,
           }),
         }
       );
+      
+      console.log("Special toggle response:", data);
 
       if (data.st === 1) {
         setMenuDetails((prev) => ({
@@ -373,6 +395,67 @@ export default function EditMenuView() {
       });
     } finally {
       setIsSpecialLoading(false);
+    }
+  };
+
+  // Add this new handler function after handleSpecialToggle
+  const handleActiveToggle = async () => {
+    try {
+      setIsActiveLoading(true);
+      const outletId = await AsyncStorage.getItem("outlet_id");
+      const userId = await AsyncStorage.getItem("user_id");
+      
+      // Check if user_id is available
+      if (!userId) {
+        console.error("User ID is missing");
+        toast.show({
+          description: "Unable to update active status: User ID is missing",
+          status: "error",
+          duration: 3000,
+        });
+        return;
+      }
+      
+      console.log("Toggling active status with user_id:", userId);
+      
+      const data = await fetchWithAuth(
+        `${getBaseUrl()}/toggle_menu_active_status`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            outlet_id: outletId,
+            menu_id: menuId,
+            user_id: userId,
+            is_active: menuDetails.is_active ? "0" : "1", // Toggle the current status
+          }),
+        }
+      );
+      
+      console.log("Active toggle response:", data);
+
+      if (data.st === 1) {
+        setMenuDetails((prev) => ({
+          ...prev,
+          is_active: !prev.is_active,
+        }));
+        toast.show({
+          description: data.msg || `Menu ${!menuDetails.is_active ? 'activated' : 'deactivated'} successfully`,
+          status: "success",
+          duration: 3000,
+        });
+      } else {
+        throw new Error(data.msg || "Failed to update active status");
+      }
+    } catch (error) {
+      console.error("Active toggle error:", error);
+      toast.show({
+        description: error.message,
+        status: "error",
+        duration: 3000,
+      });
+    } finally {
+      setIsActiveLoading(false);
     }
   };
 
@@ -799,6 +882,29 @@ export default function EditMenuView() {
                   isChecked={menuDetails.is_special}
                   onToggle={handleSpecialToggle}
                   isDisabled={isSpecialLoading}
+                />
+              </HStack>
+
+              {/* Active/Inactive Toggle - Add this below Special Toggle */}
+              <HStack
+                alignItems="center"
+                justifyContent="space-between"
+                py={2}
+                bg="white"
+                rounded="lg"
+              >
+                <VStack>
+                  <Text fontSize="md">Menu Status</Text>
+                  <Text fontSize="xs" color={menuDetails.is_active ? "green.500" : "red.500"}>
+                    {menuDetails.is_active ? "Active" : "Inactive"}
+                  </Text>
+                </VStack>
+                <Switch
+                  isChecked={menuDetails.is_active}
+                  onToggle={handleActiveToggle}
+                  isDisabled={isActiveLoading}
+                  trackColor={{ false: "red.200", true: "green.200" }}
+                  thumbColor={menuDetails.is_active ? "green.500" : "red.500"}
                 />
               </HStack>
             </VStack>

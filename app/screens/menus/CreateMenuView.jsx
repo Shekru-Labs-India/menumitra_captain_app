@@ -39,6 +39,7 @@ export default function CreateMenuView() {
   const [loading, setLoading] = useState(false);
   const [imageSelected, setImageSelected] = useState(false);
   const [isSpecialLoading, setIsSpecialLoading] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
 
   // States for form data
   const [menuDetails, setMenuDetails] = useState({
@@ -391,14 +392,8 @@ export default function CreateMenuView() {
       });
 
       if (data.st === 1) {
-        toast.show({
-          description: "Menu created successfully",
-          status: "success",
-          duration: 3000,
-          placement: "bottom",
-          isClosable: true,
-        });
-        router.push("/screens/menus/MenuListView");
+        // Show success modal instead of immediately navigating
+        setSuccessModalVisible(true);
       } else {
         throw new Error(data.msg || "Failed to create menu");
       }
@@ -1115,6 +1110,36 @@ export default function CreateMenuView() {
           </VStack>
         </VStack>
       </ScrollView>
+
+      {/* Success Modal */}
+      <Modal isOpen={successModalVisible} onClose={() => setSuccessModalVisible(false)}>
+        <Modal.Content maxWidth="400px">
+          <Modal.CloseButton />
+          <Modal.Body py={6}>
+            <VStack space={4} alignItems="center">
+              <Icon
+                as={MaterialIcons}
+                name="check-circle"
+                color="green.500"
+                size={16}
+              />
+              <Text fontSize="lg" fontWeight="bold" textAlign="center">
+                Menu Created Successfully!
+              </Text>
+              <Button
+                w="full"
+                colorScheme="primary"
+                onPress={() => {
+                  setSuccessModalVisible(false);
+                  router.push("/screens/menus/MenuListView");
+                }}
+              >
+                Go to Menu List
+              </Button>
+            </VStack>
+          </Modal.Body>
+        </Modal.Content>
+      </Modal>
 
       {/* Category Modal */}
       <Modal isOpen={modalVisible} onClose={() => setModalVisible(false)}>

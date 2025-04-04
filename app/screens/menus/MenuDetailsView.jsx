@@ -98,14 +98,28 @@ export default function MenuDetailsView() {
       });
 
       if (data.st === 1) {
+        // Close dialog before navigation
+        setIsDeleteDialogOpen(false);
+        
         toast.show({
           description: "Menu deleted successfully",
           status: "success",
         });
-        router.push({
-          pathname: "/screens/menus/MenuListView",
-          params: { refresh: Date.now() },
-        });
+        
+        // Use setTimeout to ensure the toast is visible before navigation
+        setTimeout(() => {
+          // Try both navigation methods to ensure one works
+          try {
+            router.replace({
+              pathname: "/screens/menus/MenuListView",
+              params: { refresh: Date.now().toString() }
+            });
+          } catch (navError) {
+            console.error("Navigation error:", navError);
+            // Fallback navigation method
+            router.navigate("/screens/menus/MenuListView");
+          }
+        }, 500);
       } else {
         toast.show({
           description: data.msg || "Failed to delete menu",
