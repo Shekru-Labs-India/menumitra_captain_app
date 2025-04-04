@@ -468,15 +468,25 @@ export default function CreateOrderScreen() {
     }
   };
 
-  const handleKOT = async () => {
-    try {
-      if (selectedItems.length === 0) {
-        Alert.alert("Error", "Please add items to cart before creating KOT");
-        return;
-      }
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("CASH");
+  const [isPaidChecked, setIsPaidChecked] = useState(false);
 
+  const handleKOT = async () => {
+    if (selectedItems.length === 0) {
+      Alert.alert("Error", "Please add items to cart before creating KOT");
+      return;
+    }
+    // Show payment modal instead of direct printing
+    setShowPaymentModal(true);
+  };
+
+  // Add this new function to handle payment confirmation
+  const handlePaymentConfirm = async () => {
+    try {
       setIsProcessing(true);
       setLoadingMessage("Processing KOT...");
+      setShowPaymentModal(false);
 
       const isExpoGo = Constants.executionEnvironment === "storeClient";
       const isWeb = Platform.OS === "web";
@@ -500,7 +510,8 @@ export default function CreateOrderScreen() {
       const settleRequestBody = {
         outlet_id: outletId.toString(),
         order_id: orderId.toString(),
-        order_status: "paid",
+        order_status: isPaidChecked ? "paid" : "unpaid",
+        payment_method: selectedPaymentMethod,
         user_id: storedUserId.toString(),
       };
 
@@ -514,7 +525,7 @@ export default function CreateOrderScreen() {
       );
 
       if (settleResult.st !== 1) {
-        throw new Error(settleResult.msg || "Failed to mark as paid");
+        throw new Error(settleResult.msg || "Failed to update payment status");
       }
 
       // Clear states and navigate to tables screen
@@ -931,17 +942,24 @@ export default function CreateOrderScreen() {
 
 // handle settle order
 const handleSettleOrder = async () => {
-  try {
-    if (selectedItems.length === 0) {
-      toast.show({
-        description: "Please add items to the order",
-        status: "warning"
-      });
-      return;
-    }
+  if (selectedItems.length === 0) {
+    toast.show({
+      description: "Please add items to the order",
+      status: "warning"
+    });
+    return;
+  }
 
+  // Show payment modal
+  setShowPaymentModal(true);
+};
+
+// Add this new function to handle settle payment confirmation
+const handleSettlePaymentConfirm = async () => {
+  try {
     setIsLoading(true);
-    setLoadingMessage("Processing order...");
+    setLoadingMessage("Processing settlement...");
+    setShowPaymentModal(false);
 
     const [storedUserId, storedOutletId] = await Promise.all([
       AsyncStorage.getItem("user_id"),
@@ -949,33 +967,26 @@ const handleSettleOrder = async () => {
     ]);
 
     if (!storedUserId || !storedOutletId) {
-      toast.show({
-        description: "Missing required data. Please try again.",
-        status: "error"
-      });
-      return;
+      throw new Error("Missing required information");
     }
 
     const orderItems = selectedItems.map((item) => ({
       menu_id: item.menu_id.toString(),
-      quantity: item.quantity.toString(),
+      quantity: parseInt(item.quantity) || 1,
       comment: item.specialInstructions || "",
       half_or_full: (item.portionSize || "full").toLowerCase(),
-      price: item.price?.toString() || "0",
-      total_price: item.total_price?.toString() || "0",
+      price: parseFloat(item.price) || 0,
+      total_price: parseFloat(item.total_price) || 0,
     }));
 
-    // Determine payment status based on complementary and paid checkboxes
-    const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
-    
-    // Use the selected payment method
-    const effectivePaymentMethod = isPaid ? paymentMethod.toLowerCase() : "";
+    // Use the selected payment method and paid status from the modal
+    const paymentStatus = isPaidChecked ? "paid" : (isComplementary ? "complementary" : "unpaid");
+    const effectivePaymentMethod = isPaidChecked ? selectedPaymentMethod.toLowerCase() : "";
 
-    // Base request body for all order types
-    const baseRequestBody = {
+    const orderData = {
       user_id: storedUserId.toString(),
       outlet_id: storedOutletId.toString(),
-      order_type: params?.orderType || "dine-in",
+      order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
       order_items: orderItems,
       grand_total: calculateGrandTotal(
         selectedItems,
@@ -988,184 +999,87 @@ const handleSettleOrder = async () => {
       action: "settle",
       is_paid: paymentStatus,
       payment_method: effectivePaymentMethod,
-      special_discount: parseFloat(specialDiscount) || 0,
-      charges: parseFloat(extraCharges) || 0,
-      tip: parseFloat(tip) || 0,
+      special_discount: specialDiscount.toString(),
+      charges: extraCharges.toString(),
+      tip: tip.toString(),
       customer_name: customerDetails.customer_name || "",
       customer_mobile: customerDetails.customer_mobile || "",
       customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
       customer_address: customerDetails.customer_address || "",
       customer_landmark: customerDetails.customer_landmark || "",
     };
-    
-    let apiResponse;
 
-    // For existing orders
+    if (!params?.isSpecialOrder) {
+      if (!params.tableNumber || !params.sectionId) {
+        throw new Error("Missing table or section information for dine-in order");
+      }
+      orderData.tables = [params.tableNumber.toString()];
+      orderData.section_id = params.sectionId.toString();
+    }
+
+    const endpoint = params?.orderId ? 
+      `${getBaseUrl()}/update_order` : 
+      `${getBaseUrl()}/create_order`;
+
     if (params?.orderId) {
-      const updateRequestBody = {
-        ...baseRequestBody,
-        order_id: params.orderId.toString(),
-        ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
-          tables: [params.tableNumber.toString()],
-          section_id: params.sectionId.toString(),
-        }),
-      };
-
-      console.log(
-        "Settle Update Body:",
-        JSON.stringify(updateRequestBody, null, 2)
-      );
-
-      const updateResponse = await fetchWithAuth(
-        `${getBaseUrl()}/update_order`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updateRequestBody),
-        }
-      );
-
-      if (updateResponse.st !== 1) {
-        throw new Error(updateResponse.msg || "Failed to update order");
-      }
-
-      // Then mark as paid with payment information
-      const settleRequestBody = {
-        outlet_id: storedOutletId.toString(),
-        order_id: params.orderId.toString(),
-        order_status: "paid", // For settle, always mark as paid
-        user_id: storedUserId.toString(),
-        action: "settle",
-        order_type: params?.orderType || "dine-in",
-        is_paid: "paid", // For settle, always mark as paid
-        payment_method: effectivePaymentMethod,
-        // Include customer details
-        customer_name: customerDetails.customer_name || "",
-        customer_mobile: customerDetails.customer_mobile || "",
-        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-        customer_address: customerDetails.customer_address || "",
-        customer_landmark: customerDetails.customer_landmark || "",
-        special_discount: parseFloat(specialDiscount) || 0,
-        charges: parseFloat(extraCharges) || 0,
-        tip: parseFloat(tip) || 0,
-        ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
-          tables: [params.tableNumber.toString()],
-          section_id: params.sectionId.toString(),
-        }),
-      };
-
-      console.log(
-        "Settle Status Body:",
-        JSON.stringify(settleRequestBody, null, 2)
-      );
-
-      const settleResponse = await fetchWithAuth(
-        `${getBaseUrl()}/update_order_status`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(settleRequestBody),
-        }
-      );
-
-      if (settleResponse.st !== 1) {
-        throw new Error(settleResponse.msg || "Failed to settle order");
-      }
-    } else {
-      // For new orders
-      const createRequestBody = {
-        ...baseRequestBody,
-        ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
-          tables: [params.tableNumber.toString()],
-          section_id: params.sectionId.toString(),
-        }),
-      };
-
-      console.log(
-        "Settle Create Body:",
-        JSON.stringify(createRequestBody, null, 2)
-      );
-
-      const response = await fetchWithAuth(
-        `${getBaseUrl()}/create_order`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(createRequestBody),
-        }
-      );
-
-      if (response.st !== 1) {
-        throw new Error(response.msg || "Failed to create order");
-      }
-
-      // For new orders, immediately mark as paid with payment method
-      const settleRequestBody = {
-        outlet_id: storedOutletId.toString(),
-        order_id: response.order_id.toString(),
-        order_status: "paid",
-        user_id: storedUserId.toString(),
-        action: "settle",
-        order_type: params?.orderType || "dine-in",
-        is_paid: "paid",
-        payment_method: effectivePaymentMethod,
-        // Include customer details
-        customer_name: customerDetails.customer_name || "",
-        customer_mobile: customerDetails.customer_mobile || "",
-        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-        customer_address: customerDetails.customer_address || "",
-        customer_landmark: customerDetails.customer_landmark || "",
-        special_discount: parseFloat(specialDiscount) || 0,
-        charges: parseFloat(extraCharges) || 0,
-        tip: parseFloat(tip) || 0,
-        ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
-          tables: [params.tableNumber.toString()],
-          section_id: params.sectionId.toString(),
-        }),
-      };
-
-      console.log(
-        "New Order Settle Status Body:",
-        JSON.stringify(settleRequestBody, null, 2)
-      );
-
-      const settleResponse = await fetchWithAuth(
-        `${getBaseUrl()}/update_order_status`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(settleRequestBody),
-        }
-      );
-
-      if (settleResponse.st !== 1) {
-        throw new Error(settleResponse.msg || "Failed to settle the new order");
-      }
+      orderData.order_id = params.orderId.toString();
     }
 
-    setIsLoading(false);
-    toast.show({
-      description: "Order settled successfully!",
-      status: "success"
+    const result = await fetchWithAuth(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(orderData),
     });
-    
-    // Navigate back to orders screen
-    router.replace("/(tabs)/orders");
-  } catch (error) {
-    console.error("Error handling order:", error);
-    setIsLoading(false);
-    
-    // Improved error message handling
-    let errorMessage = "Failed to process order. Please try again.";
-    
-    if (error.message) {
-      errorMessage = error.message;
-    }
 
+    if (result.st === 1) {
+      // If order was successful, update the payment status
+      const settleRequestBody = {
+        outlet_id: storedOutletId.toString(),
+        order_id: (params?.orderId || result.order_id).toString(),
+        order_status: "paid",
+        payment_method: selectedPaymentMethod.toLowerCase(),
+        user_id: storedUserId.toString(),
+      };
+
+      const settleResult = await fetchWithAuth(
+        `${getBaseUrl()}/update_order_status`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(settleRequestBody),
+        }
+      );
+
+      if (settleResult.st !== 1) {
+        throw new Error(settleResult.msg || "Failed to settle order");
+      }
+
+      toast.show({
+        description: "Order settled successfully!",
+        status: "success"
+      });
+
+      // Clear states and navigate
+      setSelectedItems([]);
+      router.replace({
+        pathname: "/(tabs)/orders",
+        params: { 
+          refresh: Date.now().toString(),
+          status: "completed"
+        }
+      });
+    } else {
+      throw new Error(result.msg || "Failed to process order");
+    }
+  } catch (error) {
+    console.error("Error settling order:", error);
     toast.show({
-      description: errorMessage,
+      description: error.message || "Failed to settle order",
       status: "error"
     });
+  } finally {
+    setIsLoading(false);
+    setLoadingMessage("");
   }
 };
 
@@ -3251,7 +3165,7 @@ const handleSettleOrder = async () => {
                     flex={1}
                       bg="blue.500"
                       _text={{ color: "white", fontWeight: "semibold" }}
-                      onPress={handleSettleOrder}
+                      onPress={handleSettleOrder}  // Updated to use new handler
                       borderRadius="md"
                       py={2.5}
                       height={12}
@@ -3421,6 +3335,78 @@ const handleSettleOrder = async () => {
           bleManager?.stopDeviceScan();
         }}
       />
+
+      {/* Payment Selection Modal */}
+      <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} size="lg">
+        <Modal.Content maxW="400px">
+          <Modal.CloseButton />
+          <Modal.Body py={6}>
+            <VStack space={4}>
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text fontSize="lg" fontWeight="bold">
+                  Table: {params?.tableNumber || "4"}
+                </Text>
+                <Text fontSize="lg" fontWeight="bold">
+                  Bill no: {params?.orderId || "141"}
+                </Text>
+                <Text fontSize="lg" fontWeight="bold" color="green.500">
+                  ₹{calculateGrandTotal(
+                    selectedItems,
+                    specialDiscount,
+                    extraCharges,
+                    serviceChargePercentage,
+                    gstPercentage,
+                    tip
+                  ).toFixed(2)}
+                </Text>
+              </HStack>
+
+              <Text fontSize="lg" fontWeight="semibold" mb={2}>
+                Select Payment Method
+              </Text>
+
+              <Radio.Group
+                name="paymentMethod"
+                value={selectedPaymentMethod}
+                onChange={setSelectedPaymentMethod}
+              >
+                <HStack space={6} flexWrap="wrap">
+                  <Radio value="CASH" size="lg">
+                    <Text fontSize="md">CASH</Text>
+                  </Radio>
+                  <Radio value="UPI" size="lg">
+                    <Text fontSize="md">UPI</Text>
+                  </Radio>
+                  <Radio value="CARD" size="lg">
+                    <Text fontSize="md">CARD</Text>
+                  </Radio>
+                </HStack>
+              </Radio.Group>
+
+              <HStack alignItems="center" space={2}>
+                <Checkbox
+                  value="paid"
+                  isChecked={isPaidChecked}
+                  onChange={setIsPaidChecked}
+                  size="lg"
+                >
+                  <Text fontSize="md">Paid</Text>
+                </Checkbox>
+              </HStack>
+
+              <Button
+                mt={4}
+                size="lg"
+                bg="coolGray.400"
+                _pressed={{ bg: "coolGray.500" }}
+                onPress={loadingMessage.includes("KOT") ? handlePaymentConfirm : handleSettlePaymentConfirm}
+              >
+                Settle
+              </Button>
+            </VStack>
+          </Modal.Body>
+        </Modal.Content>
+      </Modal>
     </Box>
   );
 }
