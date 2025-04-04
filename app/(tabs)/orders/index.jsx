@@ -407,6 +407,79 @@ const formatDateString = (inputDate) => {
   }
 };
 
+// Add these helper functions at the top level
+const getDateRange = (filter) => {
+  const today = new Date();
+  const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+  
+  switch (filter) {
+    case 'today':
+      return {
+        start: formatDateString(startOfDay),
+        end: formatDateString(new Date()),
+        label: 'Today'
+      };
+    case 'yesterday': {
+      const yesterday = new Date(startOfDay);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return {
+        start: formatDateString(yesterday),
+        end: formatDateString(yesterday),
+        label: 'Yesterday'
+      };
+    }
+    case 'this_week': {
+      const firstDay = new Date(startOfDay);
+      firstDay.setDate(firstDay.getDate() - firstDay.getDay());
+      return {
+        start: formatDateString(firstDay),
+        end: formatDateString(new Date()),
+        label: 'This Week'
+      };
+    }
+    case 'last_week': {
+      const lastWeekStart = new Date(startOfDay);
+      lastWeekStart.setDate(lastWeekStart.getDate() - lastWeekStart.getDay() - 7);
+      const lastWeekEnd = new Date(lastWeekStart);
+      lastWeekEnd.setDate(lastWeekEnd.getDate() + 6);
+      return {
+        start: formatDateString(lastWeekStart),
+        end: formatDateString(lastWeekEnd),
+        label: 'Last Week'
+      };
+    }
+    case 'this_month': {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      return {
+        start: formatDateString(firstDay),
+        end: formatDateString(new Date()),
+        label: 'This Month'
+      };
+    }
+    case 'last_month': {
+      const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+      return {
+        start: formatDateString(firstDay),
+        end: formatDateString(lastDay),
+        label: 'Last Month'
+      };
+    }
+    case 'custom':
+      return {
+        start: '',
+        end: '',
+        label: 'Custom Date'
+      };
+    default:
+      return {
+        start: formatDateString(new Date()),
+        end: formatDateString(new Date()),
+        label: 'Today'
+      };
+  }
+};
+
 const OrdersScreen = () => {
   const router = useRouter();
   const toast = useToast();
@@ -427,13 +500,18 @@ const OrdersScreen = () => {
   });
 
   const [showPicker, setShowPicker] = useState(false);
+  const [dateFilter, setDateFilter] = useState('today');
+  const [dateRange, setDateRange] = useState(getDateRange('today'));
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
 
   const onDateChange = (event, selectedDate) => {
     setShowPicker(false);
     if (selectedDate) {
-      // Ensure the selected date is not in the future
       const today = new Date();
       today.setHours(23, 59, 59, 999);
+      
       if (selectedDate > today) {
         toast.show({
           description: "Cannot select future dates",
@@ -442,11 +520,40 @@ const OrdersScreen = () => {
         });
         return;
       }
-      setPickerDate(selectedDate);
-      const formattedDate = formatDateString(selectedDate);
-      console.log("Selected and formatted date:", formattedDate);
-      setDate(formattedDate);
-      fetchOrders(true);
+
+      if (dateFilter === 'custom') {
+        if (!dateRange.start) {
+          // Setting start date
+          setStartDate(selectedDate);
+          setDateRange({
+            ...dateRange,
+            start: formatDateString(selectedDate)
+          });
+          setShowEndDatePicker(true);
+        } else {
+          // Setting end date
+          if (selectedDate < new Date(startDate)) {
+            toast.show({
+              description: "End date cannot be before start date",
+              status: "warning",
+              duration: 3000,
+            });
+            return;
+          }
+          setEndDate(selectedDate);
+          setDateRange({
+            ...dateRange,
+            end: formatDateString(selectedDate)
+          });
+          setDate(formatDateString(selectedDate));
+          fetchOrders(true);
+        }
+      } else {
+        setPickerDate(selectedDate);
+        const formattedDate = formatDateString(selectedDate);
+        setDate(formattedDate);
+        fetchOrders(true);
+      }
     }
   };
 
@@ -681,6 +788,26 @@ const OrdersScreen = () => {
     }
   };
 
+  // Update the handleDateFilterChange function
+  const handleDateFilterChange = (value) => {
+    setDateFilter(value);
+    if (value === 'custom') {
+      setShowPicker(true);
+    } else {
+      const newRange = getDateRange(value);
+      setDateRange(newRange);
+      setDate(newRange.end); // Set the current display date to the end date
+      fetchOrders(true);
+    }
+  };
+
+  // Add useEffect to handle date range changes
+  useEffect(() => {
+    if (dateRange.start && dateRange.end) {
+      fetchOrders(true);
+    }
+  }, [dateRange]);
+
   if (isLoading) {
     return (
       <Center flex={1}>
@@ -755,36 +882,71 @@ const OrdersScreen = () => {
           <Select.Item label="Drive Through" value="drive-through" />
           <Select.Item label="Counter" value="counter" />
         </Select>
+      </HStack>
 
-        <Pressable
+      <HStack px={4} py={2} space={3} alignItems="center">
+        <Select
           flex={1}
-          h="36px"
-          borderWidth={1}
-          borderColor="coolGray.300"
-          borderRadius="md"
-          justifyContent="center"
-          onPress={handleOpenPicker}
+          selectedValue={dateFilter}
+          onValueChange={handleDateFilterChange}
+          _selectedItem={{
+            bg: "coolGray.100",
+            endIcon: (
+              <MaterialIcons name="check" size={20} color="coolGray.600" />
+            ),
+          }}
         >
-          <HStack px={2} alignItems="center" space={1}>
-            <MaterialIcons
-              name="calendar-today"
-              size={16}
-              color="coolGray.600"
-            />
-            <Text fontSize="sm" color="coolGray.600">
-              {date}
-            </Text>
-          </HStack>
-        </Pressable>
+          <Select.Item label="Today" value="today" />
+          <Select.Item label="Yesterday" value="yesterday" />
+          <Select.Item label="This Week" value="this_week" />
+          <Select.Item label="Last Week" value="last_week" />
+          <Select.Item label="This Month" value="this_month" />
+          <Select.Item label="Last Month" value="last_month" />
+          <Select.Item label="Custom Date" value="custom" />
+        </Select>
+
+        {dateFilter === 'custom' && (
+          <Pressable
+            flex={1}
+            h="36px"
+            borderWidth={1}
+            borderColor="coolGray.300"
+            borderRadius="md"
+            justifyContent="center"
+            onPress={() => setShowPicker(true)}
+          >
+            <HStack px={2} alignItems="center" space={1}>
+              <MaterialIcons
+                name="calendar-today"
+                size={16}
+                color="coolGray.600"
+              />
+              <Text fontSize="sm" color="coolGray.600">
+                {dateRange.start || 'Start Date'} - {dateRange.end || 'End Date'}
+              </Text>
+            </HStack>
+          </Pressable>
+        )}
       </HStack>
 
       {showPicker && (
         <DateTimePicker
-          value={pickerDate}
+          value={dateFilter === 'custom' ? startDate : pickerDate}
           mode="date"
           display="default"
           onChange={onDateChange}
-          maximumDate={new Date()} // Prevent selecting future dates
+          maximumDate={new Date()}
+        />
+      )}
+
+      {showEndDatePicker && (
+        <DateTimePicker
+          value={endDate}
+          mode="date"
+          display="default"
+          onChange={onDateChange}
+          maximumDate={new Date()}
+          minimumDate={startDate}
         />
       )}
 
