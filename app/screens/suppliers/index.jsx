@@ -37,10 +37,9 @@ export default function SuppliersScreen() {
   const toast = useToast();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewType, setViewType] = useState("list");
-  const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [outletId, setOutletId] = useState(null);
 
   useFocusEffect(
@@ -118,23 +117,16 @@ export default function SuppliersScreen() {
   }, []);
 
   const handleSort = (a, b) => {
-    if (sortBy === "name") {
-      return sortOrder === "asc"
-        ? a.name.localeCompare(b.name)
-        : b.name.localeCompare(a.name);
-    }
-    if (sortBy === "status") {
-      return sortOrder === "asc"
-        ? a.status?.localeCompare(b.status)
-        : b.status?.localeCompare(a.status);
-    }
-    return 0;
+    return sortOrder === "asc"
+      ? a.status?.localeCompare(b.status)
+      : b.status?.localeCompare(a.status);
   };
 
   const filteredSuppliers = suppliers
     ? suppliers
-        .filter((supplier) =>
-          supplier.name.toLowerCase().includes(searchQuery.toLowerCase())
+        .filter((supplier) => 
+          supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          (statusFilter === "all" || supplier.status === statusFilter)
         )
         .sort(handleSort)
     : [];
@@ -200,56 +192,6 @@ export default function SuppliersScreen() {
     </Pressable>
   );
 
-  const renderGridItem = ({ item }) => (
-    <Pressable
-      onPress={() => router.push(`/screens/suppliers/${item.supplier_id}`)}
-      flex={1}
-      m={1}
-    >
-      <Box
-        bg="white"
-        rounded="lg"
-        shadow={1}
-        p={4}
-        borderWidth={1}
-        borderColor="coolGray.200"
-      >
-        <VStack space={2} alignItems="center">
-          <Avatar size="lg" bg="cyan.500">
-            {item.name.charAt(0).toUpperCase()}
-          </Avatar>
-          <VStack space={1} alignItems="center">
-            <Text fontSize="md" fontWeight="bold" textAlign="center">
-              {toTitleCase(item.name)}
-            </Text>
-            {item.type && (
-              <Text fontSize="sm" color="coolGray.600" textAlign="center">
-                {item.type}
-              </Text>
-            )}
-            <Text
-              fontSize="sm"
-              color={item.status === "active" ? "green.500" : "red.500"}
-              textAlign="center"
-            >
-              {item.status &&
-                item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-            </Text>
-            <IconButton
-              icon={<MaterialIcons name="phone" size={24} color="blue.600" />}
-              onPress={() => handleCall(item.mobileNumber1)}
-              bg="blue.100"
-              _pressed={{ bg: "blue.200" }}
-              rounded="full"
-              size="md"
-              p={2}
-            />
-          </VStack>
-        </VStack>
-      </Box>
-    </Pressable>
-  );
-
   return (
     <Box flex={1} bg="coolGray.100" safeAreaTop>
       {/* Header */}
@@ -258,7 +200,7 @@ export default function SuppliersScreen() {
 
         {/* Search and Filter Bar */}
         <Box bg="white" px={4} py={2} shadow={1}>
-          <HStack space={2} alignItems="center">
+          <HStack space={2} alignItems="center" mb={2}>
             <Input
               flex={1}
               placeholder="Search..."
@@ -273,32 +215,27 @@ export default function SuppliersScreen() {
                 </Box>
               }
             />
-            <IconButton
-              icon={
-                <MaterialIcons
-                  name={viewType === "list" ? "grid-view" : "view-list"}
-                  size={24}
-                  color="coolGray.600"
-                />
-              }
-              onPress={() => setViewType(viewType === "list" ? "grid" : "list")}
-              variant="ghost"
-            />
+          </HStack>
+          
+          <HStack space={2} alignItems="center">
             <Select
-              w="110"
-              selectedValue={sortBy}
-              onValueChange={setSortBy}
+              flex={1}
+              selectedValue={statusFilter}
+              onValueChange={setStatusFilter}
               bg="coolGray.50"
               borderRadius="lg"
+              placeholder="Filter by status"
               _selectedItem={{
                 endIcon: (
                   <MaterialIcons name="check" size={16} color="coolGray.600" />
                 ),
               }}
             >
-              <Select.Item label="Name" value="name" />
-              <Select.Item label="Status" value="status" />
+              <Select.Item label="All Status" value="all" />
+              <Select.Item label="Active" value="active" />
+              <Select.Item label="Inactive" value="inactive" />
             </Select>
+            
             <IconButton
               icon={
                 <MaterialIcons
@@ -322,10 +259,8 @@ export default function SuppliersScreen() {
           ) : suppliers.length > 0 ? (
             <FlatList
               data={filteredSuppliers}
-              renderItem={viewType === "list" ? renderListItem : renderGridItem}
+              renderItem={renderListItem}
               keyExtractor={(item) => item.id.toString()}
-              key={viewType}
-              numColumns={viewType === "grid" ? 2 : 1}
               contentContainerStyle={{
                 padding: 16,
                 paddingBottom: 100, // Extra padding for FAB
