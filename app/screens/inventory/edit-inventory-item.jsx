@@ -57,6 +57,7 @@ export default function EditInventoryItemScreen() {
 
   const categorySelect = useRef(null);
   const supplierSelect = useRef(null);
+  const statusSelect = useRef(null);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -652,6 +653,40 @@ export default function EditInventoryItemScreen() {
             <FormControl.ErrorMessage>
               {errors.tax_rate}
             </FormControl.ErrorMessage>
+          </FormControl>
+
+          {/* Status Selection */}
+          <FormControl>
+            <FormControl.Label>Status (In/Out)</FormControl.Label>
+            <Pressable
+              onPress={() => {
+                if (statusSelect.current) {
+                  statusSelect.current.focus();
+                }
+              }}
+            >
+              <Select
+                ref={statusSelect}
+                selectedValue={formData.in_or_out}
+                placeholder="Select status"
+                onValueChange={(value) => {
+                  setFormData((prev) => ({ ...prev, in_or_out: value }));
+                }}
+                isReadOnly={true}
+                borderColor={formData.in_or_out ? "green.500" : "coolGray.200"}
+                _focus={{
+                  borderColor: formData.in_or_out ? "green.500" : "blue.500",
+                }}
+              >
+                <Select.Item label="IN" value="in" />
+                <Select.Item label="OUT" value="out" />
+              </Select>
+            </Pressable>
+            <FormControl.HelperText>
+              {formData.in_or_out === "in" 
+                ? "Stock is being added to inventory" 
+                : "Stock is being removed from inventory"}
+            </FormControl.HelperText>
           </FormControl>
 
           {/* Dates */}

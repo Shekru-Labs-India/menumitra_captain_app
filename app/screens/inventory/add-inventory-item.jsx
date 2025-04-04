@@ -35,7 +35,7 @@ export default function AddInventoryItemScreen() {
     name: "",
     supplierId: "",
     description: "",
-    category_id: "", // Changed from category to category_id
+    category_id: "", // Changed from category
     unit_price: "", // Changed from price
     quantity: "",
     unit_of_measure: "", // Changed from unitOfMeasure
@@ -44,6 +44,7 @@ export default function AddInventoryItemScreen() {
     tax_rate: "", // Changed from tax
     in_or_out: "in", // Changed from status
     in_date: "", // Changed from inDate
+    out_date: "", // Added out_date field
     expiration_date: "", // Changed from expirationDate
   });
   const [errors, setErrors] = useState({});
@@ -54,6 +55,7 @@ export default function AddInventoryItemScreen() {
   const [filteredCategories, setFilteredCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [showInDatePicker, setShowInDatePicker] = useState(false);
+  const [showOutDatePicker, setShowOutDatePicker] = useState(false);
   const [showExpirationDatePicker, setShowExpirationDatePicker] =
     useState(false);
   const supplierSelect = useRef(null);
@@ -277,6 +279,12 @@ export default function AddInventoryItemScreen() {
       if (formData.in_or_out === "in" && !formData.in_date) {
         inDate = formatDate(new Date());
       }
+      
+      // Set current date as out_date if status is "out" and no date selected
+      let outDate = formData.out_date;
+      if (formData.in_or_out === "out" && !formData.out_date) {
+        outDate = formatDate(new Date());
+      }
 
       const data = await fetchWithAuth(`${getBaseUrl()}/inventory_create`, {
         method: "POST",
@@ -296,6 +304,7 @@ export default function AddInventoryItemScreen() {
           tax_rate: formData.tax_rate.toString(),
           in_or_out: formData.in_or_out,
           in_date: inDate, // Use the potentially modified inDate
+          out_date: outDate, // Add out_date to API request
           expiration_date: formData.expiration_date,
         }),
       });
@@ -419,6 +428,17 @@ export default function AddInventoryItemScreen() {
       setFormData((prev) => ({
         ...prev,
         in_date: formatDate(selectedDate),
+      }));
+    }
+  };
+
+  const handleOutDateChange = (event, selectedDate) => {
+    setShowOutDatePicker(Platform.OS === "ios");
+
+    if (event.type === "set" && selectedDate) {
+      setFormData((prev) => ({
+        ...prev,
+        out_date: formatDate(selectedDate),
       }));
     }
   };
@@ -877,6 +897,41 @@ export default function AddInventoryItemScreen() {
             </FormControl.ErrorMessage>
           </FormControl>
 
+          {/* Out Date */}
+          <FormControl isInvalid={"out_date" in errors}>
+            <FormControl.Label>Out Date</FormControl.Label>
+            <Pressable onPress={() => setShowOutDatePicker(true)}>
+              <Input
+                value={formData.out_date}
+                placeholder="Select out date"
+                isReadOnly
+                borderColor={
+                  formData.out_date && !errors.out_date ? "green.500" : 
+                  errors.out_date ? "red.500" : "coolGray.200"
+                }
+                _focus={{
+                  borderColor: formData.out_date && !errors.out_date ? "green.500" : 
+                              errors.out_date ? "red.500" : "blue.500",
+                }}
+                rightElement={
+                  <IconButton
+                    icon={
+                      <MaterialIcons
+                        name="calendar-today"
+                        size={24}
+                        color="gray"
+                      />
+                    }
+                    onPress={() => setShowOutDatePicker(true)}
+                  />
+                }
+              />
+            </Pressable>
+            <FormControl.ErrorMessage>
+              {errors.out_date}
+            </FormControl.ErrorMessage>
+          </FormControl>
+
           {/* Date Pickers */}
           {showInDatePicker && (
             <DateTimePicker
@@ -890,6 +945,20 @@ export default function AddInventoryItemScreen() {
                 formData.expiration_date
                   ? parseDate(formData.expiration_date)
                   : undefined
+              }
+            />
+          )}
+
+          {showOutDatePicker && (
+            <DateTimePicker
+              value={
+                formData.out_date ? parseDate(formData.out_date) : new Date()
+              }
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleOutDateChange}
+              minimumDate={
+                formData.in_date ? parseDate(formData.in_date) : undefined
               }
             />
           )}

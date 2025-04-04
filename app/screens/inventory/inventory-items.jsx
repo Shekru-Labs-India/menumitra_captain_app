@@ -138,14 +138,14 @@ export default function InventoryItemsScreen() {
               </Text>
             </VStack>
 
-            <VStack flex={1}>
+            {/* <VStack flex={1}>
               <Text fontSize="sm" color="coolGray.600">
                 Brand
               </Text>
               <Text fontSize="md" fontWeight="semibold">
                 {item.brand_name}
               </Text>
-            </VStack>
+            </VStack> */}
           </HStack>
         </VStack>
       </Box>
@@ -168,7 +168,7 @@ export default function InventoryItemsScreen() {
       {/* Add Search Bar */}
       <Box px={4} py={2}>
         <Input
-          placeholder="Search items by name or brand"
+          placeholder="Search inventory "
           value={searchQuery}
           onChangeText={handleSearch}
           width="100%"
