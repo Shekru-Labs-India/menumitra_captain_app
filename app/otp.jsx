@@ -296,9 +296,6 @@ export default function OtpScreen() {
             color="gray.600"
           />
         </Pressable>
-        <Text fontSize="lg" fontWeight="bold" color="#333">
-          Verify OTP
-        </Text>
         <Box w={6} />
       </HStack>
 

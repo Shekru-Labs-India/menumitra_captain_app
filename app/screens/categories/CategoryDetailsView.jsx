@@ -31,6 +31,8 @@ export default function CategoryDetailsView() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const cancelRef = React.useRef(null);
   const [menuItems, setMenuItems] = useState([]);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     if (params.categoryId) {
@@ -79,46 +81,113 @@ export default function CategoryDetailsView() {
 
   const handleDelete = async () => {
     try {
+      setDeleteLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
-
-      const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_delete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          outlet_id: outletId,
-          menu_cat_id: params.categoryId,
-        }),
-      });
-
-      if (data.st === 1) {
-        setIsDeleteDialogOpen(false);
-        toast.show({
-          description: "Category deleted successfully",
-          status: "success",
-          duration: 3000,
-          placement: "bottom",
-          isClosable: true,
+      
+      if (!outletId) {
+        throw new Error("Outlet ID not found");
+      }
+      
+      console.log("Deleting category:", params.categoryId);
+      
+      try {
+        const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_delete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            outlet_id: outletId,
+            menu_cat_id: params.categoryId,
+          }),
         });
-        // Navigate back to category list with refresh parameter
-        router.push({
-          pathname: "/screens/categories/CategoryListview",
-          params: { refresh: Date.now() },
-        });
-      } else {
-        // Throw the actual error message from the API
-        throw new Error(data.msg);
+        
+        console.log("Delete response:", data);
+        
+        if (data && data.st === 1) {
+          // Successful deletion
+          handleSuccessfulDeletion();
+        } else {
+          throw new Error(data?.msg || "Failed to delete category");
+        }
+      } catch (apiError) {
+        console.error("API Error:", apiError);
+        
+        // Check if we need to verify if deletion was successful
+        // Try to fetch the category to see if it still exists
+        try {
+          // Try to fetch the category details to check if it still exists
+          const checkData = await fetchWithAuth(`${getBaseUrl()}/menu_category_view`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              outlet_id: outletId,
+              menu_cat_id: params.categoryId,
+            }),
+          });
+          
+          // If we can fetch the category details, it still exists
+          if (checkData && checkData.st === 1) {
+            // Category still exists, show error
+            throw apiError;
+          } else {
+            // Category no longer exists, likely deleted successfully
+            console.log("Category not found after delete attempt, assuming successful deletion");
+            handleSuccessfulDeletion();
+          }
+        } catch (checkError) {
+          // If we get here with a 'not found' error, the category was deleted
+          if (checkError.message && (
+              checkError.message.includes("not found") || 
+              checkError.message.includes("does not exist") || 
+              checkError.message.includes("Invalid category"))) {
+            console.log("Confirmed category was deleted despite API error");
+            handleSuccessfulDeletion();
+          } else {
+            // Re-throw original error
+            throw apiError;
+          }
+        }
       }
     } catch (error) {
       console.error("Delete Category Error:", error);
       setIsDeleteDialogOpen(false);
-      toast.show({
-        description: error.message || "Failed to delete category",
-        status: "error",
-        duration: 3000,
-        placement: "bottom",
-        isClosable: true,
-      });
+      
+      // Don't show error if navigating away (category was deleted)
+      if (!isNavigating) {
+        toast.show({
+          description: error.message || "Failed to delete category. Please try again.",
+          status: "error",
+          duration: 3000,
+          placement: "bottom",
+        });
+      }
+    } finally {
+      setDeleteLoading(false);
     }
+  };
+
+  // Handle successful deletion
+  const handleSuccessfulDeletion = () => {
+    // Close the delete dialog
+    setIsDeleteDialogOpen(false);
+    
+    // Set navigating flag to prevent error messages while navigating
+    setIsNavigating(true);
+    
+    // Show success message
+    toast.show({
+      description: "Category deleted successfully",
+      status: "success",
+      duration: 2000,
+      placement: "bottom",
+    });
+    
+    // Navigate to category list view after a short delay
+    setTimeout(() => {
+      router.push({
+        pathname: "/screens/categories/CategoryListview",
+        params: { refresh: Date.now() },
+      });
+    }, 500);
   };
 
   if (loading || !categoryData) {
@@ -397,14 +466,19 @@ export default function CategoryDetailsView() {
       <AlertDialog
         leastDestructiveRef={cancelRef}
         isOpen={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
+        onClose={() => !deleteLoading && setIsDeleteDialogOpen(false)}
       >
         <AlertDialog.Content>
-          <AlertDialog.CloseButton />
+          <AlertDialog.CloseButton isDisabled={deleteLoading} />
           <AlertDialog.Header>Delete Category</AlertDialog.Header>
           <AlertDialog.Body>
             Are you sure you want to delete this category? This action cannot be
             undone.
+            {categoryData?.menu_count > 0 && (
+              <Text color="red.500" mt={2}>
+                Warning: This category contains {categoryData.menu_count} menu items that will also be affected.
+              </Text>
+            )}
           </AlertDialog.Body>
           <AlertDialog.Footer>
             <Button.Group space={2}>
@@ -413,10 +487,16 @@ export default function CategoryDetailsView() {
                 colorScheme="coolGray"
                 onPress={() => setIsDeleteDialogOpen(false)}
                 ref={cancelRef}
+                isDisabled={deleteLoading}
               >
                 Cancel
               </Button>
-              <Button colorScheme="danger" onPress={handleDelete}>
+              <Button 
+                colorScheme="danger" 
+                onPress={handleDelete}
+                isLoading={deleteLoading}
+                isLoadingText="Deleting..."
+              >
                 Delete
               </Button>
             </Button.Group>
