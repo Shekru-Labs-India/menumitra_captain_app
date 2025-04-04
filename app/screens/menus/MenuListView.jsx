@@ -121,10 +121,18 @@ export default function MenuListView() {
 
   const handleMenuPress = (menuId) => {
     console.log("Navigating to menu details:", menuId);
-    router.push({
-      pathname: "/screens/menus/MenuDetailsView",
-      params: { menuId: menuId },
-    });
+    try {
+      router.push({
+        pathname: "/screens/menus/MenuDetailsView",
+        params: { menuId: menuId.toString() },
+      });
+    } catch (error) {
+      console.error("Navigation error:", error);
+      toast.show({
+        description: "Error navigating to menu details",
+        status: "error",
+      });
+    }
   };
 
   const renderSpicyLevel = (level) => {
@@ -192,29 +200,13 @@ export default function MenuListView() {
           </Box>
 
           <VStack flex={1} space={1}>
-            <HStack justifyContent="space-between" alignItems="center">
-              <Text fontSize="md" fontWeight="bold" maxW="70%">
-                {item.name}
-              </Text>
-              <Badge
-                colorScheme={item.food_type === "veg" ? "green" : "red"}
-                variant="subtle"
-                rounded="sm"
-                px={2}
-                py={0.5}
-              >
-                {item.food_type.toUpperCase()}
-              </Badge>
-            </HStack>
+            <Text fontSize="md" fontWeight="bold">
+              {item.name}
+            </Text>
 
             <Text fontSize="sm" color="coolGray.600" textTransform="capitalize">
               {item.category_name}
             </Text>
-
-            <HStack space={4} alignItems="center">
-              {renderSpicyLevel(item.spicy_index)}
-              {renderRating(item.rating)}
-            </HStack>
 
             <HStack justifyContent="space-between" alignItems="center" mt={1}>
               {item.half_price > 0 && (

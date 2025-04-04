@@ -43,7 +43,18 @@ export default function MenuDetailsView() {
 
   const fetchMenuDetails = async () => {
     try {
+      console.log("Fetching menu details for ID:", menuId);
       const outletId = await AsyncStorage.getItem("outlet_id");
+      console.log("Using outlet ID:", outletId);
+
+      if (!menuId) {
+        console.error("Menu ID is undefined or null");
+        toast.show({
+          description: "Invalid menu ID",
+          status: "error",
+        });
+        return;
+      }
 
       const data = await fetchWithAuth(`${getBaseUrl()}/menu_view`, {
         method: "POST",
@@ -53,11 +64,13 @@ export default function MenuDetailsView() {
           menu_id: menuId,
         }),
       });
-      console.log("Menu Details:", data);
+      console.log("Menu Details Response:", data);
 
       if (data.st === 1) {
+        console.log("Menu details fetched successfully");
         setMenuDetails(data.data);
       } else {
+        console.error("API returned error:", data.msg);
         throw new Error(data.msg || "Failed to fetch menu details");
       }
     } catch (error) {

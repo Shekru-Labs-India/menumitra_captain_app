@@ -542,6 +542,9 @@ export default function CreateMenuView() {
     if (!menuDetails.menu_cat_id) {
       newErrors.menu_cat_id = "Category is required";
     }
+    if (!menuDetails.food_type) {
+      newErrors.food_type = "Food type is required";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -921,7 +924,7 @@ export default function CreateMenuView() {
                     </Pressable>
                   </FormControl>
 
-                  <FormControl flex={1}>
+                  <FormControl isRequired isInvalid={"food_type" in errors} flex={1}>
                     <FormControl.Label>Food Type</FormControl.Label>
                     <Pressable onPress={() => setFoodTypeModalVisible(true)}>
                       <Input
