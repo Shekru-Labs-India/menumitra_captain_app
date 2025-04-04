@@ -147,7 +147,7 @@ export default function LoginScreen() {
           setApiError("Access denied for this role.");
         }
       } else {
-        setApiError("Access denied. Please check your credentials.");
+        setApiError("Your account is inactive. Please contact support.");
       }
     } catch (error) {
       setApiError("An error occurred. Please try again.");

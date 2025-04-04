@@ -658,6 +658,12 @@ export default function TableSectionsScreen() {
 
     try {
       setLoading(true);
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      
+      if (!storedUserId) {
+        throw new Error("User ID not found. Please login again.");
+      }
+
       const data = await fetchWithAuth(`${getBaseUrl()}/section_update`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -665,6 +671,7 @@ export default function TableSectionsScreen() {
           outlet_id: outletId.toString(),
           section_id: section.id.toString(),
           section_name: sanitizedText.trim(),
+          user_id: storedUserId.toString()
         }),
       });
 
@@ -1298,12 +1305,19 @@ export default function TableSectionsScreen() {
   const handleDeleteSection = async () => {
     try {
       setLoading(true);
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      
+      if (!storedUserId) {
+        throw new Error("User ID not found. Please login again.");
+      }
+
       const data = await fetchWithAuth(`${getBaseUrl()}/section_delete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
           section_id: activeSection.id.toString(),
+          user_id: storedUserId.toString()
         }),
       });
 

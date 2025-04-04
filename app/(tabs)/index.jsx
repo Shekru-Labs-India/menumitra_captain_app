@@ -92,7 +92,7 @@ const SalesSummary = memo(({ liveSales, todayTotalSales }) => (
         ₹{Number(todayTotalSales).toFixed(2)}
       </Text>
       <Text mt={2} color="coolGray.500">
-        Today's Sale
+        Today's Sales
       </Text>
     </VStack>
   </HStack>
@@ -616,7 +616,7 @@ export default function HomeScreen() {
         borderBottomColor="coolGray.200"
       >
         <Text fontSize="xl" fontWeight="bold">
-          MenuMitra Captain
+          Home
         </Text>
         <Pressable
           onPress={() => setIsSidebarOpen(true)}
