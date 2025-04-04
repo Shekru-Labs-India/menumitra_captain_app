@@ -1214,10 +1214,10 @@ export default function OrderDetailsScreen() {
     }
   };
 
-  const handlePrint = async () => {
+  const handlePrint = async (type) => {
     try {
       setIsLoading(true);
-      setLoadingMessage("Printing...");
+      setLoadingMessage(`Printing ${type}...`);
 
       // Check if running in Expo Go or web
       const isExpoGo = Constants.executionEnvironment === "storeClient";
@@ -1225,7 +1225,7 @@ export default function OrderDetailsScreen() {
 
       if (isExpoGo || isWeb) {
         // Use PDF printing in Expo Go or web
-        const html = generateReceiptHTML(orderDetails, menuItems);
+        const html = type === "KOT" ? generateKOTHTML(orderDetails, menuItems) : generateReceiptHTML(orderDetails, menuItems);
         await Print.printAsync({
           html,
           orientation: "portrait",
@@ -1233,7 +1233,11 @@ export default function OrderDetailsScreen() {
       } else {
         // Use thermal printing in development or production builds
         if (printerDevice && isConnected) {
-          await printReceipt();
+          if (type === "KOT") {
+            await printKOT();
+          } else {
+            await printReceipt();
+          }
         } else {
           setIsModalVisible(true);
           scanForPrinters();
@@ -1241,7 +1245,7 @@ export default function OrderDetailsScreen() {
       }
 
       toast.show({
-        description: "Receipt printed successfully",
+        description: `${type} printed successfully`,
         status: "success",
         duration: 3000,
         placement: "bottom",
@@ -1250,7 +1254,7 @@ export default function OrderDetailsScreen() {
     } catch (error) {
       console.error("Print error:", error);
       toast.show({
-        description: "Failed to print receipt",
+        description: `Failed to print ${type}`,
         status: "error",
         duration: 3000,
         placement: "bottom",
@@ -1328,6 +1332,151 @@ export default function OrderDetailsScreen() {
       await sendToDevice(commands);
     } catch (error) {
       console.error("Thermal print error:", error);
+      throw error;
+    }
+  };
+
+  const generateKOTHTML = (orderDetails, menuItems) => {
+    try {
+      const items = menuItems
+        .map(
+          (item) => `
+      <tr>
+        <td style="text-align: left;">${item.menu_name}${item.half_or_full ? ` (${item.half_or_full})` : ''}</td>
+        <td style="text-align: center;">${item.quantity}</td>
+        ${item.comment ? `<td style="text-align: left; font-style: italic; color: #666;">Note: ${item.comment}</td>` : '<td></td>'}
+      </tr>
+    `
+        )
+        .join("");
+
+      return `
+    <html>
+      <head>
+        <style>
+          @page {
+            margin: 0;
+            size: 80mm 297mm;
+          }
+          body { 
+            font-family: monospace;
+            padding: 10px;
+            width: 80mm;
+            margin: 0 auto;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 10px;
+          }
+          .restaurant-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+          .kot-title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+            border: 2px solid black;
+            padding: 5px;
+          }
+          .order-info {
+            margin-bottom: 10px;
+            font-size: 14px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 14px;
+          }
+          th, td {
+            padding: 3px 0;
+          }
+          .dotted-line {
+            border-top: 1px dotted black;
+            margin: 5px 0;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="kot-title">KOT</div>
+        
+        <div class="header">
+          <div class="restaurant-name">${orderDetails.outlet_name}</div>
+        </div>
+
+        <div class="order-info">
+          <strong>Order:</strong> #${orderDetails.order_number}<br>
+          <strong>Table:</strong> ${orderDetails.section} - ${orderDetails.table_number[0]}<br>
+          <strong>Time:</strong> ${orderDetails.datetime}<br>
+          <strong>Items:</strong> ${menuItems.length}
+        </div>
+
+        <div class="dotted-line"></div>
+
+        <table>
+          <tr>
+            <th style="text-align: left;">Item</th>
+            <th style="text-align: center;">Qty</th>
+            <th style="text-align: left;">Notes</th>
+          </tr>
+          ${items}
+        </table>
+
+        <div class="dotted-line"></div>
+      </body>
+    </html>
+    `;
+    } catch (error) {
+      console.error("Error generating KOT HTML:", error);
+      throw error;
+    }
+  };
+
+  const printKOT = async () => {
+    try {
+      if (!printerDevice || !isConnected) {
+        throw new Error("No printer connected");
+      }
+
+      // Generate and send commands for thermal printer
+      const commands = [
+        ...textToBytes("\x1B\x40"), // Initialize printer
+        ...textToBytes("\x1B\x61\x01"), // Center alignment
+        ...textToBytes("\x1B\x45\x01"), // Bold ON
+        ...textToBytes("KOT\n"),
+        ...textToBytes("\x1B\x45\x00"), // Bold OFF
+        ...textToBytes(`${orderDetails.outlet_name}\n\n`),
+        ...textToBytes("\x1B\x61\x00"), // Left alignment
+        ...textToBytes(`Order: #${orderDetails.order_number}\n`),
+        ...textToBytes(`Table: ${orderDetails.section} - ${orderDetails.table_number[0]}\n`),
+        ...textToBytes(`Time: ${orderDetails.datetime}\n`),
+        ...textToBytes(`Items: ${menuItems.length}\n\n`),
+        ...textToBytes("----------------------------------------\n"),
+        ...textToBytes("Item                  Qty    Notes\n"),
+        ...textToBytes("----------------------------------------\n"),
+
+        // Print items
+        ...menuItems.flatMap((item) => {
+          const itemName = `${item.menu_name}${item.half_or_full ? ` (${item.half_or_full})` : ''}`.padEnd(20).substring(0, 20);
+          const notes = item.comment ? `\n  Note: ${item.comment}` : '';
+          return textToBytes(
+            `${itemName} ${String(item.quantity).padStart(3)}${notes}\n`
+          );
+        }),
+
+        ...textToBytes("----------------------------------------\n"),
+        ...textToBytes("\x1B\x61\x01"), // Center alignment
+        ...textToBytes("\n"),
+        ...textToBytes("\x1D\x56\x41\x10"), // Cut paper
+      ];
+
+      // Send commands to printer
+      await sendToDevice(commands);
+    } catch (error) {
+      console.error("Thermal print KOT error:", error);
       throw error;
     }
   };
@@ -1633,10 +1782,7 @@ export default function OrderDetailsScreen() {
                 ({menuItems.length} {menuItems.length === 1 ? "item" : "items"})
               </Text>
             </Heading>
-            <Text color="coolGray.600" fontSize="sm">
-              Total Qty:{" "}
-              {menuItems.reduce((sum, item) => sum + Number(item.quantity), 0)}
-            </Text>
+            
           </HStack>
           <VStack space={4}>
             {menuItems.map((item, index) => (
@@ -1759,7 +1905,7 @@ export default function OrderDetailsScreen() {
               <Text fontWeight="medium">Total after Service Charge</Text>
               <Text fontWeight="medium">
                 ₹{(
-                  Number(orderDetails.total_bill_amount || 0) -
+                  Number(orderDetails.total_bill_amount) -
                   Number(orderDetails.discount_amount || 0) -
                   Number(orderDetails.special_discount || 0) +
                   Number(orderDetails.charges || 0) +
@@ -1816,17 +1962,29 @@ export default function OrderDetailsScreen() {
         <Box px={4} pb={4}>
           <StatusActionButton />
 
-          {/* Print Button */}
-          <Button
-            mt={2}
-            variant="outline"
-            leftIcon={<Icon as={MaterialIcons} name="print" size="sm" />}
-            onPress={handlePrint}
-            isLoading={loadingMessage === "Printing..."}
-            isDisabled={isLoading}
-          >
-            {loadingMessage === "Printing..." ? "Printing..." : "Print Receipt"}
-          </Button>
+          {/* Print Buttons */}
+          <HStack space={2} mt={2}>
+            <Button
+              flex={1}
+              variant="outline"
+              leftIcon={<Icon as={MaterialIcons} name="receipt-long" size="sm" />}
+              onPress={() => handlePrint("KOT")}
+              isLoading={loadingMessage === "Printing KOT..."}
+              isDisabled={isLoading}
+            >
+              Print KOT
+            </Button>
+            <Button
+              flex={1}
+              variant="outline"
+              leftIcon={<Icon as={MaterialIcons} name="print" size="sm" />}
+              onPress={() => handlePrint("receipt")}
+              isLoading={loadingMessage === "Printing receipt..."}
+              isDisabled={isLoading}
+            >
+              Print Receipt
+            </Button>
+          </HStack>
         </Box>
 
         {/* Invoice Button */}
