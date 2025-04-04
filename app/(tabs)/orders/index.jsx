@@ -346,14 +346,14 @@ const OrderCard = ({ order, onPress, onTimerEnd }) => {
           borderTopColor="gray.200"
         >
           <VStack>
-            <Text fontSize="md">₹{order.total_bill_amount || 0}</Text>
+            <Text fontSize="md">₹{Number(order.total_bill_amount || 0).toFixed(2)}</Text>
             <Text fontSize="xs" color="gray.500">
-              Bill Amount
+              Items Total
             </Text>
           </VStack>
           <VStack alignItems="center">
             <Text fontSize="md" color="green.600">
-              -₹{order.discount_amount || 0}
+              -₹{Number(order.discount_amount || 0).toFixed(2)}
             </Text>
             <Text fontSize="xs" color="gray.500">
               Discount
@@ -361,10 +361,18 @@ const OrderCard = ({ order, onPress, onTimerEnd }) => {
           </VStack>
           <VStack alignItems="flex-end">
             <Text fontSize="md" fontWeight="bold" color="primary.600">
-              ₹{order.grand_total?.toFixed(2) || 0}
+              ₹{Number(
+                Number(order.total_bill_amount || 0) -
+                Number(order.discount_amount || 0) -
+                Number(order.special_discount || 0) +
+                Number(order.charges || 0) +
+                Number(order.service_charges_amount || 0) +
+                Number(order.gst_amount || 0) +
+                Number(order.tip || 0)
+              ).toFixed(2)}
             </Text>
             <Text fontSize="xs" color="gray.500">
-              Total Amount
+              Grand Total
             </Text>
           </VStack>
         </HStack>
