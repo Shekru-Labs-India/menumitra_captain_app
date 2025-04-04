@@ -127,6 +127,7 @@ export default function StaffScreen() {
   const params = useLocalSearchParams();
   const [outletId, setOutletId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [roleFilter, setRoleFilter] = useState("all");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -176,7 +177,12 @@ export default function StaffScreen() {
           staff.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           staff.mobile?.includes(searchQuery) ||
           staff.role?.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesSearch;
+        
+        const matchesRoleFilter = 
+          roleFilter === "all" || 
+          staff.role?.toLowerCase() === roleFilter.toLowerCase();
+        
+        return matchesSearch && matchesRoleFilter;
       })
       .sort((a, b) => {
         const factor = sortOrder === "asc" ? 1 : -1;
@@ -184,7 +190,7 @@ export default function StaffScreen() {
           ? a.name.localeCompare(b.name) * factor
           : a.role.localeCompare(b.role) * factor;
       });
-  }, [staffList, searchQuery, sortBy, sortOrder]);
+  }, [staffList, searchQuery, sortBy, sortOrder, roleFilter]);
 
   // Optimized fetch functions
   const fetchStaffList = useCallback(async () => {
@@ -309,18 +315,23 @@ export default function StaffScreen() {
             
             <Select
               w="110"
-              selectedValue={sortBy}
-              onValueChange={setSortBy}
-              placeholder="Sort by"
+              selectedValue={roleFilter}
+              onValueChange={setRoleFilter}
+              placeholder="Filter role"
               _selectedItem={{
                 endIcon: <CheckIcon size={4} />,
               }}
-              defaultValue="name"
+              defaultValue="all"
               alignSelf="center"
             >
-              <Select.Item label="Name" value="name" />
-              <Select.Item label="Role" value="role" />
+              <Select.Item label="All Roles" value="all" />
+              <Select.Item label="Cleaner" value="cleaner" />
+              <Select.Item label="Receptionist" value="receptionist" />
+              
             </Select>
+           
+           
+            
             <IconButton
               icon={
                 <MaterialIcons
@@ -331,6 +342,7 @@ export default function StaffScreen() {
               }
               onPress={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
             />
+            
           </HStack>
         </HStack>
 
