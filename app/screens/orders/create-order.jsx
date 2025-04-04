@@ -3371,23 +3371,31 @@ const handleSettlePaymentConfirm = async () => {
                 onChange={setSelectedPaymentMethod}
               >
                 <HStack space={6} flexWrap="wrap">
-                  <Radio value="CASH" size="lg">
+                  <Radio value="CASH" size="lg" isDisabled={!isPaidChecked}>
                     <Text fontSize="md">CASH</Text>
                   </Radio>
-                  <Radio value="UPI" size="lg">
+                  <Radio value="UPI" size="lg" isDisabled={!isPaidChecked}>
                     <Text fontSize="md">UPI</Text>
                   </Radio>
-                  <Radio value="CARD" size="lg">
+                  <Radio value="CARD" size="lg" isDisabled={!isPaidChecked}>
                     <Text fontSize="md">CARD</Text>
                   </Radio>
                 </HStack>
               </Radio.Group>
 
+              <Divider my={2} />
+
               <HStack alignItems="center" space={2}>
                 <Checkbox
                   value="paid"
                   isChecked={isPaidChecked}
-                  onChange={setIsPaidChecked}
+                  onChange={(isChecked) => {
+                    setIsPaidChecked(isChecked);
+                    // Reset payment method if unchecking paid
+                    if (!isChecked) {
+                      setSelectedPaymentMethod("CASH");
+                    }
+                  }}
                   size="lg"
                 >
                   <Text fontSize="md">Paid</Text>
@@ -3397,9 +3405,14 @@ const handleSettlePaymentConfirm = async () => {
               <Button
                 mt={4}
                 size="lg"
-                bg="coolGray.400"
-                _pressed={{ bg: "coolGray.500" }}
+                bg={isPaidChecked ? "blue.500" : "coolGray.400"}
+                _pressed={{ bg: isPaidChecked ? "blue.600" : "coolGray.500" }}
                 onPress={loadingMessage.includes("KOT") ? handlePaymentConfirm : handleSettlePaymentConfirm}
+                isDisabled={!isPaidChecked}
+                _disabled={{
+                  bg: "coolGray.400",
+                  opacity: 0.5
+                }}
               >
                 Settle
               </Button>
