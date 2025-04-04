@@ -118,23 +118,37 @@ export default function AddStaffScreen() {
   const handlePhoneChange = (text) => {
     // Only allow digits
     const sanitizedText = text.replace(/[^0-9]/g, "");
-
-    // Always check if first digit is valid (6-9), regardless of input method
-    if (sanitizedText.length > 0) {
+    
+    // If this is the first digit
+    if (sanitizedText.length === 1) {
+      // Check if the first digit is valid (6-9)
       const firstDigit = sanitizedText[0];
       if (!["6", "7", "8", "9"].includes(firstDigit)) {
-        setFormData((prev) => ({
-          ...prev,
-          phone: sanitizedText // Still update the phone number
-        }));
-        setErrors((prev) => ({
-          ...prev,
-          phone: "Number must start with 6, 7, 8 or 9",
-        }));
+        // If invalid first digit, don't update the state
+        toast.show({
+          description: "Mobile number must start with 6, 7, 8 or 9",
+          status: "warning",
+          duration: 2000,
+        });
+        return; // Don't update state with invalid first digit
+      }
+    }
+    
+    // If we're adding to existing digits
+    if (formData.phone === "" && sanitizedText.length > 1) {
+      // Check first digit for new input with multiple digits
+      const firstDigit = sanitizedText[0];
+      if (!["6", "7", "8", "9"].includes(firstDigit)) {
+        toast.show({
+          description: "Mobile number must start with 6, 7, 8 or 9",
+          status: "warning",
+          duration: 2000,
+        });
         return;
       }
     }
-
+    
+    // Update state with valid input
     setFormData({ ...formData, phone: sanitizedText });
 
     // Clear error if valid, set error if invalid
@@ -142,8 +156,6 @@ export default function AddStaffScreen() {
       setErrors((prev) => ({ ...prev, phone: "Mobile number is required" }));
     } else if (sanitizedText.length !== 10) {
       setErrors((prev) => ({ ...prev, phone: "Mobile number must be 10 digits" }));
-    } else if (!/^[6-9]\d{9}$/.test(sanitizedText)) {
-      setErrors((prev) => ({ ...prev, phone: "Invalid mobile number format" }));
     } else {
       // Explicitly remove the phone error when input is valid
       setErrors((prev) => {
