@@ -158,17 +158,32 @@ export default function AddStaffScreen() {
     const sanitizedText = text.replace(/[^a-zA-Z0-9\s,.-]/g, "");
     setFormData({ ...formData, address: sanitizedText });
 
-    // Validate address with 5 char minimum
-    if (!sanitizedText.trim()) {
-      setErrors((prev) => ({ ...prev, address: "Address is required" }));
-    } else if (sanitizedText.trim().length < 5) {
+    // Validate address - now optional
+    if (sanitizedText.trim().length > 0 && sanitizedText.trim().length < 5) {
       setErrors((prev) => ({
         ...prev,
         address: "Address must be at least 5 characters",
       }));
     } else {
-      setErrors((prev) => ({ ...prev, address: undefined }));
+      setErrors((prev) => {
+        const { address, ...rest } = prev;
+        return rest;
+      });
     }
+  };
+
+  // Clear DOB function
+  const clearDOB = () => {
+    setFormData({
+      ...formData,
+      dob: "",
+    });
+    
+    // Clear any DOB error if it exists
+    setErrors((prev) => {
+      const { dob, ...rest } = prev;
+      return rest;
+    });
   };
 
   // Update validateForm function
@@ -197,10 +212,8 @@ export default function AddStaffScreen() {
         newErrors.role = "Role is required";
       }
 
-      // DOB validationthe
-      if (!formData.dob) {
-        newErrors.dob = "Date of birth is required";
-      }
+      // DOB validation - now optional
+      // Removed mandatory validation for DOB
 
       // Aadhar validation
       if (!formData.aadharNo) {
@@ -209,10 +222,8 @@ export default function AddStaffScreen() {
         newErrors.aadharNo = "Enter valid 12-digit Aadhar number";
       }
 
-      // Updated address validation
-      if (!formData.address?.trim()) {
-        newErrors.address = "Address is required";
-      } else if (formData.address.trim().length < 5) {
+      // Address validation - now optional
+      if (formData.address?.trim().length > 0 && formData.address.trim().length < 5) {
         newErrors.address = "Address must be at least 5 characters";
       }
 
@@ -259,12 +270,19 @@ export default function AddStaffScreen() {
         user_id: parseInt(userId),
         name: formData.name.trim(),
         mobile: formData.phone,
-        dob: formatDOB(selectedDate),
-        address: formData.address.trim(),
         role: formData.role.toLowerCase(),
         aadhar_number: formData.aadharNo,
         outlet_id: parseInt(outletId),
       };
+
+      // Add optional fields only if they have values
+      if (formData.dob) {
+        staffData.dob = formatDOB(selectedDate);
+      }
+      
+      if (formData.address && formData.address.trim()) {
+        staffData.address = formData.address.trim();
+      }
 
       // Add all fields to FormData
       Object.keys(staffData).forEach((key) => {
@@ -569,13 +587,13 @@ export default function AddStaffScreen() {
             <FormControl.ErrorMessage>{errors.phone}</FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl isRequired isInvalid={"dob" in errors}>
-            <FormControl.Label>Date of Birth</FormControl.Label>
+          <FormControl isInvalid={"dob" in errors}>
+            <FormControl.Label>Date of Birth (Optional)</FormControl.Label>
             <Pressable onPress={() => setShowDatePicker(true)}>
               <Input
                 value={formData.dob || ""}
                 isReadOnly
-                placeholder="Select date of birth"
+                placeholder="Select date of birth (optional)"
                 borderColor={
                   formData.dob && !errors.dob ? "green.500" : 
                   errors.dob ? "red.500" : "coolGray.200"
@@ -585,13 +603,22 @@ export default function AddStaffScreen() {
                               errors.dob ? "red.500" : "blue.500",
                 }}
                 rightElement={
-                  <IconButton
-                    icon={<MaterialIcons name="calendar-today" size={24} color="gray" />}
-                    onPress={() => setShowDatePicker(true)}
-                  />
+                  <HStack>
+                    {formData.dob && (
+                      <IconButton
+                        icon={<MaterialIcons name="clear" size={20} color="gray" />}
+                        onPress={clearDOB}
+                      />
+                    )}
+                    <IconButton
+                      icon={<MaterialIcons name="calendar-today" size={20} color="gray" />}
+                      onPress={() => setShowDatePicker(true)}
+                    />
+                  </HStack>
                 }
               />
             </Pressable>
+            <FormControl.HelperText>This field is optional</FormControl.HelperText>
             <FormControl.ErrorMessage>{errors.dob}</FormControl.ErrorMessage>
 
             {showDatePicker && (
@@ -646,12 +673,12 @@ export default function AddStaffScreen() {
             </FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl isRequired isInvalid={"address" in errors}>
-            <FormControl.Label>Address</FormControl.Label>
+          <FormControl isInvalid={"address" in errors}>
+            <FormControl.Label>Address (Optional)</FormControl.Label>
             <TextArea
               value={formData.address}
               onChangeText={handleAddressChange}
-              placeholder="Enter complete address"
+              placeholder="Enter complete address (optional)"
               autoCompleteType={undefined}
               h={20}
               borderColor={
@@ -663,6 +690,7 @@ export default function AddStaffScreen() {
                             errors.address ? "red.500" : "blue.500",
               }}
             />
+            <FormControl.HelperText>This field is optional</FormControl.HelperText>
             <FormControl.ErrorMessage>
               {errors.address}
             </FormControl.ErrorMessage>

@@ -50,36 +50,7 @@ const StaffAvatar = memo(({ name, photo, size = "md" }) => (
   </Avatar>
 ));
 
-const StatusButtons = memo(({ staffId, status, onStatusChange, size = "xs" }) => (
-  <Button.Group size={size} space={1}>
-    <Button
-      variant={status === "present" ? "solid" : "outline"}
-      colorScheme="success"
-      borderColor="success.500"
-      onPress={(e) => {
-        e.stopPropagation();
-        onStatusChange(staffId, "present");
-      }}
-      size={size}
-    >
-      Present
-    </Button>
-    <Button
-      variant={status === "absent" ? "solid" : "outline"}
-      colorScheme="danger"
-      borderColor="danger.500"
-      onPress={(e) => {
-        e.stopPropagation();
-        onStatusChange(staffId, "absent");
-      }}
-      size={size}
-    >
-      Absent
-    </Button>
-  </Button.Group>
-));
-
-const ListItem = memo(({ item, onPress, onStatusChange, onPhonePress }) => (
+const ListItem = memo(({ item, onPress, onPhonePress }) => (
   <Pressable onPress={onPress}>
     <Box
       bg="white"
@@ -103,11 +74,6 @@ const ListItem = memo(({ item, onPress, onStatusChange, onPhonePress }) => (
         </VStack>
 
         <VStack alignItems="flex-end" space={1}>
-          <StatusButtons
-            staffId={item.staff_id}
-            status={item.status}
-            onStatusChange={onStatusChange}
-          />
           <IconButton
             icon={<MaterialIcons name="phone" size={20} color="white" />}
             onPress={() => onPhonePress(item.mobile)}
@@ -123,7 +89,7 @@ const ListItem = memo(({ item, onPress, onStatusChange, onPhonePress }) => (
   </Pressable>
 ));
 
-const GridItem = memo(({ item, onPress, onStatusChange }) => (
+const GridItem = memo(({ item, onPress }) => (
   <Pressable onPress={onPress} flex={1} m={1}>
     <Box
       bg="white"
@@ -142,38 +108,10 @@ const GridItem = memo(({ item, onPress, onStatusChange }) => (
           <Text fontSize="sm" color="coolGray.600" textAlign="center">
             {toTitleCase(item.role)}
           </Text>
-          <StatusButtons
-            staffId={item.staff_id}
-            status={item.status}
-            onStatusChange={onStatusChange}
-            size="sm"
-          />
         </VStack>
       </VStack>
     </Box>
   </Pressable>
-));
-
-const RoleFilter = memo(({ filterRole, setFilterRole, roles }) => (
-  <Select
-    flex={1}
-    selectedValue={filterRole}
-    onValueChange={setFilterRole}
-    placeholder="Select Role"
-    _selectedItem={{
-      endIcon: <CheckIcon size={4} />,
-    }}
-    fontSize="sm"
-    py={1}
-  >
-    {roles.map((role) => (
-      <Select.Item
-        key={role.role_name}
-        label={role.role_name.toLowerCase() === "all" ? "All Roles" : toTitleCase(role.role_name)}
-        value={role.role_name.toLowerCase()}
-      />
-    ))}
-  </Select>
 ));
 
 export default function StaffScreen() {
@@ -182,15 +120,12 @@ export default function StaffScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [viewType, setViewType] = useState("list");
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const params = useLocalSearchParams();
   const [outletId, setOutletId] = useState(null);
-  const [roles, setRoles] = useState([]);
-  const [filterRole, setFilterRole] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -210,18 +145,6 @@ export default function StaffScreen() {
     Linking.openURL(`tel:${phoneNumber}`);
   }, []);
 
-  const handleStatusChange = useCallback((staffId, newStatus) => {
-    setStaffList(prev => 
-      prev.map(staff =>
-        staff.staff_id === staffId ? { ...staff, status: newStatus } : staff
-      )
-    );
-    toast.show({
-      description: `Staff marked as ${newStatus}`,
-      status: "success",
-    });
-  }, [toast]);
-
   const handleItemPress = useCallback((staffId, restaurantId) => {
     router.push({
       pathname: `/(tabs)/staff/${staffId}`,
@@ -234,18 +157,16 @@ export default function StaffScreen() {
     <ListItem
       item={item}
       onPress={() => handleItemPress(item.staff_id, item.restaurant_id)}
-      onStatusChange={handleStatusChange}
       onPhonePress={handlePhonePress}
     />
-  ), [handleItemPress, handleStatusChange, handlePhonePress]);
+  ), [handleItemPress, handlePhonePress]);
 
   const renderGridItem = useCallback(({ item }) => (
     <GridItem
       item={item}
       onPress={() => handleItemPress(item.staff_id, item.restaurant_id)}
-      onStatusChange={handleStatusChange}
     />
-  ), [handleItemPress, handleStatusChange]);
+  ), [handleItemPress]);
 
   // Memoized filtered staff list
   const filteredStaff = useMemo(() => {
@@ -255,9 +176,7 @@ export default function StaffScreen() {
           staff.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           staff.mobile?.includes(searchQuery) ||
           staff.role?.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesRole = filterRole === "all" ? true : staff.role === filterRole;
-        const matchesStatus = filterStatus ? staff.status === filterStatus : true;
-        return matchesSearch && matchesRole && matchesStatus;
+        return matchesSearch;
       })
       .sort((a, b) => {
         const factor = sortOrder === "asc" ? 1 : -1;
@@ -265,7 +184,7 @@ export default function StaffScreen() {
           ? a.name.localeCompare(b.name) * factor
           : a.role.localeCompare(b.role) * factor;
       });
-  }, [staffList, searchQuery, filterRole, filterStatus, sortBy, sortOrder]);
+  }, [staffList, searchQuery, sortBy, sortOrder]);
 
   // Optimized fetch functions
   const fetchStaffList = useCallback(async () => {
@@ -280,7 +199,7 @@ export default function StaffScreen() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             outlet_id: outletId,
-            staff_role: filterRole === "all" ? "all" : filterRole,
+            staff_role: "all",
           }),
         }
       );
@@ -304,61 +223,7 @@ export default function StaffScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [outletId, filterRole, toast]);
-
-  const fetchRoles = async () => {
-    if (!outletId) return;
-
-    try {
-      const data = await fetchWithAuth(`${getBaseUrl()}/staff_role_list`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          outlet_id: outletId,
-        }),
-      });
-
-      console.log("Roles Response:", data);
-
-      if (data.st === 1 && Array.isArray(data.role_list)) {
-        // Filter out any existing "all" role
-        const filteredRoles = data.role_list.filter(
-          (role) => role.role_name.toLowerCase() !== "all"
-        );
-        // Add "All" role at the beginning
-        const allRoles = [
-          {
-            role_name: "all",
-            staff_count:
-              data.role_list.find((r) => r.role_name === "all")?.staff_count ||
-              0,
-          },
-          ...filteredRoles,
-        ];
-        setRoles(allRoles);
-
-        // Set initial role to "all"
-        if (!filterRole) {
-          setFilterRole("all");
-        }
-      }
-    } catch (error) {
-      console.error("Fetch Roles Error:", error);
-    }
-  };
-
-  const handleRoleSelect = (value) => {
-    console.log("Selected role value:", value);
-    setFilterRole(value);
-  };
-
-  useEffect(() => {
-    if (outletId) {
-      fetchRoles();
-      // Set default role to "all" and fetch initial staff list
-      setFilterRole("all");
-    }
-  }, [outletId]);
+  }, [outletId, toast]);
 
   useEffect(() => {
     const getStoredData = async () => {
@@ -383,17 +248,16 @@ export default function StaffScreen() {
   }, []);
 
   useEffect(() => {
-    if (outletId && filterRole) {
+    if (outletId) {
       fetchStaffList();
     }
-  }, [outletId, filterRole]);
+  }, [outletId]);
 
   // Add refresh handler
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await fetchStaffList();
-      await fetchRoles();
     } catch (error) {
       console.error("Error refreshing:", error);
       toast.show({
@@ -403,15 +267,14 @@ export default function StaffScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [outletId, filterRole]);
+  }, [outletId]);
 
   // Add useFocusEffect to refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log("Screen focused, refreshing data...");
       fetchStaffList();
-      fetchRoles();
-    }, [outletId, filterRole])
+    }, [outletId])
   );
 
   return (
@@ -479,31 +342,6 @@ export default function StaffScreen() {
             />
           </HStack>
         </HStack>
-
-        <VStack px={3} space={4} mt={2}>
-          <HStack space={1}>
-            <RoleFilter
-              filterRole={filterRole}
-              setFilterRole={handleRoleSelect}
-              roles={roles}
-            />
-            <Select
-              flex={1}
-              selectedValue={filterStatus}
-              onValueChange={setFilterStatus}
-              placeholder="Filter by status"
-              _selectedItem={{
-                endIcon: <CheckIcon size={4} />,
-              }}
-              fontSize="sm"
-              py={1}
-            >
-              <Select.Item label="All Status" value="" />
-              <Select.Item label="Present" value="present" />
-              <Select.Item label="Absent" value="absent" />
-            </Select>
-          </HStack>
-        </VStack>
 
         {isLoading && !refreshing ? (
           <Box flex={1} justifyContent="center" alignItems="center">

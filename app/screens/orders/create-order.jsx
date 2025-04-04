@@ -1836,7 +1836,8 @@ const handleSettlePaymentConfirm = async () => {
 
       // First create/update the order
       if (params?.orderId) {
-        await createOrder("print");
+        // Update existing order and set status to "placed"
+        await createOrder("placed");  // Changed from "print" to "placed"
       } else {
         const response = await createOrder("print_and_save", true);
         if (!response?.order_id) {
@@ -1844,49 +1845,39 @@ const handleSettlePaymentConfirm = async () => {
         }
       }
 
-      // After order is created/updated, proceed with printing
-      if (printerDevice && isConnected) {
-        await printReceipt();
-        
-        // Clear states and navigate to tables page
-        setSelectedItems([]);
-        router.replace({
-          pathname: "/(tabs)/tables",
-          params: {
-            refresh: Date.now().toString(),
-          },
+      // Continue with the rest of the printing functionality
+      // Print receipt
+      if (Platform.OS === "web") {
+        const html = generateKOTHTML();
+        await Print.printAsync({
+          html,
+          orientation: "portrait",
         });
       } else {
-        // Show a single message when printer is not connected
-        toast.show({
-          description: "Printer not connected. Please connect a printer to print receipts.",
-          status: "warning",
-          duration: 5000,
-        });
-        
-        // Still navigate to tables page
-        setSelectedItems([]);
-        router.replace({
-          pathname: "/(tabs)/tables",
-          params: {
-            refresh: Date.now().toString(),
-          },
-        });
+        await printReceipt();
       }
-    } catch (error) {
-      console.error("Print error:", error);
+
       toast.show({
-        description: error.message || "Failed to print receipt. Please try again.",
-        status: "error",
+        description: "Order printed successfully",
+        status: "success",
+        duration: 3000,
+        placement: "bottom",
       });
-      
-      // Still navigate to tables page even if there was an error
-      setSelectedItems([]);
+
+      // Navigate back to orders list after successful operation
       router.replace({
         pathname: "/(tabs)/tables",
         params: {
           refresh: Date.now().toString(),
         },
+      });
+    } catch (error) {
+      console.error("Print error:", error);
+      toast.show({
+        description: "Failed to print order",
+        status: "error",
+        duration: 3000,
+        placement: "bottom",
       });
     } finally {
       setIsProcessing(false);

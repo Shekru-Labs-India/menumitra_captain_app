@@ -440,14 +440,14 @@ export default function EditStaffScreen() {
       newErrors.aadhar_number = "Enter valid 12-digit Aadhar number";
     }
 
-    // Address validation
-    if (!formData.address?.trim()) {
-      newErrors.address = "Address is required";
-    } else if (formData.address.trim().length < 5) {
+    // Address validation - optional field
+    if (formData.address?.trim().length > 0 && formData.address.trim().length < 5) {
       newErrors.address = "Address must be at least 5 characters";
-    } else if (formData.address.trim().length > 50) {
+    } else if (formData.address?.trim().length > 50) {
       newErrors.address = "Address must not exceed 50 characters";
     }
+
+    // No validation for DOB as it's optional
 
     setErrors(newErrors);
 
@@ -467,10 +467,18 @@ export default function EditStaffScreen() {
       formDataToSend.append("outlet_id", outletId);
       formDataToSend.append("name", formData.name.trim());
       formDataToSend.append("mobile", formData.mobile);
-      formDataToSend.append("address", formData.address.trim());
       formDataToSend.append("role", formData.role.toLowerCase());
-      formDataToSend.append("dob", formData.dob);
       formDataToSend.append("aadhar_number", formData.aadhar_number);
+      
+      // Only append address if it has a value
+      if (formData.address && formData.address.trim()) {
+        formDataToSend.append("address", formData.address.trim());
+      }
+      
+      // Only append DOB if it has a value
+      if (formData.dob && formData.dob.trim()) {
+        formDataToSend.append("dob", formData.dob);
+      }
 
       // Append new image if selected
       if (formData.photo) {
@@ -633,13 +641,13 @@ export default function EditStaffScreen() {
             <FormControl.ErrorMessage>{errors.mobile}</FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl isRequired>
-            <FormControl.Label>Date of Birth</FormControl.Label>
+          <FormControl>
+            <FormControl.Label>Date of Birth (Optional)</FormControl.Label>
             <Pressable onPress={() => setShowDatePicker(true)}>
               <Input
                 value={formData.dob}
                 isReadOnly
-                placeholder="Select date of birth"
+                placeholder="Select date of birth (optional)"
                 borderColor={
                   formData.dob && !errors.dob ? "green.500" : 
                   errors.dob ? "red.500" : "coolGray.200"
@@ -649,19 +657,34 @@ export default function EditStaffScreen() {
                               errors.dob ? "red.500" : "blue.500",
                 }}
                 rightElement={
-                  <IconButton
-                    icon={
-                      <MaterialIcons
-                        name="calendar-today"
-                        size={24}
-                        color="gray"
+                  <HStack>
+                    {formData.dob && (
+                      <IconButton
+                        icon={
+                          <MaterialIcons
+                            name="clear"
+                            size={20}
+                            color="gray"
+                          />
+                        }
+                        onPress={() => setFormData({...formData, dob: ""})}
                       />
-                    }
-                    onPress={() => setShowDatePicker(true)}
-                  />
+                    )}
+                    <IconButton
+                      icon={
+                        <MaterialIcons
+                          name="calendar-today"
+                          size={20}
+                          color="gray"
+                        />
+                      }
+                      onPress={() => setShowDatePicker(true)}
+                    />
+                  </HStack>
                 }
               />
             </Pressable>
+            <FormControl.HelperText>This field is optional</FormControl.HelperText>
           </FormControl>
 
           {showDatePicker && (
@@ -704,7 +727,7 @@ export default function EditStaffScreen() {
             </FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl isRequired isInvalid={"address" in errors}>
+          <FormControl isInvalid={"address" in errors}>
             <FormControl.Label>Address</FormControl.Label>
             <TextArea
               value={formData.address}
