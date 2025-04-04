@@ -306,16 +306,7 @@ export default function StaffScreen() {
                 />
               }
             />
-            <IconButton
-              icon={
-                <MaterialIcons
-                  name={viewType === "list" ? "grid-view" : "view-list"}
-                  size={24}
-                  color="coolGray.600"
-                />
-              }
-              onPress={() => setViewType(viewType === "list" ? "grid" : "list")}
-            />
+            
             <Select
               w="110"
               selectedValue={sortBy}
