@@ -96,12 +96,23 @@ export default function StaffDetailsScreen() {
 
   const handleDelete = async () => {
     try {
+      const userId = await AsyncStorage.getItem("user_id");
+      
+      if (!userId) {
+        toast.show({
+          description: "User ID not found. Please login again.",
+          status: "error",
+        });
+        return;
+      }
+
       const data = await fetchWithAuth(`${getBaseUrl()}/staff_delete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           staff_id: id.toString(),
           outlet_id: outletId.toString(),
+          user_id: userId.toString(),
         }),
       });
 

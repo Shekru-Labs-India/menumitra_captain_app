@@ -19,7 +19,7 @@ import {
   Icon,
 } from "native-base";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Platform, StatusBar, Image } from "react-native";
+import { Platform, StatusBar, Image, Keyboard } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -609,6 +609,11 @@ export default function EditStaffScreen() {
               _focus={{
                 borderColor: formData.role && !errors.role ? "green.500" : 
                             errors.role ? "red.500" : "blue.500",
+              }}
+              isReadOnly={true}
+              onPressIn={() => {
+                // Prevent keyboard from showing
+                Keyboard.dismiss();
               }}
             >
               {roles.map((role) => (
