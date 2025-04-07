@@ -119,6 +119,15 @@ export default function SupplierDetails() {
   const handleDelete = async () => {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const userId = await AsyncStorage.getItem("user_id");
+
+      if (!userId) {
+        toast.show({
+          description: "User ID not found. Please login again.",
+          status: "error",
+        });
+        return;
+      }
 
       const data = await fetchWithAuth(`${getBaseUrl()}/supplier_delete`, {
         method: "POST",
@@ -126,6 +135,7 @@ export default function SupplierDetails() {
         body: JSON.stringify({
           outlet_id: storedOutletId.toString(),
           supplier_id: id.toString(),
+          user_id: userId.toString(),
         }),
       });
       console.log("Delete Response:", data);
