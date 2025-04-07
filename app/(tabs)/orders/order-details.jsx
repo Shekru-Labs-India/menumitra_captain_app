@@ -1617,6 +1617,9 @@ export default function OrderDetailsScreen() {
     </Modal>
   );
 
+
+  
+
   // Add useEffect to fetch timeline when order_id changes
   useEffect(() => {
     if (order_id) {
@@ -1900,19 +1903,7 @@ export default function OrderDetailsScreen() {
               </HStack>
             )}
 
-            {/* Total after service charge */}
-            <HStack justifyContent="space-between">
-              <Text fontWeight="medium">Total after Service Charge</Text>
-              <Text fontWeight="medium">
-                ₹{(
-                  Number(orderDetails.total_bill_amount) -
-                  Number(orderDetails.discount_amount || 0) -
-                  Number(orderDetails.special_discount || 0) +
-                  Number(orderDetails.charges || 0) +
-                  Number(orderDetails.service_charges_amount || 0)
-                ).toFixed(2)}
-              </Text>
-            </HStack>
+        
 
             {/* GST */}
             {Number(orderDetails.gst_amount) > 0 && (

@@ -114,7 +114,7 @@ export default function ProfileScreen() {
     
     {
       icon:"history",
-      title:"Activity Log",
+      title:"My Activity",
       route:"/profile/activity-log",
     },
     {

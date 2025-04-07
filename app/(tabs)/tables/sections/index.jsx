@@ -144,6 +144,7 @@ export default function TableSectionsScreen() {
   const [qrRenderAttempt, setQrRenderAttempt] = useState(0);
   const appState = useRef(AppState.currentState);
   const [restaurantName, setRestaurantName] = useState("");
+  const [editedSectionName, setEditedSectionName] = useState("");
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -645,8 +646,8 @@ export default function TableSectionsScreen() {
   }, []);
 
   // Update the section name change handler
-  const handleEditSectionNameChange = async (text, section) => {
-    const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
+  const handleEditSectionNameChange = async (section) => {
+    const sanitizedText = editedSectionName.replace(/[^a-zA-Z\s]/g, "");
     
     if (!sanitizedText.trim()) {
       toast.show({
@@ -729,8 +730,8 @@ export default function TableSectionsScreen() {
                         <HStack space={2} alignItems="center" flex={1}>
                           {editingSectionId === section.id ? (
                             <Input
-                              value={section.name}
-                              onChangeText={(text) => handleEditSectionNameChange(text, section)}
+                              defaultValue={section.name}
+                              onChangeText={(text) => setEditedSectionName(text)}
                               autoFocus
                               size="lg"
                               variant="unstyled"
@@ -738,8 +739,20 @@ export default function TableSectionsScreen() {
                               py={1}
                               bg="coolGray.100"
                               rounded="md"
-                              onBlur={() => setEditingSectionId(null)}
-                              onSubmitEditing={() => setEditingSectionId(null)}
+                              onBlur={() => {
+                                if (editedSectionName) {
+                                  handleEditSectionNameChange(section);
+                                } else {
+                                  setEditingSectionId(null);
+                                }
+                              }}
+                              onSubmitEditing={() => {
+                                if (editedSectionName) {
+                                  handleEditSectionNameChange(section);
+                                } else {
+                                  setEditingSectionId(null);
+                                }
+                              }}
                             />
                           ) : (
                             <Text fontSize="lg" fontWeight="bold">
@@ -755,7 +768,10 @@ export default function TableSectionsScreen() {
                               variant="ghost"
                               colorScheme="blue"
                               icon={<MaterialIcons name="edit" size={20} color="blue.500" />}
-                              onPress={() => setEditingSectionId(section.id)}
+                              onPress={() => {
+                                setEditingSectionId(section.id);
+                                setEditedSectionName(section.name);
+                              }}
                             />
                             <IconButton
                               size="sm"
@@ -849,14 +865,14 @@ export default function TableSectionsScreen() {
                                               height={20}
                                               bg={
                                                 isOccupied
-                                                  ? "red.100"
+                                                  ? table.order_id ? "orange.100" : "red.100"
                                                   : "green.100"
                                               }
                                               borderWidth={1}
                                               borderStyle="dashed"
                                               borderColor={
                                                 isOccupied
-                                                  ? "red.600"
+                                                  ? table.order_id ? "orange.600" : "red.600"
                                                   : "green.600"
                                               }
                                               position="relative"
@@ -918,7 +934,7 @@ export default function TableSectionsScreen() {
                                                   top={-2}
                                                   left={-2}
                                                   right={-2}
-                                                  bg="red.500"
+                                                  bg={table.order_id ? "orange.500" : "red.500"}
                                                   py={0.5}
                                                   rounded="md"
                                                   shadow={1}
@@ -950,7 +966,7 @@ export default function TableSectionsScreen() {
                                                   fontWeight="bold"
                                                   color={
                                                     isOccupied
-                                                      ? "red.500"
+                                                      ? table.order_id ? "orange.500" : "red.500"
                                                       : "green.500"
                                                   }
                                                 >
