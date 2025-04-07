@@ -1445,8 +1445,8 @@ export default function TableSectionsScreen() {
 
   // Replace the generateQRCodeURL function
   const generateQRCodeURL = (outletId, sectionId, tableId, tableNumber) => {
-    // Use a simple static URL for testing to eliminate any potential issues
-    return `https://menumitra.com/order?o=${outletId}&s=${sectionId}&t=${tableId}&n=${tableNumber}`;
+    // Use the testing URL instead of production
+    return `https://menumitra-testing.netlify.app/order?o=${outletId}&s=${sectionId}&t=${tableId}&n=${tableNumber}`;
   };
 
   // Update the QRCodeModal component with ViewShot approach
@@ -1455,12 +1455,14 @@ export default function TableSectionsScreen() {
 
     const qrValue = qrData?.qr_code_url || "";
     const viewShotRef = useRef(null);
+    const [showDownloadOptions, setShowDownloadOptions] = useState(false);
 
     const closeModal = () => {
       setShowQRModal(false);
       setQrData(null);
       setIsQRModalOpen(false);
       setQrRefReady(false);
+      setShowDownloadOptions(false);
     };
 
     // New capture method using ViewShot
@@ -1564,6 +1566,7 @@ export default function TableSectionsScreen() {
         });
       } finally {
         setIsLoadingQr(false);
+        setShowDownloadOptions(false);
       }
     };
 
@@ -1641,6 +1644,7 @@ export default function TableSectionsScreen() {
         });
       } finally {
         setIsLoadingQr(false);
+        setShowDownloadOptions(false);
       }
     };
 
@@ -1748,7 +1752,7 @@ export default function TableSectionsScreen() {
                     bg="cyan.500"
                     _pressed={{ bg: "cyan.600" }}
                     leftIcon={<Icon as={MaterialIcons} name="download" size="sm" color="white" />}
-                    onPress={saveToGallery}
+                    onPress={() => setShowDownloadOptions(true)}
                     isDisabled={isLoadingQr}
                   >
                     Download
@@ -1765,6 +1769,38 @@ export default function TableSectionsScreen() {
                     Share
                   </Button>
                 </HStack>
+
+                {/* Download Options Modal */}
+                <Modal isOpen={showDownloadOptions} onClose={() => setShowDownloadOptions(false)}>
+                  <Modal.Content maxWidth="300px">
+                    <Modal.Header>Download Format</Modal.Header>
+                    <Modal.CloseButton />
+                    <Modal.Body>
+                      <VStack space={4}>
+                        <Button
+                          size="lg"
+                          bg="blue.500"
+                          _pressed={{ bg: "blue.600" }}
+                          leftIcon={<Icon as={MaterialIcons} name="image" size="sm" color="white" />}
+                          onPress={saveToGallery}
+                          isDisabled={isLoadingQr}
+                        >
+                          Download as PNG
+                        </Button>
+                        <Button
+                          size="lg"
+                          bg="red.500"
+                          _pressed={{ bg: "red.600" }}
+                          leftIcon={<Icon as={MaterialIcons} name="picture-as-pdf" size="sm" color="white" />}
+                          onPress={handlePDFDownload}
+                          isDisabled={isLoadingQr}
+                        >
+                          Download as PDF
+                        </Button>
+                      </VStack>
+                    </Modal.Body>
+                  </Modal.Content>
+                </Modal>
               </VStack>
             ) : (
               <Text color="red.500">Failed to generate QR code</Text>
@@ -1803,7 +1839,9 @@ export default function TableSectionsScreen() {
         throw new Error("Invalid QR code data received");
       }
 
-      const qrUrl = `${data.user_app_url}${data.outlet_code}/${data.table_number}/${data.section_id}`;
+      // Override the user_app_url with our testing URL
+      const testingUrl = "https://menumitra-testing.netlify.app";
+      const qrUrl = `${testingUrl}/${data.outlet_code}/${data.table_number}/${data.section_id}`;
       console.log("Generated QR URL:", qrUrl);
 
       // Set QR data immediately - no need for complex timing as we're using ViewShot

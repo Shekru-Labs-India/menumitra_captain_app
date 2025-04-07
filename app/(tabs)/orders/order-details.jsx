@@ -1924,7 +1924,7 @@ export default function OrderDetailsScreen() {
             {/* Service Charge (calculated on subtotal) */}
             {Number(orderDetails.service_charges_amount) > 0 && (
               <HStack justifyContent="space-between">
-                <Text color="coolGray.600">Service Charge ({orderDetails.service_charges_percent}%)</Text>
+                <Text color="coolGray.600">Service Charges ({orderDetails.service_charges_percent}%)</Text>
                 <Text color="green.600">+₹{Number(orderDetails.service_charges_amount).toFixed(2)}</Text>
               </HStack>
             )}

@@ -208,6 +208,7 @@ export default function HomeScreen() {
           duration: 3000,
         });
         return;
+
       }
 
       const [staffData, tableData] = await Promise.all([
@@ -663,3 +664,4 @@ export default function HomeScreen() {
     </Box>
   );
 }
+

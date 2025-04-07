@@ -537,17 +537,35 @@ export default function EditStaffScreen() {
             <FormControl.Label>Photo</FormControl.Label>
             <VStack space={2}>
               {(formData.photo || formData.existing_photo) && (
-                <Image
-                  source={{
-                    uri: formData.photo || formData.existing_photo
-                  }}
-                  style={{
-                    width: 100,
-                    height: 100,
-                    borderRadius: 50,
-                    alignSelf: "center"
-                  }}
-                />
+                <Box position="relative" alignSelf="center">
+                  <Image
+                    source={{
+                      uri: formData.photo || formData.existing_photo
+                    }}
+                    style={{
+                      width: 100,
+                      height: 100,
+                      borderRadius: 50,
+                      alignSelf: "center"
+                    }}
+                  />
+                  <IconButton
+                    icon={<MaterialIcons name="close" size={20} color="white" />}
+                    bg="red.500"
+                    rounded="full"
+                    position="absolute"
+                    top={-5}
+                    right={-5}
+                    size="sm"
+                    onPress={() => {
+                      if (formData.photo) {
+                        setFormData({...formData, photo: ""});
+                      } else {
+                        setFormData({...formData, existing_photo: ""});
+                      }
+                    }}
+                  />
+                </Box>
               )}
               <Button
                 onPress={handleImagePick}
