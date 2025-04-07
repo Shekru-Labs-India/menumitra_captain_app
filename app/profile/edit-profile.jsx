@@ -105,12 +105,15 @@ export default function EditProfileScreen() {
     try {
       setIsSubmitting(true);
       const userId = await AsyncStorage.getItem("user_id");
+      const mobileNumber = await AsyncStorage.getItem("mobile");
 
       const data = await fetchWithAuth(`${getBaseUrl()}/update_profile_detail`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userId,
+          update_user_id: userId,
+          mobile_number: mobileNumber,
           ...formData
         }),
       });

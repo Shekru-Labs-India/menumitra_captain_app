@@ -1299,25 +1299,51 @@ export default function OrderDetailsScreen() {
         }),
 
         ...textToBytes("----------------------------------------\n"),
+        
+        // 1. Show total first
         ...textToBytes(
-          `Subtotal:${String(orderDetails.total_bill_amount).padStart(29)}\n`
+          `Total:${String(orderDetails.total_bill_amount).padStart(33)}\n`
         ),
-        ...textToBytes(
+        
+        // 2. Show discount if any
+        ...(orderDetails.discount_amount > 0 ? textToBytes(
           `Discount (${orderDetails.discount_percent}%):${String(
             -orderDetails.discount_amount
           ).padStart(20)}\n`
+        ) : []),
+        
+        // 3. Show extra charges if any (if your system has this)
+        ...(orderDetails.extra_charges > 0 ? textToBytes(
+          `Extra Charges:${String(orderDetails.extra_charges).padStart(27)}\n`
+        ) : []),
+        
+        // 4. Show subtotal after discount and extra charges
+        ...textToBytes(
+          `Subtotal:${String(orderDetails.total_bill_amount - (orderDetails.discount_amount || 0) + (orderDetails.extra_charges || 0)).padStart(29)}\n`
         ),
+        
+        // 5. Show service charges
         ...textToBytes(
           `Service Charge (${orderDetails.service_charges_percent}%):${String(
             orderDetails.service_charges_amount
           ).padStart(17)}\n`
         ),
+        
+        // 6. Show GST
         ...textToBytes(
           `GST (${orderDetails.gst_percent}%):${String(
             orderDetails.gst_amount
           ).padStart(28)}\n`
         ),
+        
+        // 7. Show tip if any (if your system has this)
+        ...(orderDetails.tip_amount > 0 ? textToBytes(
+          `Tip:${String(orderDetails.tip_amount).padStart(35)}\n`
+        ) : []),
+        
         ...textToBytes("----------------------------------------\n"),
+        
+        // 8. Show grand total
         ...textToBytes(
           `GRAND TOTAL:${String(orderDetails.grand_total).padStart(27)}\n\n`
         ),

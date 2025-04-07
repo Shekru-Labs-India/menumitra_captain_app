@@ -115,10 +115,19 @@ export default function InventoryItemDetailsScreen() {
     try {
       setIsDeleteOpen(false);
       const inventoryId = item?.id || item?.inventory_id;
+      const userId = await AsyncStorage.getItem("user_id");
 
       if (!inventoryId || !outletId) {
         toast.show({
           description: "Invalid item or outlet ID",
+          status: "error",
+        });
+        return;
+      }
+
+      if (!userId) {
+        toast.show({
+          description: "User ID not found. Please login again.",
           status: "error",
         });
         return;
@@ -130,6 +139,7 @@ export default function InventoryItemDetailsScreen() {
         body: JSON.stringify({
           outlet_id: outletId.toString(),
           inventory_id: inventoryId.toString(),
+          user_id: userId.toString(),
         }),
       });
 
