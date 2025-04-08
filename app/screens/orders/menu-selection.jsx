@@ -80,6 +80,8 @@ export default function MenuSelectionScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [existingOrderDetails, setExistingOrderDetails] = useState(null);
   const [existingMenuQuantities, setExistingMenuQuantities] = useState({});
+  const [isReserved, setIsReserved] = useState(false);
+  const [reserveModalVisible, setReserveModalVisible] = useState(false);
 
   // Initialize cart from existing order if available
   useEffect(() => {
@@ -515,8 +517,17 @@ export default function MenuSelectionScreen() {
 
     return (
       <Pressable 
-        style={styles.menuItem}
+        style={[styles.menuItem, isReserved && styles.disabledMenuItem]}
         onPress={() => {
+          if (isReserved) {
+            toast.show({
+              description: "Cannot add items to a reserved table",
+              status: "warning",
+              duration: 2000
+            });
+            return;
+          }
+
           if (cartItem) {
             if (cartItem.quantity >= 20) {
               toast.show({
@@ -544,16 +555,16 @@ export default function MenuSelectionScreen() {
       >
         <Box position="absolute" bottom={0} left={0} right={0} h={1} bg={foodTypeColor} />
         
-        <Box w="100%" h={120} bg={item.is_reserved ? "gray.200" : "gray.100"} borderRadius={8} mb={1} justifyContent="center" alignItems="center" overflow="hidden" position="relative">
+        <Box w="100%" h={120} bg={isReserved ? "gray.200" : "gray.100"} borderRadius={8} mb={1} justifyContent="center" alignItems="center" overflow="hidden" position="relative">
           {item.image ? (
             <Image
               source={{ uri: item.image }}
-              style={styles.menuImage}
+              style={[styles.menuImage, isReserved && styles.disabledImage]}
               onError={() => console.log('Image failed to load:', item.image)}
             />
           ) : (
             <Center h="100%" w="100%">
-              <MaterialIcons name="restaurant" size={40} color="#999" />
+              <MaterialIcons name="restaurant" size={40} color={isReserved ? "#999" : "#666"} />
             </Center>
           )}
           
@@ -574,22 +585,7 @@ export default function MenuSelectionScreen() {
             </Box>
           )}
 
-          {item.is_reserved && (
-            <Box
-              position="absolute"
-              top={2}
-              right={quantity > 0 ? 10 : 2}
-              bg="gray.500"
-              px={2}
-              py={0.5}
-              rounded="sm"
-              zIndex={1}
-            >
-              <Text color="black" fontSize="2xs" fontWeight="bold">
-                Reserved
-              </Text>
-            </Box>
-          )}
+    
 
           {item.offer > 0 && (
             <Box
@@ -609,20 +605,14 @@ export default function MenuSelectionScreen() {
           )}
         </Box>
         
-        <Text fontSize="sm" numberOfLines={2} mb={1}>{item.name}</Text>
+        <Text fontSize="sm" numberOfLines={2} mb={1} color={isReserved ? "#999" : "#000"}>{item.name}</Text>
         
         <HStack justifyContent="space-between" alignItems="center">
-          <Text fontWeight="bold" color="cyan.500">₹{item.price}</Text>
-          
-          {/* {item.offer > 0 && (
-            <Text fontSize="2xs" color="green.500" fontWeight="bold">
-              Offer: {item.offer}%
-            </Text>
-          )} */}
+          <Text fontWeight="bold" color={isReserved ? "gray.400" : "cyan.500"}>₹{item.price}</Text>
         </HStack>
         
         {item.category_name && item.category_name.toLowerCase().trim() !== selectedCategory.toLowerCase().trim() && (
-          <Text fontSize="2xs" color="gray.500" fontStyle="italic" mt={1}>
+          <Text fontSize="2xs" color={isReserved ? "gray.400" : "gray.500"} fontStyle="italic" mt={1}>
             From: {item.category_name}
           </Text>
         )}
@@ -659,7 +649,35 @@ export default function MenuSelectionScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <Header title={getHeaderTitle()} />
+      <Header 
+        title={getHeaderTitle()} 
+        rightComponent={
+          !isReserved ? (
+            <Pressable
+              onPress={() => {
+                setReserveModalVisible(true);
+                setIsReserved(true);
+                toast.show({
+                  description: "Table has been reserved",
+                  status: "success"
+                });
+              }}
+              bg="green.500"
+              px={3}
+              py={1.5}
+              rounded="md"
+              _pressed={{
+                bg: "green.600"
+              }}
+            >
+              <HStack space={1} alignItems="center">
+                <MaterialIcons name="event-available" size={20} color="white" />
+                <Text color="white" fontWeight="medium">Reserve</Text>
+              </HStack>
+            </Pressable>
+          ) : null
+        }
+      />
       
       <Box px={3} py={2}>
         <HStack space={3} alignItems="center" bg="white" borderRadius={8} px={3} borderWidth={1} borderColor="gray.200">
@@ -761,6 +779,69 @@ export default function MenuSelectionScreen() {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Reserve Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={reserveModalVisible}
+        onRequestClose={() => setReserveModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setReserveModalVisible(false)}>
+          <View style={styles.modalContainer}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.modalContent, { width: '90%' }]}>
+                <HStack space={2} alignItems="center" mb={4}>
+                  <MaterialIcons name="lock" size={24} color="#e74c3c" />
+                  <Text style={styles.modalTitle}>This table is reserved</Text>
+                </HStack>
+                <Text style={styles.modalText}>
+                  The table has been successfully reserved. You can un-reserve it at any time.
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    setIsReserved(false);
+                    setReserveModalVisible(false);
+                    toast.show({
+                      description: "Table has been un-reserved",
+                      status: "info"
+                    });
+                  }}
+                  bg="red.500"
+                  px={4}
+                  py={2}
+                  rounded="md"
+                  mt={4}
+                  _pressed={{
+                    bg: "red.600"
+                  }}
+                >
+                  <Text color="white" fontWeight="medium">Un-reserve Table</Text>
+                </Pressable>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Floating un-reserve button */}
+      {isReserved && (
+        <Pressable
+          style={[styles.floatingCart, { bottom: 80 }]}
+          onPress={() => {
+            setIsReserved(false);
+            toast.show({
+              description: "Table has been un-reserved",
+              status: "info"
+            });
+          }}
+        >
+          <HStack alignItems="center">
+            <MaterialIcons name="lock-open" size={24} color="#e74c3c" />
+            <Text ml={2} fontSize="md" fontWeight="bold" color="#e74c3c">Un-reserve Table</Text>
+          </HStack>
+        </Pressable>
+      )}
     </SafeAreaView>
   );
 }
@@ -870,6 +951,18 @@ const styles = StyleSheet.create({
   priceText: {
     fontWeight: 'bold',
     color: '#fff',
+  },
+  modalText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  disabledMenuItem: {
+    opacity: 0.7,
+  },
+  disabledImage: {
+    opacity: 0.5,
   },
 });
 

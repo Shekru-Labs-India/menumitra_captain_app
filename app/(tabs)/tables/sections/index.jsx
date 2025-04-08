@@ -367,6 +367,13 @@ export default function TableSectionsScreen() {
 
     try {
       setLoading(true);
+      
+      // Get the user_id from AsyncStorage
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      
+      if (!storedUserId) {
+        throw new Error("User ID not found. Please login again.");
+      }
 
       const data = await fetchWithAuth(`${getBaseUrl()}/section_create`, {
         method: "POST",
@@ -374,6 +381,7 @@ export default function TableSectionsScreen() {
         body: JSON.stringify({
           outlet_id: outletId.toString(),
           section_name: newSectionName.trim(),
+          user_id: storedUserId.toString()
         }),
       });
 
