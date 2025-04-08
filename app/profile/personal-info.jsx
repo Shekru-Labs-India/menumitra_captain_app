@@ -17,6 +17,7 @@ import {
   Center,
   Alert,
   useToast,
+  Fab,
 } from "native-base";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBaseUrl } from "../../config/api.config";
@@ -81,13 +82,12 @@ export default function PersonalInfoScreen() {
     fetchProfileData();
   }, []);
 
-  // Refresh data when screen comes into focus and profileUpdated is true
+  // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      if (params?.profileUpdated) {
-        fetchProfileData();
-      }
-    }, [params?.profileUpdated])
+      // Always fetch fresh data when the screen comes into focus
+      fetchProfileData();
+    }, [])
   );
 
   // Loading state
@@ -184,13 +184,7 @@ export default function PersonalInfoScreen() {
         <Heading size="md" flex={1} textAlign="center">
           My Profile
         </Heading>
-        <IconButton
-          icon={<MaterialIcons name="edit" size={24} color="blue" />}
-          onPress={() => router.push("/profile/edit-profile")}
-          variant="ghost"
-          _pressed={{ bg: "coolGray.100" }}
-          borderRadius="full"
-        />
+        <Box w={10} />
       </HStack>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -318,6 +312,20 @@ export default function PersonalInfoScreen() {
           </VStack>
         </Box>
       </ScrollView>
+      
+      {/* Floating Edit Button */}
+      <Fab
+        renderInPortal={false}
+        shadow={2}
+        size="lg"
+        icon={<Icon color="white" as={MaterialIcons} name="edit" size="lg" />}
+        bg="blue.500"
+        _pressed={{ bg: "blue.600" }}
+        onPress={() => router.push("/profile/edit-profile")}
+        placement="bottom-right"
+        mb={4}
+        mr={4}
+      />
     </Box>
   );
 } 

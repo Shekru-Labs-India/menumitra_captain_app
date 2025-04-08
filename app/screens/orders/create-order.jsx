@@ -115,6 +115,7 @@ const orderTypeMap = {
   parcel: "Parcel",
   "drive-through": "Drive Through",
   counter: "Counter",
+  delivery: "Delivery",
   "dine-in": "Dine In",
 };
 

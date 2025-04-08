@@ -83,16 +83,8 @@ export default function EditProfileScreen() {
       newErrors.name = "Name is required";
     }
 
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Invalid email format";
-    }
-
-    
-
-    if (!formData.dob) {
-      newErrors.dob = "Date of birth is required";
     }
 
     setErrors(newErrors);
@@ -123,7 +115,10 @@ export default function EditProfileScreen() {
           description: data.msg || "Profile updated successfully",
           status: "success",
         });
-        router.back({
+        
+        // Navigate back to personal info screen with profileUpdated parameter
+        router.push({
+          pathname: "/profile/personal-info",
           params: { profileUpdated: true }
         });
       } else {
@@ -165,7 +160,7 @@ export default function EditProfileScreen() {
         shadow={2}
       >
         <IconButton
-          icon={<MaterialIcons name="close" size={24} color="gray" />}
+          icon={<MaterialIcons name="arrow-back" size={24} color="gray" />}
           onPress={() => router.back()}
           variant="ghost"
           _pressed={{ bg: "coolGray.100" }}
@@ -197,7 +192,7 @@ export default function EditProfileScreen() {
               <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
             </FormControl>
 
-            <FormControl isRequired isInvalid={"email" in errors}>
+            <FormControl isInvalid={"email" in errors}>
               <FormControl.Label>Email</FormControl.Label>
               <Input
                 value={formData.email}
@@ -222,7 +217,7 @@ export default function EditProfileScreen() {
               </FormControl.HelperText>
             </FormControl>
 
-            <FormControl isRequired isInvalid={"dob" in errors}>
+            <FormControl isInvalid={"dob" in errors}>
               <FormControl.Label>Date of Birth</FormControl.Label>
               <Pressable onPress={() => setShowDatePicker(true)}>
                 <Input
