@@ -652,7 +652,7 @@ export default function MenuSelectionScreen() {
       <Header 
         title={getHeaderTitle()} 
         rightComponent={
-          !isReserved ? (
+          !isReserved && !tableData?.is_occupied && !tableData?.order_id ? (
             <Pressable
               onPress={() => {
                 setReserveModalVisible(true);

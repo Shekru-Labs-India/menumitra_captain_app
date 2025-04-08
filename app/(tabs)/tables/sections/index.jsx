@@ -28,7 +28,7 @@ import {
   Icon,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Platform, StatusBar, ScrollView, RefreshControl, AppState } from "react-native";
+import { Platform, StatusBar, ScrollView, RefreshControl, AppState, Animated } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -145,6 +145,7 @@ export default function TableSectionsScreen() {
   const appState = useRef(AppState.currentState);
   const [restaurantName, setRestaurantName] = useState("");
   const [editedSectionName, setEditedSectionName] = useState("");
+  const [blinkAnimation] = useState(new Animated.Value(1));
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -885,6 +886,21 @@ export default function TableSectionsScreen() {
                                               }
                                               position="relative"
                                             >
+                                              {isOccupied && !table.order_id && (
+                                                <Animated.View
+                                                  style={{
+                                                    position: 'absolute',
+                                                    top: -4,
+                                                    right: -4,
+                                                    width: 8,
+                                                    height: 8,
+                                                    borderRadius: 4,
+                                                    backgroundColor: '#e74c3c',
+                                                    opacity: blinkAnimation,
+                                                  }}
+                                                />
+                                              )}
+                                              
                                               {/* Show QR icon when settings is active */}
                                               {showEditIcons && (
                                                 <IconButton
@@ -1919,6 +1935,25 @@ export default function TableSectionsScreen() {
   // Call getRestaurantName when component mounts
   useEffect(() => {
     getRestaurantName();
+  }, []);
+
+  useEffect(() => {
+    const startBlinking = () => {
+      Animated.sequence([
+        Animated.timing(blinkAnimation, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(blinkAnimation, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]).start(() => startBlinking());
+    };
+
+    startBlinking();
   }, []);
 
   return (
