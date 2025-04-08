@@ -727,7 +727,7 @@ export default function CreateOrderScreen() {
         const statusRequestBody = {
           outlet_id: storedOutletId.toString(),
           order_id: params.orderId.toString(),
-          order_status: "served", // Changed from "placed" to "served" for cooking orders
+          order_status: "placed", // Changed from "placed" to "served" for cooking orders
           user_id: storedUserId.toString(),
           action: "KOT_and_save",
           order_type: params?.orderType || "dine-in",
@@ -771,7 +771,7 @@ export default function CreateOrderScreen() {
         // For new orders
         const createRequestBody = {
           ...baseRequestBody,
-          order_status: "served", // Changed from "placed" to "served" for cooking orders
+          order_status: "placed", // Changed from "placed" to "served" for cooking orders
           ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
             tables: [params.tableNumber.toString()],
             section_id: params.sectionId.toString(),
@@ -1835,34 +1835,35 @@ const handleSettlePaymentConfirm = async () => {
       setLoadingMessage("Printing...");
 
       // First create/update the order
+      let orderResponse;
       if (params?.orderId) {
         // Update existing order and set status to "placed"
-        await createOrder("placed");  // Changed from "print" to "placed"
+        orderResponse = await createOrder("placed", true);  // Changed from "print" to "placed" and added returnResponse=true
       } else {
-        const response = await createOrder("print_and_save", true);
-        if (!response?.order_id) {
+        orderResponse = await createOrder("print_and_save", true);
+        if (!orderResponse?.order_id) {
           throw new Error("Failed to create order");
         }
       }
 
       // Continue with the rest of the printing functionality
       // Print receipt
-      if (Platform.OS === "web") {
-        const html = generateKOTHTML();
-        await Print.printAsync({
-          html,
-          orientation: "portrait",
-        });
-      } else {
-        await printReceipt();
-      }
+      // if (Platform.OS === "web") {
+      //   const html = generateKOTHTML();
+      //   await Print.printAsync({
+      //     html,
+      //     orientation: "portrait",
+      //   });
+      // } else {
+      //   await printReceipt();
+      // }
 
-      toast.show({
-        description: "Order printed successfully",
-        status: "success",
-        duration: 3000,
-        placement: "bottom",
-      });
+      // toast.show({
+      //   description: "Order printed successfully",
+      //   status: "success",
+      //   duration: 3000,
+      //   placement: "bottom",
+      // });
 
       // Navigate back to orders list after successful operation
       router.replace({
