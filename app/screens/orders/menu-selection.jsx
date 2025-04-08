@@ -695,6 +695,15 @@ export default function MenuSelectionScreen() {
           ) : null}
         </HStack>
       </Box>
+
+      {isReserved && (
+        <Box px={3} mb={2}>
+          <HStack space={2} alignItems="center" bg="red.50" p={3} borderRadius={8} borderWidth={1} borderColor="red.200">
+            <MaterialIcons name="lock" size={24} color="#e74c3c" />
+            <Text color="red.700" fontWeight="medium">This table is reserved</Text>
+          </HStack>
+        </Box>
+      )}
       
       {loading ? (
         <Center flex={1}>
