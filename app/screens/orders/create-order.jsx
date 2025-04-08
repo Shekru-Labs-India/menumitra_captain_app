@@ -1062,7 +1062,7 @@ const handleSettlePaymentConfirm = async () => {
       // Clear states and navigate
       setSelectedItems([]);
       router.replace({
-        pathname: "/(tabs)/orders",
+        pathname: "/(tabs)/tables",
         params: { 
           refresh: Date.now().toString(),
           status: "completed"
