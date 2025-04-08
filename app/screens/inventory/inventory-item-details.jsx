@@ -341,7 +341,9 @@ export default function InventoryItemDetailsScreen() {
               <Box mt={2}>
                 <Text color="gray.500" mb={1}>Updated On</Text>
                 <Text fontSize="md" fontWeight="bold" isTruncated numberOfLines={2}>
-                  {item?.updatedOn || "04 Apr 2025 11:10:14 AM"}
+                  {item?.updatedOn && item?.updatedOn !== item?.createdOn 
+                    ? item.updatedOn 
+                    : "Not updated yet"}
                 </Text>
               </Box>
             </VStack>
