@@ -2573,11 +2573,13 @@ const handleSettlePaymentConfirm = async () => {
         })}
         rightComponent={
           <Box position="absolute" right={-5} top={-2}>
-            <OrderBadge />
+            <OrderBadge />    
           </Box>
+          
         }
+        
       />
-
+       
       {isLoadingOrder ? (
         <Center flex={1} bg="coolGray.100">
           <VStack space={3} alignItems="center">
@@ -2629,6 +2631,7 @@ const handleSettlePaymentConfirm = async () => {
             
             {/* Customer Details Section */}
             <HStack space={2} mt={1} mb={1}>
+             
               <Input
                 flex={1}
                 placeholder="Customer Name"

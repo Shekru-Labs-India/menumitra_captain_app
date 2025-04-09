@@ -87,13 +87,26 @@ export default function MenuDetailsView() {
   const handleDelete = async () => {
     try {
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const userId = await AsyncStorage.getItem("user_id");
+
+      if (!outletId) {
+        throw new Error("Outlet ID not found");
+      }
+
+      if (!userId) {
+        throw new Error("User ID not found");
+      }
 
       const data = await fetchWithAuth(`${getBaseUrl()}/menu_delete`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify({
           outlet_id: outletId,
           menu_id: menuId,
+          user_id: userId
         }),
       });
 
@@ -104,6 +117,8 @@ export default function MenuDetailsView() {
         toast.show({
           description: "Menu deleted successfully",
           status: "success",
+          duration: 2000,
+          placement: "bottom"
         });
         
         // Use setTimeout to ensure the toast is visible before navigation
@@ -121,17 +136,15 @@ export default function MenuDetailsView() {
           }
         }, 500);
       } else {
-        toast.show({
-          description: data.msg || "Failed to delete menu",
-          status: "error",
-        });
-        setIsDeleteDialogOpen(false);
+        throw new Error(data.msg || "Failed to delete menu");
       }
     } catch (error) {
       console.error("Delete Menu Error:", error);
       toast.show({
         description: error.message || "Failed to delete menu",
         status: "error",
+        duration: 3000,
+        placement: "bottom"
       });
       setIsDeleteDialogOpen(false);
     }
@@ -217,7 +230,7 @@ export default function MenuDetailsView() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Image Gallery */}
         <Box bg="white" w="full" h="200px">
-          {menuDetails?.images?.length > 0 ? (
+          {menuDetails?.images && Array.isArray(menuDetails.images) && menuDetails.images.length > 0 ? (
             <VStack>
               {/* Main Image Scroll */}
               <ScrollView
@@ -231,20 +244,41 @@ export default function MenuDetailsView() {
                   setActiveImageIndex(newIndex);
                 }}
               >
-                {menuDetails.images.map((imageUrl, index) => (
-                  <Image
-                    key={index}
-                    source={{ uri: imageUrl }}
-                    alt={`${menuDetails.name}-${index + 1}`}
-                    w={screenWidth}
-                    h="200px"
-                    resizeMode="cover"
-                  />
-                ))}
+                {menuDetails.images.map((imageUrl, index) => {
+                  // Validate image URL
+                  const validImageUrl = typeof imageUrl === 'string' ? imageUrl : 
+                                      imageUrl?.uri || 
+                                      imageUrl?.url || 
+                                      null;
+                  
+                  // Skip invalid image URLs
+                  if (!validImageUrl) return null;
+
+                  return (
+                    <Image
+                      key={index}
+                      source={{ uri: validImageUrl }}
+                      alt={`${menuDetails.name || 'Menu'}-${index + 1}`}
+                      w={screenWidth}
+                      h="200px"
+                      resizeMode="cover"
+                      fallbackElement={
+                        <Center w={screenWidth} h="200px" bg="coolGray.100">
+                          <Icon
+                            as={MaterialIcons}
+                            name="image-not-supported"
+                            size={12}
+                            color="coolGray.400"
+                          />
+                        </Center>
+                      }
+                    />
+                  );
+                })}
               </ScrollView>
 
-              {/* Image Indicators */}
-              {menuDetails.images.length > 1 && (
+              {/* Image Indicators - Only show for valid images */}
+              {menuDetails.images.filter(img => typeof img === 'string' || img?.uri || img?.url).length > 1 && (
                 <HStack
                   space={2}
                   justifyContent="center"
@@ -252,23 +286,28 @@ export default function MenuDetailsView() {
                   bottom={2}
                   w="full"
                 >
-                  {menuDetails.images.map((_, index) => (
-                    <Box
-                      key={index}
-                      w={2}
-                      h={2}
-                      rounded="full"
-                      bg={
-                        index === activeImageIndex
-                          ? "white"
-                          : "rgba(255,255,255,0.5)"
-                      }
-                    />
-                  ))}
+                  {menuDetails.images.map((img, index) => {
+                    // Skip indicators for invalid images
+                    if (!(typeof img === 'string' || img?.uri || img?.url)) return null;
+                    
+                    return (
+                      <Box
+                        key={index}
+                        w={2}
+                        h={2}
+                        rounded="full"
+                        bg={
+                          index === activeImageIndex
+                            ? "white"
+                            : "rgba(255,255,255,0.5)"
+                        }
+                      />
+                    );
+                  })}
                 </HStack>
               )}
 
-              {/* Image Counter Badge */}
+              {/* Image Counter Badge - Show count of valid images only */}
               <Badge
                 position="absolute"
                 top={2}
@@ -279,7 +318,7 @@ export default function MenuDetailsView() {
                 py={1}
                 _text={{ color: "white" }}
               >
-                {`${activeImageIndex + 1}/${menuDetails.images.length}`}
+                {`${activeImageIndex + 1}/${menuDetails.images.filter(img => typeof img === 'string' || img?.uri || img?.url).length}`}
               </Badge>
             </VStack>
           ) : (
@@ -300,9 +339,19 @@ export default function MenuDetailsView() {
             {/* Title and Badge */}
             <HStack justifyContent="space-between" alignItems="center">
               <VStack space={1}>
-                <Text fontSize="2xl" fontWeight="bold">
-                  {menuDetails?.name}
-                </Text>
+                <HStack alignItems="center" space={2}>
+                  <Text fontSize="2xl" fontWeight="bold">
+                    {menuDetails?.name}
+                  </Text>
+                  {menuDetails?.is_special && (
+                    <Icon
+                      as={MaterialIcons}
+                      name="star"
+                      size="md"
+                      color="amber.400"
+                    />
+                  )}
+                </HStack>
                 <Text
                   fontSize="md"
                   color="coolGray.600"
@@ -311,15 +360,37 @@ export default function MenuDetailsView() {
                   {menuDetails?.category_name}
                 </Text>
               </VStack>
-              <Badge
-                colorScheme={menuDetails?.food_type === "veg" ? "green" : "red"}
-                rounded="lg"
-                px={3}
-                py={1}
-                variant="subtle"
-              >
-                {menuDetails?.food_type?.toUpperCase()}
-              </Badge>
+              <VStack alignItems="flex-end" space={2}>
+                <Badge
+                  colorScheme={menuDetails?.food_type === "veg" ? "green" : "red"}
+                  rounded="lg"
+                  px={3}
+                  py={1}
+                  variant="subtle"
+                >
+                  {menuDetails?.food_type?.toUpperCase()}
+                </Badge>
+                {menuDetails?.is_special && (
+                  <Badge
+                    colorScheme="amber"
+                    rounded="lg"
+                    px={3}
+                    py={1}
+                    variant="subtle"
+                    leftIcon={
+                      <Icon
+                        as={MaterialIcons}
+                        name="star"
+                        size="xs"
+                        color="amber.600"
+                        mr={1}
+                      />
+                    }
+                  >
+                    SPECIAL
+                  </Badge>
+                )}
+              </VStack>
             </HStack>
 
             {/* Rating and Spicy Level */}
@@ -356,11 +427,34 @@ export default function MenuDetailsView() {
                     Full: ₹{menuDetails?.full_price}
                   </Text>
                 </VStack>
-                {menuDetails?.offer > 0 && (
-                  <Badge colorScheme="red" variant="solid" rounded="lg">
-                    {menuDetails.offer}% OFF
-                  </Badge>
-                )}
+                <HStack space={2} alignItems="center">
+                  {menuDetails?.is_special && (
+                    <Box
+                      bg="amber.100"
+                      px={3}
+                      py={2}
+                      rounded="lg"
+                      flexDirection="row"
+                      alignItems="center"
+                    >
+                      <Icon
+                        as={MaterialIcons}
+                        name="star"
+                        size="sm"
+                        color="amber.600"
+                        mr={1}
+                      />
+                      <Text color="amber.600" fontWeight="medium">
+                        Special Menu
+                      </Text>
+                    </Box>
+                  )}
+                  {menuDetails?.offer > 0 && (
+                    <Badge colorScheme="red" variant="solid" rounded="lg">
+                      {menuDetails.offer}% OFF
+                    </Badge>
+                  )}
+                </HStack>
               </HStack>
             </VStack>
 

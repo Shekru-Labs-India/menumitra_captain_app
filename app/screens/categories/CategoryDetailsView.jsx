@@ -83,9 +83,14 @@ export default function CategoryDetailsView() {
     try {
       setDeleteLoading(true);
       const outletId = await AsyncStorage.getItem("outlet_id");
+      const userId = await AsyncStorage.getItem("user_id");
       
       if (!outletId) {
         throw new Error("Outlet ID not found");
+      }
+      
+      if (!userId) {
+        throw new Error("User ID not found");
       }
       
       console.log("Deleting category:", params.categoryId);
@@ -93,9 +98,13 @@ export default function CategoryDetailsView() {
       try {
         const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_delete`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
           body: JSON.stringify({
             outlet_id: outletId,
+            user_id: userId,
             menu_cat_id: params.categoryId,
           }),
         });
@@ -117,7 +126,10 @@ export default function CategoryDetailsView() {
           // Try to fetch the category details to check if it still exists
           const checkData = await fetchWithAuth(`${getBaseUrl()}/menu_category_view`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
             body: JSON.stringify({
               outlet_id: outletId,
               menu_cat_id: params.categoryId,

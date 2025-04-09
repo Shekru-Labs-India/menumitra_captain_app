@@ -109,6 +109,24 @@ export default function EditMenuView() {
 
       if (data.st === 1 && data.data) {
         const menuData = data.data;
+        
+        // Process images array to ensure valid URIs
+        let processedImages = [];
+        if (Array.isArray(menuData.images)) {
+          processedImages = menuData.images
+            .filter(img => img) // Remove null/undefined values
+            .map(img => {
+              if (typeof img === 'string') return img;
+              if (img?.uri) return img.uri;
+              if (img?.url) return img.url;
+              return null;
+            })
+            .filter(img => img); // Remove null values after processing
+        }
+
+        console.log("Original images:", menuData.images);
+        console.log("Processed images:", processedImages);
+
         setMenuDetails({
           ...menuDetails,
           name: menuData.name || "",
@@ -121,15 +139,11 @@ export default function EditMenuView() {
           description: menuData.description || "",
           ingredients: menuData.ingredients || "",
           rating: menuData.rating?.toString() || "",
-          images: menuData.images || [],
+          images: processedImages,
           is_special: Boolean(Number(menuData.is_special)),
           is_active: menuData.is_active !== undefined ? Boolean(Number(menuData.is_active)) : true,
           outlet_id: outletId,
         });
-
-        // Log the rating value for debugging
-        console.log("Rating from API:", menuData.rating);
-        console.log("Converted rating:", menuData.rating?.toString());
       } else {
         throw new Error(data.msg || "Failed to fetch menu details");
       }
@@ -274,7 +288,6 @@ export default function EditMenuView() {
       formData.append("user_id", userId);
       formData.append("name", menuDetails.name);
       formData.append("full_price", menuDetails.full_price);
-    
       formData.append("food_type", menuDetails.food_type);
       formData.append("menu_cat_id", menuDetails.menu_cat_id);
       formData.append("spicy_index", menuDetails.spicy_index || "1");
@@ -286,19 +299,33 @@ export default function EditMenuView() {
       formData.append("is_active", menuDetails.is_active ? "1" : "0");
 
       // Handle images
-      if (menuDetails.images.length > 0) {
-        menuDetails.images.forEach((imageUri) => {
-          // Extract filename from URI
-          const filename = imageUri.split("/").pop();
-          formData.append("images", {
-            uri: imageUri,
-            type: "image/jpeg",
-            name: filename,
-          });
+      if (menuDetails.images && menuDetails.images.length > 0) {
+        menuDetails.images.forEach((imageUri, index) => {
+          // Skip invalid URIs
+          if (!imageUri || typeof imageUri !== 'string') return;
+
+          // Check if it's a new image (starts with 'file://' or similar)
+          if (imageUri.startsWith('file://') || imageUri.startsWith('content://')) {
+            const filename = imageUri.split('/').pop();
+            const match = /\.(\w+)$/.exec(filename);
+            const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+            formData.append('images', {
+              uri: imageUri,
+              type: type,
+              name: filename
+            });
+          } else {
+            // Existing image from server
+            formData.append('existing_images', imageUri);
+          }
         });
       }
 
-      console.log("Sending update request with FormData");
+      console.log("Sending update request with FormData:", {
+        ...Object.fromEntries(formData),
+        images: menuDetails.images
+      });
 
       const data = await fetchWithAuth(`${getBaseUrl()}/menu_update`, {
         method: "POST",
@@ -374,14 +401,40 @@ export default function EditMenuView() {
       console.log("Special toggle response:", data);
 
       if (data.st === 1) {
+        // Update the state first
+        const newSpecialStatus = !menuDetails.is_special;
         setMenuDetails((prev) => ({
           ...prev,
-          is_special: !prev.is_special,
+          is_special: newSpecialStatus,
         }));
+
+        // Show appropriate toast message with icon
         toast.show({
-          description: data.msg || "Special status updated successfully",
-          status: "success",
+          render: () => (
+            <Box
+              bg={newSpecialStatus ? "success.500" : "info.500"}
+              px="4"
+              py="2"
+              rounded="sm"
+              mb={5}
+            >
+              <HStack space={2} alignItems="center">
+                <Icon
+                  as={MaterialIcons}
+                  name={newSpecialStatus ? "star" : "star-outline"}
+                  color="white"
+                  size="sm"
+                />
+                <Text color="white" fontWeight="medium">
+                  {newSpecialStatus 
+                    ? `${menuDetails.name} marked as Special Menu` 
+                    : `${menuDetails.name} removed from Special Menu`}
+                </Text>
+              </HStack>
+            </Box>
+          ),
           duration: 3000,
+          placement: "top",
         });
       } else {
         throw new Error(data.msg || "Failed to update special status");
@@ -626,33 +679,48 @@ export default function EditMenuView() {
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <HStack space={2}>
-                {menuDetails.images.map((uri, index) => (
-                  <Box key={index} position="relative">
-                    <Image
-                      source={{ uri }}
-                      alt={`Menu Image ${index + 1}`}
-                      size="xl"
-                      rounded="lg"
-                    />
-                    <IconButton
-                      position="absolute"
-                      top={1}
-                      right={1}
-                      size="sm"
-                      rounded="full"
-                      bg="red.500"
-                      icon={
-                        <Icon
-                          as={MaterialIcons}
-                          name="close"
-                          color="white"
-                          size="sm"
-                        />
-                      }
-                      onPress={() => removeImage(index)}
-                    />
-                  </Box>
-                ))}
+                {menuDetails.images.map((uri, index) => {
+                  // Skip invalid URIs
+                  if (!uri || typeof uri !== 'string') return null;
+
+                  return (
+                    <Box key={index} position="relative">
+                      <Image
+                        source={{ uri }}
+                        alt={`Menu Image ${index + 1}`}
+                        size="xl"
+                        rounded="lg"
+                        fallbackElement={
+                          <Box size="xl" bg="gray.200" rounded="lg" justifyContent="center" alignItems="center">
+                            <Icon
+                              as={MaterialIcons}
+                              name="image-not-supported"
+                              size={8}
+                              color="gray.400"
+                            />
+                          </Box>
+                        }
+                      />
+                      <IconButton
+                        position="absolute"
+                        top={1}
+                        right={1}
+                        size="sm"
+                        rounded="full"
+                        bg="red.500"
+                        icon={
+                          <Icon
+                            as={MaterialIcons}
+                            name="close"
+                            color="white"
+                            size="sm"
+                          />
+                        }
+                        onPress={() => removeImage(index)}
+                      />
+                    </Box>
+                  );
+                })}
                 {menuDetails.images.length < 5 && (
                   <Pressable onPress={pickImage}>
                     <Box

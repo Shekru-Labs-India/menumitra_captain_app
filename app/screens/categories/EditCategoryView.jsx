@@ -14,6 +14,8 @@ import {
   Select,
   CheckIcon,
   Spinner,
+  Switch,
+  HStack,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -34,6 +36,7 @@ export default function EditCategoryView() {
     category_name: "",
     image: null,
     existing_image: null,
+    is_active: true,
   });
 
   const [errors, setErrors] = useState({});
@@ -60,6 +63,7 @@ export default function EditCategoryView() {
           category_name: data.data.name,
           image: null,
           existing_image: data.data.image,
+          is_active: data.data.is_active === "1" || data.data.is_active === 1,
         });
       } else {
         throw new Error(data.msg || "Failed to fetch category details");
@@ -129,6 +133,14 @@ export default function EditCategoryView() {
       const { image, ...rest } = prev;
       return rest;
     });
+    
+    // Add toast notification to confirm image removal
+    toast.show({
+      description: "Image removed. Save to apply changes.",
+      status: "info",
+      duration: 2000,
+      placement: "top",
+    });
   };
 
   const handleCategoryNameChange = (text) => {
@@ -179,6 +191,7 @@ export default function EditCategoryView() {
       formData.append("user_id", userId);
       formData.append("menu_cat_id", params.categoryId);
       formData.append("category_name", categoryDetails.category_name);
+      formData.append("is_active", categoryDetails.is_active ? "1" : "0");
 
       // Handle image cases
       if (categoryDetails.image) {
@@ -193,11 +206,19 @@ export default function EditCategoryView() {
           name: filename,
           type,
         });
-      } else if (!categoryDetails.existing_image) {
-        // Image was removed (both image and existing_image are null)
+      } else if (categoryDetails.existing_image === null) {
+        // Image was explicitly removed (existing_image is null)
         formData.append("remove_image", "1");
       }
       // If neither condition is met, keep existing image
+
+      console.log("Form data for update:", {
+        category_name: categoryDetails.category_name,
+        has_new_image: !!categoryDetails.image,
+        existing_image: categoryDetails.existing_image,
+        remove_image: categoryDetails.existing_image === null ? "1" : undefined,
+        is_active: categoryDetails.is_active ? "1" : "0"
+      });
 
       const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_update`, {
         method: "POST",
@@ -348,6 +369,26 @@ export default function EditCategoryView() {
                 <FormControl.ErrorMessage>
                   {errors.category_name}
                 </FormControl.ErrorMessage>
+              </FormControl>
+              
+              {/* Active/Inactive Toggle */}
+              <FormControl>
+                <FormControl.Label>Category Status</FormControl.Label>
+                <HStack alignItems="center" space={2}>
+                  <Switch
+                    isChecked={categoryDetails.is_active}
+                    onToggle={() => setCategoryDetails(prev => ({ ...prev, is_active: !prev.is_active }))}
+                    colorScheme={categoryDetails.is_active ? "green" : "red"}
+                  />
+                  <Text color={categoryDetails.is_active ? "green.600" : "red.600"}>
+                    {categoryDetails.is_active ? "Active" : "Inactive"}
+                  </Text>
+                </HStack>
+                <FormControl.HelperText>
+                  {categoryDetails.is_active 
+                    ? "Active categories will be visible to customers" 
+                    : "Inactive categories will be hidden from customers"}
+                </FormControl.HelperText>
               </FormControl>
             </VStack>
           </Box>
