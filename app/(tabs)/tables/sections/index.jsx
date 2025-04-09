@@ -875,17 +875,39 @@ export default function TableSectionsScreen() {
                                               bg={
                                                 isOccupied
                                                   ? table.order_id ? "orange.100" : "red.100"
-                                                  : "green.100"
+                                                  : table.is_reserved ? "gray.100" : "green.100"
                                               }
                                               borderWidth={1}
                                               borderStyle="dashed"
                                               borderColor={
                                                 isOccupied
                                                   ? table.order_id ? "orange.600" : "red.600"
-                                                  : "green.600"
+                                                  : table.is_reserved ? "gray.600" : "green.600"
                                               }
                                               position="relative"
                                             >
+                                              {table.is_reserved && (
+                                                <Box
+                                                  position="absolute"
+                                                  top={-10}
+                                                  left="95%"
+                                                  style={{ transform: [{ translateX: -50 }] }}
+                                                  bg="gray.500"
+                                                  px={0.5}
+                                                  py={1}
+                                                  rounded="15px"
+                                                  zIndex={1}
+                                                >
+                                                  <Text
+                                                    fontSize={12}
+                                                    color="white"
+                                                    fontWeight="medium"
+                                                  >
+                                                    Reserved
+                                                  </Text>
+                                                </Box>
+                                              )}
+
                                               {isOccupied && !table.order_id && (
                                                 <Animated.View
                                                   style={{
@@ -900,85 +922,6 @@ export default function TableSectionsScreen() {
                                                   }}
                                                 />
                                               )}
-                                              
-                                              {/* Show QR icon when settings is active */}
-                                              {showEditIcons && (
-                                                <IconButton
-                                                  position="absolute"
-                                                  bottom={-2}
-                                                  right={-2}
-                                                  zIndex={2}
-                                                  size="sm"
-                                                  rounded="full"
-                                                  bg="white"
-                                                  shadow={2}
-                                                  _pressed={{ bg: "gray.100" }}
-                                                  _hover={{ bg: "gray.50" }}
-                                                  icon={
-                                                    <MaterialIcons
-                                                      name="qr-code"
-                                                      size={16}
-                                                      color="gray"
-                                                    />
-                                                  }
-                                                  onPress={() => handleQRIconPress(table, section)}
-                                                />
-                                              )}
-                                              
-                                              {/* Show delete icon only for the last table and if it's not occupied */}
-                                              {showEditIcons && 
-                                                table.table_id === getLastTable(section.tables)?.table_id && 
-                                                table.is_occupied === 0 && (
-                                                <IconButton
-                                                  position="absolute"
-                                                  top={-2}
-                                                  right={-2}
-                                                  zIndex={2}
-                                                  size="sm"
-                                                  rounded="full"
-                                                  bg="white"
-                                                  shadow={2}
-                                                  _pressed={{ bg: "gray.100" }}
-                                                  _hover={{ bg: "gray.50" }}
-                                                  icon={
-                                                    <MaterialIcons
-                                                      name="delete"
-                                                      size={16}
-                                                      color="red.500"
-                                                    />
-                                                  }
-                                                  onPress={() => handleDeleteTable(section.id, table.table_id)}
-                                                />
-                                              )}
-
-                                              {/* Show price banner for occupied tables */}
-                                              {isOccupied && (
-                                                <Box
-                                                  position="absolute"
-                                                  top={-2}
-                                                  left={-2}
-                                                  right={-2}
-                                                  bg={table.order_id ? "orange.500" : "red.500"}
-                                                  py={0.5}
-                                                  rounded="md"
-                                                  shadow={1}
-                                                  zIndex={1}
-                                                  alignItems="center"
-                                                >
-                                                  <Text
-                                                    color="white"
-                                                    fontSize="sm"
-                                                    fontWeight="bold"
-                                                    numberOfLines={1}
-                                                    adjustsFontSizeToFit
-                                                  >
-                                                    ₹
-                                                    {(
-                                                      table.grand_total || 0
-                                                    ).toFixed(2)}
-                                                  </Text>
-                                                </Box>
-                                              )}
 
                                               <VStack
                                                 space={2}
@@ -986,12 +929,12 @@ export default function TableSectionsScreen() {
                                                 mt={5}
                                               >
                                                 <Text
-                                                  fontSize={18}
+                                                  fontSize={24}
                                                   fontWeight="bold"
                                                   color={
                                                     isOccupied
                                                       ? table.order_id ? "orange.500" : "red.500"
-                                                      : "green.500"
+                                                      : table.is_reserved ? "gray.500" : "green.500"
                                                   }
                                                 >
                                                   {table.table_number}
