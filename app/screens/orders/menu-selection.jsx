@@ -122,6 +122,34 @@ export default function MenuSelectionScreen() {
     fetchAllData();
   }, []);
 
+  // Add this function after the existing useEffect hooks
+  const checkTableReservationStatus = async () => {
+    try {
+      const response = await fetchWithAuth(`${getBaseUrl()}/check_table_is_reserved`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: parseInt(tableData.outlet_id),
+          table_id: parseInt(tableData.table_id),
+          table_number: parseInt(tableData.table_number)
+        }),
+      });
+
+      if (response.st === 1) {
+        setIsReserved(response.is_reserved);
+      }
+    } catch (error) {
+      console.error("Error checking table reservation:", error);
+    }
+  };
+
+  // Add this useEffect to check reservation status when component mounts
+  useEffect(() => {
+    if (tableData?.table_id) {
+      checkTableReservationStatus();
+    }
+  }, [tableData]);
+
   // Function to fetch menu categories and items
   const fetchAllData = async () => {
     try {
@@ -652,63 +680,119 @@ export default function MenuSelectionScreen() {
       <Header 
         title={getHeaderTitle()} 
         rightComponent={
-          orderType === "dine-in" && !isReserved && !tableData?.is_occupied && !tableData?.order_id ? (
-            <Pressable
-              onPress={async () => {
-                try {
-                  // Call the table reservation API
-                  const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      table_id: parseInt(tableData.table_id),
-                      table_number: parseInt(tableData.table_number),
-                      outlet_id: parseInt(tableData.outlet_id),
-                      is_reserved: true
-                    }),
-                  });
+          orderType === "dine-in" && tableData ? (
+            isReserved ? (
+              <Pressable
+                onPress={async () => {
+                  try {
+                    const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        table_id: parseInt(tableData.table_id),
+                        table_number: parseInt(tableData.table_number),
+                        outlet_id: parseInt(tableData.outlet_id),
+                        is_reserved: false
+                      }),
+                    });
 
-                  if (response.st === 1) {
-                    setReserveModalVisible(true);
-                    setIsReserved(true);
+                    if (response.st === 1) {
+                      setIsReserved(false);
+                      toast.show({
+                        description: "Table has been unreserved",
+                        status: "success"
+                      });
+                      router.replace({
+                        pathname: "/(tabs)/tables",
+                        params: { 
+                          refresh: Date.now().toString(),
+                          status: "completed"
+                        }
+                      });
+                    } else {
+                      toast.show({
+                        description: response.msg || "Failed to unreserve table",
+                        status: "error"
+                      });
+                    }
+                  } catch (error) {
+                    console.error("Error unreserving table:", error);
                     toast.show({
-                      description: "Table has been reserved",
-                      status: "success"
-                    });
-                    router.replace({
-                      pathname: "/(tabs)/tables",
-                      params: { 
-                        refresh: Date.now().toString(),
-                        status: "completed"
-                      }
-                    });
-                  } else {
-                    toast.show({
-                      description: response.msg || "Failed to reserve table",
+                      description: "Failed to unreserve table",
                       status: "error"
                     });
                   }
-                } catch (error) {
-                  console.error("Error reserving table:", error);
-                  toast.show({
-                    description: "Failed to reserve table",
-                    status: "error"
-                  });
-                }
-              }}
-              bg="green.500"
-              px={3}
-              py={1.5}
-              rounded="md"
-              _pressed={{
-                bg: "green.600"
-              }}
-            >
-              <HStack space={1} alignItems="center">
-                <MaterialIcons name="event-available" size={20} color="white" />
-                <Text color="white" fontWeight="medium">Reserve</Text>
-              </HStack>
-            </Pressable>
+                }}
+                bg="red.500"
+                px={3}
+                py={1.5}
+                rounded="md"
+                _pressed={{
+                  bg: "red.600"
+                }}
+              >
+                <HStack space={1} alignItems="center">
+                  <MaterialIcons name="event-busy" size={20} color="white" />
+                  <Text color="white" fontWeight="medium">Unreserve</Text>
+                </HStack>
+              </Pressable>
+            ) : !tableData.is_occupied && !tableData.order_id ? (
+              <Pressable
+                onPress={async () => {
+                  try {
+                    const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        table_id: parseInt(tableData.table_id),
+                        table_number: parseInt(tableData.table_number),
+                        outlet_id: parseInt(tableData.outlet_id),
+                        is_reserved: true
+                      }),
+                    });
+
+                    if (response.st === 1) {
+                      setReserveModalVisible(true);
+                      setIsReserved(true);
+                      toast.show({
+                        description: "Table has been reserved",
+                        status: "success"
+                      });
+                      router.replace({
+                        pathname: "/(tabs)/tables",
+                        params: { 
+                          refresh: Date.now().toString(),
+                          status: "completed"
+                        }
+                      });
+                    } else {
+                      toast.show({
+                        description: response.msg || "Failed to reserve table",
+                        status: "error"
+                      });
+                    }
+                  } catch (error) {
+                    console.error("Error reserving table:", error);
+                    toast.show({
+                      description: "Failed to reserve table",
+                      status: "error"
+                    });
+                  }
+                }}
+                bg="green.500"
+                px={3}
+                py={1.5}
+                rounded="md"
+                _pressed={{
+                  bg: "green.600"
+                }}
+              >
+                <HStack space={1} alignItems="center">
+                  <MaterialIcons name="event-available" size={20} color="white" />
+                  <Text color="white" fontWeight="medium">Reserve</Text>
+                </HStack>
+              </Pressable>
+            ) : null
           ) : null
         }
       />
