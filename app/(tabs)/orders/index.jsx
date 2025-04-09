@@ -885,25 +885,32 @@ const OrdersScreen = () => {
       </HStack>
 
       <HStack px={4} py={2} space={3} alignItems="center">
-        <Select
-          flex={1}
-          selectedValue={dateFilter}
-          onValueChange={handleDateFilterChange}
-          _selectedItem={{
-            bg: "coolGray.100",
-            endIcon: (
-              <MaterialIcons name="check" size={20} color="coolGray.600" />
-            ),
-          }}
+        <Pressable
+          onPress={() => handleDateFilterChange('today')}
+          bg={dateFilter === 'today' ? "primary.500" : "white"}
+          borderWidth={1}
+          borderColor="primary.500"
+          rounded="md"
+          px={4}
+          py={2}
         >
-          <Select.Item label="Today" value="today" />
-          <Select.Item label="Yesterday" value="yesterday" />
-          <Select.Item label="This Week" value="this_week" />
-          <Select.Item label="Last Week" value="last_week" />
-          <Select.Item label="This Month" value="this_month" />
-          <Select.Item label="Last Month" value="last_month" />
-          <Select.Item label="Custom Date" value="custom" />
-        </Select>
+          <HStack space={2} alignItems="center">
+            <MaterialIcons
+              name="today"
+              size={20}
+              color={dateFilter === 'today' ? "white" : "primary.500"}
+            />
+            <Text
+              color={dateFilter === 'today' ? "white" : "primary.500"}
+              fontSize="sm"
+              fontWeight="medium"
+            >
+              Today
+            </Text>
+          </HStack>
+        </Pressable>
+
+       
 
         {dateFilter === 'custom' && (
           <Pressable

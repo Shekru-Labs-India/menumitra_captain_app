@@ -652,7 +652,7 @@ export default function MenuSelectionScreen() {
       <Header 
         title={getHeaderTitle()} 
         rightComponent={
-          !isReserved && !tableData?.is_occupied && !tableData?.order_id ? (
+          orderType === "dine-in" && !isReserved && !tableData?.is_occupied && !tableData?.order_id ? (
             <Pressable
               onPress={() => {
                 setReserveModalVisible(true);
@@ -696,7 +696,7 @@ export default function MenuSelectionScreen() {
         </HStack>
       </Box>
 
-      {isReserved && (
+      {isReserved && orderType === "dine-in" && (
         <Box px={3} mb={2}>
           <HStack space={2} alignItems="center" bg="red.50" p={3} borderRadius={8} borderWidth={1} borderColor="red.200">
             <MaterialIcons name="lock" size={24} color="#e74c3c" />
@@ -834,7 +834,7 @@ export default function MenuSelectionScreen() {
       </Modal>
 
       {/* Floating un-reserve button */}
-      {isReserved && (
+      {isReserved && orderType === "dine-in" && (
         <Pressable
           style={[styles.floatingCart, { bottom: 80 }]}
           onPress={() => {
