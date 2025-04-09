@@ -40,6 +40,7 @@ export default function EditStaffScreen() {
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [errors, setErrors] = useState({});
   const [outletId, setOutletId] = useState(null);
+  const [isImageDeleting, setIsImageDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -415,6 +416,92 @@ export default function EditStaffScreen() {
     }
   };
 
+  const handleDeleteImage = async () => {
+    try {
+      setIsImageDeleting(true);
+      const userId = await AsyncStorage.getItem("user_id");
+
+      if (!userId || !outletId) {
+        throw new Error("Required IDs not found");
+      }
+
+      const formDataToSend = new FormData();
+      formDataToSend.append("user_id", userId);
+      formDataToSend.append("staff_id", id);
+      formDataToSend.append("outlet_id", outletId);
+      formDataToSend.append("name", formData.name.trim());
+      formDataToSend.append("mobile", formData.mobile);
+      formDataToSend.append("role", formData.role.toLowerCase());
+      formDataToSend.append("aadhar_number", formData.aadhar_number);
+      formDataToSend.append("remove_photo", "1");
+      formDataToSend.append("photo", ""); // Send empty photo
+
+      if (formData.address && formData.address.trim()) {
+        formDataToSend.append("address", formData.address.trim());
+      }
+      
+      if (formData.dob && formData.dob.trim()) {
+        formDataToSend.append("dob", formData.dob);
+      }
+
+      const response = await fetchWithAuth(`${getBaseUrl()}/staff_update`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "multipart/form-data"
+        },
+        body: formDataToSend,
+      });
+
+      if (response.st === 1) {
+        // Clear both photo states and force a refresh
+        setFormData(prev => ({
+          ...prev,
+          photo: "",
+          existing_photo: ""
+        }));
+
+        // Force refresh the staff details
+        const refreshResponse = await fetchWithAuth(`${getBaseUrl()}/staff_view`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            staff_id: id,
+            outlet_id: outletId,
+          }),
+        });
+
+        if (refreshResponse.st === 1 && refreshResponse.data) {
+          // Update form data with refreshed data
+          setFormData(prev => ({
+            ...prev,
+            ...refreshResponse.data,
+            photo: "",
+            existing_photo: ""
+          }));
+        }
+
+        toast.show({
+          description: "Image removed successfully",
+          status: "success",
+          duration: 2000,
+          placement: "top"
+        });
+      } else {
+        throw new Error(response.msg || "Failed to remove image");
+      }
+    } catch (error) {
+      console.error("Remove Image Error:", error);
+      toast.show({
+        description: "Failed to remove image. Please try again.",
+        status: "error",
+        duration: 3000,
+        placement: "top"
+      });
+    } finally {
+      setIsImageDeleting(false);
+    }
+  };
+
   const handleSave = async () => {
     const newErrors = {};
 
@@ -460,27 +547,24 @@ export default function EditStaffScreen() {
     try {
       const userId = await AsyncStorage.getItem("user_id");
 
-      // Create FormData instance for multipart/form-data
       const formDataToSend = new FormData();
-      formDataToSend.append("user_id", parseInt(userId));
-      formDataToSend.append("staff_id", parseInt(id));
+      formDataToSend.append("user_id", userId);
+      formDataToSend.append("staff_id", id);
       formDataToSend.append("outlet_id", outletId);
       formDataToSend.append("name", formData.name.trim());
       formDataToSend.append("mobile", formData.mobile);
       formDataToSend.append("role", formData.role.toLowerCase());
       formDataToSend.append("aadhar_number", formData.aadhar_number);
       
-      // Only append address if it has a value
       if (formData.address && formData.address.trim()) {
         formDataToSend.append("address", formData.address.trim());
       }
       
-      // Only append DOB if it has a value
       if (formData.dob && formData.dob.trim()) {
         formDataToSend.append("dob", formData.dob);
       }
 
-      // Append new image if selected
+      // Handle photo
       if (formData.photo) {
         const filename = formData.photo.split('/').pop();
         const match = /\.(\w+)$/.exec(filename);
@@ -491,7 +575,12 @@ export default function EditStaffScreen() {
           name: filename,
           type,
         });
+      } else if (formData.existing_photo === null) {
+        // If existing photo was removed and no new photo selected
+        formDataToSend.append("remove_photo", "1");
       }
+
+      console.log("Updating staff with data:", Object.fromEntries(formDataToSend));
 
       const data = await fetchWithAuth(`${getBaseUrl()}/staff_update`, {
         method: "POST",
@@ -536,7 +625,7 @@ export default function EditStaffScreen() {
           <FormControl>
             <FormControl.Label>Photo</FormControl.Label>
             <VStack space={2}>
-              {(formData.photo || formData.existing_photo) && (
+              {(formData.photo || (formData.existing_photo && formData.existing_photo !== "")) && (
                 <Box position="relative" alignSelf="center">
                   <Image
                     source={{
@@ -548,6 +637,23 @@ export default function EditStaffScreen() {
                       borderRadius: 50,
                       alignSelf: "center"
                     }}
+                    fallback={
+                      <Box
+                        width={100}
+                        height={100}
+                        borderRadius={50}
+                        bg="gray.200"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
+                        <Icon
+                          as={MaterialIcons}
+                          name="person"
+                          size={8}
+                          color="gray.400"
+                        />
+                      </Box>
+                    }
                   />
                   <IconButton
                     icon={<MaterialIcons name="close" size={20} color="white" />}
@@ -557,13 +663,8 @@ export default function EditStaffScreen() {
                     top={-5}
                     right={-5}
                     size="sm"
-                    onPress={() => {
-                      if (formData.photo) {
-                        setFormData({...formData, photo: ""});
-                      } else {
-                        setFormData({...formData, existing_photo: ""});
-                      }
-                    }}
+                    isLoading={isImageDeleting}
+                    onPress={handleDeleteImage}
                   />
                 </Box>
               )}

@@ -756,7 +756,7 @@ export default function EditSupplierScreen() {
                                 errors.address ? "red.500" : "blue.500",
                   }}
                 />
-                <FormControl.HelperText>This field is optional</FormControl.HelperText>
+               
                 <FormControl.ErrorMessage>
                   {errors.address}
                 </FormControl.ErrorMessage>
