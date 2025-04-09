@@ -20,6 +20,7 @@ import { getBaseUrl } from "../../config/api.config";
 import { fetchWithAuth } from "../../utils/apiInterceptor";
 
 export default function ActivityLogScreen() {
+  
   const router = useRouter();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);

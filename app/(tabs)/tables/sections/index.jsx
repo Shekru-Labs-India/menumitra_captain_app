@@ -1112,8 +1112,8 @@ export default function TableSectionsScreen() {
             </Pressable>
             <Pressable onPress={() => setActiveFilter("ENGAGED")}>
               <Box
-                px={4}
-                py={1.5}
+                px={1}
+                py={1}
                 bg={activeFilter === "ENGAGED" ? "red.500" : "white"}
                 borderWidth={1}
                 borderColor="red.500"
@@ -1154,8 +1154,8 @@ export default function TableSectionsScreen() {
               }
             >
               <Box
-                px={4}
-                py={1.5}
+                px={1}
+                py={1}
                 bg="orange.500"
                 borderWidth={1}
                 borderColor="orange.500"
@@ -1167,7 +1167,7 @@ export default function TableSectionsScreen() {
                   name="local-shipping"
                   size={16}
                   color="white"
-                  style={{ marginRight: 4 }}
+                  style={{ marginRight: 1 }}
                 />
                 <Text color="white" fontSize="sm" fontWeight="medium">
                   Parcel
@@ -1188,8 +1188,8 @@ export default function TableSectionsScreen() {
               }
             >
               <Box
-                px={4}
-                py={1.5}
+                px={1}
+                py={1}
                 bg="blue.500"
                 borderWidth={1}
                 borderColor="blue.500"
@@ -1201,10 +1201,10 @@ export default function TableSectionsScreen() {
                   name="drive-eta"
                   size={16}
                   color="white"
-                  style={{ marginRight: 4 }}
+                  style={{ marginRight: 1 }}
                 />
                 <Text color="white" fontSize="sm" fontWeight="medium">
-                  Drive Through
+                  Drive Thru
                 </Text>
               </Box>
             </Pressable>
@@ -1222,8 +1222,8 @@ export default function TableSectionsScreen() {
               }
             >
               <Box
-                px={4}
-                py={1.5}
+                px={1}
+                py={1}
                 bg="purple.500"
                 borderWidth={1}
                 borderColor="purple.500"
@@ -1235,7 +1235,7 @@ export default function TableSectionsScreen() {
                   name="point-of-sale"
                   size={16}
                   color="white"
-                  style={{ marginRight: 4 }}
+                  style={{ marginRight: 1 }}
                 />
                 <Text color="white" fontSize="sm" fontWeight="medium">
                   Counter
@@ -1255,8 +1255,8 @@ export default function TableSectionsScreen() {
               }
             >
               <Box
-                px={4}
-                py={1.5}
+                px={1}
+                py={1}
                 bg="green.500"
                 borderWidth={1}
                 borderColor="green.500"
@@ -1268,7 +1268,7 @@ export default function TableSectionsScreen() {
                   name="delivery-dining"
                   size={16}
                   color="white"
-                  style={{ marginRight: 4 }}
+                  style={{ marginRight: 1 }}
                 />
                 <Text color="white" fontSize="sm" fontWeight="medium">
                   Delivery

@@ -654,13 +654,47 @@ export default function MenuSelectionScreen() {
         rightComponent={
           orderType === "dine-in" && !isReserved && !tableData?.is_occupied && !tableData?.order_id ? (
             <Pressable
-              onPress={() => {
-                setReserveModalVisible(true);
-                setIsReserved(true);
-                toast.show({
-                  description: "Table has been reserved",
-                  status: "success"
-                });
+              onPress={async () => {
+                try {
+                  // Call the table reservation API
+                  const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      table_id: parseInt(tableData.table_id),
+                      table_number: parseInt(tableData.table_number),
+                      outlet_id: parseInt(tableData.outlet_id),
+                      is_reserved: true
+                    }),
+                  });
+
+                  if (response.st === 1) {
+                    setReserveModalVisible(true);
+                    setIsReserved(true);
+                    toast.show({
+                      description: "Table has been reserved",
+                      status: "success"
+                    });
+                    router.replace({
+                      pathname: "/(tabs)/tables",
+                      params: { 
+                        refresh: Date.now().toString(),
+                        status: "completed"
+                      }
+                    });
+                  } else {
+                    toast.show({
+                      description: response.msg || "Failed to reserve table",
+                      status: "error"
+                    });
+                  }
+                } catch (error) {
+                  console.error("Error reserving table:", error);
+                  toast.show({
+                    description: "Failed to reserve table",
+                    status: "error"
+                  });
+                }
               }}
               bg="green.500"
               px={3}
