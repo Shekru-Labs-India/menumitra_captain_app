@@ -147,10 +147,10 @@ export default function InventoryItemDetailsScreen() {
 
       if (data.st === 1) {
         toast.show({
-          description: "Item deleted successfully",
+          description: "Inventory Item deleted successfully",
           status: "success",
           placement: "top",
-          duration: 2000,
+          duration: 3000,
         });
         // Navigate back with refresh parameter
         router.push({
