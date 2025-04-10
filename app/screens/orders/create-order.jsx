@@ -53,7 +53,9 @@ import { PermissionsAndroid } from "react-native";
 import Constants from "expo-constants";
 import base64 from "react-native-base64";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import { usePrinter } from "../../../context/PrinterContext";
 
+// Printer Constants
 const PRINTER_SERVICE_UUIDS = [
   "49535343-FE7D-4AE5-8FA9-9FAFD205E455",
   "E7810A71-73AE-499D-8C15-FAA9AEF0C3F2",
@@ -65,6 +67,7 @@ const PRINTER_CHARACTERISTIC_UUIDS = [
   "BEF8D6C9-9C21-4C9E-B632-BD58C1009F9F",
 ];
 
+// ESC/POS Commands
 const ESC = 0x1b;
 const GS = 0x1d;
 const COMMANDS = {
@@ -203,11 +206,31 @@ const calculateItemTotal = (price, quantity, offer = 0) => {
 };
 
 export default function CreateOrderScreen() {
+  const params = useLocalSearchParams();
   const router = useRouter();
   const toast = useToast();
-  const params = useLocalSearchParams();
   const isFocused = useIsFocused();
-
+  const baseUrl = getBaseUrl();
+  
+  // Initialize BLE Manager for Bluetooth printing
+  const [bleManager] = useState(() => {
+    if (Platform.OS === "web") return null;
+    if (Constants.appOwnership === "expo") {
+      console.log("BLE requires development build");
+      return null;
+    }
+    return new BleManager();
+  });
+  
+  // Destructure printer context values and functions
+  const {
+    printerDevice: contextPrinterDevice,
+    isConnected: printerConnected,
+    connectToPrinter: contextConnectPrinter,
+    sendDataToPrinter,
+    scanForPrinters: contextScanForPrinters,
+  } = usePrinter();
+  
   // Keep all existing states
   const [loading, setLoading] = useState(false);
   const [outletId, setOutletId] = useState(null);
@@ -284,15 +307,6 @@ export default function CreateOrderScreen() {
   const [isConnected, setIsConnected] = useState(false);
   const [availableDevices, setAvailableDevices] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [bleManager] = useState(() => {
-    if (Platform.OS === "web") return null;
-    if (Constants.appOwnership === "expo") {
-      // Show message about development build requirement
-      console.log("BLE requires development build");
-      return null;
-    }
-    return new BleManager();
-  });
 
   // Add these new state variables for customer details and payment options
   const [customerDetails, setCustomerDetails] = useState({
@@ -344,7 +358,7 @@ export default function CreateOrderScreen() {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       
-      const data = await fetchWithAuth(`${getBaseUrl()}/order_view`, {
+      const data = await fetchWithAuth(`${baseUrl}/order_view`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -373,7 +387,7 @@ export default function CreateOrderScreen() {
         setLoading(true);
         const storedOutletId = await AsyncStorage.getItem("outlet_id");
         
-        const data = await fetchWithAuth(`${getBaseUrl()}/order_view`, {
+        const data = await fetchWithAuth(`${baseUrl}/order_view`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -473,83 +487,239 @@ export default function CreateOrderScreen() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("CASH");
   const [isPaidChecked, setIsPaidChecked] = useState(false);
 
-  const handleKOT = async () => {
-    if (selectedItems.length === 0) {
-      Alert.alert("Error", "Please add items to cart before creating KOT");
-      return;
-    }
-    // Show payment modal instead of direct printing
-    setShowPaymentModal(true);
-  };
-
-  // Add this new function to handle payment confirmation
-  const handlePaymentConfirm = async () => {
+  const handleKOT = async (modalPaymentMethod = null) => {
     try {
-      setIsProcessing(true);
-      setLoadingMessage("Processing KOT...");
-      setShowPaymentModal(false);
-
-      const isExpoGo = Constants.executionEnvironment === "storeClient";
-      const isWeb = Platform.OS === "web";
-
-      if (isExpoGo || isWeb) {
-        const html = generateKOTHTML();
-        await Print.printAsync({
-          html,
-          orientation: "portrait",
-        });
-      } else {
-        if (printerDevice && isConnected) {
-          await printKOT();
-        } else {
-          setIsModalVisible(true);
-          scanForPrinters();
-        }
+      if (selectedItems.length === 0) {
+        Alert.alert("Error", "Please add items to cart before generating KOT");
+        return;
       }
 
-      const storedUserId = await AsyncStorage.getItem("user_id");
-      const settleRequestBody = {
-        outlet_id: outletId.toString(),
-        order_id: orderId.toString(),
-        order_status: isPaidChecked ? "paid" : "unpaid",
-        payment_method: selectedPaymentMethod,
-        user_id: storedUserId.toString(),
+      // First check if printer is connected
+      if (!printerConnected || !contextPrinterDevice) {
+        console.log("No printer connected. Navigating to printer management.");
+        Alert.alert(
+          "Printer Not Connected",
+          "Please connect a printer to print the KOT.",
+          [
+            {
+              text: "Connect Printer",
+              onPress: () => router.navigate("profile/PrinterManagement")
+            },
+            {
+              text: "Cancel",
+              style: "cancel"
+            }
+          ]
+        );
+        return;
+      }
+
+      setIsLoading(true);
+      setLoadingMessage("Processing order...");
+
+      const [restaurantId, userId, accessToken] = await Promise.all([
+        getRestaurantId(),
+        getUserId(),
+        AsyncStorage.getItem("access_token"),
+      ]);
+
+      const orderItems = selectedItems.map((item) => ({
+        menu_id: item.menu_id.toString(),
+        quantity: item.quantity.toString(),
+        comment: item.specialInstructions || "",
+        half_or_full: (item.portionSize || "full").toLowerCase(),
+        price: item.price?.toString() || "0",
+        total_price: item.total_price?.toString() || "0",
+      }));
+
+      // Determine payment status based on complementary and paid checkboxes
+      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
+      
+      // Use the payment method passed from the modal if available,
+      // otherwise fall back to the one selected in the main screen
+      const effectivePaymentMethod = modalPaymentMethod || paymentMethod;
+
+      // Base request body
+      const baseRequestBody = {
+        user_id: userId.toString(),
+        outlet_id: restaurantId.toString(),
+        order_type: params?.orderType || "dine-in",
+        order_items: orderItems,
+        grand_total: orderItems
+          .reduce((sum, item) => sum + (parseFloat(item.total_price) || 0), 0)
+          .toString(),
+        action: "settle",
+        is_paid: paymentStatus,
+        payment_method: isPaid ? effectivePaymentMethod : "", // Use the effective payment method
+        special_discount: safeNumberToString(specialDiscount),
+        charges: safeNumberToString(extraCharges),
+        tip: safeNumberToString(tip),
+        customer_name: customerDetails.customer_name || "",
+        customer_mobile: customerDetails.customer_mobile || "",
+        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+        customer_address: customerDetails.customer_address || "",
+        customer_landmark: customerDetails.customer_landmark || "",
       };
+      
+      let apiResponse;
+      let apiError = null;
 
-      const settleResult = await fetchWithAuth(
-        `${getBaseUrl()}/update_order_status`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(settleRequestBody),
+      try {
+        // For existing orders
+        if (params?.orderId) {
+          // First update the order
+          const updateRequestBody = {
+            ...baseRequestBody,
+            order_id: params.orderId.toString(),
+            ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+              tables: [params.tableNumber.toString()],
+              section_id: params.sectionId.toString(),
+            }),
+            // Remove is_paid parameter from this call to avoid duplicate status entries
+            is_paid: null
+          };
+
+          const updateResponse = await fetchWithAuth(
+            `${baseUrl}/update_order`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(updateRequestBody),
+            }
+          );
+
+          if (updateResponse.st !== 1) {
+            throw new Error(updateResponse.msg || "Failed to update order");
+          }
+
+          // Then update status
+          const statusRequestBody = {
+            outlet_id: restaurantId.toString(),
+            order_id: params.orderId.toString(),
+            order_status: isPaid ? "paid" : (orderDetails?.order_status || existingOrderDetails?.order_status || "placed"),
+            user_id: userId.toString(),
+            action: "settle",
+            order_type: params?.orderType || "dine-in",
+            is_paid: paymentStatus,
+            payment_method: isPaid ? effectivePaymentMethod : "",
+            // Include customer details here as well
+            customer_name: customerDetails.customer_name || "",
+            customer_mobile: customerDetails.customer_mobile || "",
+            customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+            customer_address: customerDetails.customer_address || "",
+            customer_landmark: customerDetails.customer_landmark || "",
+            ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+              tables: [params.tableNumber.toString()],
+              section_id: params.sectionId.toString(),
+            }),
+          };
+
+          const statusResponse = await fetchWithAuth(
+            `${baseUrl}/update_order_status`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(statusRequestBody),
+            }
+          );
+
+          if (statusResponse.st !== 1) {
+            throw new Error(statusResponse.msg || "Failed to update order status");
+          }
+
+          apiResponse = updateResponse;
+        } else {
+          // For new orders
+          const createRequestBody = {
+            ...baseRequestBody,
+            ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+              tables: [params.tableNumber.toString()],
+              section_id: params.sectionId.toString(),
+            }),
+          };
+
+          const response = await fetchWithAuth(
+            `${baseUrl}/create_order`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(createRequestBody),
+            }
+          );
+
+          if (response.st !== 1) {
+            throw new Error(response.msg || "Failed to create order");
+          }
+
+          apiResponse = response;
         }
-      );
-
-      if (settleResult.st !== 1) {
-        throw new Error(settleResult.msg || "Failed to update payment status");
+      } catch (error) {
+        console.error("API error in handleKOT:", error);
+        apiError = error;
+        throw error;
       }
 
-      // Clear states and navigate to tables screen
-      setSelectedItems([]);
-      setOrderDetails({});
-      setServiceCharges(0);
-      setGstAmount(0);
-      setDiscountAmount(0);
+      // Continue with KOT printing logic
+      if (apiResponse && apiResponse.st === 1) {
+        setLoadingMessage("Processing KOT...");
 
-      // Navigate to tables screen
-      router.replace({
-        pathname: "/(tabs)/tables",
-        params: {
-          refresh: Date.now().toString()
+        try {
+          // Generate KOT commands
+          const kotCommands = await generateKOTCommands(apiResponse);
+          
+          // Use sendToDevice directly
+          await sendDataToPrinter(kotCommands);
+          
+          toast.show({
+            description: "KOT printed successfully",
+            status: "success",
+            duration: 3000,
+            placement: "bottom",
+          });
+          
+          setSelectedItems([]);
+          router.replace({
+            pathname: "/(tabs)/tables",
+            params: { 
+              refresh: Date.now().toString()
+            }
+          });
+        } catch (printError) {
+          console.error("KOT print error:", printError);
+          
+          // Still show the order was created even if printing failed
+          if (!apiError) {
+            toast.show({
+              description: "Order created but printing failed. Please try printing again.",
+              status: "warning",
+              duration: 5000,
+              placement: "bottom",
+            });
+            
+            // Still navigate back since the order was created successfully
+            setSelectedItems([]);
+            router.replace({
+              pathname: "/(tabs)/tables",
+              params: { 
+                refresh: Date.now().toString()
+              }
+            });
+          } else {
+            throw new Error(`Failed to print KOT: ${printError.message}`);
+          }
         }
-      });
-
+      }
     } catch (error) {
       console.error("KOT error:", error);
-      Alert.alert("Error", error.message || "Failed to process KOT");
+      toast.show({
+        description: `Failed to process KOT: ${error.message}`,
+        status: "error",
+        duration: 3000,
+        placement: "bottom",
+      });
     } finally {
+      setIsLoading(false);
       setLoadingMessage("");
-      setIsProcessing(false);
     }
   };
 
@@ -712,7 +882,7 @@ export default function CreateOrderScreen() {
         );
 
         const updateResponse = await fetchWithAuth(
-          `${getBaseUrl()}/update_order`,
+          `${baseUrl}/update_order`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -755,7 +925,7 @@ export default function CreateOrderScreen() {
         );
 
         const statusResponse = await fetchWithAuth(
-          `${getBaseUrl()}/update_order_status`,
+          `${baseUrl}/update_order_status`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -785,7 +955,7 @@ export default function CreateOrderScreen() {
         );
 
         const response = await fetchWithAuth(
-          `${getBaseUrl()}/create_order`,
+          `${baseUrl}/create_order`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -828,7 +998,7 @@ export default function CreateOrderScreen() {
         );
 
         const statusResponse = await fetchWithAuth(
-          `${getBaseUrl()}/update_order_status`,
+          `${baseUrl}/update_order_status`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1019,8 +1189,8 @@ const handleSettlePaymentConfirm = async () => {
     }
 
     const endpoint = params?.orderId ? 
-      `${getBaseUrl()}/update_order` : 
-      `${getBaseUrl()}/create_order`;
+      `${baseUrl}/update_order` : 
+      `${baseUrl}/create_order`;
 
     if (params?.orderId) {
       orderData.order_id = params.orderId.toString();
@@ -1043,7 +1213,7 @@ const handleSettlePaymentConfirm = async () => {
       };
 
       const settleResult = await fetchWithAuth(
-        `${getBaseUrl()}/update_order_status`,
+        `${baseUrl}/update_order_status`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1168,6 +1338,12 @@ const handleSettlePaymentConfirm = async () => {
       const itemTotal = price * Number(item.quantity);
       return sum + (itemTotal * Number(item.offer)) / 100;
     }, 0);
+  };
+
+  // Add missing calculateDiscount function
+  const calculateDiscount = (items) => {
+    // Simply use the existing calculateItemDiscount function
+    return calculateItemDiscount(items);
   };
 
   const calculateTotalAfterDiscounts = (selectedItems, specialDiscount) => {
@@ -1832,39 +2008,69 @@ const handleSettlePaymentConfirm = async () => {
         return;
       }
 
+      // First check if printer is connected
+      if (!printerConnected || !contextPrinterDevice) {
+        console.log("No printer connected. Navigating to printer management.");
+        Alert.alert(
+          "Printer Not Connected",
+          "Please connect a printer to print the receipt.",
+          [
+            {
+              text: "Connect Printer",
+              onPress: () => router.navigate("profile/PrinterManagement")
+            },
+            {
+              text: "Cancel",
+              style: "cancel"
+            }
+          ]
+        );
+        return;
+      }
+
       setIsProcessing(true);
       setLoadingMessage("Printing...");
 
       // First create/update the order
       let orderResponse;
-      if (params?.orderId) {
-        // Update existing order and set status to "placed"
-        orderResponse = await createOrder("placed", true);  // Changed from "print" to "placed" and added returnResponse=true
-      } else {
-        orderResponse = await createOrder("print_and_save", true);
-        if (!orderResponse?.order_id) {
-          throw new Error("Failed to create order");
+      try {
+        if (params?.orderId) {
+          // Update existing order and set status to "placed"
+          orderResponse = await createOrder("placed", true);  // Changed from "print" to "placed" and added returnResponse=true
+        } else {
+          orderResponse = await createOrder("print_and_save", true);
+          if (!orderResponse?.order_id) {
+            throw new Error("Failed to create order");
+          }
         }
+      } catch (orderError) {
+        console.error("Order creation/update error:", orderError);
+        throw new Error(`Order error: ${orderError.message}`);
       }
 
       // Continue with the rest of the printing functionality
       // Print receipt
-      // if (Platform.OS === "web") {
-      //   const html = generateKOTHTML();
-      //   await Print.printAsync({
-      //     html,
-      //     orientation: "portrait",
-      //   });
-      // } else {
-      //   await printReceipt();
-      // }
+      if (Platform.OS === "web") {
+        const html = generateKOTHTML();
+        await Print.printAsync({
+          html,
+          orientation: "portrait",
+        });
+      } else {
+        try {
+          await printReceipt();
+        } catch (printError) {
+          console.error("Print receipt error:", printError);
+          throw new Error(`Failed to print: ${printError.message}`);
+        }
+      }
 
-      // toast.show({
-      //   description: "Order printed successfully",
-      //   status: "success",
-      //   duration: 3000,
-      //   placement: "bottom",
-      // });
+      toast.show({
+        description: "Order printed successfully",
+        status: "success",
+        duration: 3000,
+        placement: "bottom",
+      });
 
       // Navigate back to orders list after successful operation
       router.replace({
@@ -1876,7 +2082,7 @@ const handleSettlePaymentConfirm = async () => {
     } catch (error) {
       console.error("Print error:", error);
       toast.show({
-        description: "Failed to print order",
+        description: `Failed to print order: ${error.message}`,
         status: "error",
         duration: 3000,
         placement: "bottom",
@@ -1887,99 +2093,178 @@ const handleSettlePaymentConfirm = async () => {
     }
   };
 
-  // Update the scanForPrinters function to include Expo Go check
-  // const scanForPrinters = async () => {
-  //   try {
-  //     // Check if running in Expo Go or web
-  //     const isExpoGo = Constants.executionEnvironment === "storeClient";
-  //     const isWeb = Platform.OS === "web";
+  // Scan for available printers
+  const scanForPrinters = async () => {
+    // Check if running in Expo Go
+    if (Constants.appOwnership === "expo") {
+      Alert.alert(
+        "Not Available",
+        "Printer functionality is only available in production build.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
 
-     
-
-  //     if (!bleManager) {
-  //       Alert.alert(
-  //         "Feature Not Available",
-  //         "Bluetooth printing is only available in development or production builds."
-  //       );
-  //       return;
-  //     }
-
-  //     const hasPermissions = await requestPermissions(bleManager);
-  //     if (!hasPermissions) {
-  //       Alert.alert("Permission Error", "Bluetooth permissions not granted");
-  //       return;
-  //     }
-
-  //     setIsScanning(true);
-  //     setAvailableDevices([]);
-  //     setIsModalVisible(true);
-
-  //     bleManager.startDeviceScan(null, null, (error, device) => {
-  //       if (error) {
-  //         console.error("Scan error:", error);
-  //         return;
-  //       }
-  //       if (device) {
-  //         setAvailableDevices((prevDevices) => {
-  //           if (!prevDevices.find((d) => d.id === device.id)) {
-  //             return [...prevDevices, device];
-  //           }
-  //           return prevDevices;
-  //         });
-  //       }
-  //     });
-  //   } catch (error) {
-  //     console.error("Scan error:", error);
-  //     Alert.alert("Error", "Failed to start scanning");
-  //   }
-  // };
-
-  // Update handleDeviceSelection to handle both KOT and receipt printing the same way
-  const handleDeviceSelection = async (device) => {
     try {
-      setIsConnecting(true);
-      setConnectionStatus("Connecting...");
+      // Request permissions first
+      const hasPermissions = await requestPermissions();
+      if (!hasPermissions) {
+        Alert.alert(
+          "Permission Required",
+          "Bluetooth permission is needed to connect to printer",
+          [{ text: "OK" }]
+        );
+        return;
+      }
 
-      const connectedDevice = await device.connect();
-      const discoveredDevice = await connectedDevice.discoverAllServicesAndCharacteristics();
-
-      setPrinterDevice(discoveredDevice);
-      setIsConnected(true);
-      setConnectionStatus("Connected successfully!");
-
-      // Add disconnect listener
-      device.onDisconnected((error, disconnectedDevice) => {
-        setIsConnected(false);
-        setPrinterDevice(null);
-        setConnectionStatus("Printer disconnected");
-      });
-
-      // After successful connection, try printing based on the current action
-      setTimeout(async () => {
-        setIsModalVisible(false);
-        setConnectionStatus("");
-        
-        // Check which action triggered the connection and print accordingly
-        if (loadingMessage === "Processing KOT...") {
-          await printKOT();
-        } else if (loadingMessage === "Printing...") {
-          await printReceipt();
-        }
-      }, 1500);
-
+      setIsLoading(true);
+      setLoadingMessage("Scanning for printers...");
+      
+      // Show modal before starting scan
+      setAvailableDevices([]);
+      setIsModalVisible(true);
+      
+      // Use the context's scan function instead
+      await contextScanForPrinters();
+      
     } catch (error) {
-      console.error("Connection error:", error);
-      setConnectionStatus("Connection failed");
-      Alert.alert("Error", "Failed to connect to printer. Please try again.");
+      console.error("Scan error:", error);
+      Alert.alert(
+        "Connection Error",
+        "Unable to scan for printers. Please try again.",
+        [{ text: "OK" }]
+      );
     } finally {
-      setIsConnecting(false);
+      setIsLoading(false);
+      setLoadingMessage("");
     }
   };
 
-  // Update the sendToDevice function
-  const sendToDevice = async (commands, device, isConnected) => {
+  // Request necessary permissions
+  const requestPermissions = async () => {
+    if (Platform.OS === "android") {
+      try {
+        if (Platform.Version >= 31) {
+          // Android 12 or higher
+          const results = await Promise.all([
+            PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
+            ),
+            PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
+            ),
+            PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+            ),
+          ]);
+          return results.every(
+            (result) => result === PermissionsAndroid.RESULTS.GRANTED
+          );
+        } else {
+          const result = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+          );
+          return result === PermissionsAndroid.RESULTS.GRANTED;
+        }
+      } catch (error) {
+        console.error("Permission request error:", error);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Add device selection handler
+  const handleDeviceSelection = async (device) => {
     try {
-      if (!device || !isConnected) {
+      setConnectionStatus("Connecting...");
+      bleManager?.stopDeviceScan();
+      setIsScanning(false);
+
+      // Attempt to connect to the printer
+      await contextConnectPrinter(device);
+
+      // Check if the connection was successful
+      if (printerConnected && contextPrinterDevice) {
+        setConnectionStatus("Connected successfully!");
+        setPrinterDevice(contextPrinterDevice);
+        setIsConnected(true);
+
+        // Show success message and close modal after delay
+        setTimeout(() => {
+          setIsModalVisible(false);
+          setConnectionStatus("");
+          bleManager?.stopDeviceScan();
+        }, 2000);
+      } else {
+        setConnectionStatus("Connection failed. Please try again.");
+        setIsConnected(false);
+        setPrinterDevice(null);
+      }
+    } catch (error) {
+      console.error("Device selection error:", error);
+      setConnectionStatus("Connection failed. Please try again.");
+      setIsConnected(false);
+      setPrinterDevice(null);
+
+      // Restart scanning on failure
+      setTimeout(() => {
+        scanForPrinters();
+      }, 1000);
+    }
+  };
+
+  // Update the connectToPrinter function to maintain connection
+  const connectToPrinter = async (device) => {
+    try {
+      console.log("Attempting to connect to:", device.name);
+      setLoadingMessage(`Connecting to ${device.name}...`);
+      setIsLoading(true);
+
+      const connectedDevice = await device.connect({
+        // Add these options to maintain connection
+        requestMTU: 512,
+        autoConnect: true,
+      });
+
+      // Monitor connection state
+      device.onDisconnected((error, disconnectedDevice) => {
+        if (!isDisconnecting) {
+          console.log("Unexpected disconnect, attempting to reconnect...");
+          // Attempt to reconnect
+          connectToPrinter(device).catch(console.error);
+        }
+      });
+
+      console.log("Connected to device");
+      setLoadingMessage("Discovering services...");
+      const discoveredDevice =
+        await connectedDevice.discoverAllServicesAndCharacteristics();
+      setPrinterDevice(discoveredDevice);
+      setIsConnected(true);
+      setIsLoading(false);
+      setLoadingMessage("");
+    } catch (error) {
+      console.error("Connection error:", error);
+      setIsLoading(false);
+      setLoadingMessage("");
+      Alert.alert(
+        "Connection Failed",
+        `Failed to connect to ${device.name}: ${error.message}`
+      );
+    }
+  };
+
+  // Update the sendToDevice function to handle both types of calls
+  const sendToDevice = async (commands) => {
+    try {
+      console.log("Sending to device, total bytes:", commands.length);
+      
+      // Use the context printer device and connection state if no specific device provided
+      const device = printerDevice;
+      const connected = isConnected;
+      
+      if (!device || !connected) {
         throw new Error("No printer connected");
       }
 
@@ -2009,90 +2294,56 @@ const handleSettlePaymentConfirm = async () => {
         throw new Error("Printer characteristic not found");
       }
 
-      // Send data in chunks with retry mechanism
-      const CHUNK_SIZE = 20;
+      // Send data in chunks with optimized delays for better speed
+      const CHUNK_SIZE = 150; // Increased from 20 to 150
       for (let i = 0; i < commands.length; i += CHUNK_SIZE) {
-        const chunk = commands.slice(i, Math.min(i + CHUNK_SIZE, commands.length));
+        if (!connected) {
+          throw new Error("Printer connection lost during transmission");
+        }
+
+        const chunk = commands.slice(
+          i,
+          Math.min(i + CHUNK_SIZE, commands.length)
+        );
         const base64Data = base64.encode(String.fromCharCode(...chunk));
 
-        // Add retry logic
-        let retries = 3;
-        while (retries > 0) {
-          try {
-            await printCharacteristic.writeWithoutResponse(base64Data);
-            break;
-          } catch (error) {
-            retries--;
-            if (retries === 0) throw error;
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          }
-        }
-        // Add delay between chunks
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-      return true;
-    } catch (error) {
-      console.error("Send to printer error:", error);
-      throw error;
-    }
-  };
-
-  // Add enhanced permission checking
-  const requestPermissions = async (bleManager) => {
-    try {
-      const state = await bleManager.state();
-      if (state !== "PoweredOn") {
-        Alert.alert(
-          "Bluetooth Required",
-          "Please enable Bluetooth to connect to printer",
-          [
-            {
-              text: "Open Settings",
-              onPress: () => Linking.openSettings(),
-            },
-            { text: "Cancel", style: "cancel" },
-          ]
-        );
-        return false;
+        await printCharacteristic.writeWithoutResponse(base64Data);
+        // Reduced delay between chunks to speed up printing
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
-      if (Platform.OS === "android") {
-        if (Platform.Version >= 31) {
-          const results = await Promise.all([
-            PermissionsAndroid.request(
-              PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
-            ),
-            PermissionsAndroid.request(
-              PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
-            ),
-            PermissionsAndroid.request(
-              PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-            ),
-          ]);
-          return results.every(
-            (result) => result === PermissionsAndroid.RESULTS.GRANTED
-          );
-        } else {
-          const result = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-          );
-          return result === PermissionsAndroid.RESULTS.GRANTED;
-        }
-      }
+      // Reduced final delay while still ensuring all data is processed
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      console.log("All data sent successfully");
       return true;
     } catch (error) {
-      console.error("Permission request error:", error);
-      return false;
+      console.error("Send to device error:", error);
+      throw new Error(`Failed to send data to device: ${error.message}`);
     }
   };
-  
-  
 
   // Update the printReceipt function
   const printReceipt = async () => {
     try {
-      if (!printerDevice || !isConnected) {
-        throw new Error("No printer connected");
+      // First check if a printer is connected before attempting to print
+      if (!printerConnected || !contextPrinterDevice) {
+        console.log("No printer connected. Navigating to printer management.");
+        Alert.alert(
+          "Printer Not Connected",
+          "Please connect a printer to print the receipt.",
+          [
+            {
+              text: "Connect Printer",
+              onPress: () => router.navigate("profile/PrinterManagement")
+            },
+            {
+              text: "Cancel",
+              style: "cancel"
+            }
+          ]
+        );
+        return; // Stop execution if no printer is connected
       }
 
       // Get outlet details
@@ -2166,10 +2417,24 @@ const handleSettlePaymentConfirm = async () => {
         ...textToBytes("\x1D\x56\x42\x40") // Cut paper
       );
 
-      // Send to printer
-      await sendToDevice(receiptData, printerDevice, isConnected);
+      // Use the context's sendDataToPrinter function to send data
+      try {
+        console.log("Sending data to printer...");
+        await sendDataToPrinter(receiptData);
+        console.log("Print successful");
+        return true; // Return true on successful print
+      } catch (printError) {
+        console.error("Print error:", printError);
+        throw new Error(`Failed to print: ${printError.message}`);
+      }
     } catch (error) {
       console.error("Print receipt error:", error);
+      toast.show({
+        description: `Failed to print: ${error.message}`,
+        status: "error",
+        duration: 3000,
+        placement: "bottom",
+      });
       throw error;
     }
   };
@@ -2315,8 +2580,24 @@ const handleSettlePaymentConfirm = async () => {
   // Add the printKOT function
   const printKOT = async () => {
     try {
-      if (!printerDevice || !isConnected) {
-        throw new Error("No printer connected");
+      // First check if a printer is connected before attempting to print
+      if (!printerConnected || !contextPrinterDevice) {
+        console.log("No printer connected. Navigating to printer management.");
+        Alert.alert(
+          "Printer Not Connected",
+          "Please connect a printer to print the KOT.",
+          [
+            {
+              text: "Connect Printer",
+              onPress: () => router.navigate("profile/PrinterManagement")
+            },
+            {
+              text: "Cancel",
+              style: "cancel"
+            }
+          ]
+        );
+        return; // Stop execution if no printer is connected
       }
 
       // Generate and send commands for thermal printer
@@ -2345,10 +2626,24 @@ const handleSettlePaymentConfirm = async () => {
         ...textToBytes("\x1D\x56\x41\x10"), // Cut paper
       ];
 
-      // Send commands to printer
-      await sendToDevice(commands, printerDevice, isConnected);
+      // Send commands to printer using the context function
+      try {
+        console.log("Sending KOT data to printer...");
+        await sendDataToPrinter(commands);
+        console.log("KOT print successful");
+        return true;
+      } catch (printError) {
+        console.error("KOT print error:", printError);
+        throw new Error(`Failed to print KOT: ${printError.message}`);
+      }
     } catch (error) {
       console.error("Thermal print error:", error);
+      toast.show({
+        description: `Failed to print KOT: ${error.message}`,
+        status: "error",
+        duration: 3000,
+        placement: "bottom",
+      });
       throw error;
     }
   };
@@ -2432,7 +2727,7 @@ const handleSettlePaymentConfirm = async () => {
       }
 
       const isUpdate = !params?.isSpecialOrder && params?.orderId && params?.isOccupied === "1";
-      const endpoint = isUpdate ? `${getBaseUrl()}/update_order` : `${getBaseUrl()}/create_order`;
+      const endpoint = isUpdate ? `${baseUrl}/update_order` : `${baseUrl}/create_order`;
 
       if (isUpdate) {
         orderData.order_id = params.orderId.toString();
@@ -2511,7 +2806,7 @@ const handleSettlePaymentConfirm = async () => {
         return;
       }
 
-      const response = await fetchWithAuth(`${getBaseUrl()}/force_cancel_order`, {
+      const response = await fetchWithAuth(`${baseUrl}/force_cancel_order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3072,7 +3367,7 @@ const handleSettlePaymentConfirm = async () => {
                         calculateTotalAfterDiscounts(selectedItems, specialDiscount) + parseFloat(extraCharges || 0),
                         serviceChargePercentage
                       ).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Service ({serviceChargePercentage}%)</Text>
+                      <Text fontSize="xs" color="gray.500">Services ({serviceChargePercentage}%)</Text>
                     </VStack>
 
                     <VStack flex={1} alignItems="center">
