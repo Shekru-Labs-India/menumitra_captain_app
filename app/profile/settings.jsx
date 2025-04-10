@@ -28,6 +28,8 @@ export default function SettingsScreen() {
   const toast = useToast();
   const { colorMode, toggleColorMode } = useColorMode();
   const [isLoading, setIsLoading] = useState(true);
+  const [isPrinterConnected, setIsPrinterConnected] = useState(false);
+  const [printerDevice, setPrinterDevice] = useState(null);
   
   const [settings, setSettings] = useState({
     theme: "system",
@@ -233,6 +235,11 @@ export default function SettingsScreen() {
     updateSetting(feature, !settings.orderManagement[feature]);
   };
 
+  // Add printer navigation handler
+  const handlePrinterPress = () => {
+    router.push("/profile/PrinterManagement");
+  };
+
   // Settings section component with icon
   const SettingsSection = ({ title, description, icon, iconColor = "blue.400", children }) => (
     <Box bg="white" rounded="xl" shadow={1} mx={4} mb={4} overflow="hidden">
@@ -395,6 +402,51 @@ export default function SettingsScreen() {
       </HStack>
 
       <ScrollView showsVerticalScrollIndicator={false} _contentContainerStyle={{ py: 4 }}>
+        {/* Printer Section */}
+        <Pressable onPress={handlePrinterPress}>
+          <Box bg="white" rounded="xl" shadow={1} mx={4} mb={4} overflow="hidden">
+            <HStack space={3} p={4} alignItems="center">
+              <Box position="relative">
+                <Icon
+                  as={MaterialIcons}
+                  name="print"
+                  size={7}
+                  color={isPrinterConnected ? "green.600" : "coolGray.500"}
+                />
+                {isPrinterConnected && (
+                  <Box
+                    position="absolute"
+                    bottom={0}
+                    right={0}
+                    w={2}
+                    h={2}
+                    bg="green.500"
+                    rounded="full"
+                    borderWidth={2}
+                    borderColor="white"
+                  />
+                )}
+              </Box>
+              <VStack flex={1}>
+                <Text fontSize="sm" fontWeight="medium" color="coolGray.800">
+                  {isPrinterConnected ? "Printer Connected" : "Printer Not Connected"}
+                </Text>
+                <Text fontSize="xs" color="coolGray.500">
+                  {isPrinterConnected
+                    ? `Connected to: ${printerDevice?.name || "Unknown Device"}`
+                    : "Tap to connect a printer"}
+                </Text>
+              </VStack>
+              <Icon
+                as={MaterialIcons}
+                name="chevron-right"
+                size={6}
+                color="coolGray.400"
+              />
+            </HStack>
+          </Box>
+        </Pressable>
+
         {/* Appearance */}
         <SettingsSection 
           title="Appearance" 
