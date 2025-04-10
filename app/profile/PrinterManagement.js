@@ -48,14 +48,14 @@ const DeviceItem = React.memo(({ item, printerDevice, onPress }) => (
     >
       <HStack justifyContent="space-between" alignItems="center">
         <VStack flex={1}>
-          <Text fontSize="md" fontWeight="semibold" color="coolGray.800">
-            {item.name || 'Unknown Device'}
-          </Text>
-          <Text fontSize="xs" color="coolGray.500">
-            {item.id}
-          </Text>
+          <Text fontSize="md" fontWeight="semibold" color="coolGray.800" isTruncated>
+        {item.name || 'Unknown Device'}
+      </Text>
+          <Text fontSize="xs" color="coolGray.500" isTruncated>
+        {item.id}
+      </Text>
         </VStack>
-        {printerDevice?.id === item.id && (
+    {printerDevice?.id === item.id && (
           <HStack 
             space={1} 
             bg="green.100" 
@@ -76,7 +76,15 @@ const DeviceItem = React.memo(({ item, printerDevice, onPress }) => (
       </HStack>
     </Box>
   </Pressable>
-));
+), (prevProps, nextProps) => {
+  // Custom comparison for React.memo to prevent unnecessary rerenders
+  return (
+    prevProps.item.id === nextProps.item.id &&
+    (prevProps.printerDevice?.id === nextProps.printerDevice?.id) &&
+    (prevProps.item.id === prevProps.printerDevice?.id) === 
+    (nextProps.item.id === nextProps.printerDevice?.id)
+  );
+});
 
 const PrinterManagement = () => {
   const router = useRouter();
@@ -99,7 +107,7 @@ const PrinterManagement = () => {
   } = usePrinter();
   
   const [refreshing, setRefreshing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [retryCount, setRetryCount] = useState(0);
   const [connectionAttempted, setConnectionAttempted] = useState(false);
@@ -228,23 +236,25 @@ const PrinterManagement = () => {
           return;
         } else {
           setIsLoading(false);
-          Alert.alert(
-            "Bluetooth Error",
-            "Please restart the app and try again.",
-            [{ text: "OK" }]
-          );
+          toast.show({
+            description: "Bluetooth Error. Please restart the app and try again.",
+            status: "error",
+            placement: "bottom",
+            duration: 3000
+          });
           return;
         }
       }
       
-      // 2. Request permissions using simpler approach from OrderCreate
+      // 2. Request permissions
       const hasPermissions = await requestPermissions();
       if (!hasPermissions) {
-        Alert.alert(
-          "Permission Required",
-          "Bluetooth permission is needed to connect to printer",
-          [{ text: "OK" }]
-        );
+        toast.show({
+          description: "Bluetooth permission is needed to connect to printer",
+          status: "warning",
+          placement: "bottom",
+          duration: 3000
+        });
         setIsLoading(false);
         return;
       }
@@ -395,21 +405,27 @@ const PrinterManagement = () => {
       } catch (error) {
         console.error("Error starting scan:", error);
         setIsScanning(false);
-        Alert.alert(
-          "Scan Error",
-          "Unable to scan for devices. Please try again.",
-          [{ text: "OK" }]
-        );
+        toast.show({
+          description: "Unable to scan for devices. Please try again.",
+          status: "error",
+          placement: "bottom",
+          duration: 3000
+        });
       }
     } catch (error) {
       console.error("Error during setup:", error);
-      Alert.alert("Error", "Failed to prepare for scanning");
+      toast.show({
+        description: "Failed to prepare for scanning",
+        status: "error", 
+        placement: "bottom",
+        duration: 3000
+      });
       setIsLoading(false);
       setIsScanning(false);
     }
   };
 
-  // Simplified permission request function from OrderCreate
+  // Simplified permission request function
   const requestPermissions = async () => {
     if (Platform.OS === "android") {
       try {
@@ -479,7 +495,12 @@ const PrinterManagement = () => {
       }
     } catch (error) {
       console.error("Scan error:", error);
-      Alert.alert("Error", "Failed to scan for printers");
+      toast.show({
+        description: "Failed to scan for printers",
+        status: "error",
+        placement: "bottom",
+        duration: 3000
+      });
     } finally {
       setRefreshing(false);
     }
@@ -589,7 +610,7 @@ const PrinterManagement = () => {
     }
   };
 
-  // Replace showToast function to use NativeBase toast
+  // Show toast using NativeBase toast
   const showToast = (message) => {
     toast.show({
       description: message,
@@ -687,9 +708,9 @@ const PrinterManagement = () => {
                 color="orange.500" 
               />
               <Text>
-                The printer "{lastConnectedDevice?.name || 'Unknown'}" has been disconnected.
-                Would you like to try reconnecting?
-              </Text>
+            The printer "{lastConnectedDevice?.name || 'Unknown'}" has been disconnected.
+            Would you like to try reconnecting?
+          </Text>
             </VStack>
           </Modal.Body>
           <Modal.Footer>
@@ -702,8 +723,8 @@ const PrinterManagement = () => {
               </Button>
               <Button 
                 colorScheme="blue" 
-                onPress={handleReconnectFromPopup}
-              >
+              onPress={handleReconnectFromPopup}
+            >
                 Reconnect
               </Button>
             </Button.Group>
@@ -735,7 +756,7 @@ const PrinterManagement = () => {
       <StatusBar barStyle={colorMode === "dark" ? "light-content" : "dark-content"} />
       
       <Header title="Printer Management" />
-
+      
       {isLoading && (
         <Center flex={1} bg="rgba(255, 255, 255, 0.9)" position="absolute" w="full" h="full" zIndex={999}>
           <Spinner size="lg" color="blue.500" />
@@ -761,10 +782,10 @@ const PrinterManagement = () => {
                   {isConnected ? "Connected" : "Not Connected"}
                 </Text>
                 <Text fontSize="sm" color="coolGray.500">
-                  {isConnected 
-                    ? `Connected to: ${printerDevice?.name || 'Unknown Printer'}` 
-                    : 'No printer connected'}
-                </Text>
+          {isConnected 
+            ? `Connected to: ${printerDevice?.name || 'Unknown Printer'}` 
+            : 'No printer connected'}
+        </Text>
               </VStack>
             </HStack>
           </Box>
@@ -773,7 +794,7 @@ const PrinterManagement = () => {
           <Box bg="white" p={4} rounded="lg" shadow={1}>
             <HStack justifyContent="space-between" alignItems="center">
               <Text fontSize="md">Auto-reconnect on startup</Text>
-              <Switch
+        <Switch
                 isChecked={autoReconnect}
                 onToggle={handleAutoReconnectChange}
                 colorScheme="green"
@@ -782,12 +803,12 @@ const PrinterManagement = () => {
           </Box>
 
           {/* Search and Device List */}
-          {!isConnected && (
+      {!isConnected && (
             <VStack space={4}>
               <Input
                 placeholder="Search printers..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
                 InputLeftElement={
                   <Icon
                     as={MaterialIcons}
@@ -801,7 +822,7 @@ const PrinterManagement = () => {
                   searchQuery ? (
                     <IconButton
                       icon={<Icon as={MaterialIcons} name="close" size={5} color="coolGray.400" />}
-                      onPress={() => setSearchQuery("")}
+                onPress={() => setSearchQuery("")}
                     />
                   ) : null
                 }
@@ -826,25 +847,25 @@ const PrinterManagement = () => {
                 />
               </HStack>
 
-              {isScanning && (
+          {isScanning && (
                 <HStack space={2} justifyContent="center" p={2} bg="blue.50" rounded="md">
                   <Spinner size="sm" color="blue.500" />
                   <Text color="blue.600">Scanning for printers...</Text>
                 </HStack>
-              )}
+          )}
 
-              <FlatList
-                data={filteredDevices}
-                keyExtractor={(item) => item.id}
+          <FlatList
+            data={filteredDevices}
+            keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <DeviceItem
+              <DeviceItem 
                     item={item}
-                    printerDevice={printerDevice}
-                    onPress={handleConnect}
-                  />
-                )}
-                ListEmptyComponent={
-                  !isScanning && (
+                printerDevice={printerDevice} 
+                onPress={handleConnect} 
+              />
+            )}
+            ListEmptyComponent={
+              !isScanning && (
                     <Center py={10}>
                       <Icon 
                         as={MaterialIcons}
@@ -854,12 +875,12 @@ const PrinterManagement = () => {
                       />
                       <Text fontSize="lg" fontWeight="medium" color="coolGray.400" mt={4}>
                         {searchQuery ? "No matching printers" : "No printers found"}
-                      </Text>
+                  </Text>
                       <Text fontSize="sm" color="coolGray.500" mt={1}>
                         {searchQuery 
                           ? "Try a different search term"
                           : "Make sure your printer is turned on and in range"}
-                      </Text>
+                  </Text>
                       <Button
                         mt={4}
                         onPress={searchQuery ? () => setSearchQuery("") : handleScan}
@@ -868,14 +889,16 @@ const PrinterManagement = () => {
                         {searchQuery ? "Clear Search" : "Scan Again"}
                       </Button>
                     </Center>
-                  )
-                }
+              )
+            }
+            refreshing={refreshing}
+            onRefresh={handleScan}
               />
             </VStack>
           )}
 
           {/* Connected Printer Details */}
-          {isConnected && (
+      {isConnected && (
             <Box bg="white" p={6} rounded="lg" shadow={1} alignItems="center">
               <Icon 
                 as={MaterialIcons}
@@ -890,10 +913,13 @@ const PrinterManagement = () => {
               <Text fontSize="sm" color="coolGray.500" mb={6}>
                 {printerDevice?.id}
               </Text>
+              <Text fontSize="md" color="green.600" mb={4}>
+                Status: Connected
+              </Text>
               <Button
                 colorScheme="red"
                 leftIcon={<Icon as={MaterialIcons} name="close" size={5} />}
-                onPress={handleDisconnect}
+              onPress={handleDisconnect}
                 width="full"
               >
                 Disconnect Printer
