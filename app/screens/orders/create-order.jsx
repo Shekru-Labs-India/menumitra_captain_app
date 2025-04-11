@@ -210,27 +210,29 @@ export default function CreateOrderScreen() {
   const router = useRouter();
   const toast = useToast();
   const isFocused = useIsFocused();
-  const baseUrl = getBaseUrl();
   
-  // Initialize BLE Manager for Bluetooth printing
-  const [bleManager] = useState(() => {
-    if (Platform.OS === "web") return null;
-    if (Constants.appOwnership === "expo") {
-      console.log("BLE requires development build");
-      return null;
-    }
-    return new BleManager();
-  });
-  
-  // Destructure printer context values and functions
+  // Add printer context integration
   const {
-    printerDevice: contextPrinterDevice,
     isConnected: printerConnected,
+    printerDevice: contextPrinterDevice,
     connectToPrinter: contextConnectPrinter,
-    sendDataToPrinter,
-    scanForPrinters: contextScanForPrinters,
+    sendDataToPrinter
   } = usePrinter();
   
+  // Show printer connection status when focused
+  useEffect(() => {
+    if (isFocused && printerConnected && contextPrinterDevice) {
+      console.log("Printer connected:", contextPrinterDevice?.id);
+      toast.show({
+        description: "Printer connected and ready",
+        placement: "top",
+        duration: 2000,
+      });
+    }
+  }, [isFocused, printerConnected, contextPrinterDevice]);
+  
+  // State variables
+
   // Keep all existing states
   const [loading, setLoading] = useState(false);
   const [outletId, setOutletId] = useState(null);
@@ -487,236 +489,161 @@ export default function CreateOrderScreen() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("CASH");
   const [isPaidChecked, setIsPaidChecked] = useState(false);
 
-  const handleKOT = async (modalPaymentMethod = null) => {
-    try {
-      if (selectedItems.length === 0) {
-        Alert.alert("Error", "Please add items to cart before generating KOT");
-        return;
-      }
-
-      // First check if printer is connected
-      if (!printerConnected || !contextPrinterDevice) {
-        console.log("No printer connected. Navigating to printer management.");
-        Alert.alert(
-          "Printer Not Connected",
-          "Please connect a printer to print the KOT.",
-          [
-            {
-              text: "Connect Printer",
-              onPress: () => router.navigate("profile/PrinterManagement")
+  const handleKOT = async () => {
+    if (selectedItems.length === 0) {
+      Alert.alert("Error", "Please add items to cart before creating KOT");
+      return;
+    }
+    
+    // Check printer connection first before proceeding to payment modal
+    if (!printerConnected || !contextPrinterDevice) {
+      Alert.alert(
+        "Printer Not Connected",
+        "You need to connect to a printer before printing KOT.",
+        [
+          {
+            text: "Connect Printer",
+            onPress: () => {
+              router.push("/profile/PrinterManagement");
             },
-            {
-              text: "Cancel",
-              style: "cancel"
-            }
-          ]
-        );
-        return;
-      }
+          },
+          {
+            text: "Continue Anyway",
+            onPress: () => {
+              // Continue with payment modal anyway
+              setShowPaymentModal(true);
+            },
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+        ]
+      );
+      return;
+    }
+    
+    // Show payment modal if printer is connected
+    setShowPaymentModal(true);
+  };
 
-      setIsLoading(true);
-      setLoadingMessage("Processing order...");
+  // Add this new function to handle payment confirmation
+  const handlePaymentConfirm = async () => {
+    try {
+      setIsProcessing(true);
+      setLoadingMessage("Processing KOT...");
+      setShowPaymentModal(false);
 
-      const [restaurantId, userId, accessToken] = await Promise.all([
-        getRestaurantId(),
-        getUserId(),
-        AsyncStorage.getItem("access_token"),
-      ]);
+      const isExpoGo = Constants.executionEnvironment === "storeClient";
+      const isWeb = Platform.OS === "web";
 
-      const orderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id.toString(),
-        quantity: item.quantity.toString(),
-        comment: item.specialInstructions || "",
-        half_or_full: (item.portionSize || "full").toLowerCase(),
-        price: item.price?.toString() || "0",
-        total_price: item.total_price?.toString() || "0",
-      }));
-
-      // Determine payment status based on complementary and paid checkboxes
-      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
-      
-      // Use the payment method passed from the modal if available,
-      // otherwise fall back to the one selected in the main screen
-      const effectivePaymentMethod = modalPaymentMethod || paymentMethod;
-
-      // Base request body
-      const baseRequestBody = {
-        user_id: userId.toString(),
-        outlet_id: restaurantId.toString(),
-        order_type: params?.orderType || "dine-in",
-        order_items: orderItems,
-        grand_total: orderItems
-          .reduce((sum, item) => sum + (parseFloat(item.total_price) || 0), 0)
-          .toString(),
-        action: "settle",
-        is_paid: paymentStatus,
-        payment_method: isPaid ? effectivePaymentMethod : "", // Use the effective payment method
-        special_discount: safeNumberToString(specialDiscount),
-        charges: safeNumberToString(extraCharges),
-        tip: safeNumberToString(tip),
-        customer_name: customerDetails.customer_name || "",
-        customer_mobile: customerDetails.customer_mobile || "",
-        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-        customer_address: customerDetails.customer_address || "",
-        customer_landmark: customerDetails.customer_landmark || "",
-      };
-      
-      let apiResponse;
-      let apiError = null;
-
-      try {
-        // For existing orders
-        if (params?.orderId) {
-          // First update the order
-          const updateRequestBody = {
-            ...baseRequestBody,
-            order_id: params.orderId.toString(),
-            ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
-              tables: [params.tableNumber.toString()],
-              section_id: params.sectionId.toString(),
-            }),
-            // Remove is_paid parameter from this call to avoid duplicate status entries
-            is_paid: null
-          };
-
-          const updateResponse = await fetchWithAuth(
-            `${baseUrl}/update_order`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(updateRequestBody),
-            }
-          );
-
-          if (updateResponse.st !== 1) {
-            throw new Error(updateResponse.msg || "Failed to update order");
-          }
-
-          // Then update status
-          const statusRequestBody = {
-            outlet_id: restaurantId.toString(),
-            order_id: params.orderId.toString(),
-            order_status: isPaid ? "paid" : (orderDetails?.order_status || existingOrderDetails?.order_status || "placed"),
-            user_id: userId.toString(),
-            action: "settle",
-            order_type: params?.orderType || "dine-in",
-            is_paid: paymentStatus,
-            payment_method: isPaid ? effectivePaymentMethod : "",
-            // Include customer details here as well
-            customer_name: customerDetails.customer_name || "",
-            customer_mobile: customerDetails.customer_mobile || "",
-            customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-            customer_address: customerDetails.customer_address || "",
-            customer_landmark: customerDetails.customer_landmark || "",
-            ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
-              tables: [params.tableNumber.toString()],
-              section_id: params.sectionId.toString(),
-            }),
-          };
-
-          const statusResponse = await fetchWithAuth(
-            `${baseUrl}/update_order_status`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(statusRequestBody),
-            }
-          );
-
-          if (statusResponse.st !== 1) {
-            throw new Error(statusResponse.msg || "Failed to update order status");
-          }
-
-          apiResponse = updateResponse;
+      if (isExpoGo || isWeb) {
+        const html = generateKOTHTML();
+        await Print.printAsync({
+          html,
+          orientation: "portrait",
+        });
+      } else {
+        if (printerConnected && contextPrinterDevice) {
+          await printKOT();
         } else {
-          // For new orders
-          const createRequestBody = {
-            ...baseRequestBody,
-            ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
-              tables: [params.tableNumber.toString()],
-              section_id: params.sectionId.toString(),
-            }),
-          };
-
-          const response = await fetchWithAuth(
-            `${baseUrl}/create_order`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(createRequestBody),
-            }
+          // If printer is not connected, offer to go to printer settings
+          Alert.alert(
+            "Printer Not Connected",
+            "Would you like to connect to a printer?",
+            [
+              {
+                text: "Go to Printer Settings",
+                onPress: () => {
+                  router.push("/profile/PrinterManagement");
+                },
+              },
+              {
+                text: "Continue Without Printing",
+                onPress: () => {
+                  // Continue with order processing without printing
+                  console.log("Continuing without printing KOT");
+                },
+              },
+              {
+                text: "Cancel",
+                style: "cancel",
+              },
+            ]
           );
-
-          if (response.st !== 1) {
-            throw new Error(response.msg || "Failed to create order");
-          }
-
-          apiResponse = response;
-        }
-      } catch (error) {
-        console.error("API error in handleKOT:", error);
-        apiError = error;
-        throw error;
-      }
-
-      // Continue with KOT printing logic
-      if (apiResponse && apiResponse.st === 1) {
-        setLoadingMessage("Processing KOT...");
-
-        try {
-          // Generate KOT commands
-          const kotCommands = await generateKOTCommands(apiResponse);
-          
-          // Use sendToDevice directly
-          await sendDataToPrinter(kotCommands);
-          
-          toast.show({
-            description: "KOT printed successfully",
-            status: "success",
-            duration: 3000,
-            placement: "bottom",
-          });
-          
-          setSelectedItems([]);
-          router.replace({
-            pathname: "/(tabs)/tables",
-            params: { 
-              refresh: Date.now().toString()
-            }
-          });
-        } catch (printError) {
-          console.error("KOT print error:", printError);
-          
-          // Still show the order was created even if printing failed
-          if (!apiError) {
-            toast.show({
-              description: "Order created but printing failed. Please try printing again.",
-              status: "warning",
-              duration: 5000,
-              placement: "bottom",
-            });
-            
-            // Still navigate back since the order was created successfully
-            setSelectedItems([]);
-            router.replace({
-              pathname: "/(tabs)/tables",
-              params: { 
-                refresh: Date.now().toString()
-              }
-            });
-          } else {
-            throw new Error(`Failed to print KOT: ${printError.message}`);
-          }
+          return; // Exit early if printer is not connected
         }
       }
-    } catch (error) {
-      console.error("KOT error:", error);
+
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      const settleRequestBody = {
+        outlet_id: outletId.toString(),
+        order_id: orderId.toString(),
+        order_status: isPaidChecked ? "paid" : "unpaid",
+        payment_method: selectedPaymentMethod,
+        user_id: storedUserId.toString(),
+      };
+
+      const settleResult = await fetchWithAuth(
+        `${getBaseUrl()}/update_order_status`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(settleRequestBody),
+        }
+      );
+
+      if (settleResult.st !== 1) {
+        throw new Error(settleResult.msg || "Failed to update payment status");
+      }
+
+      // Show success toast when everything worked
       toast.show({
-        description: `Failed to process KOT: ${error.message}`,
-        status: "error",
+        description: "KOT printed successfully",
+        status: "success",
         duration: 3000,
         placement: "bottom",
       });
+
+      // Clear states and navigate to tables screen
+      setSelectedItems([]);
+      setOrderDetails({});
+      setServiceCharges(0);
+      setGstAmount(0);
+      setDiscountAmount(0);
+
+      // Navigate to tables screen
+      router.replace({
+        pathname: "/(tabs)/tables",
+        params: {
+          refresh: Date.now().toString()
+        }
+      });
+
+    } catch (error) {
+      console.error("KOT error:", error);
+      
+      // Check if error is related to printer connection
+      if (error.message?.includes("printer") || !printerConnected || !contextPrinterDevice) {
+        Alert.alert(
+          "Printer Connection Error",
+          "Failed to print KOT. Would you like to check your printer connection?",
+          [
+            {
+              text: "Go to Printer Settings",
+              onPress: () => {
+                router.push("/profile/PrinterManagement");
+              },
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+          ]
+        );
+      } else {
+        Alert.alert("Error", error.message || "Failed to process KOT");
+      }
     } finally {
       setIsLoading(false);
       setLoadingMessage("");
@@ -799,305 +726,278 @@ export default function CreateOrderScreen() {
       // Wait a moment to ensure state updates are processed
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      setIsLoading(true);
-      setLoadingMessage("Processing order...");
-
-      if (selectedItems.length === 0) {
-        Alert.alert("Error", "Please add items to cart before generating KOT");
+      // Check printer connection first
+      if (!printerConnected || !contextPrinterDevice) {
+        Alert.alert(
+          "Printer Not Connected",
+          "You need to connect to a printer before printing KOT & Save.",
+          [
+            {
+              text: "Connect Printer",
+              onPress: () => {
+                router.push("/profile/PrinterManagement");
+              },
+            },
+            {
+              text: "Continue Anyway",
+              onPress: () => {
+                // Continue with KOT and Save without printing
+                proceedWithKOTAndSave();
+              },
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+          ]
+        );
         return;
       }
-
-      const [storedUserId, storedOutletId] = await Promise.all([
-        AsyncStorage.getItem("user_id"),
-        AsyncStorage.getItem("outlet_id"),
-      ]);
-
-      if (!storedUserId || !storedOutletId) {
-        toast.show({
-          description: "Missing required data. Please try again.",
-          status: "error"
-        });
-        return;
-      }
-
-      const orderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id.toString(),
-        quantity: item.quantity.toString(),
-        comment: item.specialInstructions || "",
-        half_or_full: (item.portionSize || "full").toLowerCase(),
-        price: item.price?.toString() || "0",
-        total_price: item.total_price?.toString() || "0",
-      }));
-
-      // Determine payment status based on complementary and paid checkboxes
-      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
       
-      // Use the selected payment method
-      const effectivePaymentMethod = isPaid ? paymentMethod.toLowerCase() : "";
+      // If printer is connected, proceed with the operation
+      await proceedWithKOTAndSave();
+      
+    } catch (error) {
+      console.error("KOT and Save error:", error);
+      
+      // Check if error is related to printer
+      if (error.message?.includes("printer") || !printerConnected || !contextPrinterDevice) {
+        Alert.alert(
+          "Printer Connection Error",
+          "Failed to print KOT. Would you like to check your printer connection?",
+          [
+            {
+              text: "Go to Printer Settings",
+              onPress: () => {
+                router.push("/profile/PrinterManagement");
+              },
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+          ]
+        );
+      } else {
+        toast.show({
+          description: error.message || "Failed to process order",
+          status: "error",
+          duration: 3000,
+        });
+      }
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage("");
+    }
+  };
 
-      // Base request body for all order types
-      const baseRequestBody = {
-        user_id: storedUserId.toString(),
+  // Helper function to separate the actual KOT and Save logic
+  const proceedWithKOTAndSave = async () => {
+    setIsLoading(true);
+    setLoadingMessage("Processing order...");
+
+    if (selectedItems.length === 0) {
+      Alert.alert("Error", "Please add items to cart before generating KOT");
+      return;
+    }
+
+    const [storedUserId, storedOutletId] = await Promise.all([
+      AsyncStorage.getItem("user_id"),
+      AsyncStorage.getItem("outlet_id"),
+    ]);
+
+    if (!storedUserId || !storedOutletId) {
+      toast.show({
+        description: "Missing required data. Please try again.",
+        status: "error"
+      });
+      return;
+    }
+
+    const orderItems = selectedItems.map((item) => ({
+      menu_id: item.menu_id.toString(),
+      quantity: item.quantity.toString(),
+      comment: item.specialInstructions || "",
+      half_or_full: (item.portionSize || "full").toLowerCase(),
+      price: item.price?.toString() || "0",
+      total_price: item.total_price?.toString() || "0",
+    }));
+
+    // Determine payment status based on complementary and paid checkboxes
+    const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
+    
+    // Use the selected payment method
+    const effectivePaymentMethod = isPaid ? paymentMethod.toLowerCase() : "";
+
+    // Base request body for all order types
+    const baseRequestBody = {
+      user_id: storedUserId.toString(),
+      outlet_id: storedOutletId.toString(),
+      order_type: params?.orderType || "dine-in",
+      order_items: orderItems,
+      grand_total: calculateGrandTotal(
+        selectedItems,
+        specialDiscount,
+        extraCharges,
+        serviceChargePercentage,
+        gstPercentage,
+        tip
+      ).toString(),
+      action: "KOT_and_save",
+      is_paid: paymentStatus,
+      payment_method: effectivePaymentMethod,
+      special_discount: parseFloat(specialDiscount) || 0,
+      charges: parseFloat(extraCharges) || 0,
+      tip: parseFloat(tip) || 0,
+      customer_name: customerDetails.customer_name || "",
+      customer_mobile: customerDetails.customer_mobile || "",
+      customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+      customer_address: customerDetails.customer_address || "",
+      customer_landmark: customerDetails.customer_landmark || "",
+      order_status: "placed"
+    };
+    
+    let apiResponse;
+
+    // For existing orders
+    if (params?.orderId) {
+      const updateRequestBody = {
+        ...baseRequestBody,
+        order_id: params.orderId.toString(),
+        ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+          tables: [params.tableNumber.toString()],
+          section_id: params.sectionId.toString(),
+        }),
+      };
+
+      console.log(
+        "KOT Update Body:",
+        JSON.stringify(updateRequestBody, null, 2)
+      );
+
+      const updateResponse = await fetchWithAuth(
+        `${getBaseUrl()}/update_order`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updateRequestBody),
+        }
+      );
+
+      if (updateResponse.st !== 1) {
+        throw new Error(updateResponse.msg || "Failed to update order");
+      }
+
+      // Then update status
+      const statusRequestBody = {
         outlet_id: storedOutletId.toString(),
-        order_type: params?.orderType || "dine-in",
-        order_items: orderItems,
-        grand_total: calculateGrandTotal(
-          selectedItems,
-          specialDiscount,
-          extraCharges,
-          serviceChargePercentage,
-          gstPercentage,
-          tip
-        ).toString(),
+        order_id: params.orderId.toString(),
+        order_status: "placed", // Changed from "placed" to "served" for cooking orders
+        user_id: storedUserId.toString(),
         action: "KOT_and_save",
+        order_type: params?.orderType || "dine-in",
         is_paid: paymentStatus,
         payment_method: effectivePaymentMethod,
-        special_discount: parseFloat(specialDiscount) || 0,
-        charges: parseFloat(extraCharges) || 0,
-        tip: parseFloat(tip) || 0,
+        // Include customer details
         customer_name: customerDetails.customer_name || "",
         customer_mobile: customerDetails.customer_mobile || "",
         customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
         customer_address: customerDetails.customer_address || "",
         customer_landmark: customerDetails.customer_landmark || "",
-        order_status: "placed"
+        special_discount: parseFloat(specialDiscount) || 0,
+        charges: parseFloat(extraCharges) || 0,
+        tip: parseFloat(tip) || 0,
+        ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
+          tables: [params.tableNumber.toString()],
+          section_id: params.sectionId.toString(),
+        }),
       };
-      
-      let apiResponse;
 
-      // For existing orders
-      if (params?.orderId) {
-        const updateRequestBody = {
-          ...baseRequestBody,
-          order_id: params.orderId.toString(),
-          ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
-            tables: [params.tableNumber.toString()],
-            section_id: params.sectionId.toString(),
-          }),
-        };
+      console.log(
+        "Status Update Body:",
+        JSON.stringify(statusRequestBody, null, 2)
+      );
 
-        console.log(
-          "KOT Update Body:",
-          JSON.stringify(updateRequestBody, null, 2)
-        );
-
-        const updateResponse = await fetchWithAuth(
-          `${baseUrl}/update_order`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updateRequestBody),
-          }
-        );
-
-        if (updateResponse.st !== 1) {
-          throw new Error(updateResponse.msg || "Failed to update order");
+      const statusResponse = await fetchWithAuth(
+        `${getBaseUrl()}/update_order_status`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(statusRequestBody),
         }
+      );
 
-        // Then update status
-        const statusRequestBody = {
-          outlet_id: storedOutletId.toString(),
-          order_id: params.orderId.toString(),
-          order_status: "placed", // Changed from "placed" to "served" for cooking orders
-          user_id: storedUserId.toString(),
-          action: "KOT_and_save",
-          order_type: params?.orderType || "dine-in",
-          is_paid: paymentStatus,
-          payment_method: effectivePaymentMethod,
-          // Include customer details
-          customer_name: customerDetails.customer_name || "",
-          customer_mobile: customerDetails.customer_mobile || "",
-          customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-          customer_address: customerDetails.customer_address || "",
-          customer_landmark: customerDetails.customer_landmark || "",
-          special_discount: parseFloat(specialDiscount) || 0,
-          charges: parseFloat(extraCharges) || 0,
-          tip: parseFloat(tip) || 0,
-          ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
-            tables: [params.tableNumber.toString()],
-            section_id: params.sectionId.toString(),
-          }),
-        };
-
-        console.log(
-          "KOT Status Body:",
-          JSON.stringify(statusRequestBody, null, 2)
-        );
-
-        const statusResponse = await fetchWithAuth(
-          `${baseUrl}/update_order_status`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(statusRequestBody),
-          }
-        );
-
-        if (statusResponse.st !== 1) {
-          throw new Error(statusResponse.msg || "Failed to update order status");
-        }
-
-        apiResponse = updateResponse;
-      } else {
-        // For new orders
-        const createRequestBody = {
-          ...baseRequestBody,
-          order_status: "placed", // Changed from "placed" to "served" for cooking orders
-          ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
-            tables: [params.tableNumber.toString()],
-            section_id: params.sectionId.toString(),
-          }),
-        };
-
-        console.log(
-          "KOT Create Body:",
-          JSON.stringify(createRequestBody, null, 2)
-        );
-
-        const response = await fetchWithAuth(
-          `${baseUrl}/create_order`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(createRequestBody),
-          }
-        );
-
-        if (response.st !== 1) {
-          throw new Error(response.msg || "Failed to create order");
-        }
-
-        // For new orders, update status with the same status
-        const statusRequestBody = {
-          outlet_id: storedOutletId.toString(),
-          order_id: response.order_id.toString(),
-          order_status: "placed",
-          user_id: storedUserId.toString(),
-          action: "KOT_and_save",
-          order_type: params?.orderType || "dine-in",
-          is_paid: paymentStatus,
-          payment_method: effectivePaymentMethod,
-          // Include customer details
-          customer_name: customerDetails.customer_name || "",
-          customer_mobile: customerDetails.customer_mobile || "",
-          customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-          customer_address: customerDetails.customer_address || "",
-          customer_landmark: customerDetails.customer_landmark || "",
-          special_discount: parseFloat(specialDiscount) || 0,
-          charges: parseFloat(extraCharges) || 0,
-          tip: parseFloat(tip) || 0,
-          ...(params?.orderType === "dine-in" && params?.tableId && params?.sectionId && {
-            tables: [params.tableNumber.toString()],
-            section_id: params.sectionId.toString(),
-          }),
-        };
-
-        console.log(
-          "New Order KOT Status Body:",
-          JSON.stringify(statusRequestBody, null, 2)
-        );
-
-        const statusResponse = await fetchWithAuth(
-          `${baseUrl}/update_order_status`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(statusRequestBody),
-          }
-        );
-
-        if (statusResponse.st !== 1) {
-          throw new Error(statusResponse.msg || "Failed to update order status");
-        }
-
-        apiResponse = response;
+      if (statusResponse.st !== 1) {
+        throw new Error(statusResponse.msg || "Failed to update order status");
       }
 
-      // Continue with KOT printing logic
-      if (apiResponse.st === 1) {
-        setLoadingMessage("Processing KOT...");
+      apiResponse = statusResponse;
+    } else {
+      // For new orders
+      let requestBody = { ...baseRequestBody };
 
-        // For new orders, add the order number to the API response
-        if (!params?.orderId) {
-          apiResponse.order_number =
-            apiResponse.order_number || String(apiResponse.order_id);
-        }
-      
-        if (printerDevice && isConnected) {
-          try {
-            // Generate KOT commands for both new and existing orders
-            const kotCommands = await generateKOTCommands(apiResponse);
-            
-            // Use sendToDevice directly like in printReceipt
-            await sendToDevice(kotCommands, printerDevice, isConnected);
-            
-            // Clear selected items and navigate
-            setSelectedItems([]);
-            router.replace({
-              pathname: "/(tabs)/tables",
-              params: { 
-                refresh: Date.now().toString()
-              }
-            });
-          } catch (error) {
-            console.error("KOT print error:", error);
-            // Don't show error alert, just log it and continue
-            console.log("Continuing despite print error");
-          }
-        } else if (Constants.appOwnership === "expo") {
-          try {
-            await Print.printAsync({
-              html: await generateKOTHTML(apiResponse),
-              orientation: "portrait",
-            });
-            // Clear selected items and navigate
-            setSelectedItems([]);
-            router.replace({
-              pathname: "/(tabs)/tables",
-              params: { 
-                refresh: Date.now().toString()
-              }
-            });
-          } catch (error) {
-            console.error("PDF print error:", error);
-            // Don't show error alert, just log it and continue
-            console.log("Continuing despite PDF print error");
-            // Clear selected items and navigate anyway
-            setSelectedItems([]);
-            router.replace({
-              pathname: "/(tabs)/tables",
-              params: { 
-                refresh: Date.now().toString()
-              }
-            });
-          }
-        } else {
-          // Production build options - show printer connection dialog
-          setIsModalVisible(true);
-          scanForPrinters();
-        }
+      // Add table information for dine-in orders
+      if (baseRequestBody.order_type === "dine-in" && params?.tableNumber && params?.sectionId) {
+        requestBody = {
+          ...requestBody,
+          tables: [params.tableNumber.toString()],
+          section_id: params.sectionId.toString(),
+        };
       }
-    } catch (error) {
-      console.error("KOT error:", error);
-      // Show a more user-friendly error message
+
+      console.log("KOT Create Body:", JSON.stringify(requestBody, null, 2));
+
+      const createResponse = await fetchWithAuth(
+        `${getBaseUrl()}/create_order`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (createResponse.st !== 1) {
+        throw new Error(createResponse.msg || "Failed to create order");
+      }
+
+      apiResponse = createResponse;
+    }
+
+    // Print the KOT after successful API call
+    try {
+      if (Platform.OS === "web") {
+        const html = generateKOTHTML();
+        await Print.printAsync({
+          html,
+          orientation: "portrait",
+        });
+      } else if (printerConnected && contextPrinterDevice) {
+        // Pass the API response to the print function
+        await printKOT();
+        
+        toast.show({
+          description: "KOT printed successfully!",
+          status: "success",
+          duration: 3000
+        });
+      }
+    } catch (printError) {
+      console.error("Print error:", printError);
       toast.show({
-        description: "Order saved but there was an issue with printing. You can try printing again later.",
+        description: "Order saved but there was an issue with printing.",
         status: "warning",
         duration: 5000
       });
-      
-      // Still navigate to tables page even if there was an error
-      setSelectedItems([]);
-      router.replace({
-        pathname: "/(tabs)/tables",
-        params: { 
-          refresh: Date.now().toString()
-        }
-      });
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage("");
     }
+
+    // Always navigate back regardless of print success
+    setSelectedItems([]);
+    router.replace({
+      pathname: "/(tabs)/tables",
+      params: { 
+        refresh: Date.now().toString()
+      }
+    });
   };
 
 
@@ -1995,7 +1895,8 @@ const handleSettlePaymentConfirm = async () => {
       return sum + price * Number(item.quantity);
     }, 0);
 
-    const totalDiscount = calculateDiscount(items);
+    // Replace calculateDiscount with calculateItemDiscount
+    const totalDiscount = calculateItemDiscount(items);
 
     return parseFloat(((totalDiscount / totalAmount) * 100).toFixed(2)) || 0;
   };
@@ -2008,21 +1909,22 @@ const handleSettlePaymentConfirm = async () => {
         return;
       }
 
-      // First check if printer is connected
+      // Check printer connection first
       if (!printerConnected || !contextPrinterDevice) {
-        console.log("No printer connected. Navigating to printer management.");
         Alert.alert(
           "Printer Not Connected",
-          "Please connect a printer to print the receipt.",
+          "You need to connect to a printer before printing.",
           [
             {
               text: "Connect Printer",
-              onPress: () => router.navigate("profile/PrinterManagement")
+              onPress: () => {
+                router.push("/profile/PrinterManagement");
+              },
             },
             {
               text: "Cancel",
-              style: "cancel"
-            }
+              style: "cancel",
+            },
           ]
         );
         return;
@@ -2057,12 +1959,7 @@ const handleSettlePaymentConfirm = async () => {
           orientation: "portrait",
         });
       } else {
-        try {
-          await printReceipt();
-        } catch (printError) {
-          console.error("Print receipt error:", printError);
-          throw new Error(`Failed to print: ${printError.message}`);
-        }
+        await printReceipt(orderResponse);
       }
 
       toast.show({
@@ -2081,12 +1978,33 @@ const handleSettlePaymentConfirm = async () => {
       });
     } catch (error) {
       console.error("Print error:", error);
-      toast.show({
-        description: `Failed to print order: ${error.message}`,
-        status: "error",
-        duration: 3000,
-        placement: "bottom",
-      });
+      
+      // Check if error is related to printer connection
+      if (error.message?.includes("printer") || !printerConnected || !contextPrinterDevice) {
+        Alert.alert(
+          "Printer Connection Error",
+          "Failed to print. Would you like to check your printer connection?",
+          [
+            {
+              text: "Go to Printer Settings",
+              onPress: () => {
+                router.push("/profile/PrinterManagement");
+              },
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+          ]
+        );
+      } else {
+        toast.show({
+          description: "Failed to print order",
+          status: "error",
+          duration: 3000,
+          placement: "bottom",
+        });
+      }
     } finally {
       setIsProcessing(false);
       setLoadingMessage("");
@@ -2334,16 +2252,55 @@ const handleSettlePaymentConfirm = async () => {
           "Please connect a printer to print the receipt.",
           [
             {
-              text: "Connect Printer",
-              onPress: () => router.navigate("profile/PrinterManagement")
+              text: "Open Settings",
+              onPress: () => Linking.openSettings(),
             },
-            {
-              text: "Cancel",
-              style: "cancel"
-            }
+            { text: "Cancel", style: "cancel" },
           ]
         );
-        return; // Stop execution if no printer is connected
+        return false;
+      }
+
+      if (Platform.OS === "android") {
+        if (Platform.Version >= 31) {
+          const results = await Promise.all([
+            PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
+            ),
+            PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
+            ),
+            PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+            ),
+          ]);
+          return results.every(
+            (result) => result === PermissionsAndroid.RESULTS.GRANTED
+          );
+        } else {
+          const result = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+          );
+          return result === PermissionsAndroid.RESULTS.GRANTED;
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error("Permission request error:", error);
+      return false;
+    }
+  };
+  
+  
+
+  // Update the printReceipt function
+  const printReceipt = async (orderData) => {
+    try {
+      console.log("Preparing receipt data...");
+
+      // Check if printer is connected using PrinterContext
+      if (!printerConnected || !contextPrinterDevice) {
+        throw new Error("No printer connected");
       }
 
       // Get outlet details
@@ -2356,11 +2313,26 @@ const handleSettlePaymentConfirm = async () => {
 
       // Calculate totals
       const subtotal = calculateSubtotal(selectedItems);
-      const discountAmount = calculateDiscount(selectedItems);
+      const itemDiscountAmount = calculateItemDiscount(selectedItems);
       const discountPercent = calculateTotalDiscountPercentage(selectedItems);
-      const serviceAmount = calculateServiceCharges(selectedItems, serviceChargePercentage);
-      const gstAmount = calculateGST(selectedItems, gstPercentage);
-      const total = calculateTotal(selectedItems, serviceChargePercentage, gstPercentage);
+      
+      // Calculate special discount and extra charges
+      const specialDiscountAmount = parseFloat(specialDiscount) || 0;
+      const extraChargesAmount = parseFloat(extraCharges) || 0;
+      
+      // Calculate subtotal after all discounts and extra charges
+      const subtotalAfterDiscounts = subtotal - itemDiscountAmount - specialDiscountAmount;
+      const subtotalAfterExtra = subtotalAfterDiscounts + extraChargesAmount;
+      
+      // Calculate service charge and GST
+      const serviceAmount = calculateServiceCharges(subtotalAfterExtra, serviceChargePercentage);
+      const gstAmount = calculateGST(subtotalAfterExtra + serviceAmount, gstPercentage);
+      
+      // Add tip amount
+      const tipAmount = parseFloat(tip) || 0;
+      
+      // Calculate final total
+      const total = subtotalAfterExtra + serviceAmount + gstAmount + tipAmount;
 
       // Format date
       const now = new Date();
@@ -2370,6 +2342,13 @@ const handleSettlePaymentConfirm = async () => {
       const upiPaymentString = upiId ? 
         `upi://pay?pa=${upiId}&pn=${encodeURIComponent(outletName || "Restaurant")}&am=${total.toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Bill #${params?.orderId || "New"}`)}` : 
         "8459719119-2@ibl";
+
+      // Get order number with fallbacks
+      const orderNumber = 
+        orderData?.lists?.order_details?.order_number || // For existing orders (from API response)
+        orderData?.order_number || // For new orders (from API response)
+        params?.orderId || // Fallback to URL params
+        "New"; 
 
       // Generate receipt commands
       const receiptData = [
@@ -2382,9 +2361,9 @@ const handleSettlePaymentConfirm = async () => {
         ...textToBytes(`${outletMobile ? `+91 ${outletMobile}\n` : ""}\n`),
 
         ...textToBytes("\x1B\x61\x00"), // Left align
-        ...textToBytes(`Bill Number: ${params?.orderId || "New"}\n`),
+        ...textToBytes(`Bill Number: ${orderNumber}\n`),
         ...textToBytes(`Table: ${params?.sectionName || "Dining"}${params?.tableNumber ? ` - ${params.tableNumber}` : ''}\n`),
-        ...textToBytes(`DateTime: ${orderDetails?.datetime || formattedDate}\n`),
+        ...textToBytes(`DateTime: ${orderData?.datetime || formattedDate}\n`),
         ...textToBytes("--------------------------------\n"),
         ...textToBytes("Item           Qty  Rate     Amt\n"),
         ...textToBytes("--------------------------------\n"),
@@ -2399,9 +2378,12 @@ const handleSettlePaymentConfirm = async () => {
       receiptData.push(
         ...textToBytes("--------------------------------\n"),
         ...textToBytes(formatAmountLine("Subtotal", subtotal)),
-        ...textToBytes(formatAmountLine(`Discount(${discountPercent}%)`, discountAmount, "-")),
+        ...textToBytes(formatAmountLine(`Item Discount(${discountPercent}%)`, itemDiscountAmount, "-")),
+        specialDiscountAmount > 0 ? [...textToBytes(formatAmountLine("Special Discount", specialDiscountAmount, "-"))] : [],
+        extraChargesAmount > 0 ? [...textToBytes(formatAmountLine("Extra Charges", extraChargesAmount, "+"))] : [],
         ...textToBytes(formatAmountLine(`Service(${serviceChargePercentage}%)`, serviceAmount, "+")),
         ...textToBytes(formatAmountLine(`GST(${gstPercentage}%)`, gstAmount, "+")),
+        tipAmount > 0 ? [...textToBytes(formatAmountLine("Tip", tipAmount, "+"))] : [],
         ...textToBytes("--------------------------------\n"),
         ...textToBytes(formatAmountLine("Total", total)),
         ...textToBytes("\n"),
@@ -2417,16 +2399,9 @@ const handleSettlePaymentConfirm = async () => {
         ...textToBytes("\x1D\x56\x42\x40") // Cut paper
       );
 
-      // Use the context's sendDataToPrinter function to send data
-      try {
-        console.log("Sending data to printer...");
-        await sendDataToPrinter(receiptData);
-        console.log("Print successful");
-        return true; // Return true on successful print
-      } catch (printError) {
-        console.error("Print error:", printError);
-        throw new Error(`Failed to print: ${printError.message}`);
-      }
+      // Use the PrinterContext's sendDataToPrinter function
+      await sendDataToPrinter(receiptData);
+      console.log("Receipt data sent successfully!");
     } catch (error) {
       console.error("Print receipt error:", error);
       toast.show({
@@ -2443,7 +2418,145 @@ const handleSettlePaymentConfirm = async () => {
  
 
   // Add KOT-specific command generator
-  
+  const generateKOTCommands = async (orderData) => {
+    try {
+      // Get order details with proper structure
+      const orderDetails = orderData?.lists?.order_details || orderData;
+    
+      const orderNumber = 
+        orderDetails?.order_number || 
+        orderData?.order_number || 
+        params?.orderId || 
+        "New";
+
+      // Format current date time
+      const getCurrentDateTime = () => {
+        const now = new Date();
+        
+        // Get the day as 2-digit
+        const day = String(now.getDate()).padStart(2, '0');
+        
+        // Get the month name in uppercase
+        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const month = monthNames[now.getMonth()];
+        
+        // Get the year
+        const year = now.getFullYear();
+        
+        // Get hours and format for 12-hour clock
+        let hours = now.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // the hour '0' should be '12'
+        hours = String(hours).padStart(2, '0');
+        
+        // Get minutes
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        
+        // Format the final date string
+        return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+      };
+      
+      const [storedOutletName, storedOutletAddress, storedOutletNumber] = 
+        await Promise.all([
+          AsyncStorage.getItem("outlet_name"),
+          AsyncStorage.getItem("outlet_address"),
+          AsyncStorage.getItem("outlet_mobile"), 
+        ]);
+      
+      const outletName = storedOutletName || "Restaurant";
+      const outletAddress = storedOutletAddress || "";
+      const outletNumber = storedOutletNumber || "";
+      const getDottedLine = () => "-------------------------------\n";
+
+      // Check if this is an existing order
+      const isExistingOrder = Boolean(params?.orderId);
+      
+      // Get items to print
+      let itemsToPrint = [];
+      let totalQuantityToPrint = 0;
+      
+      // For new orders, print all items
+      itemsToPrint = selectedItems;
+      
+      // Calculate total quantity
+      totalQuantityToPrint = selectedItems.reduce((sum, item) => {
+        return sum + (parseInt(item.quantity) || 0);
+      }, 0);
+      
+      // Add a clear header for the KOT
+      const kotHeader = isExistingOrder 
+        ? "*** ADDITIONAL KOT ***\n\n"
+        : "*** KOT ***\n\n";
+
+      // Generate KOT commands
+      return [
+        ...textToBytes("\x1B\x40"), // Initialize printer
+        ...textToBytes("\x1B\x61\x01"), // Center alignment
+        ...textToBytes("\x1B\x21\x10"), // Double width, double height
+        ...textToBytes(kotHeader),
+        ...textToBytes(`${outletName}\n`),
+        ...textToBytes("\x1B\x21\x00"), // Normal text
+        ...textToBytes(`${outletAddress}\n`),
+        ...textToBytes(`${outletNumber}\n\n`),
+        
+        ...textToBytes("\x1B\x61\x00"), // Left align
+        ...textToBytes(`Bill no: ${orderNumber}\n`),
+        ...textToBytes(
+          params?.orderType === "dine-in"
+            ? `Table: ${params?.sectionName || ""} - ${params?.tableNumber || ""}\n`
+            : `Type: ${params?.orderType?.toUpperCase() || "UNKNOWN"}\n`
+        ),
+        ...textToBytes(`DateTime: ${getCurrentDateTime()}\n`), 
+        
+        ...(customerName ? [textToBytes(`Name: ${customerName}\n`)] : []),
+        
+        ...textToBytes(getDottedLine()),
+        ...textToBytes("Item                    Qty\n"),
+        ...textToBytes(getDottedLine()),
+        
+        // Items to print
+        ...itemsToPrint.flatMap(item => {
+          const name = item.name || "";
+          const qty = item.quantity?.toString() || "";
+          
+          // Format item text
+          let itemText = "";
+          if (name.length > 23) {
+            const lines = splitLongText(name, 23);
+            
+            // First line with quantity
+            itemText = `${lines[0].padEnd(23)} ${qty}\n`;
+            
+            // Remaining lines
+            for (let i = 1; i < lines.length; i++) {
+              itemText += `${lines[i].padEnd(23)}\n`;
+            }
+          } else {
+            itemText = `${name.padEnd(23)} ${qty}\n`;
+          }
+
+          // Add portion and special instructions if available
+          if (item.portionSize && item.portionSize !== "full") {
+            itemText += `   (${item.portionSize})\n`;
+          }
+          if (item.specialInstructions) {
+            itemText += `   Note: ${item.specialInstructions}\n`;
+          }
+
+          return textToBytes(itemText);
+        }),
+        
+        ...textToBytes(getDottedLine()),
+        ...textToBytes(`${"Total Items:".padEnd(23)} ${totalQuantityToPrint}\n`),
+        ...textToBytes("\n"),
+        ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
+      ];
+    } catch (error) {
+      console.error("Error generating KOT commands:", error);
+      throw error;
+    }
+  };
 
   // Add this function to generate receipt HTML
   
@@ -2580,62 +2693,17 @@ const handleSettlePaymentConfirm = async () => {
   // Add the printKOT function
   const printKOT = async () => {
     try {
-      // First check if a printer is connected before attempting to print
+      // Check printer connection using PrinterContext
       if (!printerConnected || !contextPrinterDevice) {
-        console.log("No printer connected. Navigating to printer management.");
-        Alert.alert(
-          "Printer Not Connected",
-          "Please connect a printer to print the KOT.",
-          [
-            {
-              text: "Connect Printer",
-              onPress: () => router.navigate("profile/PrinterManagement")
-            },
-            {
-              text: "Cancel",
-              style: "cancel"
-            }
-          ]
-        );
-        return; // Stop execution if no printer is connected
+        throw new Error("No printer connected");
       }
 
-      // Generate and send commands for thermal printer
-      const commands = [
-        ...textToBytes("\x1B\x40"), // Initialize printer
-        ...textToBytes("\x1B\x61\x01"), // Center alignment
-        ...textToBytes("*** KOT ***\n\n"),
-        ...textToBytes("\x1B\x61\x00"), // Left alignment
-        ...textToBytes(`Order: #${params?.orderId || "New Order"}\n`),
-        ...textToBytes(`Table: ${params?.tableNumber || "-"}\n`),
-        ...textToBytes(`DateTime: ${new Date().toLocaleString()}\n\n`),
-        ...textToBytes("----------------------------------------\n"),
-        ...textToBytes("Item                            Qty\n"),
-        ...textToBytes("----------------------------------------\n"),
+      // Generate commands for thermal printer
+      const commands = await generateKOTCommands(orderDetails);
 
-        // Print items
-        ...selectedItems.flatMap((item) => {
-          const itemName = item.menu_name.padEnd(30).substring(0, 30);
-          return textToBytes(
-            `${itemName} ${String(item.quantity).padStart(3)}\n`
-          );
-        }),
-
-        ...textToBytes("----------------------------------------\n"),
-        ...textToBytes(`Total Items: ${selectedItems.length}\n\n`),
-        ...textToBytes("\x1D\x56\x41\x10"), // Cut paper
-      ];
-
-      // Send commands to printer using the context function
-      try {
-        console.log("Sending KOT data to printer...");
-        await sendDataToPrinter(commands);
-        console.log("KOT print successful");
-        return true;
-      } catch (printError) {
-        console.error("KOT print error:", printError);
-        throw new Error(`Failed to print KOT: ${printError.message}`);
-      }
+      // Use PrinterContext to send data
+      await sendDataToPrinter(commands);
+      console.log("KOT data sent successfully!");
     } catch (error) {
       console.error("Thermal print error:", error);
       toast.show({
