@@ -22,14 +22,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColorMode } from "native-base";
 import { getBaseUrl } from "../../config/api.config";
 import { fetchWithAuth } from "../../utils/apiInterceptor";
+import { usePrinter } from "../../context/PrinterContext";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const toast = useToast();
   const { colorMode, toggleColorMode } = useColorMode();
   const [isLoading, setIsLoading] = useState(true);
-  const [isPrinterConnected, setIsPrinterConnected] = useState(false);
-  const [printerDevice, setPrinterDevice] = useState(null);
+  
+  // Replace local printer states with context values
+  const { 
+    printerDevice, 
+    isConnected: isPrinterConnected 
+  } = usePrinter();
   
   const [settings, setSettings] = useState({
     theme: "system",
