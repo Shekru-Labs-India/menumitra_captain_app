@@ -2228,15 +2228,26 @@ const handleSettlePaymentConfirm = async () => {
 
       // Calculate totals
       const subtotal = calculateSubtotal(selectedItems);
-      const discountAmount = calculateItemDiscount(selectedItems);
+      const itemDiscountAmount = calculateItemDiscount(selectedItems);
       const discountPercent = calculateTotalDiscountPercentage(selectedItems);
       
-      // Fix: Calculate service charge and GST based on subtotal after discount
-      const subtotalAfterDiscount = subtotal - discountAmount;
-      const serviceAmount = calculateServiceCharges(subtotalAfterDiscount, serviceChargePercentage);
-      const gstAmount = calculateGST(subtotalAfterDiscount + serviceAmount, gstPercentage);
+      // Calculate special discount and extra charges
+      const specialDiscountAmount = parseFloat(specialDiscount) || 0;
+      const extraChargesAmount = parseFloat(extraCharges) || 0;
       
-      const total = subtotalAfterDiscount + serviceAmount + gstAmount;
+      // Calculate subtotal after all discounts and extra charges
+      const subtotalAfterDiscounts = subtotal - itemDiscountAmount - specialDiscountAmount;
+      const subtotalAfterExtra = subtotalAfterDiscounts + extraChargesAmount;
+      
+      // Calculate service charge and GST
+      const serviceAmount = calculateServiceCharges(subtotalAfterExtra, serviceChargePercentage);
+      const gstAmount = calculateGST(subtotalAfterExtra + serviceAmount, gstPercentage);
+      
+      // Add tip amount
+      const tipAmount = parseFloat(tip) || 0;
+      
+      // Calculate final total
+      const total = subtotalAfterExtra + serviceAmount + gstAmount + tipAmount;
 
       // Format date
       const now = new Date();
@@ -2282,9 +2293,12 @@ const handleSettlePaymentConfirm = async () => {
       receiptData.push(
         ...textToBytes("--------------------------------\n"),
         ...textToBytes(formatAmountLine("Subtotal", subtotal)),
-        ...textToBytes(formatAmountLine(`Discount(${discountPercent}%)`, discountAmount, "-")),
+        ...textToBytes(formatAmountLine(`Item Discount(${discountPercent}%)`, itemDiscountAmount, "-")),
+        specialDiscountAmount > 0 ? [...textToBytes(formatAmountLine("Special Discount", specialDiscountAmount, "-"))] : [],
+        extraChargesAmount > 0 ? [...textToBytes(formatAmountLine("Extra Charges", extraChargesAmount, "+"))] : [],
         ...textToBytes(formatAmountLine(`Service(${serviceChargePercentage}%)`, serviceAmount, "+")),
         ...textToBytes(formatAmountLine(`GST(${gstPercentage}%)`, gstAmount, "+")),
+        tipAmount > 0 ? [...textToBytes(formatAmountLine("Tip", tipAmount, "+"))] : [],
         ...textToBytes("--------------------------------\n"),
         ...textToBytes(formatAmountLine("Total", total)),
         ...textToBytes("\n"),
