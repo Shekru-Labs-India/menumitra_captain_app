@@ -2228,12 +2228,15 @@ const handleSettlePaymentConfirm = async () => {
 
       // Calculate totals
       const subtotal = calculateSubtotal(selectedItems);
-      // Replace calculateDiscount with calculateItemDiscount
       const discountAmount = calculateItemDiscount(selectedItems);
       const discountPercent = calculateTotalDiscountPercentage(selectedItems);
-      const serviceAmount = calculateServiceCharges(selectedItems, serviceChargePercentage);
-      const gstAmount = calculateGST(selectedItems, gstPercentage);
-      const total = calculateTotal(selectedItems, serviceChargePercentage, gstPercentage);
+      
+      // Fix: Calculate service charge and GST based on subtotal after discount
+      const subtotalAfterDiscount = subtotal - discountAmount;
+      const serviceAmount = calculateServiceCharges(subtotalAfterDiscount, serviceChargePercentage);
+      const gstAmount = calculateGST(subtotalAfterDiscount + serviceAmount, gstPercentage);
+      
+      const total = subtotalAfterDiscount + serviceAmount + gstAmount;
 
       // Format date
       const now = new Date();
