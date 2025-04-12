@@ -11,7 +11,8 @@ const handleUnauthorizedResponse = async () => {
       "user_id",
       "captain_id",
       "outlet_id",
-      "userSession"
+      "userSession",
+      "device_token"
       // Add any other relevant keys you're storing
     ]);
 
@@ -27,14 +28,40 @@ const handleUnauthorizedResponse = async () => {
 // Wrapper function for API calls
 export const fetchWithAuth = async (url, options = {}) => {
   try {
-    const accessToken = await AsyncStorage.getItem("access");
+    const [accessToken, deviceToken] = await AsyncStorage.multiGet(["access", "device_token"]);
+    
+    // Initialize headers if not already set
+    options.headers = options.headers || {};
     
     // Add authorization header if token exists
-    if (accessToken) {
+    if (accessToken[1]) {
       options.headers = {
         ...options.headers,
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken[1]}`,
       };
+    }
+    
+    // Add device token to headers
+    if (deviceToken[1]) {
+      options.headers = {
+        ...options.headers,
+        "X-Device-Token": deviceToken[1]
+      };
+    }
+    
+    // For POST requests, add device_token to the body if it's JSON
+    if (options.method === 'POST' && options.body && deviceToken[1]) {
+      try {
+        const bodyJson = JSON.parse(options.body);
+        // Only add device_token if it doesn't already exist
+        if (!bodyJson.device_token) {
+          bodyJson.device_token = deviceToken[1];
+          options.body = JSON.stringify(bodyJson);
+        }
+      } catch (e) {
+        // If body is not valid JSON, just continue
+        console.log("Request body is not JSON, skipping device_token addition");
+      }
     }
 
     const response = await fetch(url, options);
@@ -64,11 +91,21 @@ export const fetchWithAuth = async (url, options = {}) => {
 // Helper function to get common headers
 export const getAuthHeaders = async () => {
   try {
-    const accessToken = await AsyncStorage.getItem("access");
-    return {
+    const [accessToken, deviceToken] = await AsyncStorage.multiGet(["access", "device_token"]);
+    
+    let headers = {
       "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     };
+    
+    if (accessToken[1]) {
+      headers.Authorization = `Bearer ${accessToken[1]}`;
+    }
+    
+    if (deviceToken[1]) {
+      headers["X-Device-Token"] = deviceToken[1];
+    }
+    
+    return headers;
   } catch (error) {
     console.error("Error getting auth headers:", error);
     return {
