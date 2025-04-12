@@ -17,6 +17,7 @@ import { Keyboard } from "react-native";
 import { router } from "expo-router";
 import { Linking } from "react-native";
 import { useVersion } from "../context/VersionContext";
+import * as Device from 'expo-device';
 import {
   
   handleTokens,
@@ -44,9 +45,38 @@ export default function OtpScreen() {
   const [timerKey, setTimerKey] = useState(0);
   const toast = useToast();
   const { login } = useAuth();
+  const [deviceId, setDeviceId] = useState("");
+  const [deviceName, setDeviceName] = useState("");
+  const [modelName, setModelName] = useState("");
+
+  const logDeviceInfo = async () => {
+    try {
+      const dName = Device.deviceName;
+      const mName = Device.modelName;
+      const dId = Device.deviceId || Device.osBuildId || Device.osInternalBuildId;
+      
+      setDeviceName(dName);
+      setModelName(mName);
+      setDeviceId(dId);
+      
+      console.log('Device Name:', dName);
+      console.log('Model Name:', mName);
+      console.log('Device ID:', dId);
+      
+      console.log({
+        deviceName: dName,
+        modelName: mName,
+        device_id: dId,
+        model_name: mName
+      });
+    } catch (error) {
+      console.error('Error fetching device info:', error);
+    }
+  };
 
   useEffect(() => {
     checkExistingSession();
+    logDeviceInfo();
   }, []);
 
   const checkExistingSession = async () => {
@@ -154,8 +184,10 @@ export default function OtpScreen() {
       const requestBody = {
         mobile: mobileNumber,
         otp: otp.join(""),
-        device_sessid: tokenData.sessionToken,
+        // device_sessid: tokenData.sessionToken,
         fcm_token: cleanPushToken,
+        device_id: deviceId,
+        model_name: deviceName,
       };
 
       const response = await fetch(
