@@ -2293,7 +2293,7 @@ const handleSettlePaymentConfirm = async () => {
       receiptData.push(
         ...textToBytes("--------------------------------\n"),
         ...textToBytes(formatAmountLine("Subtotal", subtotal)),
-        ...textToBytes(formatAmountLine(`Item Discount(${discountPercent}%)`, itemDiscountAmount, "-")),
+        ...textToBytes(formatAmountLine(`Discount(${discountPercent}%)`, itemDiscountAmount, "-")),
         specialDiscountAmount > 0 ? [...textToBytes(formatAmountLine("Special Discount", specialDiscountAmount, "-"))] : [],
         extraChargesAmount > 0 ? [...textToBytes(formatAmountLine("Extra Charges", extraChargesAmount, "+"))] : [],
         ...textToBytes(formatAmountLine(`Service(${serviceChargePercentage}%)`, serviceAmount, "+")),
