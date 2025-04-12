@@ -202,6 +202,9 @@ export default function ProfileScreen() {
           style: "destructive",
           onPress: async () => {
             try {
+              // Get device token from AsyncStorage
+              const deviceToken = await AsyncStorage.getItem("device_token");
+              
               // Call logout API
               const response = await fetch(`${getBaseUrl()}/logout`, {
                 method: "POST",
@@ -211,7 +214,8 @@ export default function ProfileScreen() {
                 body: JSON.stringify({
                   user_id: userData.captainId, // Using captain ID as user ID
                   role: "captain",
-                  app: "captain", 
+                  app: "captain",
+                  device_token: deviceToken || "",
                 }),
               });
 

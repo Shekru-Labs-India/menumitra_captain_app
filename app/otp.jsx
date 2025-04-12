@@ -196,6 +196,7 @@ export default function OtpScreen() {
           ["service_charges", data.service_charges?.toString() || "0"],
           ["sessionToken", tokenData.sessionToken.toString()],
           ["expoPushToken", tokenData.pushToken.toString()],
+          ["device_token", data.device_token?.toString() || ""],
           ["access", data.access || ""],
           ["app_settings", JSON.stringify(data.settings || {})]
         ];
