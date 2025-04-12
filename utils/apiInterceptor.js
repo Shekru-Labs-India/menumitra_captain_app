@@ -28,41 +28,67 @@ const handleUnauthorizedResponse = async () => {
 // Wrapper function for API calls
 export const fetchWithAuth = async (url, options = {}) => {
   try {
-    const [accessToken, deviceToken] = await AsyncStorage.multiGet(["access", "device_token"]);
-    
     // Initialize headers if not already set
     options.headers = options.headers || {};
     
-    // Add authorization header if token exists
-    if (accessToken[1]) {
-      options.headers = {
-        ...options.headers,
-        Authorization: `Bearer ${accessToken[1]}`,
-      };
-    }
+    // Get tokens with retries for production reliability
+    let retries = 3;
+    let accessToken = null;
+    let deviceToken = null;
     
-    // Add device token to headers
-    if (deviceToken[1]) {
-      options.headers = {
-        ...options.headers,
-        "X-Device-Token": deviceToken[1]
-      };
-    }
-    
-    // For POST requests, add device_token to the body if it's JSON
-    if (options.method === 'POST' && options.body && deviceToken[1]) {
+    while (retries > 0 && (!accessToken || !deviceToken)) {
       try {
-        const bodyJson = JSON.parse(options.body);
-        // Only add device_token if it doesn't already exist
-        if (!bodyJson.device_token) {
-          bodyJson.device_token = deviceToken[1];
-          options.body = JSON.stringify(bodyJson);
+        const tokens = await AsyncStorage.multiGet(["access", "device_token"]);
+        accessToken = tokens[0][1];
+        deviceToken = tokens[1][1];
+        
+        if (!deviceToken) {
+          // Try to get it from a secondary source if primary fails
+          deviceToken = await AsyncStorage.getItem("expoPushToken");
         }
+        
+        // Log for debugging in production
+        console.log(`Attempt ${4-retries}: Token status - Access: ${!!accessToken}, Device: ${!!deviceToken}`);
+        
+        if (accessToken && deviceToken) break;
+        await new Promise(resolve => setTimeout(resolve, 200)); // Small delay between retries
       } catch (e) {
-        // If body is not valid JSON, just continue
-        console.log("Request body is not JSON, skipping device_token addition");
+        console.error("Token retrieval error:", e);
       }
+      retries--;
     }
+    
+    // Add authorization header if token exists
+    if (accessToken) {
+      options.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    
+    // Add device token to headers AND query params for maximum compatibility
+    if (deviceToken) {
+      options.headers["X-Device-Token"] = deviceToken;
+      
+      // Also include in URL for GET requests
+      if (!options.method || options.method === 'GET') {
+        const separator = url.includes('?') ? '&' : '?';
+        url = `${url}${separator}device_token=${encodeURIComponent(deviceToken)}`;
+      }
+      
+      // For POST requests, ensure it's in the body
+      if (options.method === 'POST' && options.body) {
+        try {
+          const bodyJson = JSON.parse(options.body);
+          bodyJson.device_token = deviceToken;
+          options.body = JSON.stringify(bodyJson);
+        } catch (e) {
+          console.log("Request body parse error, adding device_token failed");
+        }
+      }
+    } else {
+      console.warn("No device_token available for request to:", url);
+    }
+
+    // Log the complete request for debugging
+    console.log(`Making request to ${url} with device_token: ${deviceToken?.substring(0, 10)}...`);
 
     const response = await fetch(url, options);
     
