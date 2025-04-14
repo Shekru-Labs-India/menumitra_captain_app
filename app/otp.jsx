@@ -245,6 +245,13 @@ export default function OtpScreen() {
         });
 
         router.replace("/(tabs)");
+      } else if (data.st === 2) {
+        setError(data.msg || "Verification failed");
+        toast.show({
+          description: data.msg || "Verification failed. Please try again.",
+          status: "error",
+          duration: 3000,
+        });
       } else {
         throw new Error(data.msg || "Invalid OTP");
       }

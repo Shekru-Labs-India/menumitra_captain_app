@@ -24,6 +24,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import { useAuth } from "../../../context/AuthContext";
 
 export default function StaffDetailsScreen() {
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function StaffDetailsScreen() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [outletId, setOutletId] = useState(null);
   const cancelRef = React.useRef(null);
+  const { logout } = useAuth();
 
   const fetchStaffDetails = async (storedOutletId) => {
     setIsLoading(true);
@@ -84,6 +86,7 @@ export default function StaffDetailsScreen() {
             description: "Please login again",
             status: "error",
           });
+          logout();
           router.replace("/login");
         }
       } catch (error) {

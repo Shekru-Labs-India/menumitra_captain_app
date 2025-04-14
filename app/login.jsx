@@ -146,6 +146,8 @@ export default function LoginScreen() {
         } else {
           setApiError("Access denied for this role.");
         }
+      } else if (data && data.st === 2) {
+        setApiError(data.msg || "Your account is inactive. Please contact support.");
       } else {
         setApiError("Your account is inactive. Please contact support.");
       }

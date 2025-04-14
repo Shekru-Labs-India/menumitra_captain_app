@@ -27,10 +27,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { getBaseUrl } from "../../../config/api.config";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import { useAuth } from "../../../context/AuthContext";
 
 const API_BASE_URL = getBaseUrl();
 
 export default function AddStaffScreen() {
+  const { logout } = useAuth();
   const router = useRouter();
   const toast = useToast();
   const [image, setImage] = useState(null);
@@ -342,7 +344,7 @@ export default function AddStaffScreen() {
   const fetchRoles = async () => {
     try {
       const data = await fetchWithAuth(`${getBaseUrl()}/get_staff_role`, {
-        method: "GET",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
       });
 
@@ -383,6 +385,7 @@ export default function AddStaffScreen() {
             description: "Please login again",
             status: "error",
           });
+          logout();
           router.replace("/login");
         }
       } catch (error) {
