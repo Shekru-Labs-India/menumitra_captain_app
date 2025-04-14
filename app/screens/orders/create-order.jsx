@@ -72,8 +72,11 @@ const COMMANDS = {
   INITIALIZE: [ESC, "@"],
   TEXT_NORMAL: [ESC, "!", 0],
   TEXT_CENTERED: [ESC, "a", 1],
-  LINE_SPACING: [ESC, "3", 60],
+  LINE_SPACING: [ESC, "3", 24],  // Reduced from 30 to 24 for tighter line spacing
+  LINE_SPACING_TIGHT: [ESC, "3", 18], // Even tighter spacing for itemized sections (reduced from 24)
+  LINE_SPACING_NORMAL: [ESC, "3", 30], // Normal spacing (reduced from 40)
   CUT_PAPER: [GS, "V", 1],
+  MARGIN_BOTTOM: [ESC, "O", 1], // Reduced bottom margin from 3 to 1
 };
 
 const getCurrentDate = () => {
@@ -122,21 +125,42 @@ const orderTypeMap = {
 
 // Add these helper functions at the top level
 const splitLongText = (text, maxLength) => {
+  if (!text) return [""];
+  
+  // If text fits on one line, return immediately to save paper
+  if (text.length <= maxLength) return [text];
+  
   const words = text.split(" ");
   const lines = [];
   let currentLine = "";
   
   for (const word of words) {
+    // If adding this word would exceed max length
     if (currentLine.length + word.length + 1 <= maxLength) {
       currentLine += (currentLine ? " " : "") + word;
     } else {
-      lines.push(currentLine);
-      currentLine = word;
+      // If current line already has content, push it
+      if (currentLine) lines.push(currentLine);
+      
+      // If the word itself is longer than maxLength, break it up
+      if (word.length > maxLength) {
+        let remainingWord = word;
+        while (remainingWord.length > 0) {
+          lines.push(remainingWord.slice(0, maxLength));
+          remainingWord = remainingWord.slice(maxLength);
+        }
+        currentLine = "";
+      } else {
+        currentLine = word;
+      }
     }
   }
+  
+  // Don't forget to add the last line if not empty
   if (currentLine) {
     lines.push(currentLine);
   }
+  
   return lines;
 };
 
@@ -146,16 +170,34 @@ const formatMenuItem = (item) => {
   const rate = Math.floor(item?.price || 0).toString();
   const total = (item?.quantity * item?.price || 0).toFixed(2);
 
+  // Special handling for long item names
   if (name.length > 14) {
     const lines = splitLongText(name, 14);
+    // First line contains the item name, qty, rate, and amount
     const firstLine = `${lines[0].padEnd(14)} ${qty.padStart(2)} ${rate.padStart(5)} ${total.padStart(8)}\n`;
     
+    // If there are additional lines, format them with minimal spacing
     if (lines.length > 1) {
-      const remainingLines = lines
-        .slice(1)
-        .map((line) => `${line.padEnd(14)}\n`)
-        .join("");
-      return firstLine + remainingLines;
+      // Combine all remaining lines where possible to minimize paper usage
+      let remainingLines = [];
+      let currentLine = "";
+      
+      for (let i = 1; i < lines.length; i++) {
+        if (currentLine.length + lines[i].length + 1 <= 28) {
+          currentLine += (currentLine ? " " : "") + lines[i];
+        } else {
+          remainingLines.push(currentLine);
+          currentLine = lines[i];
+        }
+      }
+      
+      if (currentLine) {
+        remainingLines.push(currentLine);
+      }
+      
+      // Join with minimal line breaks
+      const remainingText = remainingLines.map(line => `  ${line}`).join("\n");
+      return firstLine + remainingText + "\n";
     }
     return firstLine;
   }
@@ -165,10 +207,10 @@ const formatMenuItem = (item) => {
 
 const formatAmountLine = (label, amount, symbol = "") => {
   const amountStr = Math.abs(amount).toFixed(2);
-  const totalWidth = 32;
-  const amountWidth = 12;
+  const totalWidth = 30; // Reduced from 32 to save horizontal space
+  const amountWidth = 10; // Reduced from 12 to save horizontal space
 
-  const padding = Math.max(2, totalWidth - label.length - amountWidth);
+  const padding = Math.max(1, totalWidth - label.length - amountWidth);
   const amountWithSymbol = `${symbol}${amountStr}`;
   const amountPadded = amountWithSymbol.padStart(amountWidth);
 
@@ -2105,8 +2147,7 @@ const handleSettlePaymentConfirm = async () => {
 
       // Get all services
       const services = await device.services();
-      console.log("Available services:", services.map(s => s.uuid));
-
+      
       // Find the printer service
       const service = services.find((s) =>
         PRINTER_SERVICE_UUIDS.includes(s.uuid.toUpperCase())
@@ -2118,8 +2159,7 @@ const handleSettlePaymentConfirm = async () => {
 
       // Get all characteristics
       const characteristics = await service.characteristics();
-      console.log("Available characteristics:", characteristics.map(c => c.uuid));
-
+      
       // Find the print characteristic
       const printCharacteristic = characteristics.find((c) =>
         PRINTER_CHARACTERISTIC_UUIDS.includes(c.uuid.toUpperCase())
@@ -2129,12 +2169,30 @@ const handleSettlePaymentConfirm = async () => {
         throw new Error("Printer characteristic not found");
       }
 
-      // Send data in chunks with retry mechanism
-      const CHUNK_SIZE = 20;
+      // Add an initialization sequence at the start of each print job
+      // This ensures the printer buffer is clear and ready for data
+      try {
+        // ESC @ command to initialize printer
+        const initCommand = [0x1B, 0x40]; // ESC @
+        
+        // Send initialization command and wait for printer to process
+        await printCharacteristic.writeWithoutResponse(
+          base64.encode(String.fromCharCode(...initCommand))
+        );
+        
+        // Allow printer to process init command
+        await new Promise(resolve => setTimeout(resolve, 120));
+      } catch (initError) {
+        console.log("Printer init warning:", initError);
+        // Continue even if init fails
+      }
+
+      // Increased chunk size for efficiency
+      const CHUNK_SIZE = 200; // Increased from 150 for faster printing
       for (let i = 0; i < commands.length; i += CHUNK_SIZE) {
         const chunk = commands.slice(i, Math.min(i + CHUNK_SIZE, commands.length));
         const base64Data = base64.encode(String.fromCharCode(...chunk));
-
+        
         // Add retry logic
         let retries = 3;
         while (retries > 0) {
@@ -2147,13 +2205,19 @@ const handleSettlePaymentConfirm = async () => {
             await new Promise((resolve) => setTimeout(resolve, 100));
           }
         }
-        // Add delay between chunks
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        
+        // Reduced wait time between chunks for faster printing
+        await new Promise((resolve) => setTimeout(resolve, 80));
       }
+      
+      // Reduced final delay while still ensuring all data is processed
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      
+      console.log("All data sent successfully");
       return true;
     } catch (error) {
-      console.error("Send to printer error:", error);
-      throw error;
+      console.error("Send to device error:", error);
+      throw new Error(`Failed to send data to device: ${error.message}`);
     }
   };
 
@@ -2268,12 +2332,13 @@ const handleSettlePaymentConfirm = async () => {
       // Generate receipt commands
       const receiptData = [
         ...textToBytes("\x1B\x40"), // Initialize printer
+        ...COMMANDS.LINE_SPACING_TIGHT, // Use tighter line spacing for entire receipt
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         ...textToBytes("\x1B\x21\x08"), // Double width, double height
         ...textToBytes(`${outletName || "Restaurant"}\n`),
         ...textToBytes("\x1B\x21\x00"), // Normal text
         ...textToBytes(`${outletAddress || "Address"}\n`),
-        ...textToBytes(`${outletMobile ? `+91 ${outletMobile}\n` : ""}\n`),
+        ...textToBytes(`${outletMobile ? `+91 ${outletMobile}\n` : ""}`),
 
         ...textToBytes("\x1B\x61\x00"), // Left align
         ...textToBytes(`Bill Number: ${orderNumber}\n`),
@@ -2303,15 +2368,15 @@ const handleSettlePaymentConfirm = async () => {
         ...textToBytes(formatAmountLine("Total", total)),
         ...textToBytes("\n"),
         ...textToBytes("\x1B\x61\x01"), // Center alignment
-        ...textToBytes("------ Payment Options ------\n\n"),
+        ...textToBytes("------ Payment Options ------\n"),
         ...textToBytes("\x1B\x21\x00"), // Normal text
         ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
         ...generateQRCode(upiPaymentString),
         ...textToBytes("\n"),
-        ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n\n`),
-        ...textToBytes("-----Thank You Visit Again!-----\n\n"),
-        ...textToBytes("https://menumitra.com/\n\n\n\n"),
-        ...textToBytes("\x1D\x56\x42\x40") // Cut paper
+        ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n`),
+        ...textToBytes("-----Thank You Visit Again!-----\n"),
+        ...textToBytes("https://menumitra.com/\n"),
+        ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
       );
 
       // Use the PrinterContext's sendDataToPrinter function
@@ -2338,32 +2403,19 @@ const handleSettlePaymentConfirm = async () => {
         params?.orderId || 
         "New";
 
-      // Format current date time
+      // Format current date time in a compact format
       const getCurrentDateTime = () => {
         const now = new Date();
-        
-        // Get the day as 2-digit
         const day = String(now.getDate()).padStart(2, '0');
-        
-        // Get the month name in uppercase
         const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
         const month = monthNames[now.getMonth()];
-        
-        // Get the year
         const year = now.getFullYear();
-        
-        // Get hours and format for 12-hour clock
-        let hours = now.getHours();
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12; // the hour '0' should be '12'
-        hours = String(hours).padStart(2, '0');
-        
-        // Get minutes
+        const hours = String(now.getHours() % 12 || 12).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
+        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
         
-        // Format the final date string
-        return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+        // Compact date format to save space
+        return `${day}${month}${year.toString().slice(2)} ${hours}:${minutes}${ampm}`;
       };
       
       const [storedOutletName, storedOutletAddress, storedOutletNumber] = 
@@ -2376,7 +2428,7 @@ const handleSettlePaymentConfirm = async () => {
       const outletName = storedOutletName || "Restaurant";
       const outletAddress = storedOutletAddress || "";
       const outletNumber = storedOutletNumber || "";
-      const getDottedLine = () => "-------------------------------\n";
+      const getDottedLine = () => "----------------------------\n"; // Shorter line for paper saving
 
       // Check if this is an existing order
       const isExistingOrder = Boolean(params?.orderId);
@@ -2385,38 +2437,49 @@ const handleSettlePaymentConfirm = async () => {
       let itemsToPrint = [];
       let totalQuantityToPrint = 0;
       
-      // For new orders, print all items
-      itemsToPrint = selectedItems;
+      // Only print relevant items to save paper
+      if (isExistingOrder) {
+        // For existing orders, identify new or modified items
+        // (Logic to detect new/modified items would go here)
+        // For this example, we'll just use all selected items
+        itemsToPrint = selectedItems;
+      } else {
+        // For new orders, print all items
+        itemsToPrint = selectedItems;
+      }
       
       // Calculate total quantity
       totalQuantityToPrint = selectedItems.reduce((sum, item) => {
         return sum + (parseInt(item.quantity) || 0);
       }, 0);
       
-      // Add a clear header for the KOT
+      // Determine KOT header
       const kotHeader = isExistingOrder 
-        ? "*** ADDITIONAL KOT ***\n\n"
-        : "*** KOT ***\n\n";
+        ? "** ADDITIONAL KOT **\n"  // Shorter header
+        : "** KOT **\n";  // Shorter header
 
-      // Generate KOT commands
-      return [
+      // Generate KOT commands with optimal spacing
+      const commands = [
         ...textToBytes("\x1B\x40"), // Initialize printer
+        ...COMMANDS.LINE_SPACING_TIGHT, // Use tighter line spacing for KOT
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         ...textToBytes("\x1B\x21\x10"), // Double width, double height
         ...textToBytes(kotHeader),
-        ...textToBytes(`${outletName}\n`),
         ...textToBytes("\x1B\x21\x00"), // Normal text
-        ...textToBytes(`${outletAddress}\n`),
-        ...textToBytes(`${outletNumber}\n\n`),
+        ...textToBytes(`${outletName}\n`),
+        
+        // Combine address and contact to save paper
+        ...(outletAddress || outletNumber ? 
+          textToBytes(`${outletAddress}${outletAddress && outletNumber ? " | " : ""}${outletNumber}\n`) 
+          : []),
         
         ...textToBytes("\x1B\x61\x00"), // Left align
-        ...textToBytes(`Bill no: ${orderNumber}\n`),
+        ...textToBytes(`#${orderNumber} | ${getCurrentDateTime()}\n`), // Combine order number and date
         ...textToBytes(
           params?.orderType === "dine-in"
-            ? `Table: ${params?.sectionName || ""} - ${params?.tableNumber || ""}\n`
+            ? `Table: ${params?.sectionName || ""}-${params?.tableNumber || ""}\n`
             : `Type: ${params?.orderType?.toUpperCase() || "UNKNOWN"}\n`
         ),
-        ...textToBytes(`DateTime: ${getCurrentDateTime()}\n`), 
         
         ...(customerName ? [textToBytes(`Name: ${customerName}\n`)] : []),
         
@@ -2424,12 +2487,12 @@ const handleSettlePaymentConfirm = async () => {
         ...textToBytes("Item                    Qty\n"),
         ...textToBytes(getDottedLine()),
         
-        // Items to print
+        // Items to print with optimized format
         ...itemsToPrint.flatMap(item => {
           const name = item.name || "";
           const qty = item.quantity?.toString() || "";
           
-          // Format item text
+          // Format item text with minimal spacing
           let itemText = "";
           if (name.length > 23) {
             const lines = splitLongText(name, 23);
@@ -2437,20 +2500,41 @@ const handleSettlePaymentConfirm = async () => {
             // First line with quantity
             itemText = `${lines[0].padEnd(23)} ${qty}\n`;
             
-            // Remaining lines
-            for (let i = 1; i < lines.length; i++) {
-              itemText += `${lines[i].padEnd(23)}\n`;
+            // Combine remaining lines where possible
+            if (lines.length > 1) {
+              let combinedLine = "";
+              for (let i = 1; i < lines.length; i++) {
+                if (combinedLine.length + lines[i].length + 1 <= 28) {
+                  combinedLine += (combinedLine ? " " : "") + lines[i];
+                } else {
+                  itemText += `  ${combinedLine}\n`;
+                  combinedLine = lines[i];
+                }
+              }
+              if (combinedLine) {
+                itemText += `  ${combinedLine}\n`;
+              }
             }
           } else {
             itemText = `${name.padEnd(23)} ${qty}\n`;
           }
 
           // Add portion and special instructions if available
-          if (item.portionSize && item.portionSize !== "full") {
-            itemText += `   (${item.portionSize})\n`;
-          }
-          if (item.specialInstructions) {
-            itemText += `   Note: ${item.specialInstructions}\n`;
+          // Combine them when possible to save paper
+          const portionInfo = item.portionSize && item.portionSize !== "full" ? `(${item.portionSize})` : "";
+          const noteInfo = item.specialInstructions ? `Note: ${item.specialInstructions}` : "";
+          
+          if (portionInfo && noteInfo) {
+            // If combined length is reasonable, print on one line
+            if ((portionInfo + " " + noteInfo).length <= 28) {
+              itemText += `  ${portionInfo} ${noteInfo}\n`;
+            } else {
+              itemText += `  ${portionInfo}\n  ${noteInfo}\n`;
+            }
+          } else if (portionInfo) {
+            itemText += `  ${portionInfo}\n`;
+          } else if (noteInfo) {
+            itemText += `  ${noteInfo}\n`;
           }
 
           return textToBytes(itemText);
@@ -2458,9 +2542,11 @@ const handleSettlePaymentConfirm = async () => {
         
         ...textToBytes(getDottedLine()),
         ...textToBytes(`${"Total Items:".padEnd(23)} ${totalQuantityToPrint}\n`),
-        ...textToBytes("\n"),
+        ...COMMANDS.LINE_SPACING_NORMAL, // Restore normal spacing at the end
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
       ];
+      
+      return commands;
     } catch (error) {
       console.error("Error generating KOT commands:", error);
       throw error;

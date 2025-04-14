@@ -224,7 +224,23 @@ const PrinterManagement = () => {
             setAvailableDevices([
               {
                 id: "mock-printer-001",
-                name: "Demo Printer (Expo)",
+                name: "Thermal Printer (58mm)",
+                connect: () => {
+                  console.log("Mock connect called");
+                  return Promise.resolve({ discoverAllServicesAndCharacteristics: () => Promise.resolve() });
+                }
+              },
+              {
+                id: "mock-printer-002",
+                name: "POS Printer (80mm)",
+                connect: () => {
+                  console.log("Mock connect called");
+                  return Promise.resolve({ discoverAllServicesAndCharacteristics: () => Promise.resolve() });
+                }
+              },
+              {
+                id: "mock-printer-003",
+                name: "ESC/POS Receipt Printer",
                 connect: () => {
                   console.log("Mock connect called");
                   return Promise.resolve({ discoverAllServicesAndCharacteristics: () => Promise.resolve() });
@@ -349,28 +365,85 @@ const PrinterManagement = () => {
             }
 
             if (device) {
-              // Add to temporary array instead of updating state immediately
-              if (!newDevices.some(d => d.id === device.id)) {
-                newDevices.push(device);
-              }
+              // Add a more comprehensive filter for printer devices
+              const deviceName = (device.name || "").toLowerCase();
               
-              // Only update state periodically to reduce renders
-              const now = Date.now();
-              if (now - lastUpdateTime > 500 && newDevices.length > 0) {
-                setAvailableDevices((prevDevices) => {
-                  // Create merged list avoiding duplicates
-                  const merged = [...prevDevices];
-                  for (const newDevice of newDevices) {
-                    if (!merged.some(d => d.id === newDevice.id)) {
-                      merged.push(newDevice);
-                    }
-                  }
-                  return merged;
-                });
+              // Expanded list of common printer identifiers
+              const printerPatterns = [
+                "print", "pos", "thermal", "escpos", "esc/pos", "receipt", 
+                "hm-", "gprinter", "xprinter", "epson", "star", "zebra", 
+                "pt-", "prt-", "btp-", "tsp", "rongta", "iposprinter", 
+                "epp", "bth-", "posprinter", "cashier", "bill", "invoice",
+                "58mm", "80mm", "zcs", "btprinter", "bt printer", "sprocket",
+                "mtp-", "mini", "label", "票据", "打印", "プリンター"
+              ];
+              
+              // Check if device name includes any printer pattern
+              const isPrinterPattern = printerPatterns.some(pattern => 
+                deviceName.includes(pattern)
+              );
+              
+              // Expanded list of common non-printer Bluetooth devices to exclude
+              const knownNonPrinterPatterns = [
+                "iphone", "samsung", "galaxy", "pixel", "car", "speaker", 
+                "audio", "headphone", "headset", "watch", "band", "tv", 
+                "earphone", "earbud", "mi", "scale", "speaker", "headphone", 
+                "bose", "jbl", "powerbeats", "sony", "buds", "airpods", 
+                "keyboard", "mouse", "remote", "camera", "fitness", "fitbit",
+                "garmin", "huawei", "honor", "oneplus", "redmi", "xiaomi",
+                "oppo", "vivo", "realme", "poco", "smart", "wear", "tag",
+                "tracker", "light", "lamp", "bulb", "camera", "security",
+                "lock", "door", "window", "sensor", "monitor", "scan",
+                "controller", "game", "play", "joy", "xbox", "playstation", 
+                "phone", "tab", "pad", "laptop", "computer", "pc", "mac",
+                "book", "reader", "kindle", "alexa", "echo", "google", "home"
+              ];
+              
+              const isKnownNonPrinter = knownNonPrinterPatterns.some(pattern => 
+                deviceName.includes(pattern)
+              );
+              
+              // Additional filters based on device characteristics
+              // Most printers have limited services and characteristics
+              // Only show unnamed devices if they have certain common BLE printer services
+              const isUnnamedButPotentialPrinter = !deviceName && 
+                                                 device.serviceUUIDs && 
+                                                 device.serviceUUIDs.some(uuid => 
+                                                   uuid.toLowerCase().includes("18f0") || 
+                                                   uuid.toLowerCase().includes("1101") || // SPP service
+                                                   uuid.toLowerCase().includes("ffe0") ||
+                                                   uuid.toLowerCase().includes("ff00") ||
+                                                   uuid.toLowerCase().includes("4553") ||
+                                                   uuid.toLowerCase().includes("49535343"));
+              
+              // Include device if it matches ANY of these conditions:
+              // 1. Has a name that includes a known printer pattern
+              // 2. Is unnamed but has a printer service UUID
+              // AND it doesn't match any known non-printer pattern
+              if ((isPrinterPattern || isUnnamedButPotentialPrinter) && !isKnownNonPrinter) {
+                // Add to temporary array instead of updating state immediately
+                if (!newDevices.some(d => d.id === device.id)) {
+                  newDevices.push(device);
+                }
                 
-                // Reset after update
-                newDevices = [];
-                lastUpdateTime = now;
+                // Only update state periodically to reduce renders
+                const now = Date.now();
+                if (now - lastUpdateTime > 500 && newDevices.length > 0) {
+                  setAvailableDevices((prevDevices) => {
+                    // Create merged list avoiding duplicates
+                    const merged = [...prevDevices];
+                    for (const newDevice of newDevices) {
+                      if (!merged.some(d => d.id === newDevice.id)) {
+                        merged.push(newDevice);
+                      }
+                    }
+                    return merged;
+                  });
+                  
+                  // Reset after update
+                  newDevices = [];
+                  lastUpdateTime = now;
+                }
               }
             }
           }
@@ -467,11 +540,27 @@ const PrinterManagement = () => {
     setRefreshing(true);
     
     if (isExpo) {
-      // In Expo, show mock data
+      // In Expo, show mock data with more realistic printer names
       setAvailableDevices([
         {
           id: "mock-printer-001",
-          name: "Demo Printer (Expo)",
+          name: "Thermal Printer (58mm)",
+          connect: () => {
+            console.log("Mock connect called");
+            return Promise.resolve({ discoverAllServicesAndCharacteristics: () => Promise.resolve() });
+          }
+        },
+        {
+          id: "mock-printer-002",
+          name: "POS Printer (80mm)",
+          connect: () => {
+            console.log("Mock connect called");
+            return Promise.resolve({ discoverAllServicesAndCharacteristics: () => Promise.resolve() });
+          }
+        },
+        {
+          id: "mock-printer-003",
+          name: "ESC/POS Receipt Printer",
           connect: () => {
             console.log("Mock connect called");
             return Promise.resolve({ discoverAllServicesAndCharacteristics: () => Promise.resolve() });
