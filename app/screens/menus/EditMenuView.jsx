@@ -185,8 +185,9 @@ export default function EditMenuView() {
       const foodTypeData = await fetchWithAuth(
         `${getBaseUrl()}/get_food_type_list`,
         {
-          method: "GET",
+          method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}) // Empty body to ensure device_token is added
         }
       );
       if (foodTypeData.st === 1) {
@@ -203,7 +204,7 @@ export default function EditMenuView() {
       const spicyData = await fetchWithAuth(
         `${getBaseUrl()}/get_spicy_index_list`,
         {
-          method: "GET",
+          method: "POST",
           headers: { "Content-Type": "application/json" },
         }
       );
@@ -219,7 +220,7 @@ export default function EditMenuView() {
 
       // Fetch Rating List
       const ratingData = await fetchWithAuth(`${getBaseUrl()}/rating_list`, {
-        method: "GET",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
       });
       if (ratingData.st === 1) {

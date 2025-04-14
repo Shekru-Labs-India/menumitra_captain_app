@@ -151,8 +151,9 @@ export default function CreateMenuView() {
   const fetchVegNonvegList = async () => {
     try {
       const data = await fetchWithAuth(`${getBaseUrl()}/get_food_type_list`, {
-        method: "GET",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}) // Empty body to ensure device_token is added
       });
       
       if (data.st === 1) {
@@ -187,7 +188,7 @@ export default function CreateMenuView() {
   const fetchSpicyIndexList = async () => {
     try {
       const data = await fetchWithAuth(`${getBaseUrl()}/get_spicy_index_list`, {
-        method: "GET",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
       });
       
@@ -223,7 +224,7 @@ export default function CreateMenuView() {
   const fetchRatingList = async () => {
     try {
       const data = await fetchWithAuth(`${getBaseUrl()}/rating_list`, {
-        method: "GET",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
       });
       

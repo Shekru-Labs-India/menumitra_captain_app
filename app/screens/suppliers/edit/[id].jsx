@@ -55,8 +55,9 @@ export default function EditSupplierScreen() {
       const data = await fetchWithAuth(
         `${getBaseUrl()}/supplier_credit_rating_choices`,
         {
-          method: "GET",
+          method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}) // Empty body to ensure device_token is added
         }
       );
 

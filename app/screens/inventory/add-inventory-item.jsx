@@ -92,8 +92,9 @@ export default function AddInventoryItemScreen() {
       const data = await fetchWithAuth(
         `${getBaseUrl()}/get_inventory_category_list`,
         {
-          method: "GET",
+          method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}) // Empty body to ensure device_token is added
         }
       );
       console.log("Categories Response:", data);
@@ -121,7 +122,7 @@ export default function AddInventoryItemScreen() {
   const fetchStatusOptions = async () => {
     try {
       const data = await fetchWithAuth(`${getBaseUrl()}/get_in_or_out_list`, {
-        method: "GET",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
       });
       console.log("Status Options Response:", data);

@@ -177,8 +177,9 @@ export default function EditStaffScreen() {
   const fetchRoles = async () => {
     try {
       const data = await fetchWithAuth(`${getBaseUrl()}/get_staff_role`, {
-        method: "GET",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}) // Empty body to ensure device_token is added
       });
 
       console.log("Roles Response:", data);

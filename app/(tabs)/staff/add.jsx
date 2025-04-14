@@ -346,6 +346,7 @@ export default function AddStaffScreen() {
       const data = await fetchWithAuth(`${getBaseUrl()}/get_staff_role`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}) // Empty body to ensure device_token is added
       });
 
       console.log("Roles Response:", data);

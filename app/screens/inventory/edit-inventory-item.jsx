@@ -169,8 +169,9 @@ export default function EditInventoryItemScreen() {
       const data = await fetchWithAuth(
         `${getBaseUrl()}/get_inventory_category_list`,
         {
-          method: "GET",
+          method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}) // Empty body to ensure device_token is added
         }
       );
 
