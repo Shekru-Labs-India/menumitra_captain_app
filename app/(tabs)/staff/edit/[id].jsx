@@ -421,7 +421,7 @@ export default function EditStaffScreen() {
     try {
       setIsImageDeleting(true);
       const userId = await AsyncStorage.getItem("user_id");
-
+      const deviceToken = await AsyncStorage.getItem("device_token");
       if (!userId || !outletId) {
         throw new Error("Required IDs not found");
       }
@@ -436,6 +436,7 @@ export default function EditStaffScreen() {
       formDataToSend.append("aadhar_number", formData.aadhar_number);
       formDataToSend.append("remove_photo", "1");
       formDataToSend.append("photo", ""); // Send empty photo
+      formDataToSend.append("device_token", deviceToken);
 
       if (formData.address && formData.address.trim()) {
         formDataToSend.append("address", formData.address.trim());
@@ -547,6 +548,7 @@ export default function EditStaffScreen() {
     setIsLoading(true);
     try {
       const userId = await AsyncStorage.getItem("user_id");
+      const deviceToken = await AsyncStorage.getItem("device_token");
 
       const formDataToSend = new FormData();
       formDataToSend.append("user_id", userId);
@@ -556,6 +558,7 @@ export default function EditStaffScreen() {
       formDataToSend.append("mobile", formData.mobile);
       formDataToSend.append("role", formData.role.toLowerCase());
       formDataToSend.append("aadhar_number", formData.aadhar_number);
+      formDataToSend.append("device_token", deviceToken);
       
       if (formData.address && formData.address.trim()) {
         formDataToSend.append("address", formData.address.trim());

@@ -279,6 +279,7 @@ export default function AddStaffScreen() {
 
       // Create FormData instance
       const formDataToSend = new FormData();
+      const deviceToken = await AsyncStorage.getItem("device_token");
 
       const staffData = {
         user_id: parseInt(userId),
@@ -287,6 +288,7 @@ export default function AddStaffScreen() {
         role: formData.role.toLowerCase(),
         aadhar_number: formData.aadharNo,
         outlet_id: parseInt(outletId),
+        device_token: deviceToken,
       };
 
       // Add optional fields only if they have values
