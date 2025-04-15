@@ -53,59 +53,51 @@ export default function ActivityLogScreen() {
       
       console.log("Activity log response:", data);
       
-      if (data && data.st === 1 && data.logs) {
-        // Transform API data to match the UI in the image
-        const formattedLogs = data.logs.map((log, index) => {
+      if (data && data.st === 1 && data.activity_logs) {
+        // Transform API data to match the UI expected format
+        const formattedLogs = data.activity_logs.map((log, index) => {
           console.log(`Processing log: ${JSON.stringify(log)}`);
           
-          // Determine category and icon based on activity type
-          let category = "Activity";
+          // Determine category and icon based on module
+          let category = log.module || "Activity";
           let icon = "history";
           let iconBg = "lightBlue.100";
           let iconColor = "lightBlue.500";
           
-          if (log.activity_type?.toLowerCase().includes("login") || 
-              log.activity_type?.toLowerCase().includes("logout")) {
-            category = "User Management";
+          if (category.toLowerCase().includes("otp") || 
+              category.toLowerCase().includes("login") ||
+              category.toLowerCase().includes("verification")) {
             icon = "person";
             iconBg = "lightBlue.100";
             iconColor = "lightBlue.500";
-          } else if (log.activity_type?.toLowerCase().includes("order")) {
-            category = "Order Management";
+          } else if (category.toLowerCase().includes("order")) {
             icon = "receipt";
             iconBg = "amber.100";
             iconColor = "amber.500";
-          } else if (log.activity_type?.toLowerCase().includes("profile")) {
-            category = "User Management";
+          } else if (category.toLowerCase().includes("profile")) {
             icon = "person";
             iconBg = "lightBlue.100";
             iconColor = "lightBlue.500";
-          } else if (log.activity_type?.toLowerCase().includes("menu")) {
-            category = "Menu Management";
+          } else if (category.toLowerCase().includes("menu")) {
             icon = "restaurant";
             iconBg = "orange.100";
             iconColor = "orange.500";
-          } else if (log.activity_type?.toLowerCase().includes("setting")) {
-            category = "Settings Management";
+          } else if (category.toLowerCase().includes("setting")) {
             icon = "settings";
             iconBg = "coolGray.100";
             iconColor = "coolGray.500";
-          } else if (log.activity_type?.toLowerCase().includes("inventory")) {
-            category = "Inventory Management";
+          } else if (category.toLowerCase().includes("inventory")) {
             icon = "inventory";
             iconBg = "green.100";
             iconColor = "green.500";
           }
           
-          // Format the title to match the image
-          const title = log.activity_description || log.activity_title || "Activity";
-          
           return {
-            id: log.activity_id || index,
-            type: log.activity_type || "activity",
-            title: title,
+            id: log.activity_log_id || index,
+            type: log.sub_module || "activity",
+            title: log.title || "Activity",
             category: category,
-            timestamp: log.created_at || "Unknown date",
+            timestamp: log.created_on || "Unknown date",
             icon: icon,
             iconBg: iconBg,
             iconColor: iconColor

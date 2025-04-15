@@ -18,6 +18,7 @@ import {
   Alert,
   useToast,
   Fab,
+  Button,
 } from "native-base";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBaseUrl } from "../../config/api.config";
@@ -30,6 +31,30 @@ export default function PersonalInfoScreen() {
   const [userData, setUserData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Device login data
+  const [deviceLogins, setDeviceLogins] = useState([
+    {
+      id: "1",
+      deviceName: "REDMI NOTE 12 5G",
+      lastLogin: "03:00PM"
+    },
+    {
+      id: "2",
+      deviceName: "Samsung A35 5G",
+      lastLogin: "05:00PM"
+    }
+  ]);
+
+  const handleLogout = (deviceId) => {
+    // Handle device logout logic here
+    toast.show({
+      description: `Logging out device ${deviceId}`,
+      status: "info",
+      duration: 3000,
+    });
+    // In a real implementation, you would call an API to logout the device
+  };
 
   const fetchProfileData = async () => {
     try {
@@ -187,7 +212,10 @@ export default function PersonalInfoScreen() {
         <Box w={10} />
       </HStack>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }} // Add significant bottom padding to prevent FAB overlap
+      >
         {/* Profile Avatar */}
         <Box alignItems="center" my={6}>
           <Avatar
@@ -311,6 +339,45 @@ export default function PersonalInfoScreen() {
             </HStack>
           </VStack>
         </Box>
+
+        {/* Device Login Management */}
+        <Box bg="white" rounded="lg" shadow={1} mx={4} mb={4}>
+          <VStack space={4} p={4}>
+            <Heading size="sm" mb={2}>
+              Device Login Management
+            </Heading>
+
+            {deviceLogins.map((device, index) => (
+              <Box 
+                key={device.id}
+                borderWidth={1} 
+                borderColor="coolGray.200" 
+                borderRadius="md" 
+                p={4} 
+                mb={index === deviceLogins.length - 1 ? 10 : 0}
+              >
+                <HStack justifyContent="space-between" alignItems="center">
+                  <VStack>
+                    <Text fontWeight="bold">{device.deviceName}</Text>
+                    <HStack space={1} alignItems="center">
+                      <Text fontSize="xs" color="coolGray.500">Last Login - </Text>
+                      <Text fontSize="xs" fontWeight="medium" color="coolGray.700">{device.lastLogin}</Text>
+                    </HStack>
+                  </VStack>
+                  <Button 
+                    bg="rose.500" 
+                    _pressed={{ bg: "rose.600" }}
+                    size="sm"
+                    zIndex={2}
+                    onPress={() => handleLogout(device.id)}
+                  >
+                    LOGOUT
+                  </Button>
+                </HStack>
+              </Box>
+            ))}
+          </VStack>
+        </Box>
       </ScrollView>
       
       {/* Floating Edit Button */}
@@ -325,6 +392,7 @@ export default function PersonalInfoScreen() {
         placement="bottom-right"
         mb={4}
         mr={4}
+        zIndex={1}
       />
     </Box>
   );
