@@ -124,6 +124,7 @@ export default function AddInventoryItemScreen() {
       const data = await fetchWithAuth(`${getBaseUrl()}/get_in_or_out_list`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}) // Empty body to ensure device_token is added
       });
       console.log("Status Options Response:", data);
 

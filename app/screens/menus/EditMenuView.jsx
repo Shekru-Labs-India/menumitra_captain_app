@@ -205,7 +205,8 @@ export default function EditMenuView() {
         `${getBaseUrl()}/get_spicy_index_list`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", },
+          body: JSON.stringify({}) // Empty body to ensure device_token is added
         }
       );
       if (spicyData.st === 1) {

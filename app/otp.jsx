@@ -13,21 +13,21 @@ import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState, useRef, useEffect } from "react";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Keyboard } from "react-native";
+import { Keyboard, Platform } from "react-native";
 import { router } from "expo-router";
 import { Linking } from "react-native";
 import { useVersion } from "../context/VersionContext";
 import * as Device from 'expo-device';
+import * as Application from 'expo-application';
 import {
-  
   handleTokens,
   formatAlphanumericToken,
   testNotification,
 } from "../services/DeviceTokenService";
 import { useToast } from "native-base";
-import { Platform } from "react-native";
 import { getBaseUrl } from "../config/api.config";
 import { useAuth } from "../context/AuthContext";
+import { fetchWithAuth } from "../utils/apiInterceptor";
 
 export default function OtpScreen() {
   const [otp, setOtp] = useState(["", "", "", ""]);
@@ -53,7 +53,23 @@ export default function OtpScreen() {
     try {
       const dName = Device.deviceName;
       const mName = Device.modelName;
-      const dId = Device.deviceId || Device.osBuildId || Device.osInternalBuildId;
+      
+      // Clean up the device ID by removing 'release-keys' suffix
+      const rawDeviceId = Device.deviceId || Device.osBuildId || Device.osInternalBuildId;
+      const cleanDeviceId = rawDeviceId ? rawDeviceId.replace(/\s+release-keys$/, '') : null;
+      
+      // Create a unique device identifier using available device information
+      const deviceInfo = {
+        brand: Device.brand,
+        model: Device.modelName,
+        os: Platform.OS,
+        version: Platform.Version,
+        deviceName: dName,
+        deviceId: cleanDeviceId
+      };
+      
+      // Create a unique string from device info
+      const dId = JSON.stringify(deviceInfo);
       
       setDeviceName(dName);
       setModelName(mName);
@@ -67,10 +83,16 @@ export default function OtpScreen() {
         deviceName: dName,
         modelName: mName,
         device_id: dId,
-        model_name: mName
+        model_name: mName,
+        deviceInfo: deviceInfo
       });
     } catch (error) {
       console.error('Error fetching device info:', error);
+      toast.show({
+        description: "Unable to identify your device. Please ensure you're using a supported device.",
+        status: "error",
+        duration: 3000,
+      });
     }
   };
 
@@ -181,19 +203,21 @@ export default function OtpScreen() {
       const cleanPushToken = tokenData.pushToken;
 
       setLoadingMessage("Connecting to server...");
+      
+      // Clean up the device ID by removing 'release-keys' suffix
+      const rawDeviceId = Device.deviceId || Device.osBuildId || Device.osInternalBuildId;
+      const cleanDeviceId = rawDeviceId ? rawDeviceId.replace(/\s+release-keys$/, '') : null;
+
       const requestBody = {
         mobile: mobileNumber,
         otp: otp.join(""),
-        // device_sessid: tokenData.sessionToken,
         fcm_token: cleanPushToken,
-        device_id: deviceId,
-        model_name: deviceName,
+        device_id: cleanDeviceId,
+        device_model: deviceName
       };
 
       const response = await fetch(
-        // "https://menusmitra.xyz/captain_api/captain_verify_otp",  //production
-        "https://men4u.xyz/captain_api/captain_verify_otp", //development
-
+        "https://men4u.xyz/captain_api/captain_verify_otp",  // development URL
         {
           method: "POST",
           headers: {
@@ -203,7 +227,21 @@ export default function OtpScreen() {
         }
       );
 
-      const data = await response.json();
+      // Check if response is OK
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Get response text first to check if it's valid JSON
+      const responseText = await response.text();
+      let data;
+      
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Invalid JSON response:', responseText);
+        throw new Error('Invalid response from server');
+      }
 
       if (data.st === 1) {
         setLoadingMessage("Login successful! Redirecting...");

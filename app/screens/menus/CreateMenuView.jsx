@@ -190,6 +190,7 @@ export default function CreateMenuView() {
       const data = await fetchWithAuth(`${getBaseUrl()}/get_spicy_index_list`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
       });
       
       if (data.st === 1) {
