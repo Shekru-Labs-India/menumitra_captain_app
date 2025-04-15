@@ -33,27 +33,63 @@ export default function PersonalInfoScreen() {
   const [error, setError] = useState(null);
   
   // Device login data
-  const [deviceLogins, setDeviceLogins] = useState([
-    {
-      id: "1",
-      deviceName: "REDMI NOTE 12 5G",
-      lastLogin: "03:00PM"
-    },
-    {
-      id: "2",
-      deviceName: "Samsung A35 5G",
-      lastLogin: "05:00PM"
-    }
-  ]);
+  const [deviceLogins, setDeviceLogins] = useState([]);
 
-  const handleLogout = (deviceId) => {
-    // Handle device logout logic here
-    toast.show({
-      description: `Logging out device ${deviceId}`,
-      status: "info",
-      duration: 3000,
-    });
-    // In a real implementation, you would call an API to logout the device
+  const handleLogout = async (deviceToken) => {
+    try {
+      setIsLoading(true);
+      
+      // Get the user ID from AsyncStorage or use from userData
+      const userId = userData?.user_id;
+      
+      if (!userId) {
+        throw new Error("User ID not found");
+      }
+      
+      // Call logout API
+      const response = await fetch(`${getBaseUrl()}/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: userId, 
+          role: "captain",
+          app: "captain",
+          device_token: deviceToken,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.st === 1) {
+        // Success - Remove the device from the list
+        setDeviceLogins(prevDevices => 
+          prevDevices.filter(device => device.deviceToken !== deviceToken)
+        );
+        
+        toast.show({
+          description: "Device logged out successfully",
+          status: "success",
+          duration: 3000,
+        });
+        
+        // Refresh profile data to get updated device list
+        fetchProfileData();
+      } else {
+        throw new Error(data.msg || "Logout failed");
+      }
+    } catch (err) {
+      const errorMsg = 'Error logging out device: ' + err.message;
+      toast.show({
+        description: errorMsg,
+        status: "error",
+        duration: 3000,
+      });
+      console.error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const fetchProfileData = async () => {
@@ -80,6 +116,20 @@ export default function PersonalInfoScreen() {
       
       if (data.st === 1 && data.Data?.user_details) {
         setUserData(data.Data.user_details);
+        
+        // Process active sessions if available
+        if (data.Data?.user_active_sessions && Array.isArray(data.Data.user_active_sessions)) {
+          const formattedDeviceLogins = data.Data.user_active_sessions.map((session, index) => ({
+            id: index.toString(),
+            deviceToken: session.device_token,
+            deviceName: session.device_model || "Unknown Device",
+            lastLogin: session.last_activity || "Unknown"
+          }));
+          
+          setDeviceLogins(formattedDeviceLogins);
+        } else {
+          setDeviceLogins([]);
+        }
       } else {
         const errorMsg = data.msg || 'Failed to fetch profile data';
         setError(errorMsg);
@@ -292,7 +342,7 @@ export default function PersonalInfoScreen() {
               <Icon as={MaterialIcons} name="access-time" size={5} color="blue.500" />
               <VStack>
                 <Text fontSize="xs" color="coolGray.500">
-                  Last Login
+                  Last Activity
                 </Text>
                 <Text>{userData?.last_login || 'Not available'}</Text>
               </VStack>
@@ -344,38 +394,44 @@ export default function PersonalInfoScreen() {
         <Box bg="white" rounded="lg" shadow={1} mx={4} mb={4}>
           <VStack space={4} p={4}>
             <Heading size="sm" mb={2}>
-              Device Login Management
+              My Active Session
             </Heading>
 
-            {deviceLogins.map((device, index) => (
-              <Box 
-                key={device.id}
-                borderWidth={1} 
-                borderColor="coolGray.200" 
-                borderRadius="md" 
-                p={4} 
-                mb={index === deviceLogins.length - 1 ? 10 : 0}
-              >
-                <HStack justifyContent="space-between" alignItems="center">
-                  <VStack>
-                    <Text fontWeight="bold">{device.deviceName}</Text>
-                    <HStack space={1} alignItems="center">
-                      <Text fontSize="xs" color="coolGray.500">Last Login - </Text>
-                      <Text fontSize="xs" fontWeight="medium" color="coolGray.700">{device.lastLogin}</Text>
-                    </HStack>
-                  </VStack>
-                  <Button 
-                    bg="rose.500" 
-                    _pressed={{ bg: "rose.600" }}
-                    size="sm"
-                    zIndex={2}
-                    onPress={() => handleLogout(device.id)}
-                  >
-                    LOGOUT
-                  </Button>
-                </HStack>
+            {deviceLogins.length > 0 ? (
+              deviceLogins.map((device, index) => (
+                <Box 
+                  key={device.id}
+                  borderWidth={1} 
+                  borderColor="coolGray.200" 
+                  borderRadius="md" 
+                  p={4} 
+                  mb={index === deviceLogins.length - 1 ? 10 : 0}
+                >
+                  <HStack justifyContent="space-between" alignItems="center">
+                    <VStack>
+                      <Text fontWeight="bold">{device.deviceName}</Text>
+                      <HStack space={1} alignItems="center">
+                        <Text fontSize="xs" color="coolGray.500">Last Login - </Text>
+                        <Text fontSize="xs" fontWeight="medium" color="coolGray.700">{device.lastLogin}</Text>
+                      </HStack>
+                    </VStack>
+                    <Button 
+                      bg="rose.500" 
+                      _pressed={{ bg: "rose.600" }}
+                      size="sm"
+                      zIndex={2}
+                      onPress={() => handleLogout(device.deviceToken)}
+                    >
+                      LOGOUT
+                    </Button>
+                  </HStack>
+                </Box>
+              ))
+            ) : (
+              <Box p={4} alignItems="center">
+                <Text color="coolGray.500">No active device sessions found</Text>
               </Box>
-            ))}
+            )}
           </VStack>
         </Box>
       </ScrollView>
