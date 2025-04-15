@@ -19,6 +19,7 @@ import {
   useToast,
   Fab,
   Button,
+  Badge,
 } from "native-base";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBaseUrl } from "../../config/api.config";
@@ -34,6 +35,7 @@ export default function PersonalInfoScreen() {
   
   // Device login data
   const [deviceLogins, setDeviceLogins] = useState([]);
+  const [currentDeviceToken, setCurrentDeviceToken] = useState(null);
 
   const handleLogout = async (deviceToken) => {
     try {
@@ -45,6 +47,8 @@ export default function PersonalInfoScreen() {
       if (!userId) {
         throw new Error("User ID not found");
       }
+
+      // Removed the block preventing logout of current device
       
       // Call logout API
       const response = await fetch(`${getBaseUrl()}/logout`, {
@@ -73,6 +77,13 @@ export default function PersonalInfoScreen() {
           status: "success",
           duration: 3000,
         });
+        
+        // If current device was logged out, need to log out completely
+        if (deviceToken === currentDeviceToken) {
+          // Navigate back to login screen
+          router.replace("/login");
+          return;
+        }
         
         // Refresh profile data to get updated device list
         fetchProfileData();
@@ -104,6 +115,10 @@ export default function PersonalInfoScreen() {
         return;
       }
       
+      // Get current device token
+      const deviceToken = await AsyncStorage.getItem("device_token");
+      setCurrentDeviceToken(deviceToken);
+      
       const data = await fetchWithAuth(`${getBaseUrl()}/view_profile_detail`, {
         method: 'POST',
         headers: {
@@ -123,7 +138,8 @@ export default function PersonalInfoScreen() {
             id: index.toString(),
             deviceToken: session.device_token,
             deviceName: session.device_model || "Unknown Device",
-            lastLogin: session.last_activity || "Unknown"
+            lastLogin: session.last_activity || "Unknown",
+            isCurrentDevice: session.device_token === deviceToken
           }));
           
           setDeviceLogins(formattedDeviceLogins);
@@ -394,7 +410,7 @@ export default function PersonalInfoScreen() {
         <Box bg="white" rounded="lg" shadow={1} mx={4} mb={4}>
           <VStack space={4} p={4}>
             <Heading size="sm" mb={2}>
-              My Active Session
+              My Active Sessions
             </Heading>
 
             {deviceLogins.length > 0 ? (
@@ -402,14 +418,19 @@ export default function PersonalInfoScreen() {
                 <Box 
                   key={device.id}
                   borderWidth={1} 
-                  borderColor="coolGray.200" 
+                  borderColor={device.isCurrentDevice ? "green.500" : "coolGray.200"} 
                   borderRadius="md" 
                   p={4} 
                   mb={index === deviceLogins.length - 1 ? 10 : 0}
                 >
                   <HStack justifyContent="space-between" alignItems="center">
                     <VStack>
-                      <Text fontWeight="bold">{device.deviceName}</Text>
+                      <HStack space={2} alignItems="center">
+                        <Text fontWeight="bold">{device.deviceName}</Text>
+                        {device.isCurrentDevice && (
+                          <Text fontSize="xs" color="green.500">(Current)</Text>
+                        )}
+                      </HStack>
                       <HStack space={1} alignItems="center">
                         <Text fontSize="xs" color="coolGray.500">Last Login - </Text>
                         <Text fontSize="xs" fontWeight="medium" color="coolGray.700">{device.lastLogin}</Text>
