@@ -74,11 +74,11 @@ const COMMANDS = {
   INITIALIZE: [ESC, "@"],
   TEXT_NORMAL: [ESC, "!", 0],
   TEXT_CENTERED: [ESC, "a", 1],
-  LINE_SPACING: [ESC, "3", 24],  // Reduced from 30 to 24 for tighter line spacing
-  LINE_SPACING_TIGHT: [ESC, "3", 18], // Even tighter spacing for itemized sections (reduced from 24)
-  LINE_SPACING_NORMAL: [ESC, "3", 30], // Normal spacing (reduced from 40)
+  LINE_SPACING: [ESC, "3", 24],  //? Reduced from 30 to 24 for tighter line spacing
+  LINE_SPACING_TIGHT: [ESC, "3", 18], // Even tighter spacing for itemized sections ?(reduced from 24)
+  LINE_SPACING_NORMAL: [ESC, "3", 30], // Normal spacing ?(reduced from 40)
   CUT_PAPER: [GS, "V", 1],
-  MARGIN_BOTTOM: [ESC, "O", 1], // Reduced bottom margin from 3 to 1
+  MARGIN_BOTTOM: [ESC, "O", 1], //? Reduced bottom margin from 3 to 1
 };
 
 const getCurrentDate = () => {
@@ -169,7 +169,7 @@ const splitLongText = (text, maxLength) => {
 const formatMenuItem = (item) => {
   const name = item?.menu_name || item?.name || "";
   const qty = item?.quantity?.toString() || "0";
-  const rate = Math.floor(item?.price || 0).toString();
+  const rate = Math.floor(item?.price || 0)?.toString();
   const total = (item?.quantity * item?.price || 0).toFixed(2);
 
   // Special handling for long item names
@@ -209,8 +209,8 @@ const formatMenuItem = (item) => {
 
 const formatAmountLine = (label, amount, symbol = "") => {
   const amountStr = Math.abs(amount).toFixed(2);
-  const totalWidth = 30; // Reduced from 32 to save horizontal space
-  const amountWidth = 10; // Reduced from 12 to save horizontal space
+  const totalWidth = 30; //? Reduced from 32 to save horizontal space
+  const amountWidth = 10; //? Reduced from 12 to save horizontal space
 
   const padding = Math.max(1, totalWidth - label.length - amountWidth);
   const amountWithSymbol = `${symbol}${amountStr}`;
@@ -458,7 +458,7 @@ export default function CreateOrderScreen() {
 
           // Set the menu items with all necessary details
           const transformedItems = orderDetails.menu_details.map((item) => ({
-            menu_id: item.menu_id.toString(),
+            menu_id: item.menu_id?.toString(),
             menu_name: item.menu_name,
             price: parseFloat(item.price),
             quantity: parseInt(item.quantity),
@@ -543,164 +543,265 @@ export default function CreateOrderScreen() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("CASH");
   const [isPaidChecked, setIsPaidChecked] = useState(false);
 
-  const handleKOT = async () => {
-    if (selectedItems.length === 0) {
-      Alert.alert("Error", "Please add items to cart before creating KOT");
-      return;
-    }
-    
-    // Check printer connection first before proceeding to payment modal
-    if (!printerConnected || !contextPrinterDevice) {
-      Alert.alert(
-        "Printer Not Connected",
-        "You need to connect to a printer before printing KOT.",
-        [
-          {
-            text: "Connect Printer",
-            onPress: () => {
-              router.push("/profile/PrinterManagement");
-            },
-          },
-          {
-            text: "Continue Anyway",
-            onPress: () => {
-              // Continue with payment modal anyway
-              setShowPaymentModal(true);
-            },
-          },
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ]
-      );
-      return;
-    }
-    
-    // Show payment modal if printer is connected
-    setShowPaymentModal(true);
-  };
-
-  // Add this new function to handle payment confirmation
-  const handlePaymentConfirm = async () => {
+  const handleKOT = async (modalPaymentMethod = null) => {
     try {
-      setIsProcessing(true);
-      setLoadingMessage("Processing KOT...");
-      setShowPaymentModal(false);
+      setIsLoading(true);
+      setLoadingMessage("Processing order...");
 
-      const isExpoGo = Constants.executionEnvironment === "storeClient";
-      const isWeb = Platform.OS === "web";
-
-      if (isExpoGo || isWeb) {
-        const html = generateKOTHTML();
-        await Print.printAsync({
-          html,
-          orientation: "portrait",
-        });
-      } else {
-        if (printerConnected && contextPrinterDevice) {
-          await printKOT();
-        } else {
-          // If printer is not connected, offer to go to printer settings
-          Alert.alert(
-            "Printer Not Connected",
-            "Would you like to connect to a printer?",
-            [
-              {
-                text: "Go to Printer Settings",
-                onPress: () => {
-                  router.push("/profile/PrinterManagement");
-                },
-              },
-              {
-                text: "Continue Without Printing",
-                onPress: () => {
-                  // Continue with order processing without printing
-                  console.log("Continuing without printing KOT");
-                },
-              },
-              {
-                text: "Cancel",
-                style: "cancel",
-              },
-            ]
-          );
-          return; // Exit early if printer is not connected
-        }
+      if (selectedItems.length === 0) {
+        Alert.alert("Error", "Please add items to cart before generating KOT");
+        return;
       }
 
-      const storedUserId = await AsyncStorage.getItem("user_id");
-      const settleRequestBody = {
-        outlet_id: outletId.toString(),
-        order_id: orderId.toString(),
-        order_status: isPaidChecked ? "paid" : "unpaid",
-        payment_method: selectedPaymentMethod,
-        user_id: storedUserId.toString(),
+      const [restaurantId, userId, accessToken] = await Promise.all([
+        // getRestaurantId(),
+        // getUserId(),
+        AsyncStorage.getItem("access_token"),
+      ]);
+
+      // Set auth header for subsequent requests
+      // axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+
+      const orderItems = selectedItems.map((item) => ({
+        menu_id: item.menu_id?.toString(),
+        quantity: item.quantity?.toString(),
+        comment: item.specialInstructions || "",
+        half_or_full: (item.portion || "full").toLowerCase(),
+        price: item.price?.toString() || "0",
+        total_price: item.total_price?.toString() || "0",
+      }));
+
+      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
+      const effectivePaymentMethod = modalPaymentMethod || paymentMethod;
+
+      const baseRequestBody = {
+        user_id: userId?.toString(),
+        outlet_id: restaurantId?.toString(),
+        order_type: orderType || "dine-in",
+        order_items: orderItems,
+        grand_total: calculateGrandTotal()?.toString(),
+        action: "settle",
+        is_paid: paymentStatus,
+        payment_method: isPaid ? effectivePaymentMethod : "",
+        special_discount: specialDiscount,
+        charges: extraCharges,
+        tip: tip,
+        customer_name: customerDetails.customer_name || "",
+        customer_mobile: customerDetails.customer_mobile || "",
+        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+        customer_address: customerDetails.customer_address || "",
+        customer_landmark: customerDetails.customer_landmark || "",
       };
 
-      const settleResult = await fetchWithAuth(
-        `${getBaseUrl()}/update_order_status`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(settleRequestBody),
-        }
-      );
+      let apiResponse;
 
-      if (settleResult.st !== 1) {
-        throw new Error(settleResult.msg || "Failed to update payment status");
+      if (tableData?.order_id) {
+        const updateRequestBody = {
+          ...baseRequestBody,
+          order_id: tableData.order_id?.toString(),
+          ...(orderType === "dine-in" && {
+            tables: [tableData.table_number?.toString()],
+            section_id: tableData.section_id?.toString(),
+          }),
+          is_paid: null
+        };
+
+        const updateResponse = await axiosInstance.post(
+          `${onGetProductionUrl()}update_order`,
+          updateRequestBody,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const updateData = await updateResponse.data;
+        if (updateData.st !== 1) {
+          throw new Error(updateData.msg || "Failed to update order");
+        }
+
+        const statusRequestBody = {
+          outlet_id: restaurantId?.toString(),
+          order_id: tableData.order_id?.toString(),
+          order_status: isPaid ? "paid" : (orderDetails?.order_status || existingOrderDetails?.order_status || "placed"),
+          user_id: userId?.toString(),
+          action: "settle",
+          order_type: orderType || "dine-in",
+          is_paid: paymentStatus,
+          payment_method: isPaid ? effectivePaymentMethod : "",
+          customer_name: customerDetails.customer_name || "",
+          customer_mobile: customerDetails.customer_mobile || "",
+          customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+          customer_address: customerDetails.customer_address || "",
+          customer_landmark: customerDetails.customer_landmark || "",
+          ...(orderType === "dine-in" && {
+            tables: [tableData.table_number?.toString()],
+            section_id: tableData.section_id?.toString(),
+          }),
+        };
+
+        const statusResponse = await axiosInstance.post(
+          `${onGetProductionUrl()}update_order_status`,
+          statusRequestBody,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const statusData = await statusResponse.data;
+        if (statusData.st !== 1) {
+          throw new Error(statusData.msg || "Failed to update order status");
+        }
+
+        apiResponse = updateData;
+      } else {
+        const createRequestBody = {
+          ...baseRequestBody,
+          ...(orderType === "dine-in" && {
+            tables: [tableData.table_number?.toString()],
+            section_id: tableData.section_id?.toString(),
+          }),
+        };
+
+        const response = await axiosInstance.post(
+          `${onGetProductionUrl()}create_order`,
+          createRequestBody,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const data = await response.data;
+        if (data.st !== 1) {
+          throw new Error(data.msg || "Failed to create order");
+        }
+
+        apiResponse = data;
       }
 
-      // Show success toast when everything worked
-      toast.show({
-        description: "KOT printed successfully",
-        status: "success",
-        duration: 3000,
-        placement: "bottom",
-      });
+      if (apiResponse.st === 1) {
+        setLoadingMessage("Processing KOT...");
 
-      // Clear states and navigate to tables screen
-      setSelectedItems([]);
-      setOrderDetails({});
-      setServiceCharges(0);
-      setGstAmount(0);
-      setDiscountAmount(0);
-
-      // Navigate to tables screen
-      router.replace({
-        pathname: "/(tabs)/tables",
-        params: {
-          refresh: Date.now().toString()
+        if (!tableData?.order_id) {
+          apiResponse.order_number =
+            apiResponse.order_number || String(apiResponse.order_id);
         }
-      });
-
+      
+        if (printerConnected && contextPrinterDevice) {
+          try {
+            try {
+              const isDeviceConnected = await contextPrinterDevice.isConnected();
+              if (!isDeviceConnected) {
+                console.log("Device reports as not connected for KOT despite context state");
+                throw new Error("Printer connection not stable for KOT");
+              }
+              console.log("Printer verified as ready for KOT");
+            } catch (connectionError) {
+              console.error("KOT printer verification error:", connectionError);
+              throw new Error("Please disconnect and reconnect your printer before printing KOT");
+            }
+            
+            const kotCommands = await generateKOTCommands(apiResponse);
+            if (sendDataToPrinter) {
+              await sendDataToPrinter(kotCommands);
+            } else {
+              await sendToDevice(kotCommands, contextPrinterDevice);
+            }
+            
+            setSelectedItems([]);
+            navigation.navigate("RestaurantTables");
+          } catch (error) {
+            console.error("KOT print error:", error);
+            Alert.alert("Error", "Failed to print KOT. Please try again.");
+          }
+        } else {
+          if (Constants.appOwnership === "expo") {
+            Alert.alert(
+              "Print Options",
+              "How would you like to print?",
+              [
+                {
+                  text: "Print to PDF",
+                  onPress: async () => {
+                    try {
+                      await Print.printAsync({
+                        html: await generateKOTHTML(apiResponse),
+                        printerUrl: printerList[0]?.url,
+                        orientation: "portrait",
+                      });
+                      setSelectedItems([]);
+                      navigation.navigate("RestaurantTables");
+                    } catch (error) {
+                      console.error("PDF print error:", error);
+                      Alert.alert("Error", "Failed to generate KOT PDF");
+                    }
+                  },
+                },
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                  onPress: () => {
+                    setSelectedItems([]);
+                    navigation.navigate("RestaurantTables");
+                  },
+                },
+              ],
+              {
+                cancelable: true,
+                onDismiss: () => {
+                  setSelectedItems([]);
+                  navigation.navigate("RestaurantTables");
+                },
+              }
+            );
+          } else {
+            Alert.alert(
+              "Printer Not Connected",
+              "Please connect a printer to print the KOT",
+              [
+                {
+                  text: "Connect Printer",
+                  onPress: () => navigation.navigate("PrinterManagement"),
+                },
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                  onPress: () => {
+                    setSelectedItems([]);
+                    navigation.navigate("RestaurantTables");
+                  },
+                },
+              ],
+              {
+                cancelable: true,
+                onDismiss: () => {
+                  setSelectedItems([]);
+                  navigation.navigate("RestaurantTables");
+                },
+              }
+            );
+          }
+        }
+      }
     } catch (error) {
       console.error("KOT error:", error);
-      
-      // Check if error is related to printer connection
-      if (error.message?.includes("printer") || !printerConnected || !contextPrinterDevice) {
-        Alert.alert(
-          "Printer Connection Error",
-          "Failed to print KOT. Would you like to check your printer connection?",
-          [
-            {
-              text: "Go to Printer Settings",
-              onPress: () => {
-                router.push("/profile/PrinterManagement");
-              },
-            },
-            {
-              text: "Cancel",
-              style: "cancel",
-            },
-          ]
-        );
-      } else {
-        Alert.alert("Error", error.message || "Failed to process KOT");
-      }
+      Alert.alert(
+        "Error",
+        error.response?.data?.msg ||
+          error.message ||
+          "Failed to process order and generate KOT"
+      );
     } finally {
+      setIsLoading(false);
       setLoadingMessage("");
-      setIsProcessing(false);
     }
   };
 
@@ -808,8 +909,8 @@ export default function CreateOrderScreen() {
       }
       
       const [restaurantId, userId, accessToken] = await Promise.all([
-        getRestaurantId(),
-        getUserId(),
+        // getRestaurantId(),
+        // getUserId(),
         AsyncStorage.getItem("access_token"),
       ]);
 
@@ -817,8 +918,8 @@ export default function CreateOrderScreen() {
       axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 
     const orderItems = selectedItems.map((item) => ({
-      menu_id: item.menu_id.toString(),
-      quantity: item.quantity.toString(),
+      menu_id: item.menu_id?.toString(),
+      quantity: item.quantity?.toString(),
       comment: item.specialInstructions || "",
         half_or_full: (item.portion || "full").toLowerCase(),
       price: item.price?.toString() || "0",
@@ -828,17 +929,17 @@ export default function CreateOrderScreen() {
     const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
     
     const baseRequestBody = {
-        user_id: userId.toString(),
-        outlet_id: restaurantId.toString(),
+        user_id: userId?.toString(),
+        outlet_id: restaurantId?.toString(),
         order_type: orderType || "dine-in",
       order_items: orderItems,
-        grand_total: calculateGrandTotal().toString(),
+        grand_total: calculateGrandTotal()?.toString(),
       action: "KOT_and_save",
       is_paid: paymentStatus,
         payment_method: isPaid ? paymentMethod : "",
-        special_discount: safeNumberToString(specialDiscount),
-        charges: safeNumberToString(extraCharges),
-        tip: safeNumberToString(tip),
+        special_discount: specialDiscount,
+        charges: extraCharges,
+        tip: tip,
       customer_name: customerDetails.customer_name || "",
       customer_mobile: customerDetails.customer_mobile || "",
       customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
@@ -852,10 +953,10 @@ export default function CreateOrderScreen() {
       if (tableData?.order_id) {
       const updateRequestBody = {
         ...baseRequestBody,
-          order_id: tableData.order_id.toString(),
+          order_id: tableData.order_id?.toString(),
           ...(orderType === "dine-in" && {
-            tables: [tableData.table_number.toString()],
-            section_id: tableData.section_id.toString(),
+            tables: [tableData.table_number?.toString()],
+            section_id: tableData.section_id?.toString(),
         }),
       };
 
@@ -870,8 +971,8 @@ export default function CreateOrderScreen() {
         const createRequestBody = {
           ...baseRequestBody,
           ...(orderType === "dine-in" && {
-            tables: [tableData.table_number.toString()],
-            section_id: tableData.section_id.toString(),
+            tables: [tableData.table_number?.toString()],
+            section_id: tableData.section_id?.toString(),
         }),
       };
 
@@ -990,7 +1091,7 @@ export default function CreateOrderScreen() {
 
   // Add this function before handleSettle
   const calculateTotal = (items) => {
-    return items.reduce((total, item) => {
+    return items?.reduce((total, item) => {
       const itemTotal = parseFloat(item.total_price) || 0;
       return total + itemTotal;
     }, 0);
@@ -1028,7 +1129,7 @@ const handleSettlePaymentConfirm = async () => {
     }
 
     const orderItems = selectedItems.map((item) => ({
-      menu_id: item.menu_id.toString(),
+      menu_id: item.menu_id?.toString(),
       quantity: parseInt(item.quantity) || 1,
       comment: item.specialInstructions || "",
       half_or_full: (item.portionSize || "full").toLowerCase(),
@@ -1041,8 +1142,8 @@ const handleSettlePaymentConfirm = async () => {
     const effectivePaymentMethod = isPaidChecked ? selectedPaymentMethod.toLowerCase() : "";
 
     const orderData = {
-      user_id: storedUserId.toString(),
-      outlet_id: storedOutletId.toString(),
+      user_id: storedUserId?.toString(),
+      outlet_id: storedOutletId?.toString(),
       order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
       order_items: orderItems,
       grand_total: calculateGrandTotal(
@@ -1052,13 +1153,13 @@ const handleSettlePaymentConfirm = async () => {
         serviceChargePercentage,
         gstPercentage,
         tip
-      ).toString(),
+      )?.toString(),
       action: "settle",
       is_paid: paymentStatus,
       payment_method: effectivePaymentMethod,
-      special_discount: specialDiscount.toString(),
-      charges: extraCharges.toString(),
-      tip: tip.toString(),
+      special_discount: specialDiscount?.toString(),
+      charges: extraCharges?.toString(),
+      tip: tip?.toString(),
       customer_name: customerDetails.customer_name || "",
       customer_mobile: customerDetails.customer_mobile || "",
       customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
@@ -1070,8 +1171,8 @@ const handleSettlePaymentConfirm = async () => {
       if (!params.tableNumber || !params.sectionId) {
         throw new Error("Missing table or section information for dine-in order");
       }
-      orderData.tables = [params.tableNumber.toString()];
-      orderData.section_id = params.sectionId.toString();
+      orderData.tables = [params.tableNumber?.toString()];
+      orderData.section_id = params.sectionId?.toString();
     }
 
     const endpoint = params?.orderId ? 
@@ -1079,7 +1180,7 @@ const handleSettlePaymentConfirm = async () => {
       `${getBaseUrl()}/create_order`;
 
     if (params?.orderId) {
-      orderData.order_id = params.orderId.toString();
+      orderData.order_id = params.orderId?.toString();
     }
 
     const result = await fetchWithAuth(endpoint, {
@@ -1091,11 +1192,11 @@ const handleSettlePaymentConfirm = async () => {
     if (result.st === 1) {
       // If order was successful, update the payment status
       const settleRequestBody = {
-        outlet_id: storedOutletId.toString(),
-        order_id: (params?.orderId || result.order_id).toString(),
+        outlet_id: storedOutletId?.toString(),
+        order_id: (params?.orderId || result.order_id)?.toString(),
         order_status: "paid",
         payment_method: selectedPaymentMethod.toLowerCase(),
-        user_id: storedUserId.toString(),
+        user_id: storedUserId?.toString(),
       };
 
       const settleResult = await fetchWithAuth(
@@ -1121,7 +1222,7 @@ const handleSettlePaymentConfirm = async () => {
       router.replace({
         pathname: "/(tabs)/tables",
         params: { 
-          refresh: Date.now().toString(),
+          refresh: Date.now()?.toString(),
           status: "completed"
         }
       });
@@ -1212,14 +1313,14 @@ const handleSettlePaymentConfirm = async () => {
   };
 
   const calculateSubtotal = (items) => {
-    return items.reduce((sum, item) => {
+    return items?.reduce((sum, item) => {
       const price = item.portionSize === "Half" ? Number(item.half_price || item.price) : Number(item.full_price || item.price);
       return sum + price * Number(item.quantity);
     }, 0);
   };
 
   const calculateItemDiscount = (items) => {
-    return items.reduce((sum, item) => {
+    return items?.reduce((sum, item) => {
       const price = item.portionSize === "Half" ? Number(item.half_price || item.price) : Number(item.full_price || item.price);
       const itemTotal = price * Number(item.quantity);
       return sum + (itemTotal * Number(item.offer)) / 100;
@@ -1376,7 +1477,7 @@ const handleSettlePaymentConfirm = async () => {
 
   //         if (data.st === 1) {
   //           const existingItems = data.data.map((item) => ({
-  //             menu_id: item.menu_id.toString(),
+  //             menu_id: item.menu_id?.toString(),
   //             menu_name: item.name,
   //             price: item.price,
   //             quantity: item.quantity,
@@ -1417,7 +1518,7 @@ const handleSettlePaymentConfirm = async () => {
         
         // Transform order data items
         const orderItems = orderData.menu_details.map((item) => ({
-          menu_id: item.menu_id.toString(),
+          menu_id: item.menu_id?.toString(),
           menu_name: item.menu_name,
           price: parseFloat(item.price),
           quantity: parseInt(item.quantity),
@@ -1515,7 +1616,7 @@ const handleSettlePaymentConfirm = async () => {
             
             if (orderData) {
               const existingItems = orderData.menu_details.map((item) => ({
-                menu_id: item.menu_id.toString(),
+                menu_id: item.menu_id?.toString(),
                 menu_name: item.menu_name,
                 price: parseFloat(item.price),
                 quantity: parseInt(item.quantity),
@@ -1634,8 +1735,8 @@ const handleSettlePaymentConfirm = async () => {
           const userSession = await AsyncStorage.getItem("userSession");
           if (userSession) {
             const sessionData = JSON.parse(userSession);
-            if (sessionData.gst) await AsyncStorage.setItem("gst", sessionData.gst.toString());
-            if (sessionData.service_charges) await AsyncStorage.setItem("service_charges", sessionData.service_charges.toString());
+            if (sessionData.gst) await AsyncStorage.setItem("gst", sessionData.gst?.toString());
+            if (sessionData.service_charges) await AsyncStorage.setItem("service_charges", sessionData.service_charges?.toString());
             
             setGstPercentage(parseFloat(sessionData.gst || 0));
             setServiceChargePercentage(parseFloat(sessionData.service_charges || 0));
@@ -1867,7 +1968,7 @@ const handleSettlePaymentConfirm = async () => {
   const calculateTotalDiscountPercentage = (items) => {
     if (items.length === 0) return 0;
 
-    const totalAmount = items.reduce((sum, item) => {
+    const totalAmount = items?.reduce((sum, item) => {
       const price =
         item.portionSize === "Half"
           ? Number(item.half_price || item.price)
@@ -1948,7 +2049,7 @@ const handleSettlePaymentConfirm = async () => {
       router.replace({
         pathname: "/(tabs)/tables",
         params: {
-          refresh: Date.now().toString(),
+          refresh: Date.now()?.toString(),
         },
       });
     } catch (error) {
@@ -2143,11 +2244,11 @@ const handleSettlePaymentConfirm = async () => {
           }
         }
         
-        // Reduced wait time between chunks for faster printing
+        //? Reduced wait time between chunks for faster printing
         await new Promise((resolve) => setTimeout(resolve, 80));
       }
       
-      // Reduced final delay while still ensuring all data is processed
+      //? Reduced final delay while still ensuring all data is processed
       await new Promise((resolve) => setTimeout(resolve, 250));
       
       console.log("All data sent successfully");
@@ -2331,7 +2432,15 @@ const handleSettlePaymentConfirm = async () => {
   // Add KOT-specific command generator
   const generateKOTCommands = async (orderData) => {
     try {
-      // Get current date/time formatted
+      // Get order details with proper structure
+      const orderDetails = orderData?.lists?.order_details || orderData;
+    
+      const orderNumber = 
+        orderDetails?.order_number || 
+        orderData?.order_number || 
+        tableData?.order_number || 
+        "New";
+
       const getCurrentDateTime = () => {
         const now = new Date();
         const day = String(now.getDate()).padStart(2, '0');
@@ -2347,111 +2456,171 @@ const handleSettlePaymentConfirm = async () => {
         return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
       };
       
-      // Get outlet details
-      const outletName = await AsyncStorage.getItem("outlet_name") || "Restaurant";
-      const outletAddress = await AsyncStorage.getItem("outlet_address") || "";
-      const outletPhone = await AsyncStorage.getItem("outlet_mobile") || "";
+      const [storedOutletName, storedOutletAddress, storedOutletNumber] = 
+        await Promise.all([
+          AsyncStorage.getItem("outlet_name"),
+          AsyncStorage.getItem("outlet_address"),
+          AsyncStorage.getItem("outlet_mobile"), 
+        ]);
       
-      // Helper for separator line
+      const outletName = storedOutletName || "Restaurant";
+      const outletAddress = storedOutletAddress || "";
+      const outletNumber = storedOutletNumber || "";
       const getDottedLine = () => "-------------------------------\n";
+
+      // Check if this is an existing order
+      const isExistingOrder = Boolean(tableData?.order_id);
       
-      // Format order details
-      const orderNumber = orderData?.order_number || "New";
-      const orderType = orderData?.order_type || "dine-in";
+      // Get list of items to print based on whether it's a new or existing order
+      let itemsToPrint = [];
+      let totalQuantityToPrint = 0;
       
-      // Determine if this is a new or existing order
-      const isExistingOrder = Boolean(orderData?.existing_order);
+      console.log("Items for KOT:", selectedItems.map(item => 
+        `${item.name || item.menu_name}: ${item.quantity} (${item.isNewItem ? 'new' : 'existing'}, orig: ${item.originalQuantity || 0})`
+      ));
       
-      // Get items for printing
-      const items = orderData?.order_items || [];
+      if (isExistingOrder) {
+        console.log("Existing order detected. Preparing incremental KOT");
+        
+        // Extract items with their isNewItem and other flags
+        let hasChanges = false;
+        
+        itemsToPrint = selectedItems.map(item => {
+          const currentQty = parseInt(item.quantity) || 0;
+          const originalQty = parseInt(item.originalQuantity) || 0;
+          
+          // For new items
+          if (item.isNewItem === true) {
+            console.log(`Including new item: ${item.name || item.menu_name}, Qty: ${item.quantity}`);
+            hasChanges = true;
+            return {
+              ...item,
+              isNewItem: true,
+              isQuantityChange: false
+            };
+          }
+          
+          // For items with increased quantities
+          if (currentQty > originalQty) {
+            const diff = currentQty - originalQty;
+            console.log(`Including changed quantity item: ${item.name || item.menu_name}, Original: ${originalQty}, Current: ${currentQty}, Diff: ${diff}`);
+            hasChanges = true;
+            return {
+              ...item,
+              quantity: diff,
+              isNewItem: false,
+              isQuantityChange: true
+            };
+          }
+          
+          return null;
+        }).filter(Boolean);
+        
+        if (!hasChanges || itemsToPrint.length === 0) {
+          console.log("No changes detected. Printing all items from existing order");
+          itemsToPrint = selectedItems.map(item => ({
+            ...item,
+            isExistingReprint: true
+          }));
+        }
+          
+        totalQuantityToPrint = itemsToPrint?.reduce((sum, item) => 
+          sum + (parseInt(item.quantity) || 0), 0
+        );
+      } else {
+        console.log("New order detected. Printing all items");
+        itemsToPrint = selectedItems;
+        totalQuantityToPrint = selectedItems?.reduce((sum, item) => 
+          sum + (parseInt(item.quantity) || 0), 0
+        );
+      }
       
-      // Calculate total quantity
-      const totalQuantity = items.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
-      
-      // Create header based on order type
       const kotHeader = isExistingOrder 
-        ? "*** ADDITIONAL KOT ***\n\n"
+        ? (itemsToPrint.some(item => item.isExistingReprint) 
+            ? "*** REPRINT KOT ***\n\n" 
+            : "*** ADDITIONAL KOT ***\n\n")
         : "*** KOT ***\n\n";
 
-      // Generate commands
       return [
-        ...textToBytes("\x1B\x40"), // Initialize printer
-        ...textToBytes("\x1B\x61\x01"), // Center alignment
-        ...textToBytes("\x1B\x21\x10"), // Double width, double height
+        ...textToBytes("\x1B\x40"),
+        ...textToBytes("\x1B\x61\x01"),
+        ...textToBytes("\x1B\x21\x10"),
         ...textToBytes(kotHeader),
         ...textToBytes(`${outletName}\n`),
-        ...textToBytes("\x1B\x21\x00"), // Normal text
+        ...textToBytes("\x1B\x21\x00"),
         ...textToBytes(`${outletAddress}\n`),
-        ...textToBytes(`${outletPhone}\n\n`),
+        ...textToBytes(`${outletNumber}\n\n`),
         
-        ...textToBytes("\x1B\x61\x00"), // Left align
-        ...textToBytes(`Order #: ${orderNumber}\n`),
-        ...textToBytes(`Type: ${orderType.toUpperCase()}\n`),
-        ...textToBytes(`Time: ${getCurrentDateTime()}\n`),
+        ...textToBytes("\x1B\x61\x00"),
+        ...textToBytes(`Bill no: ${orderNumber}\n`),
+        ...textToBytes(
+          orderType === "dine-in"
+            ? `Table: ${tableData?.section || tableData?.section_name || tableSectionName} - ${tableData?.table_number || tableNumber}\n`
+            : `Type: ${orderType?.toUpperCase()}\n`
+        ),
+        ...textToBytes(`DateTime: ${getCurrentDateTime()}\n`),
         
-        // Add table info for dine-in orders
-        ...(orderType === "dine-in" && orderData?.table_number ? 
-           [textToBytes(`Table: ${orderData?.section_name || ""} - ${orderData?.table_number}\n`)] 
-           : []),
-        
-        // Add customer info if available
-        ...(orderData?.customer_name ? [textToBytes(`Customer: ${orderData.customer_name}\n`)] : []),
+        ...(customerDetails?.name ? [textToBytes(`Name: ${customerDetails.name}\n`)] : []),
         
         ...textToBytes(getDottedLine()),
         ...textToBytes("Item                    Qty\n"),
         ...textToBytes(getDottedLine()),
         
-        // Item listing
-        ...items.map(item => {
-          const name = item.name || "";
+        ...itemsToPrint.map(item => {
+          const name = item.name || item.menu_name || "";
           const qty = item.quantity?.toString() || "";
           
-          // Format item text
+          let prefix = "";
+          if (isExistingOrder && !item.isExistingReprint) {
+            if (item.isNewItem) {
+              prefix = "+ ";  // Add prefix for new items
+            } else if (item.isQuantityChange) {
+              prefix = "^ ";  // Add prefix for quantity changes
+            }
+          }
+          
           let itemText = "";
-          if (name.length > 23) {
-            // Handle long item names
+          if ((prefix + name).length > 23) {
+            const prefixLength = prefix.length;
+            const firstLineMaxLength = 23 - prefixLength;
+            const restMaxLength = 23;
+            
             let lines = [];
             let remaining = name;
-            const maxLineLength = 23;
             
-            // First line with quantity
-            lines.push(remaining.substring(0, maxLineLength));
-            remaining = remaining.substring(maxLineLength);
+            lines.push(`${prefix}${remaining.substring(0, firstLineMaxLength)}`);
+            remaining = remaining.substring(firstLineMaxLength);
             
-            // Remaining lines
             while (remaining.length > 0) {
-              lines.push(remaining.substring(0, maxLineLength));
-              remaining = remaining.substring(maxLineLength);
+              lines.push(remaining.substring(0, restMaxLength));
+              remaining = remaining.substring(restMaxLength);
             }
             
             itemText = lines
               .map((line, index) =>
                 index === 0
                   ? `${line.padEnd(23)} ${qty}\n`
-                  : `${line.padEnd(23)}\n`
+                  : `${' '.repeat(prefixLength)}${line.padEnd(23 - prefixLength)}\n`
               )
               .join("");
           } else {
-            itemText = `${name.padEnd(23)} ${qty}\n`;
+            itemText = `${prefix}${name.padEnd(23 - prefix.length)} ${qty}\n`;
           }
 
-          // Add portion size if available
-          if (item.portion_size && item.portion_size !== "full") {
-            itemText += `   (${item.portion_size})\n`;
+          if (item.portion && item.portion !== "full") {
+            itemText += `   (${item.portion})\n`;
           }
-          
-          // Add special instructions if available
-          if (item.special_instructions) {
-            itemText += `   Note: ${item.special_instructions}\n`;
+          if (item.specialInstructions) {
+            itemText += `   Note: ${item.specialInstructions}\n`;
           }
 
           return textToBytes(itemText);
         }).flat(),
         
         ...textToBytes(getDottedLine()),
-        ...textToBytes(`${"Total Items:".padEnd(23)} ${totalQuantity}\n`),
-        ...textToBytes("\n\n"),
-        ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
+        ...textToBytes(`${"Total Items:".padEnd(23)} ${totalQuantityToPrint}\n`),
+        ...textToBytes("\n"),
+        ...textToBytes("\x1D\x56\x42\x40"),
       ];
     } catch (error) {
       console.error("Error generating KOT commands:", error);
@@ -2625,7 +2794,7 @@ const handleSettlePaymentConfirm = async () => {
       }
 
       const orderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id.toString(),
+        menu_id: item.menu_id?.toString(),
         quantity: parseInt(item.quantity) || 1,
         comment: item.specialInstructions || "",
         half_or_full: (item.portionSize || "full").toLowerCase(),
@@ -2637,11 +2806,11 @@ const handleSettlePaymentConfirm = async () => {
       const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
 
       const orderData = {
-        user_id: user_id.toString(),
-        outlet_id: outlet_id.toString(),
+        user_id: user_id?.toString(),
+        outlet_id: outlet_id?.toString(),
         order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
         order_items: orderItems,
-        grand_total: orderItems.reduce(
+        grand_total: orderItems?.reduce(
           (sum, item) => sum + (item.total_price || 0),
           0
         ),
@@ -2656,24 +2825,24 @@ const handleSettlePaymentConfirm = async () => {
         is_paid: paymentStatus,
         payment_method: isPaid ? paymentMethod : "",
         // Add additional charges
-        special_discount: specialDiscount.toString(),
-        charges: extraCharges.toString(),
-        tip: tip.toString(),
+        special_discount: specialDiscount?.toString(),
+        charges: extraCharges?.toString(),
+        tip: tip?.toString(),
       };
 
       if (!params?.isSpecialOrder) {
         if (!params.tableNumber || !params.sectionId) {
           throw new Error("Missing table or section information for dine-in order");
         }
-        orderData.tables = [params.tableNumber.toString()];
-        orderData.section_id = params.sectionId.toString();
+        orderData.tables = [params.tableNumber?.toString()];
+        orderData.section_id = params.sectionId?.toString();
       }
 
       const isUpdate = !params?.isSpecialOrder && params?.orderId && params?.isOccupied === "1";
       const endpoint = isUpdate ? `${getBaseUrl()}/update_order` : `${getBaseUrl()}/create_order`;
 
       if (isUpdate) {
-        orderData.order_id = params.orderId.toString();
+        orderData.order_id = params.orderId?.toString();
       }
 
       const result = await fetchWithAuth(endpoint, {
@@ -2703,7 +2872,7 @@ const handleSettlePaymentConfirm = async () => {
         router.replace({
           pathname: "/(tabs)/orders",
           params: { 
-            refresh: Date.now().toString(),
+            refresh: Date.now()?.toString(),
             status: "pending"  // or whatever status you want to show
           }
         });
