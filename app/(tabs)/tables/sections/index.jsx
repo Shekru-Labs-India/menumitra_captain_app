@@ -1477,8 +1477,8 @@ export default function TableSectionsScreen() {
 
   // Replace the generateQRCodeURL function
   const generateQRCodeURL = (outletId, sectionId, tableId, tableNumber) => {
-    // Use the testing URL instead of production
-    return `https://menumitra-testing.netlify.app/order?o=${outletId}&s=${sectionId}&t=${tableId}&n=${tableNumber}`;
+    // Update to the correct URL format
+    return `https://menumitra-testing.netlify.app/user_app/o${outletId}/s${sectionId}/t${tableNumber}`;
   };
 
   // Update the QRCodeModal component with ViewShot approach
@@ -1530,11 +1530,20 @@ export default function TableSectionsScreen() {
         // Request permissions first
         const { status: mediaStatus } = await MediaLibrary.requestPermissionsAsync();
         if (mediaStatus !== 'granted') {
-          toast.show({
-            description: "Permission needed to save QR code to gallery",
-            status: "error",
-            duration: 3000
-          });
+          if (Platform.OS === 'ios') {
+            Alert.alert(
+              "Permission Required",
+              "Please enable Photos access in your device settings to save QR codes.",
+              [{ text: "OK" }]
+            );
+          } else {
+            Alert.alert(
+              "Permission Required",
+              "Storage permission is required to save QR codes.",
+              [{ text: "OK" }]
+            );
+          }
+          setIsLoadingQr(false);
           return;
         }
 
@@ -1545,49 +1554,155 @@ export default function TableSectionsScreen() {
             status: "error",
             duration: 3000
           });
+          setIsLoadingQr(false);
           return;
         }
 
-        // Capture the QR code with higher quality
-        const uri = await viewShotRef.current.capture();
-        console.log("Captured URI:", uri);
+        // Capture with timeout to ensure rendering is complete
+        setTimeout(async () => {
+          try {
+            // Android-specific capture optimization
+            let uri;
+            if (Platform.OS === 'android') {
+              // Try multiple formats for best compatibility across Android versions
+              try {
+                uri = await viewShotRef.current.capture({
+                  format: "png",
+                  quality: 1,
+                  result: "data-uri"
+                });
+              } catch (captureError) {
+                console.log("Data URI capture failed, trying tmpfile method", captureError);
+                uri = await viewShotRef.current.capture({
+                  format: "png",
+                  quality: 1,
+                  result: "tmpfile"
+                });
+              }
+            } else {
+              // Regular iOS capture
+              uri = await viewShotRef.current.capture();
+            }
+            
+            console.log("Captured URI:", uri);
+            
+            if (!uri) {
+              throw new Error("Failed to capture QR code");
+            }
 
-        if (!uri) {
-          throw new Error("Failed to capture QR code");
-        }
+            // Platform-specific saving approach
+            if (Platform.OS === 'android') {
+              // For Android, implement robust saving with multiple fallbacks
+              try {
+                // Primary method: Create asset and save to album
+                const asset = await MediaLibrary.createAssetAsync(uri);
+                
+                if (!asset) throw new Error("Failed to create asset");
+                
+                try {
+                  // Try to add to existing album
+                  const album = await MediaLibrary.getAlbumAsync('MenuMitra QR Codes');
+                  if (album) {
+                    await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+                  } else {
+                    await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
+                  }
+                } catch (albumError) {
+                  console.log("Album creation failed, asset saved to gallery", albumError);
+                  // Asset is still saved even if album creation fails
+                }
+              } catch (assetError) {
+                console.log("Asset creation failed, trying alternative method", assetError);
+                
+                // Fallback method 1: Direct save to library
+                try {
+                  await MediaLibrary.saveToLibraryAsync(uri);
+                } catch (saveError) {
+                  console.log("Direct save failed, trying file system copy", saveError);
+                  
+                  // Fallback method 2: If running on Android 10+ with scoped storage issues
+                  // Copy to Downloads folder which is accessible without special permissions
+                  if (FileSystem.documentDirectory) {
+                    const filename = `menumitra_qr_${new Date().getTime()}.png`;
+                    const destinationUri = `${FileSystem.documentDirectory}${filename}`;
+                    
+                    await FileSystem.copyAsync({
+                      from: uri,
+                      to: destinationUri
+                    });
+                    
+                    // Try to make the file visible to gallery via scanning
+                    try {
+                      await MediaLibrary.createAssetAsync(destinationUri);
+                    } catch (finalError) {
+                      console.log("Final fallback failed, notify user about manual location", finalError);
+                      toast.show({
+                        description: `QR code saved to Documents folder as ${filename}`,
+                        status: "success",
+                        duration: 4000
+                      });
+                      setIsLoadingQr(false);
+                      setShowDownloadOptions(false);
+                      return;
+                    }
+                  }
+                }
+              }
+            } else {
+              // For iOS, use saveToLibraryAsync which is more reliable
+              await MediaLibrary.saveToLibraryAsync(uri);
+            }
 
-        // Save to media library with error handling
-        try {
-          const asset = await MediaLibrary.createAssetAsync(uri);
-          console.log("Created asset:", asset);
-
-          if (!asset) {
-            throw new Error("Failed to create asset");
+            toast.show({
+              description: "QR code saved to gallery successfully",
+              status: "success",
+              duration: 3000
+            });
+          } catch (saveError) {
+            console.error("Error in QR capture/save:", saveError);
+            
+            // Fallback method if normal save fails
+            try {
+              const uri = await viewShotRef.current.capture();
+              await MediaLibrary.saveToLibraryAsync(uri);
+              
+              toast.show({
+                description: "QR code saved to gallery successfully",
+                status: "success",
+                duration: 3000
+              });
+            } catch (fallbackError) {
+              console.error("Fallback save failed:", fallbackError);
+              
+              // Android-specific user guidance for manual saving
+              if (Platform.OS === 'android') {
+                Alert.alert(
+                  "Saving Failed",
+                  "Would you like to share the QR code instead?",
+                  [
+                    {
+                      text: "Yes, Share",
+                      onPress: () => handleShareQRCode()
+                    },
+                    {
+                      text: "Cancel",
+                      style: "cancel"
+                    }
+                  ]
+                );
+              } else {
+                toast.show({
+                  description: "Failed to save QR code to gallery",
+                  status: "error",
+                  duration: 3000
+                });
+              }
+            }
+          } finally {
+            setIsLoadingQr(false);
+            setShowDownloadOptions(false);
           }
-
-          // Create album and add asset
-          const album = await MediaLibrary.getAlbumAsync('MenuMitra QR Codes');
-          if (album) {
-            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-          } else {
-            await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
-          }
-
-          toast.show({
-            description: "QR code saved to gallery successfully",
-            status: "success",
-            duration: 3000
-          });
-        } catch (saveError) {
-          console.error("Error saving to gallery:", saveError);
-          // Try alternative save method
-          await MediaLibrary.saveToLibraryAsync(uri);
-          toast.show({
-            description: "QR code saved to gallery successfully",
-            status: "success",
-            duration: 3000
-          });
-        }
+        }, 500); // Increased delay for Android
 
       } catch (error) {
         console.error("QR Save Error:", error);
@@ -1596,13 +1711,12 @@ export default function TableSectionsScreen() {
           status: "error",
           duration: 3000
         });
-      } finally {
         setIsLoadingQr(false);
         setShowDownloadOptions(false);
       }
     };
 
-    // New PDF download function using captured image
+    // Replace handlePDFDownload function with this improved version
     const handlePDFDownload = async () => {
       try {
         setIsLoadingQr(true);
@@ -1610,71 +1724,206 @@ export default function TableSectionsScreen() {
         // Request permissions
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status !== 'granted') {
-          toast.show({
-            description: "Permission needed to save QR code as PDF",
-            status: "error"
-          });
+          if (Platform.OS === 'ios') {
+            Alert.alert(
+              "Permission Required",
+              "Please enable Photos access in your device settings to save QR codes.",
+              [{ text: "OK" }]
+            );
+          } else {
+            Alert.alert(
+              "Permission Required",
+              "Storage permission is required to save QR codes.",
+              [{ text: "OK" }]
+            );
+          }
+          setIsLoadingQr(false);
           return;
         }
         
-        // Capture the QR code
-        const uri = await captureQR();
-        if (!uri) return;
+        // Add delay to ensure rendering is complete before capture
+        setTimeout(async () => {
+          try {
+            let uri;
+            
+            // Capture with platform-specific optimizations
+            if (Platform.OS === 'android') {
+              try {
+                // First try data-uri for Android which works better for HTML embedding
+                uri = await viewShotRef.current.capture({
+                  format: "png",
+                  quality: 1,
+                  result: "data-uri"
+                });
+              } catch (captureError) {
+                console.log("Data URI capture failed, trying tmpfile method", captureError);
+                // Fallback to tmpfile if data-uri fails
+                uri = await viewShotRef.current.capture({
+                  format: "png",
+                  quality: 1,
+                  result: "tmpfile"
+                });
+              }
+            } else {
+              // iOS capture
+              uri = await viewShotRef.current.capture(captureOptions);
+            }
+            
+            if (!uri) {
+              throw new Error("Failed to capture QR code");
+            }
 
-        // Generate PDF content with the captured image
-        const tableInfo = `Table ${selectedTableForQR?.table_number || "Unknown"}`;
-        const htmlContent = `
-          <html>
-            <head>
-              <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-                .container { max-width: 500px; margin: 0 auto; }
-                h1 { color: #333; }
-                .table-info { margin: 20px 0; font-size: 18px; }
-                .qr-container { margin: 30px 0; }
-                .footer { margin-top: 40px; font-size: 12px; color: #666; }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <h1>MenuMitra QR Code</h1>
-                <div class="table-info">${tableInfo}</div>
-                <div class="qr-container">
-                  <img src="file://${uri}" width="300" height="300" />
-                </div>
-                <div class="footer">
-                  Scan this QR code with your smartphone camera to access the digital menu
-                </div>
-              </div>
-            </body>
-          </html>
-        `;
+            // Prepare image source for HTML embedding
+            const imageSource = Platform.OS === 'android' 
+              ? (uri.startsWith('data:') ? uri : `file://${uri}`)
+              : `file://${uri}`;
+              
+            const tableInfo = `Table ${selectedTableForQR?.table_number || "Unknown"}`;
+            const htmlContent = `
+              <html>
+                <head>
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+                  <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+                    .container { max-width: 500px; margin: 0 auto; }
+                    h1 { color: #333; }
+                    .table-info { margin: 20px 0; font-size: 18px; }
+                    .qr-container { margin: 30px 0; }
+                    .footer { margin-top: 40px; font-size: 12px; color: #666; }
+                  </style>
+                </head>
+                <body>
+                  <div class="container">
+                    <h1>MenuMitra QR Code</h1>
+                    <div class="table-info">${tableInfo}</div>
+                    <div class="qr-container">
+                      <img src="${imageSource}" width="300" height="300" />
+                    </div>
+                    <div class="footer">
+                      Scan this QR code with your smartphone camera to access the digital menu
+                    </div>
+                  </div>
+                </body>
+              </html>
+            `;
 
-        // Create and save the PDF
-        const { uri: pdfUri } = await Print.printToFileAsync({
-          html: htmlContent,
-          base64: false
-        });
+            // Create and save the PDF with better options for Android
+            const printOptions = Platform.OS === 'android' 
+              ? { html: htmlContent, base64: false, width: 612, height: 792 }
+              : { html: htmlContent, base64: false };
+              
+            const { uri: pdfUri } = await Print.printToFileAsync(printOptions);
 
-        // Create a unique filename
-        const timestamp = new Date().getTime();
-        const fileName = `table_${selectedTableForQR?.table_number}_${timestamp}.pdf`;
+            // Create a unique filename
+            const timestamp = new Date().getTime();
+            const fileName = `table_${selectedTableForQR?.table_number}_${timestamp}.pdf`;
 
-        // Save to media library
-        const asset = await MediaLibrary.createAssetAsync(pdfUri);
-        await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
+            // Platform-specific PDF handling
+            if (Platform.OS === 'android') {
+              try {
+                // Try MediaLibrary approach first
+                const asset = await MediaLibrary.createAssetAsync(pdfUri);
+                
+                try {
+                  // Try to add to album
+                  const album = await MediaLibrary.getAlbumAsync('MenuMitra QR Codes');
+                  if (album) {
+                    await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+                  } else {
+                    await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
+                  }
+                } catch (albumError) {
+                  console.log("Album creation failed, PDF is still saved to gallery", albumError);
+                  // Asset is still saved even if album creation fails
+                }
+              } catch (assetError) {
+                console.log("PDF asset creation failed, trying sharing", assetError);
+                
+                // Try sharing as fallback on Android
+                const canShare = await Sharing.isAvailableAsync();
+                if (canShare) {
+                  await Sharing.shareAsync(pdfUri, {
+                    mimeType: 'application/pdf',
+                    dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code PDF`
+                  });
+                } else {
+                  // Last resort - try to copy to accessible location
+                  if (FileSystem.documentDirectory) {
+                    const pdfFilename = `menumitra_qr_${new Date().getTime()}.pdf`;
+                    const pdfDestination = `${FileSystem.documentDirectory}${pdfFilename}`;
+                    
+                    await FileSystem.copyAsync({
+                      from: pdfUri,
+                      to: pdfDestination
+                    });
+                    
+                    toast.show({
+                      description: `PDF saved to Documents folder as ${pdfFilename}`,
+                      status: "success",
+                      duration: 4000
+                    });
+                  } else {
+                    throw new Error("Failed to save PDF");
+                  }
+                }
+              }
+            } else {
+              // For iOS, try direct sharing which is more reliable
+              const canShare = await Sharing.isAvailableAsync();
+              if (canShare) {
+                await Sharing.shareAsync(pdfUri, {
+                  mimeType: 'application/pdf',
+                  UTI: 'com.adobe.pdf',
+                  dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code PDF`
+                });
+              } else {
+                // Fallback to saving to library
+                const asset = await MediaLibrary.createAssetAsync(pdfUri);
+                await MediaLibrary.createAlbumAsync('MenuMitra QR Codes', asset, false);
+              }
+            }
+            
+            toast.show({
+              description: "QR code PDF saved successfully",
+              status: "success"
+            });
+          } catch (pdfError) {
+            console.error("Error creating PDF:", pdfError);
+            
+            // Android-specific fallback for PDF failure
+            if (Platform.OS === 'android') {
+              Alert.alert(
+                "PDF Creation Failed",
+                "Would you like to try sharing the QR code image instead?",
+                [
+                  {
+                    text: "Yes, Share Image",
+                    onPress: () => handleShareQRCode()
+                  },
+                  {
+                    text: "Cancel",
+                    style: "cancel"
+                  }
+                ]
+              );
+            } else {
+              toast.show({
+                description: `Failed to create PDF: ${pdfError.message}`,
+                status: "error"
+              });
+            }
+          } finally {
+            setIsLoadingQr(false);
+            setShowDownloadOptions(false);
+          }
+        }, Platform.OS === 'android' ? 500 : 300); // Longer delay for Android
         
-        toast.show({
-          description: "QR code PDF saved successfully",
-          status: "success"
-        });
       } catch (error) {
-        console.error("Error creating PDF:", error);
+        console.error("Error in PDF download setup:", error);
         toast.show({
-          description: `Failed to create PDF: ${error.message}`,
+          description: `Failed to prepare PDF: ${error.message}`,
           status: "error"
         });
-      } finally {
         setIsLoadingQr(false);
         setShowDownloadOptions(false);
       }
@@ -1753,7 +2002,9 @@ export default function TableSectionsScreen() {
                     options={{
                       format: "png",
                       quality: 1,
-                      result: "tmpfile"
+                      result: Platform.OS === 'ios' ? "tmpfile" : "data-uri",
+                      width: 320,
+                      height: 320
                     }}
                   >
                     <QRCode
@@ -1871,9 +2122,9 @@ export default function TableSectionsScreen() {
         throw new Error("Invalid QR code data received");
       }
 
-      // Override the user_app_url with our testing URL
+      // Override the user_app_url with our testing URL using the correct format
       const testingUrl = "https://menumitra-testing.netlify.app";
-      const qrUrl = `${testingUrl}/${data.outlet_code}/${data.table_number}/${data.section_id}`;
+      const qrUrl = `${testingUrl}/user_app/o${data.outlet_code}/s${data.section_id}/t${data.table_number}`;
       console.log("Generated QR URL:", qrUrl);
 
       // Set QR data immediately - no need for complex timing as we're using ViewShot
