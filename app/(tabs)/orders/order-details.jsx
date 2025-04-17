@@ -1239,8 +1239,37 @@ export default function OrderDetailsScreen() {
             await printReceipt();
           }
         } else {
-          setIsModalVisible(true);
-          scanForPrinters();
+          // Add an option to skip printer connection
+          Alert.alert(
+            "Printer Not Connected",
+            "Would you like to connect a printer or skip printing?",
+            [
+              {
+                text: "Connect Printer",
+                onPress: () => {
+                  setIsModalVisible(true);
+                  scanForPrinters();
+                }
+              },
+              {
+                text: "Skip Printing",
+                onPress: () => {
+                  toast.show({
+                    description: `Operation completed without printing`,
+                    status: "info",
+                    duration: 3000,
+                    placement: "bottom",
+                    isClosable: true,
+                  });
+                }
+              },
+              {
+                text: "Cancel",
+                style: "cancel"
+              }
+            ]
+          );
+          return;
         }
       }
 

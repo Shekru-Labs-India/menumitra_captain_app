@@ -900,6 +900,112 @@ export default function CreateOrderScreen() {
               },
             },
             {
+              text: "Skip Printer",
+              onPress: async () => {
+                try {
+                  // Continue with order creation without printing
+                  setLoadingMessage("Creating order without printing...");
+                  
+                  const [restaurantId, userId, accessToken] = await Promise.all([
+                    AsyncStorage.getItem("access_token"),
+                  ]);
+                  
+                  // Reuse the order creation code from below
+                  const orderItems = selectedItems.map((item) => ({
+                    menu_id: item.menu_id?.toString(),
+                    quantity: item.quantity?.toString(),
+                    comment: item.specialInstructions || "",
+                    half_or_full: (item.portion || "full").toLowerCase(),
+                    price: item.price?.toString() || "0",
+                    total_price: item.total_price?.toString() || "0",
+                  }));
+                  
+                  const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
+                  
+                  const baseRequestBody = {
+                    user_id: userId?.toString(),
+                    outlet_id: restaurantId?.toString(),
+                    order_type: orderType || "dine-in",
+                    order_items: orderItems,
+                    grand_total: calculateGrandTotal()?.toString(),
+                    action: "KOT_and_save",
+                    is_paid: paymentStatus,
+                    payment_method: isPaid ? paymentMethod : "",
+                    special_discount: specialDiscount,
+                    charges: extraCharges,
+                    tip: tip,
+                    customer_name: customerDetails.customer_name || "",
+                    customer_mobile: customerDetails.customer_mobile || "",
+                    customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+                    customer_address: customerDetails.customer_address || "",
+                    customer_landmark: customerDetails.customer_landmark || "",
+                  };
+                  
+                  let apiResponse;
+                  
+                  if (tableData?.order_id) {
+                    const updateRequestBody = {
+                      ...baseRequestBody,
+                      order_id: tableData.order_id?.toString(),
+                      ...(orderType === "dine-in" && {
+                        tables: [tableData.table_number?.toString()],
+                        section_id: tableData.section_id?.toString(),
+                      }),
+                    };
+                    
+                    const updateResponse = await axiosInstance.post(
+                      onGetProductionUrl() + "update_order",
+                      updateRequestBody
+                    );
+                    
+                    apiResponse = updateResponse.data;
+                  } else {
+                    const createRequestBody = {
+                      ...baseRequestBody,
+                      ...(orderType === "dine-in" && {
+                        tables: [tableData.table_number?.toString()],
+                        section_id: tableData.section_id?.toString(),
+                      }),
+                    };
+                    
+                    const response = await axiosInstance.post(
+                      onGetProductionUrl() + "create_order",
+                      createRequestBody
+                    );
+                    
+                    apiResponse = response.data;
+                  }
+                  
+                  if (apiResponse.st === 1) {
+                    Alert.alert(
+                      "Success",
+                      "Order saved successfully without printing",
+                      [
+                        {
+                          text: "OK",
+                          onPress: () => {
+                            setSelectedItems([]);
+                            navigation.navigate("RestaurantTables");
+                          },
+                        },
+                      ]
+                    );
+                  } else {
+                    throw new Error(apiResponse.msg || "Failed to process order");
+                  }
+                } catch (error) {
+                  console.error("Order creation error:", error);
+                  Alert.alert(
+                    "Error",
+                    error.response?.data?.msg || error.message || "Failed to create order"
+                  );
+                } finally {
+                  setIsLoading(false);
+                  setLoadingMessage("");
+                }
+              },
+            },
+            {
               text: "Cancel",
               style: "cancel",
             },
@@ -2000,6 +2106,53 @@ const handleSettlePaymentConfirm = async () => {
               text: "Connect Printer",
               onPress: () => {
                 router.push("/profile/PrinterManagement");
+              },
+            },
+            {
+              text: "Skip Printer",
+              onPress: async () => {
+                try {
+                  setIsProcessing(true);
+                  setLoadingMessage("Creating order without printing...");
+                  
+                  // Create/update the order without printing
+                  let orderResponse;
+                  if (params?.orderId) {
+                    // Update existing order and set status to "placed"
+                    orderResponse = await createOrder("placed", true);
+                  } else {
+                    orderResponse = await createOrder("print_and_save", true);
+                    if (!orderResponse?.order_id) {
+                      throw new Error("Failed to create order");
+                    }
+                  }
+                  
+                  toast.show({
+                    description: "Order saved successfully without printing",
+                    status: "success",
+                    duration: 3000,
+                    placement: "bottom",
+                  });
+                  
+                  // Navigate back to orders list after successful operation
+                  router.replace({
+                    pathname: "/(tabs)/tables",
+                    params: {
+                      refresh: Date.now()?.toString(),
+                    },
+                  });
+                } catch (error) {
+                  console.error("Order creation error:", error);
+                  toast.show({
+                    description: "Failed to create order",
+                    status: "error",
+                    duration: 3000,
+                    placement: "bottom",
+                  });
+                } finally {
+                  setIsProcessing(false);
+                  setLoadingMessage("");
+                }
               },
             },
             {
