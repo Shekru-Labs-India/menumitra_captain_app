@@ -120,7 +120,8 @@ export default function ProfileScreen() {
     {
       icon: "lock-outline",
       title: "Privacy Policy",
-      route: "/profile/privacy-policy",
+      route: null,
+      onPress: () => Linking.openURL("https://menumitra.com/privacy"),
     },
    
   ];
@@ -130,6 +131,8 @@ export default function ProfileScreen() {
       onPress={() => {
         if (item.route) {
           router.push(item.route);
+        } else if (item.onPress) {
+          item.onPress();
         }
       }}
       _pressed={{ opacity: 0.8 }}
