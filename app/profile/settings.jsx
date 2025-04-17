@@ -157,6 +157,7 @@ export default function SettingsScreen() {
   const updateSetting = async (type, value) => {
     try {
       const outlet_id = await AsyncStorage.getItem("outlet_id");
+      const user_id = await AsyncStorage.getItem("captain_id");
       
       const response = await fetchWithAuth(`${getBaseUrl()}/change_settings`, {
         method: "POST",
@@ -164,7 +165,8 @@ export default function SettingsScreen() {
         body: JSON.stringify({
           outlet_id: outlet_id || "13",
           type: type,
-          value: value
+          value: value,
+          user_id: user_id
         })
       });
 
