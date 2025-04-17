@@ -244,12 +244,13 @@ export default function MenuDetailsView() {
                   setActiveImageIndex(newIndex);
                 }}
               >
-                {menuDetails.images.map((imageUrl, index) => {
-                  // Validate image URL
-                  const validImageUrl = typeof imageUrl === 'string' ? imageUrl : 
-                                      imageUrl?.uri || 
-                                      imageUrl?.url || 
-                                      null;
+                {menuDetails.images.map((imageItem, index) => {
+                  // Validate image URL - handle both string and object formats
+                  const validImageUrl = typeof imageItem === 'string' ? imageItem : 
+                                     imageItem?.uri || 
+                                     imageItem?.url || 
+                                     imageItem?.image || 
+                                     null;
                   
                   // Skip invalid image URLs
                   if (!validImageUrl) return null;
@@ -278,7 +279,9 @@ export default function MenuDetailsView() {
               </ScrollView>
 
               {/* Image Indicators - Only show for valid images */}
-              {menuDetails.images.filter(img => typeof img === 'string' || img?.uri || img?.url).length > 1 && (
+              {menuDetails.images.filter(img => 
+                typeof img === 'string' || img?.uri || img?.url || img?.image
+              ).length > 1 && (
                 <HStack
                   space={2}
                   justifyContent="center"
@@ -288,7 +291,7 @@ export default function MenuDetailsView() {
                 >
                   {menuDetails.images.map((img, index) => {
                     // Skip indicators for invalid images
-                    if (!(typeof img === 'string' || img?.uri || img?.url)) return null;
+                    if (!(typeof img === 'string' || img?.uri || img?.url || img?.image)) return null;
                     
                     return (
                       <Box
@@ -318,7 +321,9 @@ export default function MenuDetailsView() {
                 py={1}
                 _text={{ color: "white" }}
               >
-                {`${activeImageIndex + 1}/${menuDetails.images.filter(img => typeof img === 'string' || img?.uri || img?.url).length}`}
+                {`${activeImageIndex + 1}/${menuDetails.images.filter(img => 
+                  typeof img === 'string' || img?.uri || img?.url || img?.image
+                ).length}`}
               </Badge>
             </VStack>
           ) : (
