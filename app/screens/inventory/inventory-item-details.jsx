@@ -218,7 +218,7 @@ export default function InventoryItemDetailsScreen() {
             <HStack justifyContent="space-between">
               <VStack space={1}>
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.name || "Chips"}
+                  {item?.name || "-"}
                 </Text>
                 <Text color="gray.500">Item Name</Text>
               </VStack>
@@ -233,13 +233,13 @@ export default function InventoryItemDetailsScreen() {
             <HStack justifyContent="space-between">
               <VStack space={1}>
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.quantity || "10"} {item?.unit_of_measure || "Dhd"}
+                  {item?.quantity || "-"} {item?.unit_of_measure || "-"}
                 </Text>
                 <Text color="gray.500">Quantity</Text>
               </VStack>
               <VStack space={1} alignItems="flex-end">
                 <Text fontSize="xl" fontWeight="bold">
-                  ₹{item?.unit_price || "644.00"}
+                  ₹{item?.unit_price || "-"}
                 </Text>
                 <Text color="gray.500">Unit Price</Text>
               </VStack>
@@ -248,13 +248,13 @@ export default function InventoryItemDetailsScreen() {
             <HStack justifyContent="space-between">
               <VStack space={1}>
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.reorder_level || "Not Available"}
+                  {item?.reorder_level || "-"}
                 </Text>
                 <Text color="gray.500">Reorder Level</Text>
               </VStack>
               <VStack space={1} alignItems="flex-end">
                 <Text fontSize="xl" fontWeight="bold" color={item?.in_or_out === "in" ? "green.500" : "blue.500"}>
-                  {item?.in_or_out?.toUpperCase() || "OUT"}
+                  {item?.in_or_out?.toUpperCase() || "-"}
                 </Text>
                 <Text color="gray.500">Status</Text>
               </VStack>
@@ -273,13 +273,13 @@ export default function InventoryItemDetailsScreen() {
             <HStack justifyContent="space-between">
               <VStack space={1}>
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.tax_rate || "464.00"}%
+                  {item?.tax_rate || "-"}%
                 </Text>
                 <Text color="gray.500">Tax Rate</Text>
               </VStack>
               <VStack space={1} alignItems="flex-end">
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.brand_name || "Not Available"}
+                  {item?.brand_name || "-"}
                 </Text>
                 <Text color="gray.500">Brand Name</Text>
               </VStack>
@@ -288,13 +288,13 @@ export default function InventoryItemDetailsScreen() {
             <HStack justifyContent="space-between">
               <VStack space={1}>
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.supplier_name || "Balaji"}
+                  {item?.supplier_name || "-"}
                 </Text>
                 <Text color="gray.500">Supplier Name</Text>
               </VStack>
               <VStack space={1} alignItems="flex-end">
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.expiration_date || "Not Available"}
+                  {item?.expiration_date || "-"}
                 </Text>
                 <Text color="gray.500">Expiration Date</Text>
               </VStack>
@@ -303,13 +303,13 @@ export default function InventoryItemDetailsScreen() {
             <HStack justifyContent="space-between">
               <VStack space={1}>
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.in_date || "03 Apr 2025"}
+                  {item?.in_date || "-"}
                 </Text>
                 <Text color="gray.500">In Date</Text>
               </VStack>
               <VStack space={1} alignItems="flex-end">
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.out_date || "N/A"}
+                  {item?.out_date || "-"}
                 </Text>
                 <Text color="gray.500">Out Date</Text>
               </VStack>
@@ -318,13 +318,13 @@ export default function InventoryItemDetailsScreen() {
             <HStack justifyContent="space-between">
               <VStack space={1}>
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.createdBy || "captain"}
+                  {item?.createdBy || "-"}
                 </Text>
                 <Text color="gray.500">Created By</Text>
               </VStack>
               <VStack space={1} alignItems="flex-end">
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.updatedBy || "owner"}
+                  {item?.updatedBy || "-"}
                 </Text>
                 <Text color="gray.500">Updated By</Text>
               </VStack>
@@ -334,7 +334,7 @@ export default function InventoryItemDetailsScreen() {
               <Box>
                 <Text color="gray.500" mb={1}>Created On</Text>
                 <Text fontSize="md" fontWeight="bold" isTruncated numberOfLines={2}>
-                  {item?.createdOn || "03 Apr 2025 01:04:08 PM"}
+                  {item?.createdOn || "-"}
                 </Text>
               </Box>
               
@@ -351,7 +351,7 @@ export default function InventoryItemDetailsScreen() {
             <HStack justifyContent="flex-start">
               <VStack space={1}>
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.description || "Bdbdvhb"}
+                  {item?.description || "-"}
                 </Text>
                 <Text color="gray.500">Description</Text>
               </VStack>
