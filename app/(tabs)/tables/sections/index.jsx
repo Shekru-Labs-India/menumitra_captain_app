@@ -43,6 +43,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Print from 'expo-print';
 import ViewShot from "react-native-view-shot";
 import { Alert } from "react-native";
+import Image from "react-native/Libraries/Image/Image";
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -150,6 +151,7 @@ export default function TableSectionsScreen() {
   const [captureAttempts, setCaptureAttempts] = useState(0);
   const [refExists, setRefExists] = useState(false);
   const qrContainerRef = useRef(null);
+  const [isQrRefValid, setIsQrRefValid] = useState(false);
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -1485,12 +1487,24 @@ export default function TableSectionsScreen() {
     return `https://menumitra-testing.netlify.app/user_app/o${outletId}/s${sectionId}/t${tableNumber}`;
   };
 
-  // Update the QRCodeModal component with ViewShot approach
+  // Update the QRCodeModal component to improve ref initialization
   const QRCodeModal = () => {
     if (!selectedTableForQR) return null;
 
     const qrValue = qrData?.qr_code_url || "";
     const [showDownloadOptions, setShowDownloadOptions] = useState(false);
+    const [isQrRefValid, setIsQrRefValid] = useState(false);
+    
+    // Check if ref is available after render
+    useEffect(() => {
+      if (qrContainerRef.current) {
+        console.log("QR container ref is now available");
+        setIsQrRefValid(true);
+      } else {
+        console.log("QR container ref not available yet");
+        setIsQrRefValid(false);
+      }
+    }, [qrValue, isLoadingQr, qrReady]);
 
     // More reliable way to track QR rendering
     useEffect(() => {
@@ -1499,11 +1513,21 @@ export default function TableSectionsScreen() {
         const timer = setTimeout(() => {
           console.log("QR code should be ready now");
           setQrReady(true);
+          
+          // Check ref again after QR is ready
+          if (qrContainerRef.current) {
+            console.log("Confirmed QR container ref is valid");
+            setIsQrRefValid(true);
+          } else {
+            console.log("QR container ref still not valid after render");
+            setIsQrRefValid(false);
+          }
         }, 1500); // Longer timeout for more reliable rendering
         
         return () => clearTimeout(timer);
       } else {
         setQrReady(false);
+        setIsQrRefValid(false);
       }
     }, [qrValue, isLoadingQr]);
 
@@ -1517,96 +1541,20 @@ export default function TableSectionsScreen() {
       setShowDownloadOptions(false);
     };
 
-    // Replace the captureQRCode function with this direct implementation
-    const captureQRCode = async () => {
-      try {
-        setIsLoadingQr(true);
-        toast.show({
-          description: "Generating QR code...",
-          status: "info",
-          duration: 1500
-        });
-
-        // Generate QR code data directly without relying on component refs
-        const qrData = await new Promise((resolve) => {
-          // We'll use a svg-to-png conversion approach which is more reliable
-          
-          // Create QR data with proper settings
-          const svgString = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 45 45">
-              <path fill="#ffffff" d="M0 0h45v45H0z"/>
-              ${generateQRCodeData(qrValue, 45, 45)}
-            </svg>`;
-
-          // Convert SVG to PNG data URL using a canvas
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const img = new Image();
-          
-          canvas.width = 600;
-          canvas.height = 600;
-          
-          img.onload = () => {
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, 600, 600);
-            ctx.drawImage(img, 0, 0, 600, 600);
-            resolve(canvas.toDataURL('image/png'));
-          };
-          
-          img.src = `data:image/svg+xml;base64,${btoa(svgString)}`;
-        });
-
-        // Create a temporary file with the QR code data
-        const filename = `MenuMitra_QR_${Date.now()}.png`;
-        const filePath = `${FileSystem.cacheDirectory}${filename}`;
-        
-        // Convert data URL to base64 and save to file
-        const base64Data = qrData.split(',')[1];
-        await FileSystem.writeAsStringAsync(filePath, base64Data, {
-          encoding: FileSystem.EncodingType.Base64
-        });
-        
-        console.log("QR code generated and saved to:", filePath);
-        return filePath;
-      } catch (error) {
-        console.error("QR generation error:", error);
-        toast.show({
-          description: "Error generating QR code. Please try again.",
-          status: "error"
-        });
-        return null;
-      } finally {
-        setIsLoadingQr(false);
-      }
-    };
-
-    // Add this helper function to generate QR code data without external libs
-    const generateQRCodeData = (text, width, height) => {
-      // This is a simplified approach - in a real application,
-      // we'd use a QR code generation algorithm
-      
-      // For this fix, we'll use a pre-generated SVG path data for the QR code URL
-      // and just place it directly into our SVG
-      
-      return `<rect x="10" y="10" width="25" height="25" fill="#000000"/>
-              <rect x="12" y="12" width="21" height="21" fill="#ffffff"/>
-              <rect x="14" y="14" width="17" height="17" fill="#000000"/>`;
-      
-      // In a real implementation, you would use QRCode.toString() or similar
-      // to generate actual QR code paths, but we're working around the library limitations
-    };
-
-    // Simplify the saveToGallery function
+    // Replace the saveToGallery function with a more robust implementation
     const saveToGallery = async () => {
       try {
-        // Show immediate feedback
+        console.log("Starting QR code capture process...");
+        setIsLoadingQr(true);
+        
+        // Show loading toast
         toast.show({
           description: "Saving QR code...",
           status: "info",
           duration: 2000
         });
         
-        // Request permissions first
+        // Request permissions
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status !== 'granted') {
           toast.show({
@@ -1616,124 +1564,114 @@ export default function TableSectionsScreen() {
           return;
         }
         
-        // Directly use the QRCode component's toDataURL method 
-        // which is more reliable for Expo
-        const qrPath = await new Promise((resolve, reject) => {
+        // Wait for QR code to be ready
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        let uri = null;
+        
+        // Method 1: Try to get data URL directly from QR ref
+        if (global.nativeQRRef) {
           try {
-            // Use a simpler approach that doesn't rely on refs
-            require('react-native-qrcode-svg')
-              .default
-              .toDataURL(qrValue, {
-                width: 600,
-                height: 600,
-                margin: 16,
-                color: '#000000',
-                backgroundColor: '#FFFFFF'
-              }, 
-              (dataURL) => {
-                resolve(dataURL);
-              });
-          } catch (err) {
-            // Fallback to a different method if the library's method fails
-            console.log("Falling back to alternative QR generation");
-            const tempFile = `${FileSystem.cacheDirectory}temp_qr_${Date.now()}.png`;
-            
-            // Use expo's API to create a file
-            FileSystem.downloadAsync(
-              `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(qrValue)}`,
-              tempFile
-            ).then(() => resolve(tempFile))
-              .catch(reject);
+            console.log("Using QR reference method");
+            uri = await new Promise((resolve, reject) => {
+              const options = {
+                width: 400,
+                height: 400,
+                quality: 0.9,
+                includeECLevel: true,
+                includeLogo: true,
+                color: true
+              };
+              
+              global.nativeQRRef.toDataURL((data) => {
+                if (data) {
+                  console.log("QR data URL generated successfully");
+                  resolve(data);
+                } else {
+                  reject(new Error("Failed to generate QR code data URL"));
+                }
+              }, options);
+            });
+          } catch (refError) {
+            console.error("QR ref method failed:", refError);
+            uri = null;
           }
-        });
-        
-        // Create a temporary file for saving to gallery
-        const tempFile = `${FileSystem.cacheDirectory}gallery_qr_${Date.now()}.png`;
-        if (qrPath.startsWith('data:')) {
-          // Handle data URL
-          const base64Data = qrPath.split(',')[1];
-          await FileSystem.writeAsStringAsync(tempFile, base64Data, {
-            encoding: FileSystem.EncodingType.Base64
-          });
-        } else {
-          // Handle file path
-          await FileSystem.copyAsync({
-            from: qrPath,
-            to: tempFile
-          });
         }
         
-        // Save to gallery
-        await MediaLibrary.saveToLibraryAsync(tempFile);
-        
-        toast.show({
-          description: "QR code saved to gallery",
-          status: "success"
-        });
-      } catch (error) {
-        console.error("Error saving QR code:", error);
-        toast.show({
-          description: "Could not save QR code. Please try again.",
-          status: "error"
-        });
-      } finally {
-        setIsLoadingQr(false);
-      }
-    };
-
-    // Also update share function to handle file extensions
-    const handleShareQRCode = async () => {
-      try {
-        if (!qrReady) {
-          toast.show({
-            description: "QR code is still preparing. Please wait a moment.",
-            status: "warning",
-            duration: 3000
-          });
-          return;
-        }
-        
-        setIsLoadingQr(true);
-        setShowDownloadOptions(false);
-        
-        console.log("Capturing QR code for sharing");
-        const uri = await captureQRCode();
-        
+        // Method 2: Try using API as fallback
         if (!uri) {
-          throw new Error("Failed to capture QR code for sharing");
+          console.log("Using API fallback method");
+          try {
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
+            console.log("API URL:", qrApiUrl);
+            
+            // Download directly to a file instead of creating a blob URL
+            const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
+            const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+            
+            const downloadResult = await FileSystem.downloadAsync(qrApiUrl, fileUri);
+            
+            if (downloadResult.status !== 200) {
+              throw new Error(`Download failed with status ${downloadResult.status}`);
+            }
+            
+            console.log("QR code downloaded successfully to:", fileUri);
+            uri = fileUri;
+          } catch (apiError) {
+            console.error("API fallback failed:", apiError);
+            throw new Error("All QR code generation methods failed");
+          }
         }
         
-        // Ensure the URI has correct file extension for sharing
-        let finalUri = uri;
-        
-        // For data URIs on Android, convert to file
-        if (Platform.OS === 'android' && uri.startsWith('data:')) {
-          console.log("Converting data URI to file for sharing");
-          const base64Data = uri.split(',')[1];
-          if (!base64Data) {
-            throw new Error("Invalid data URI format");
+        // Save the QR code
+        if (uri) {
+          // Create a unique filename
+          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
+          let fileUri = uri;
+          
+          // Only process data URLs, file URLs are already handled
+          if (uri.startsWith('data:')) {
+            fileUri = `${FileSystem.cacheDirectory}${filename}`;
+            const base64Data = uri.split(',')[1];
+            await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+              encoding: FileSystem.EncodingType.Base64
+            });
           }
           
-          const tempFilePath = `${FileSystem.cacheDirectory}share_qr_${Date.now()}.png`;
-          await FileSystem.writeAsStringAsync(tempFilePath, base64Data, {
-            encoding: FileSystem.EncodingType.Base64
-          });
-          finalUri = tempFilePath;
-          console.log("Created temporary file for sharing:", finalUri);
+          try {
+            // Save to media library
+            console.log("Saving to media library:", fileUri);
+            const asset = await MediaLibrary.createAssetAsync(fileUri);
+            console.log("QR code saved to gallery, asset ID:", asset.id);
+            
+            // Create album if it doesn't exist
+            try {
+              await MediaLibrary.createAlbumAsync("MenuMitra QR Codes", asset, false);
+            } catch (albumError) {
+              console.log("Album already exists or error creating album:", albumError);
+            }
+            
+            // Show success message
+            toast.show({
+              description: "QR code saved to gallery",
+              status: "success",
+              duration: 2000
+            });
+          } catch (saveError) {
+            console.error("Error saving QR code to gallery:", saveError);
+            toast.show({
+              description: "Failed to save QR code: " + (saveError.message || "Unknown error"),
+              status: "error",
+              duration: 3000
+            });
+          }
+        } else {
+          throw new Error("Failed to generate QR code");
         }
-        
-        console.log("Sharing QR code");
-        await Sharing.shareAsync(finalUri, {
-          mimeType: 'image/png',
-          dialogTitle: `Share Table ${selectedTableForQR?.table_number || "Unknown"} QR Code`,
-          UTI: 'public.png'
-        });
-        
-        console.log("QR code shared successfully");
       } catch (error) {
-        console.error("Error sharing QR code:", error);
-          toast.show({
-          description: `Share failed: ${error.message || "Unknown error"}`,
+        console.error("QR Save Error:", error);
+        toast.show({
+          description: "Failed to save QR code: " + (error.message || "Unknown error"),
           status: "error",
           duration: 3000
         });
@@ -1742,33 +1680,268 @@ export default function TableSectionsScreen() {
       }
     };
 
-    // Similarly update PDF function
-    const handlePDFDownload = async () => {
+    // Add function to save QR code to downloads folder
+    const saveToDownloads = async () => {
       try {
-        if (!qrReady) {
+        setIsLoadingQr(true);
+        toast.show({
+          description: "Preparing to save QR code...",
+          status: "info",
+          duration: 2000
+        });
+        
+        // Generate QR code data
+        let qrDataUrl = null;
+        
+        if (global.nativeQRRef) {
+          // Get QR code as data URL using the ref, ensuring logo is included
+          qrDataUrl = await new Promise((resolve, reject) => {
+            // Options to ensure logo is included in the data URL
+            const options = {
+              width: 400,
+              height: 400,
+              quality: 0.9,
+              includeECLevel: true,
+              includeLogo: true,
+              color: true
+            };
+            
+            global.nativeQRRef.toDataURL((data) => {
+              if (data) {
+                console.log("QR data URL with logo generated for download");
+                resolve(data);
+              } else {
+                reject(new Error("Failed to generate QR code data"));
+              }
+            }, options);
+          });
+        }
+        
+        // If we have QR data, save it
+        if (qrDataUrl) {
+          // Create a unique filename based on table number and timestamp
+          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
+          
+          // Save to appropriate folder based on platform
+          if (Platform.OS === 'android') {
+            // For Android, we can save to the Downloads directory
+            const downloadPath = `${FileSystem.documentDirectory}${filename}`;
+            const base64Data = qrDataUrl.split(',')[1];
+            
+            await FileSystem.writeAsStringAsync(downloadPath, base64Data, {
+              encoding: FileSystem.EncodingType.Base64
+            });
+            
+            // For sharing the file or making it available in downloads
+            await Sharing.shareAsync(downloadPath, {
+              mimeType: 'image/png',
+              dialogTitle: 'Save QR Code',
+              UTI: 'public.png'
+            });
+            
+            toast.show({
+              description: "QR code saved. Check your Downloads folder.",
+              status: "success",
+              duration: 3000
+            });
+          } else if (Platform.OS === 'ios') {
+            // For iOS, use sharing to save to Files app
+            const tempFilePath = `${FileSystem.cacheDirectory}${filename}`;
+            const base64Data = qrDataUrl.split(',')[1];
+            
+            await FileSystem.writeAsStringAsync(tempFilePath, base64Data, {
+              encoding: FileSystem.EncodingType.Base64
+            });
+            
+            await Sharing.shareAsync(tempFilePath, {
+              mimeType: 'image/png',
+              dialogTitle: 'Save QR Code to Files',
+              UTI: 'public.png'
+            });
+            
+            toast.show({
+              description: "QR code ready to save",
+              status: "success",
+              duration: 3000
+            });
+          } else {
+            // For web or other platforms
+            throw new Error("Saving to downloads not supported on this platform");
+          }
+        } else {
+          // If no QR data from ref, try using API as fallback
+          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
+          
+          // Create a unique filename
+          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
+          const downloadPath = `${FileSystem.documentDirectory}${filename}`;
+          
+          // Download directly from API
+          await FileSystem.downloadAsync(qrApiUrl, downloadPath);
+          
+          // Share the file
+          await Sharing.shareAsync(downloadPath, {
+            mimeType: 'image/png', 
+            dialogTitle: 'Save QR Code',
+            UTI: 'public.png'
+          });
+          
           toast.show({
-            description: "QR code is still preparing. Please wait a moment.",
-            status: "warning",
+            description: "QR code ready to save",
+            status: "success",
             duration: 3000
           });
-          return;
         }
         
-        setIsLoadingQr(true);
         setShowDownloadOptions(false);
+      } catch (error) {
+        console.error("Error saving to downloads:", error);
+        toast.show({
+          description: "Failed to save QR code: " + (error.message || "Unknown error"),
+          status: "error",
+          duration: 3000
+        });
+      } finally {
+        setIsLoadingQr(false);
+      }
+    };
+
+    // Add the missing handleShareQRCode function
+    const handleShareQRCode = async () => {
+      try {
+        setIsLoadingQr(true);
+        toast.show({
+          description: "Preparing to share QR code...",
+          status: "info",
+          duration: 2000
+        });
+
+        // Get QR code data URL
+        let qrDataUrl = null;
         
-        console.log("Capturing QR code for PDF");
-        const uri = await captureQRCode();
-        
-        if (!uri) {
-          throw new Error("Failed to capture QR code for PDF");
+        if (global.nativeQRRef) {
+          // Get QR code as data URL
+          qrDataUrl = await new Promise((resolve, reject) => {
+            const options = {
+              width: 400,
+              height: 400,
+              quality: 0.9,
+              includeECLevel: true,
+              includeLogo: true,
+              color: true
+            };
+            
+            global.nativeQRRef.toDataURL((data) => {
+              if (data) {
+                console.log("QR data URL generated for sharing");
+                resolve(data);
+              } else {
+                reject(new Error("Failed to generate QR code data for sharing"));
+              }
+            }, options);
+          });
         }
         
-        // Prepare image source for HTML embedding
-        const imageSource = Platform.OS === 'android' 
-          ? (uri.startsWith('data:') ? uri : `file://${uri}`)
-          : `file://${uri}`;
+        if (qrDataUrl) {
+          // Save to temporary file for sharing
+          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
+          const filePath = `${FileSystem.cacheDirectory}${filename}`;
+          const base64Data = qrDataUrl.split(',')[1];
+          
+          await FileSystem.writeAsStringAsync(filePath, base64Data, {
+            encoding: FileSystem.EncodingType.Base64
+          });
+          
+          // Share the file
+          await Sharing.shareAsync(filePath, {
+            mimeType: 'image/png',
+            dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code`
+          });
+          
+          toast.show({
+            description: "QR code shared successfully",
+            status: "success",
+            duration: 2000
+          });
+        } else {
+          // Fallback to API if ref method fails
+          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
+          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
+          const filePath = `${FileSystem.cacheDirectory}${filename}`;
+          
+          // Download the QR code from API
+          await FileSystem.downloadAsync(qrApiUrl, filePath);
+          
+          // Share the file
+          await Sharing.shareAsync(filePath, {
+            mimeType: 'image/png',
+            dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code`
+          });
+          
+          toast.show({
+            description: "QR code shared successfully",
+            status: "success",
+            duration: 2000
+          });
+        }
+      } catch (error) {
+        console.error("QR Share Error:", error);
+        toast.show({
+          description: "Failed to share QR code: " + (error.message || "Unknown error"),
+          status: "error",
+          duration: 3000
+        });
+      } finally {
+        setIsLoadingQr(false);
+      }
+    };
+    
+    // Add the missing handlePDFDownload function
+    const handlePDFDownload = async () => {
+      try {
+        setIsLoadingQr(true);
+        toast.show({
+          description: "Generating PDF...",
+          status: "info",
+          duration: 2000
+        });
         
+        // Wait for QR code to be ready
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Get QR code as data URL
+        let qrDataUrl = null;
+        
+        if (global.nativeQRRef) {
+          qrDataUrl = await new Promise((resolve, reject) => {
+            const options = {
+              width: 400,
+              height: 400,
+              quality: 0.9,
+              includeECLevel: true,
+              includeLogo: true,
+              color: true
+            };
+            
+            global.nativeQRRef.toDataURL((data) => {
+              if (data) {
+                console.log("QR data URL generated for PDF");
+                resolve(data);
+              } else {
+                reject(new Error("Failed to generate QR code data for PDF"));
+              }
+            }, options);
+          });
+        }
+        
+        if (!qrDataUrl) {
+          throw new Error("Could not generate QR code image for PDF");
+        }
+        
+        // Get restaurant name for the PDF
+        const outlet = await AsyncStorage.getItem("outlet_name") || "MenuMitra";
+        
+        // Create HTML content with embedded QR code and logo
         const tableInfo = `Table ${selectedTableForQR?.table_number || "Unknown"}`;
         const htmlContent = `
           <html>
@@ -1778,20 +1951,26 @@ export default function TableSectionsScreen() {
                 body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
                 .container { max-width: 500px; margin: 0 auto; }
                 h1 { color: #333; }
-                .table-info { margin: 20px 0; font-size: 18px; }
+                .outlet-name { font-weight: bold; color: #0891b2; font-size: 22px; margin-bottom: 10px; }
+                .table-info { margin: 20px 0; font-size: 24px; font-weight: bold; color: #333; }
                 .qr-container { margin: 30px 0; }
+                .instructions { margin: 20px 0; font-size: 16px; color: #555; }
                 .footer { margin-top: 40px; font-size: 12px; color: #666; }
               </style>
             </head>
             <body>
               <div class="container">
-                <h1>MenuMitra QR Code</h1>
+                <div class="outlet-name">${outlet}</div>
+                <h1>Menu QR Code</h1>
                 <div class="table-info">${tableInfo}</div>
                 <div class="qr-container">
-                  <img src="${imageSource}" width="300" height="300" />
+                  <img src="${qrDataUrl}" width="350" height="350" />
+                </div>
+                <div class="instructions">
+                  Scan this QR code with your smartphone camera to access the digital menu
                 </div>
                 <div class="footer">
-                  Scan this QR code with your smartphone camera to access the digital menu
+                  &copy; MenuMitra - Digital Menu Solutions
                 </div>
               </div>
             </body>
@@ -1799,13 +1978,13 @@ export default function TableSectionsScreen() {
         `;
 
         // Create and share PDF
-        console.log("Creating PDF");
+        console.log("Creating PDF with logo");
         const { uri: pdfUri } = await Print.printToFileAsync({
           html: htmlContent,
           base64: false
         });
 
-        console.log("Sharing PDF");
+        console.log("Sharing PDF with logo");
         await Sharing.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
           UTI: 'com.adobe.pdf',
@@ -1817,10 +1996,12 @@ export default function TableSectionsScreen() {
           status: "success",
           duration: 3000
         });
+        
+        setShowDownloadOptions(false);
       } catch (error) {
-        console.error("Error creating PDF:", error);
+        console.error("PDF Generation Error:", error);
         toast.show({
-          description: "Could not create PDF. Please try again.",
+          description: "Failed to generate PDF: " + (error.message || "Unknown error"),
           status: "error",
           duration: 3000
         });
@@ -1867,23 +2048,35 @@ export default function TableSectionsScreen() {
                   shadow={2}
                   p={4}
                   ref={qrContainerRef}
-                  collapsable={false} // Still keep this for compatibility
+                  collapsable={false}
+                  key={"qrbox-" + qrRenderAttempt}
                 >
-                  {/* Replace ViewShot with regular View to avoid ref issues */}
-                  <Box bg="white" p={4} borderRadius="md" collapsable={false}>
-                    <QRCode
+                  {/* Use a simple Box instead of ViewShot to avoid ref issues */}
+                  <Box 
+                    bg="white" 
+                    p={4} 
+                    borderRadius="md" 
+                    collapsable={false} 
+                    key={"qrcode-" + qrRenderAttempt}
+                  >
+                   <QRCode
                       value={qrValue}
                       size={280}
                       logo={require('../../../../assets/images/mm-logo.png')}
-                      logoSize={50}
+                      logoSize={60}
                       logoBackgroundColor="white"
-                      logoMargin={4}
+                      logoMargin={2}
                       logoBorderRadius={8}
                       backgroundColor="white"
                       color="#000000"
                       enableLinearGradient={false}
-                      ecl="H"
+                      ecl="H" // Higher error correction level to accommodate logo
                       quietZone={16}
+                      logoHasBackground={false}
+                      getRef={(c) => {
+                        global.nativeQRRef = c;
+                        console.log("QR code ref set:", c ? "success" : "failed");
+                      }}
                       onError={(error) => {
                         console.error("QR Code error:", error);
                         setQrReady(false);
@@ -1909,10 +2102,10 @@ export default function TableSectionsScreen() {
                     _pressed={{ bg: "cyan.600" }}
                     leftIcon={<Icon as={MaterialIcons} name="download" size="sm" color="white" />}
                     onPress={() => setShowDownloadOptions(true)}
-                    isDisabled={isLoadingQr || !qrReady}
+                    isDisabled={isLoadingQr}
                     _text={{ fontWeight: "semibold" }}
                   >
-                    {qrReady ? "Download" : "Preparing..."}
+                    Download
                   </Button>
                   <Button
                     flex={1}
@@ -1921,10 +2114,10 @@ export default function TableSectionsScreen() {
                     _pressed={{ bg: "green.700" }}
                     leftIcon={<Icon as={MaterialIcons} name="share" size="sm" color="white" />}
                     onPress={handleShareQRCode}
-                    isDisabled={isLoadingQr || !qrReady}
+                    isDisabled={isLoadingQr}
                     _text={{ fontWeight: "semibold" }}
                   >
-                    {qrReady ? "Share" : "Preparing..."}
+                    Share
                   </Button>
                 </HStack>
 
@@ -1941,7 +2134,7 @@ export default function TableSectionsScreen() {
                           _pressed={{ bg: "blue.600" }}
                           leftIcon={<Icon as={MaterialIcons} name="image" size="sm" color="white" />}
                           onPress={saveToGallery}
-                          isDisabled={isLoadingQr || !qrReady}
+                          isDisabled={isLoadingQr}
                           _text={{ fontWeight: "semibold" }}
                         >
                           Save as Image
@@ -1952,10 +2145,21 @@ export default function TableSectionsScreen() {
                           _pressed={{ bg: "red.600" }}
                           leftIcon={<Icon as={MaterialIcons} name="picture-as-pdf" size="sm" color="white" />}
                           onPress={handlePDFDownload}
-                          isDisabled={isLoadingQr || !qrReady}
+                          isDisabled={isLoadingQr}
                           _text={{ fontWeight: "semibold" }}
                         >
                           Save as PDF
+                        </Button>
+                        <Button
+                          size="lg"
+                          colorScheme="orange"
+                          _pressed={{ bg: "orange.600" }}
+                          leftIcon={<Icon as={MaterialIcons} name="folder" size="sm" color="white" />}
+                          onPress={saveToDownloads}
+                          isDisabled={isLoadingQr}
+                          _text={{ fontWeight: "semibold" }}
+                        >
+                          Save to Downloads
                         </Button>
                       </VStack>
                     </Modal.Body>
