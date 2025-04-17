@@ -301,6 +301,11 @@ export default function EditMenuView() {
       formData.append("is_special", menuDetails.is_special ? "1" : "0");
       formData.append("is_active", menuDetails.is_active ? "1" : "0");
 
+      const deviceToken = await AsyncStorage.getItem("device_token");
+      if (deviceToken) {
+        formData.append("device_token", deviceToken);
+      }
+
       // Handle images
       if (menuDetails.images && menuDetails.images.length > 0) {
         menuDetails.images.forEach((imageUri, index) => {
