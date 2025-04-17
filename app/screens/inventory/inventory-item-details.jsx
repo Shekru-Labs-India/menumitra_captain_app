@@ -318,13 +318,13 @@ export default function InventoryItemDetailsScreen() {
             <HStack justifyContent="space-between">
               <VStack space={1}>
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.createdBy || "-"}
+                  {item?.createdBy?.toUpperCase() || "-"}
                 </Text>
                 <Text color="gray.500">Created By</Text>
               </VStack>
               <VStack space={1} alignItems="flex-end">
                 <Text fontSize="xl" fontWeight="bold">
-                  {item?.updatedBy || "-"}
+                  {item?.updatedBy?.toUpperCase() || "-"}
                 </Text>
                 <Text color="gray.500">Updated By</Text>
               </VStack>
