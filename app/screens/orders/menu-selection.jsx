@@ -955,12 +955,45 @@ export default function MenuSelectionScreen() {
       {isReserved && orderType === "dine-in" && (
         <Pressable
           style={[styles.floatingCart, { bottom: 80 }]}
-          onPress={() => {
-            setIsReserved(false);
-            toast.show({
-              description: "Table has been un-reserved",
-              status: "info"
-            });
+          onPress={async () => {
+            try {
+              const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  table_id: parseInt(tableData.table_id),
+                  table_number: parseInt(tableData.table_number),
+                  outlet_id: parseInt(tableData.outlet_id),
+                  is_reserved: false
+                }),
+              });
+
+              if (response.st === 1) {
+                setIsReserved(false);
+                toast.show({
+                  description: "Table has been unreserved",
+                  status: "success"
+                });
+                router.replace({
+                  pathname: "/(tabs)/tables",
+                  params: { 
+                    refresh: Date.now().toString(),
+                    status: "completed"
+                  }
+                });
+              } else {
+                toast.show({
+                  description: response.msg || "Failed to unreserve table",
+                  status: "error"
+                });
+              }
+            } catch (error) {
+              console.error("Error unreserving table:", error);
+              toast.show({
+                description: "Failed to unreserve table",
+                status: "error"
+              });
+            }
           }}
         >
           <HStack alignItems="center">
