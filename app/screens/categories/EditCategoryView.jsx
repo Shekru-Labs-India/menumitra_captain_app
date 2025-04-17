@@ -95,17 +95,20 @@ export default function EditCategoryView() {
         const fileSizeInMB = blob.size / (1024 * 1024);
 
         if (fileSizeInMB > 3) {
-          setErrors(prev => ({
+          setErrors((prev) => ({
             ...prev,
-            image: "Image size should not exceed 3MB"
+            image: "Image size should not exceed 3MB",
           }));
           return;
         }
 
-        setCategoryDetails(prev => ({ ...prev, image: result.assets[0].uri }));
+        setCategoryDetails((prev) => ({
+          ...prev,
+          image: result.assets[0].uri,
+        }));
         setImageSelected(true);
         // Clear image error if exists
-        setErrors(prev => {
+        setErrors((prev) => {
           const { image, ...rest } = prev;
           return rest;
         });
@@ -123,17 +126,17 @@ export default function EditCategoryView() {
   };
 
   const removeImage = () => {
-    setCategoryDetails(prev => ({ 
-      ...prev, 
+    setCategoryDetails((prev) => ({
+      ...prev,
       image: null,
-      existing_image: null // Also clear existing image to indicate removal
+      existing_image: null, // Also clear existing image to indicate removal
     }));
     setImageSelected(false);
-    setErrors(prev => {
+    setErrors((prev) => {
       const { image, ...rest } = prev;
       return rest;
     });
-    
+
     // Add toast notification to confirm image removal
     toast.show({
       description: "Image removed. Save to apply changes.",
@@ -150,12 +153,12 @@ export default function EditCategoryView() {
     if (!sanitizedText.trim()) {
       setErrors((prev) => ({
         ...prev,
-        category_name: "Category name is required"
+        category_name: "Category name is required",
       }));
     } else if (sanitizedText.trim().length < 2) {
       setErrors((prev) => ({
         ...prev,
-        category_name: "Category name must be at least 2 characters"
+        category_name: "Category name must be at least 2 characters",
       }));
     } else {
       // Properly clear the error when input is valid
@@ -193,6 +196,11 @@ export default function EditCategoryView() {
       formData.append("category_name", categoryDetails.category_name);
       formData.append("is_active", categoryDetails.is_active ? "1" : "0");
 
+      // Add device_token to FormData
+      const deviceToken = await AsyncStorage.getItem("device_token");
+      if (deviceToken) {
+        formData.append("device_token", deviceToken);
+      }
       // Handle image cases
       if (categoryDetails.image) {
         // New image selected
@@ -217,7 +225,7 @@ export default function EditCategoryView() {
         has_new_image: !!categoryDetails.image,
         existing_image: categoryDetails.existing_image,
         remove_image: categoryDetails.existing_image === null ? "1" : undefined,
-        is_active: categoryDetails.is_active ? "1" : "0"
+        is_active: categoryDetails.is_active ? "1" : "0",
       });
 
       const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_update`, {
@@ -292,7 +300,9 @@ export default function EditCategoryView() {
                   <Box alignItems="center" position="relative">
                     <Image
                       source={{
-                        uri: categoryDetails.image || categoryDetails.existing_image,
+                        uri:
+                          categoryDetails.image ||
+                          categoryDetails.existing_image,
                       }}
                       alt="Category Image"
                       size="2xl"
@@ -336,7 +346,10 @@ export default function EditCategoryView() {
                       size={12}
                       color={errors.image ? "red.500" : "coolGray.400"}
                     />
-                    <Text mt={2} color={errors.image ? "red.500" : "coolGray.500"}>
+                    <Text
+                      mt={2}
+                      color={errors.image ? "red.500" : "coolGray.500"}
+                    >
                       Tap to add image (Max 3MB)
                     </Text>
                   </Box>
@@ -358,35 +371,49 @@ export default function EditCategoryView() {
                   onChangeText={handleCategoryNameChange}
                   placeholder="Enter category name"
                   borderColor={
-                    categoryDetails.category_name && !errors.category_name ? "green.500" : 
-                    errors.category_name ? "red.500" : "coolGray.200"
+                    categoryDetails.category_name && !errors.category_name
+                      ? "green.500"
+                      : errors.category_name
+                      ? "red.500"
+                      : "coolGray.200"
                   }
                   _focus={{
-                    borderColor: categoryDetails.category_name && !errors.category_name ? "green.500" : 
-                                errors.category_name ? "red.500" : "blue.500",
+                    borderColor:
+                      categoryDetails.category_name && !errors.category_name
+                        ? "green.500"
+                        : errors.category_name
+                        ? "red.500"
+                        : "blue.500",
                   }}
                 />
                 <FormControl.ErrorMessage>
                   {errors.category_name}
                 </FormControl.ErrorMessage>
               </FormControl>
-              
+
               {/* Active/Inactive Toggle */}
               <FormControl>
                 <FormControl.Label>Category Status</FormControl.Label>
                 <HStack alignItems="center" space={2}>
                   <Switch
                     isChecked={categoryDetails.is_active}
-                    onToggle={() => setCategoryDetails(prev => ({ ...prev, is_active: !prev.is_active }))}
+                    onToggle={() =>
+                      setCategoryDetails((prev) => ({
+                        ...prev,
+                        is_active: !prev.is_active,
+                      }))
+                    }
                     colorScheme={categoryDetails.is_active ? "green" : "red"}
                   />
-                  <Text color={categoryDetails.is_active ? "green.600" : "red.600"}>
+                  <Text
+                    color={categoryDetails.is_active ? "green.600" : "red.600"}
+                  >
                     {categoryDetails.is_active ? "Active" : "Inactive"}
                   </Text>
                 </HStack>
                 <FormControl.HelperText>
-                  {categoryDetails.is_active 
-                    ? "Active categories will be visible to customers" 
+                  {categoryDetails.is_active
+                    ? "Active categories will be visible to customers"
                     : "Inactive categories will be hidden from customers"}
                 </FormControl.HelperText>
               </FormControl>
@@ -402,7 +429,7 @@ export default function EditCategoryView() {
             mb={6}
             isDisabled={
               // Only check for category name errors and emptiness
-              ("category_name" in errors) || !categoryDetails.category_name.trim()
+              "category_name" in errors || !categoryDetails.category_name.trim()
             }
           >
             Update Category

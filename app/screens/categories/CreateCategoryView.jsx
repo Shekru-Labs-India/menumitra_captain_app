@@ -51,33 +51,36 @@ export default function CreateCategoryView() {
         const fileSizeInMB = blob.size / (1024 * 1024);
 
         if (fileSizeInMB > 3) {
-          setErrors(prev => ({
+          setErrors((prev) => ({
             ...prev,
-            image: "Image size should not exceed 3MB"
+            image: "Image size should not exceed 3MB",
           }));
           return;
         }
 
-        setCategoryDetails(prev => ({ ...prev, image: result.assets[0].uri }));
+        setCategoryDetails((prev) => ({
+          ...prev,
+          image: result.assets[0].uri,
+        }));
         setImageSelected(true);
-        setErrors(prev => {
+        setErrors((prev) => {
           const { image, ...rest } = prev;
           return rest;
         });
       }
     } catch (error) {
       console.error("Error picking image:", error);
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        image: "Error selecting image. Please try again."
+        image: "Error selecting image. Please try again.",
       }));
     }
   };
 
   const removeImage = () => {
-    setCategoryDetails(prev => ({ ...prev, image: null }));
+    setCategoryDetails((prev) => ({ ...prev, image: null }));
     setImageSelected(false);
-    setErrors(prev => {
+    setErrors((prev) => {
       const { image, ...rest } = prev;
       return rest;
     });
@@ -85,14 +88,20 @@ export default function CreateCategoryView() {
 
   const handleCategoryNameChange = (text) => {
     const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
-    setCategoryDetails(prev => ({ ...prev, category_name: sanitizedText }));
+    setCategoryDetails((prev) => ({ ...prev, category_name: sanitizedText }));
 
     if (!sanitizedText.trim()) {
-      setErrors(prev => ({ ...prev, category_name: "Category name is required" }));
+      setErrors((prev) => ({
+        ...prev,
+        category_name: "Category name is required",
+      }));
     } else if (sanitizedText.trim().length < 2) {
-      setErrors(prev => ({ ...prev, category_name: "Category name must be at least 2 characters" }));
+      setErrors((prev) => ({
+        ...prev,
+        category_name: "Category name must be at least 2 characters",
+      }));
     } else {
-      setErrors(prev => {
+      setErrors((prev) => {
         const { category_name, ...rest } = prev;
         return rest;
       });
@@ -123,6 +132,12 @@ export default function CreateCategoryView() {
       formData.append("outlet_id", outletId);
       formData.append("user_id", userId);
       formData.append("category_name", categoryDetails.category_name);
+
+      // Add device_token to FormData
+      const deviceToken = await AsyncStorage.getItem("device_token");
+      if (deviceToken) {
+        formData.append("device_token", deviceToken);
+      }
 
       if (categoryDetails.image) {
         const imageUri = categoryDetails.image;
@@ -228,7 +243,10 @@ export default function CreateCategoryView() {
                       size={12}
                       color={errors.image ? "red.500" : "coolGray.400"}
                     />
-                    <Text mt={2} color={errors.image ? "red.500" : "coolGray.500"}>
+                    <Text
+                      mt={2}
+                      color={errors.image ? "red.500" : "coolGray.500"}
+                    >
                       Tap to add image (Max 3MB)
                     </Text>
                   </Box>
@@ -250,12 +268,19 @@ export default function CreateCategoryView() {
                   onChangeText={handleCategoryNameChange}
                   placeholder="Enter category name"
                   borderColor={
-                    categoryDetails.category_name && !errors.category_name ? "green.500" : 
-                    errors.category_name ? "red.500" : "coolGray.200"
+                    categoryDetails.category_name && !errors.category_name
+                      ? "green.500"
+                      : errors.category_name
+                      ? "red.500"
+                      : "coolGray.200"
                   }
                   _focus={{
-                    borderColor: categoryDetails.category_name && !errors.category_name ? "green.500" : 
-                                errors.category_name ? "red.500" : "blue.500",
+                    borderColor:
+                      categoryDetails.category_name && !errors.category_name
+                        ? "green.500"
+                        : errors.category_name
+                        ? "red.500"
+                        : "blue.500",
                   }}
                 />
                 <FormControl.ErrorMessage>

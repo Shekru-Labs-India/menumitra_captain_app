@@ -223,6 +223,7 @@ export default function EditMenuView() {
       const ratingData = await fetchWithAuth(`${getBaseUrl()}/rating_list`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
       });
       if (ratingData.st === 1) {
         const ratingArray = Object.entries(ratingData.rating_list).map(

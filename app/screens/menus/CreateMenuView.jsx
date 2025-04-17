@@ -227,6 +227,7 @@ export default function CreateMenuView() {
       const data = await fetchWithAuth(`${getBaseUrl()}/rating_list`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
       });
       
       if (data.st === 1) {
@@ -356,6 +357,12 @@ export default function CreateMenuView() {
       formData.append("description", menuDetails.description);
       formData.append("ingredients", menuDetails.ingredients);
       formData.append("is_special", menuDetails.is_special ? "1" : "0");
+
+      // Add device_token to FormData
+      const deviceToken = await AsyncStorage.getItem("device_token");
+      if (deviceToken) {
+        formData.append("device_token", deviceToken);
+      }
 
       // Handle multiple images with proper naming
       if (menuDetails.images.length > 0) {
