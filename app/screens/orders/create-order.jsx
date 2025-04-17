@@ -903,102 +903,38 @@ export default function CreateOrderScreen() {
               text: "Skip Printer",
               onPress: async () => {
                 try {
-                  // Continue with order creation without printing
+                  setIsLoading(true);
                   setLoadingMessage("Creating order without printing...");
                   
-                  const [restaurantId, userId, accessToken] = await Promise.all([
-                    AsyncStorage.getItem("access_token"),
-                  ]);
-                  
-                  // Reuse the order creation code from below
-                  const orderItems = selectedItems.map((item) => ({
-                    menu_id: item.menu_id?.toString(),
-                    quantity: item.quantity?.toString(),
-                    comment: item.specialInstructions || "",
-                    half_or_full: (item.portion || "full").toLowerCase(),
-                    price: item.price?.toString() || "0",
-                    total_price: item.total_price?.toString() || "0",
-                  }));
-                  
-                  const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
-                  
-                  const baseRequestBody = {
-                    user_id: userId?.toString(),
-                    outlet_id: restaurantId?.toString(),
-                    order_type: orderType || "dine-in",
-                    order_items: orderItems,
-                    grand_total: calculateGrandTotal()?.toString(),
-                    action: "KOT_and_save",
-                    is_paid: paymentStatus,
-                    payment_method: isPaid ? paymentMethod : "",
-                    special_discount: specialDiscount,
-                    charges: extraCharges,
-                    tip: tip,
-                    customer_name: customerDetails.customer_name || "",
-                    customer_mobile: customerDetails.customer_mobile || "",
-                    customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-                    customer_address: customerDetails.customer_address || "",
-                    customer_landmark: customerDetails.customer_landmark || "",
-                  };
-                  
-                  let apiResponse;
-                  
-                  if (tableData?.order_id) {
-                    const updateRequestBody = {
-                      ...baseRequestBody,
-                      order_id: tableData.order_id?.toString(),
-                      ...(orderType === "dine-in" && {
-                        tables: [tableData.table_number?.toString()],
-                        section_id: tableData.section_id?.toString(),
-                      }),
-                    };
+                  // Use the createOrder function for better error handling
+                  try {
+                    let result;
+                    if (tableData?.order_id) {
+                      // Update existing order
+                      result = await createOrder("placed", true);
+                    } else {
+                      // Create new order
+                      result = await createOrder("KOT", true);
+                    }
                     
-                    const updateResponse = await axiosInstance.post(
-                      onGetProductionUrl() + "update_order",
-                      updateRequestBody
-                    );
-                    
-                    apiResponse = updateResponse.data;
-                  } else {
-                    const createRequestBody = {
-                      ...baseRequestBody,
-                      ...(orderType === "dine-in" && {
-                        tables: [tableData.table_number?.toString()],
-                        section_id: tableData.section_id?.toString(),
-                      }),
-                    };
-                    
-                    const response = await axiosInstance.post(
-                      onGetProductionUrl() + "create_order",
-                      createRequestBody
-                    );
-                    
-                    apiResponse = response.data;
-                  }
-                  
-                  if (apiResponse.st === 1) {
                     Alert.alert(
-                      "Success",
-                      "Order saved successfully without printing",
+                      "Order Created",
+                      "Order has been created successfully without printing.",
                       [
                         {
                           text: "OK",
                           onPress: () => {
                             setSelectedItems([]);
                             navigation.navigate("RestaurantTables");
-                          },
-                        },
+                          }
+                        }
                       ]
                     );
-                  } else {
-                    throw new Error(apiResponse.msg || "Failed to process order");
+                  } catch (orderError) {
+                    // Don't show alert here as createOrder will already show the appropriate error
+                    console.error("Order creation error in Skip Printer KOT:", orderError);
+                    // Don't navigate away if there was an error with table occupation
                   }
-                } catch (error) {
-                  console.error("Order creation error:", error);
-                  Alert.alert(
-                    "Error",
-                    error.response?.data?.msg || error.message || "Failed to create order"
-                  );
                 } finally {
                   setIsLoading(false);
                   setLoadingMessage("");
@@ -1181,19 +1117,6 @@ export default function CreateOrderScreen() {
   };
   
   // Continue with the rest of the implementation (remove the generateKOTCommands function here)
-
-  // Helper function to convert text to bytes
-  const textToBytes = (text) => {
-    const encoder = new TextEncoder();
-    return Array.from(encoder.encode(text));
-  };
-
-  // Add this helper function at the top level
-  const calculateItemTotal = (price, quantity, offer = 0) => {
-    const total = price * quantity;
-    const discount = (total * offer) / 100;
-    return total - discount;
-  };
 
   // Add this function before handleSettle
   const calculateTotal = (items) => {
@@ -2920,30 +2843,53 @@ const handleSettlePaymentConfirm = async () => {
   // const [isAdditionalOptionsOpen, setIsAdditionalOptionsOpen] = useState(false);
 
   const createOrder = async (orderStatus, returnResponse = false) => {
-    if (selectedItems.length === 0) {
-      toast.show({
-        description: "Please add items to the order",
-        status: "warning",
-        duration: 2000,
-      });
-      return;
-    }
-
     try {
-      setLoading(true);
+      if (selectedItems.length === 0) {
+        toast.show({
+          description: "Please add items to the order",
+          status: "warning"
+        });
+        return;
+      }
 
-      const [storedCaptainId, storedUserId, storedOutletId] = await Promise.all([
-        AsyncStorage.getItem("captain_id"),
+      const [storedUserId, storedOutletId] = await Promise.all([
         AsyncStorage.getItem("user_id"),
         AsyncStorage.getItem("outlet_id"),
       ]);
 
-      const captain_id = storedCaptainId || params?.captainId;
-      const user_id = storedUserId || params?.userId;
-      const outlet_id = storedOutletId || params?.outletId;
-
-      if (!captain_id || !user_id || !outlet_id) {
+      if (!storedUserId || !storedOutletId) {
         throw new Error("Missing required information");
+      }
+
+      // If this is a new order for a table, check if the table is already occupied
+      if (!params?.orderId && params?.tableNumber && params?.isOccupied !== "1") {
+        try {
+          const tableCheckResponse = await axiosInstance.post(
+            onGetProductionUrl() + "check_table_is_reserved",
+            {
+              outlet_id: storedOutletId?.toString(),
+              table_number: params.tableNumber?.toString(),
+              section_id: params.sectionId?.toString(),
+            }
+          );
+          
+          if (tableCheckResponse.data.st === 0) {
+            throw new Error(`Table ${params.tableNumber} is currently occupied`);
+          }
+        } catch (tableCheckError) {
+          console.error("Table check error:", tableCheckError);
+          if (tableCheckError.message?.includes("currently occupied")) {
+            toast.show({
+              description: `Table ${params.tableNumber} is already occupied. Please select another table.`,
+              status: "error",
+              duration: 4000,
+              placement: "bottom",
+            });
+            throw tableCheckError;
+          }
+          // If it's some other error with the check, continue with order creation
+          console.warn("Table check failed, proceeding with order creation:", tableCheckError.message);
+        }
       }
 
       const orderItems = selectedItems.map((item) => ({
@@ -2955,32 +2901,34 @@ const handleSettlePaymentConfirm = async () => {
         total_price: parseFloat(item.total_price) || 0,
       }));
 
-      // Determine payment status based on checkboxes
+      // Process payment and complementary statuses
       const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
+      const effectivePaymentMethod = isPaid ? selectedPaymentMethod.toLowerCase() : "";
 
       const orderData = {
-        user_id: user_id?.toString(),
-        outlet_id: outlet_id?.toString(),
+        user_id: storedUserId?.toString(),
+        outlet_id: storedOutletId?.toString(),
         order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
         order_items: orderItems,
-        grand_total: orderItems?.reduce(
-          (sum, item) => sum + (item.total_price || 0),
-          0
-        ),
+        grand_total: calculateGrandTotal(
+          selectedItems,
+          specialDiscount,
+          extraCharges,
+          serviceChargePercentage,
+          gstPercentage,
+          tip
+        )?.toString(),
         action: orderStatus,
-        // Add customer details
+        is_paid: paymentStatus,
+        payment_method: effectivePaymentMethod,
+        special_discount: specialDiscount?.toString(),
+        charges: extraCharges?.toString(),
+        tip: tip?.toString(),
         customer_name: customerDetails.customer_name || "",
         customer_mobile: customerDetails.customer_mobile || "",
         customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
         customer_address: customerDetails.customer_address || "",
         customer_landmark: customerDetails.customer_landmark || "",
-        // Add payment information
-        is_paid: paymentStatus,
-        payment_method: isPaid ? paymentMethod : "",
-        // Add additional charges
-        special_discount: specialDiscount?.toString(),
-        charges: extraCharges?.toString(),
-        tip: tip?.toString(),
       };
 
       if (!params?.isSpecialOrder) {
@@ -2991,56 +2939,59 @@ const handleSettlePaymentConfirm = async () => {
         orderData.section_id = params.sectionId?.toString();
       }
 
-      const isUpdate = !params?.isSpecialOrder && params?.orderId && params?.isOccupied === "1";
-      const endpoint = isUpdate ? `${getBaseUrl()}/update_order` : `${getBaseUrl()}/create_order`;
+      const endpoint = params?.orderId ? 
+        onGetProductionUrl() + "update_order" : 
+        onGetProductionUrl() + "create_order";
 
-      if (isUpdate) {
-        orderData.order_id = params.orderId?.toString();
+      if (params?.orderId) {
+        orderData.order_id = params.orderId;
       }
 
-      const result = await fetchWithAuth(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
-      });
+      console.log(`Making request to ${endpoint}`);
+      const response = await axiosInstance.post(endpoint, orderData);
+      
+      // Log whole response
+      console.log(`${orderStatus} Response:`, response.data);
 
-      if (result.st === 1) {
-        if (isUpdate) {
-          await refreshOrderDetails();
-        }
-
-        toast.show({
-          description: isUpdate
-            ? "Order updated successfully"
-            : `Order ${result.order_id || ""} created successfully`,
-          status: "success",
-          duration: 2000,
-        });
-
-        if (returnResponse) {
-          return result;
-        }
-
-        // Always navigate to orders screen instead of tables
-        router.replace({
-          pathname: "/(tabs)/orders",
-          params: { 
-            refresh: Date.now()?.toString(),
-            status: "pending"  // or whatever status you want to show
-          }
-        });
-      } else {
-        throw new Error(result.msg || `Failed to ${isUpdate ? "update" : "create"} order`);
+      if (response.data.st !== 1) {
+        throw new Error(response.data.msg || "Failed to process order");
       }
-    } catch (error) {
-      console.error(`${orderStatus.toUpperCase()} Error:`, error);
+
+      if (returnResponse) {
+        return response.data;
+      }
+
       toast.show({
-        description: error.message || "Failed to process order",
-        status: "error",
+        description: `Order ${params?.orderId ? "updated" : "created"} successfully`,
+        status: "success",
         duration: 3000,
       });
-    } finally {
-      setLoading(false);
+
+      return true;
+    } catch (error) {
+      console.error(`${orderStatus} Error:`, error);
+      
+      if (error.message?.includes("currently occupied")) {
+        toast.show({
+          description: `Table is already occupied. Please select another table.`,
+          status: "error",
+          duration: 4000,
+          placement: "bottom",
+        });
+      } else {
+        if (!returnResponse) {
+          toast.show({
+            description: error.response?.data?.msg || error.message || "Failed to process order",
+            status: "error",
+            duration: 3000,
+          });
+        }
+      }
+      
+      if (returnResponse) {
+        throw error;
+      }
+      return false;
     }
   };
 
