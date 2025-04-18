@@ -549,7 +549,10 @@ export default function MenuSelectionScreen() {
 
     return (
       <Pressable 
-        style={[styles.menuItem, isReserved && styles.disabledMenuItem]}
+        style={[
+          styles.menuItem, 
+          isReserved && styles.disabledMenuItem
+        ]}
         onPress={() => {
           if (isReserved) {
             toast.show({
@@ -591,7 +594,7 @@ export default function MenuSelectionScreen() {
           {item.image ? (
             <Image
               source={{ uri: item.image }}
-              style={[styles.menuImage, isReserved && styles.disabledImage]}
+              style={[styles.menuImage, isReserved && { opacity: 0.5 }]}
               onError={() => console.log('Image failed to load:', item.image)}
             />
           ) : (
@@ -845,6 +848,145 @@ export default function MenuSelectionScreen() {
     );
   };
 
+  // Handle reserving a table
+  const handleReserveTable = async () => {
+    try {
+      setLoading(true);
+      
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      
+      if (!storedOutletId || !tableData || !storedUserId) {
+        throw new Error("Missing outlet, user, or table data");
+      }
+      
+      // Call the API to reserve the table
+      const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table_id: tableData.table_id.toString(),
+          table_number: tableData.table_number.toString(),
+          outlet_id: storedOutletId.toString(),
+          is_reserved: true, // Set to true to reserve
+          user_id: storedUserId.toString()
+        }),
+      });
+      
+      if (response.st === 1) {
+        // Update local state to reflect the reserved status
+        setIsReserved(true);
+        setReserveModalVisible(true);
+        
+        // Show success message
+        toast.show({
+          description: "Table has been reserved",
+          status: "success",
+          duration: 2000
+        });
+        
+        // Navigate to tables screen to refresh
+        router.replace({
+          pathname: "/(tabs)/tables",
+          params: { 
+            refresh: Date.now().toString(),
+            status: "completed"
+          }
+        });
+      } else {
+        toast.show({
+          description: response.msg || "Failed to reserve table",
+          status: "error",
+          duration: 3000
+        });
+      }
+    } catch (error) {
+      console.error("Error reserving table:", error);
+      toast.show({
+        description: "Failed to reserve table",
+        status: "error",
+        duration: 3000
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle unreserving a table
+  const handleUnreserveTable = async () => {
+    try {
+      setLoading(true);
+      
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      
+      if (!storedOutletId || !tableData || !storedUserId) {
+        throw new Error("Missing outlet, user, or table data");
+      }
+      
+      // Call the API to unreserve the table
+      const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table_id: tableData.table_id.toString(),
+          table_number: tableData.table_number.toString(),
+          outlet_id: storedOutletId.toString(),
+          is_reserved: false, // Set to false to unreserve
+          user_id: storedUserId.toString()
+        }),
+      });
+      
+      if (response.st === 1) {
+        // Update local state to reflect the unreserved status
+        setIsReserved(false);
+        
+        // Show success message
+        toast.show({
+          description: "Table has been unreserved. You can now create an order.",
+          status: "success",
+          duration: 2000
+        });
+        
+        // Force a re-render to update UI state
+        setRefreshing(true);
+        setRefreshing(false);
+      } else {
+        toast.show({
+          description: response.msg || "Failed to unreserve table",
+          status: "error",
+          duration: 3000
+        });
+      }
+    } catch (error) {
+      console.error("Error unreserving table:", error);
+      toast.show({
+        description: "Failed to unreserve table",
+        status: "error",
+        duration: 3000
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Create a function to render the floating unreserve button
+  const renderFloatingUnreserveButton = () => {
+    if (!isReserved || orderType !== "dine-in") return null;
+
+    return (
+      <Pressable
+        style={styles.floatingUnreserveButton}
+        onPress={handleUnreserveTable}
+      >
+        <HStack alignItems="center">
+          <MaterialIcons name="lock-open" size={24} color="#ffffff" />
+          <Text style={styles.unreserveButtonText}>Unreserve Table</Text>
+        </HStack>
+      </Pressable>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -877,46 +1019,7 @@ export default function MenuSelectionScreen() {
               
               {isReserved ? (
                 <Pressable
-                  onPress={async () => {
-                    try {
-                      const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          table_id: parseInt(tableData.table_id),
-                          table_number: parseInt(tableData.table_number),
-                          outlet_id: parseInt(tableData.outlet_id),
-                          is_reserved: false
-                        }),
-                      });
-
-                      if (response.st === 1) {
-                        setIsReserved(false);
-                        toast.show({
-                          description: "Table has been unreserved",
-                          status: "success"
-                        });
-                        router.replace({
-                          pathname: "/(tabs)/tables",
-                          params: { 
-                            refresh: Date.now().toString(),
-                            status: "completed"
-                          }
-                        });
-                      } else {
-                        toast.show({
-                          description: response.msg || "Failed to unreserve table",
-                          status: "error"
-                        });
-                      }
-                    } catch (error) {
-                      console.error("Error unreserving table:", error);
-                      toast.show({
-                        description: "Failed to unreserve table",
-                        status: "error"
-                      });
-                    }
-                  }}
+                  onPress={handleUnreserveTable}
                   bg="red.500"
                   px={3}
                   py={1.5}
@@ -932,47 +1035,7 @@ export default function MenuSelectionScreen() {
                 </Pressable>
               ) : !tableData.is_occupied && !tableData.order_id ? (
                 <Pressable
-                  onPress={async () => {
-                    try {
-                      const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          table_id: parseInt(tableData.table_id),
-                          table_number: parseInt(tableData.table_number),
-                          outlet_id: parseInt(tableData.outlet_id),
-                          is_reserved: true
-                        }),
-                      });
-
-                      if (response.st === 1) {
-                        setReserveModalVisible(true);
-                        setIsReserved(true);
-                        toast.show({
-                          description: "Table has been reserved",
-                          status: "success"
-                        });
-                        router.replace({
-                          pathname: "/(tabs)/tables",
-                          params: { 
-                            refresh: Date.now().toString(),
-                            status: "completed"
-                          }
-                        });
-                      } else {
-                        toast.show({
-                          description: response.msg || "Failed to reserve table",
-                          status: "error"
-                        });
-                      }
-                    } catch (error) {
-                      console.error("Error reserving table:", error);
-                      toast.show({
-                        description: "Failed to reserve table",
-                        status: "error"
-                      });
-                    }
-                  }}
+                  onPress={handleReserveTable}
                   bg="green.500"
                   px={3}
                   py={1.5}
@@ -992,6 +1055,16 @@ export default function MenuSelectionScreen() {
         }
       />
       
+      {/* Show "Reserved" status at the top when table is reserved */}
+      {isReserved && orderType === "dine-in" && (
+        <View style={styles.reservedBanner}>
+          <MaterialIcons name="lock" size={18} color="#ffffff" />
+          <Text style={styles.reservedBannerText}>
+            This table is currently reserved
+          </Text>
+        </View>
+      )}
+      
       <Box px={3} py={2}>
         <HStack space={3} alignItems="center" bg="white" borderRadius={8} px={3} borderWidth={1} borderColor="gray.200">
           <MaterialIcons name="search" size={20} color="#666" />
@@ -1009,15 +1082,6 @@ export default function MenuSelectionScreen() {
         </HStack>
       </Box>
 
-      {isReserved && orderType === "dine-in" && (
-        <Box px={3} mb={2}>
-          <HStack space={2} alignItems="center" bg="red.50" p={3} borderRadius={8} borderWidth={1} borderColor="red.200">
-            <MaterialIcons name="lock" size={24} color="#e74c3c" />
-            <Text color="red.700" fontWeight="medium">This table is reserved</Text>
-          </HStack>
-        </Box>
-      )}
-      
       {loading ? (
         <Center flex={1}>
           <Spinner size="lg" color="cyan.500" />
@@ -1056,11 +1120,26 @@ export default function MenuSelectionScreen() {
               )}
             />
           </Box>
+          
+          <View style={styles.actionButtons}>
+            {/* Only show Create Order button if table is not reserved */}
+            {!isReserved && orderType === "dine-in" && (
+              <Pressable
+                style={[styles.actionButton, styles.createOrderButton]}
+                onPress={navigateToCreateOrder}
+              >
+                <Text style={styles.actionButtonText}>Create Order</Text>
+              </Pressable>
+            )}
+          </View>
         </HStack>
       )}
       
-      {/* Floating cart button */}
-      {renderFloatingCart()}
+      {/* Only show the cart button if table is NOT reserved */}
+      {!isReserved && renderFloatingCart()}
+      
+      {/* Show the unreserve button if table IS reserved */}
+      {renderFloatingUnreserveButton()}
       
       {/* Portion selection modal */}
       <Modal
@@ -1121,14 +1200,7 @@ export default function MenuSelectionScreen() {
                   The table has been successfully reserved. You can un-reserve it at any time.
                 </Text>
                 <Pressable
-                  onPress={() => {
-                    setIsReserved(false);
-                    setReserveModalVisible(false);
-                    toast.show({
-                      description: "Table has been un-reserved",
-                      status: "info"
-                    });
-                  }}
+                  onPress={handleUnreserveTable}
                   bg="red.500"
                   px={4}
                   py={2}
@@ -1148,58 +1220,6 @@ export default function MenuSelectionScreen() {
 
       {/* Render Table Switcher Modal */}
       {renderTableSwitcherModal()}
-
-      {/* Floating un-reserve button */}
-      {isReserved && orderType === "dine-in" && (
-        <Pressable
-          style={[styles.floatingCart, { bottom: 80 }]}
-          onPress={async () => {
-            try {
-              const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  table_id: parseInt(tableData.table_id),
-                  table_number: parseInt(tableData.table_number),
-                  outlet_id: parseInt(tableData.outlet_id),
-                  is_reserved: false
-                }),
-              });
-
-              if (response.st === 1) {
-                setIsReserved(false);
-                toast.show({
-                  description: "Table has been unreserved",
-                  status: "success"
-                });
-                router.replace({
-                  pathname: "/(tabs)/tables",
-                  params: { 
-                    refresh: Date.now().toString(),
-                    status: "completed"
-                  }
-                });
-              } else {
-                toast.show({
-                  description: response.msg || "Failed to unreserve table",
-                  status: "error"
-                });
-              }
-            } catch (error) {
-              console.error("Error unreserving table:", error);
-              toast.show({
-                description: "Failed to unreserve table",
-                status: "error"
-              });
-            }
-          }}
-        >
-          <HStack alignItems="center">
-            <MaterialIcons name="lock-open" size={24} color="#e74c3c" />
-            <Text ml={2} fontSize="md" fontWeight="bold" color="#e74c3c">Un-reserve Table</Text>
-          </HStack>
-        </Pressable>
-      )}
     </SafeAreaView>
   );
 }
@@ -1328,7 +1348,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   disabledMenuItem: {
-    opacity: 0.7,
+    opacity: 0.6,
+    backgroundColor: '#f5f5f5',
   },
   disabledImage: {
     opacity: 0.5,
@@ -1393,6 +1414,61 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     fontWeight: '500',
+  },
+  reservedBanner: {
+    backgroundColor: '#757575',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    marginBottom: 8,
+  },
+  reservedBannerText: {
+    color: 'white',
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  floatingUnreserveButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#757575',
+    borderRadius: 30,
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  unreserveButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  actionButtons: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  actionButton: {
+    backgroundColor: '#0dcaf0',
+    padding: 10,
+    borderRadius: 5,
+    marginVertical: 5,
+    width: '80%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  createOrderButton: {
+    backgroundColor: '#4CAF50',
   },
 });
 
