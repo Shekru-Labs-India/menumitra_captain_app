@@ -44,6 +44,7 @@ import * as Print from 'expo-print';
 import ViewShot from "react-native-view-shot";
 import { Alert } from "react-native";
 import Image from "react-native/Libraries/Image/Image";
+import { TouchableOpacity, TouchableWithoutFeedback } from "react-native";
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -153,8 +154,11 @@ export default function TableSectionsScreen() {
   const qrContainerRef = useRef(null);
   const [isQrRefValid, setIsQrRefValid] = useState(false);
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("CASH");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null); // Set to null initially
   const [isPaid, setIsPaid] = useState(true);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -1449,65 +1453,49 @@ export default function TableSectionsScreen() {
     return `https://menumitra-testing.netlify.app/user_app/o${outletId}/s${sectionId}/t${tableNumber}`;
   };
 
-  // Update the QRCodeModal component to improve ref initialization
+  // Update the QRCodeModal component to match RestaurantTables.js
   const QRCodeModal = () => {
     if (!selectedTableForQR) return null;
 
     const qrValue = qrData?.qr_code_url || "";
-    const [showDownloadOptions, setShowDownloadOptions] = useState(false);
-    const [isQrRefValid, setIsQrRefValid] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [isSharing, setIsSharing] = useState(false);
     
-    // Check if ref is available after render
-    useEffect(() => {
-      if (qrContainerRef.current) {
-        console.log("QR container ref is now available");
-        setIsQrRefValid(true);
-      } else {
-        console.log("QR container ref not available yet");
-        setIsQrRefValid(false);
-      }
-    }, [qrValue, isLoadingQr, qrReady]);
-
-    // More reliable way to track QR rendering
-    useEffect(() => {
-      if (qrValue && !isLoadingQr) {
-        // Give the QR code time to fully render
-        const timer = setTimeout(() => {
-          console.log("QR code should be ready now");
-          setQrReady(true);
-          
-          // Check ref again after QR is ready
-          if (qrContainerRef.current) {
-            console.log("Confirmed QR container ref is valid");
-            setIsQrRefValid(true);
-          } else {
-            console.log("QR container ref still not valid after render");
-            setIsQrRefValid(false);
-          }
-        }, 1500); // Longer timeout for more reliable rendering
-        
-        return () => clearTimeout(timer);
-      } else {
-        setQrReady(false);
-        setIsQrRefValid(false);
-      }
-    }, [qrValue, isLoadingQr]);
-
+    // Close modal function
     const closeModal = () => {
       setShowQRModal(false);
       setQrData(null);
       setIsQRModalOpen(false);
-      setQrRefReady(false);
-      setQrReady(false);
-      setCaptureAttempts(0);
-      setShowDownloadOptions(false);
     };
 
-    // Replace the saveToGallery function with a more robust implementation
-    const saveToGallery = async () => {
+    // Show download options
+    const showDownloadOptions = () => {
+      if (isDownloading || isSharing) return;
+      
+      Alert.alert(
+        "Download QR Code",
+        "Choose format to download",
+        [
+          {
+            text: "PNG",
+            onPress: downloadAsPNG
+          },
+          {
+            text: "PDF",
+            onPress: handlePDFDownload
+          },
+          {
+            text: "Cancel",
+            style: "cancel"
+          }
+        ]
+      );
+    };
+
+    // Download as PNG
+    const downloadAsPNG = async () => {
       try {
-        console.log("Starting QR code capture process...");
-        setIsLoadingQr(true);
+        setIsDownloading(true);
         
         // Show loading toast
         toast.show({
@@ -1526,15 +1514,11 @@ export default function TableSectionsScreen() {
           return;
         }
         
-        // Wait for QR code to be ready
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
         let uri = null;
         
-        // Method 1: Try to get data URL directly from QR ref
+        // Get QR code as data URL
         if (global.nativeQRRef) {
           try {
-            console.log("Using QR reference method");
             uri = await new Promise((resolve, reject) => {
               const options = {
                 width: 400,
@@ -1554,38 +1538,22 @@ export default function TableSectionsScreen() {
                 }
               }, options);
             });
-          } catch (refError) {
-            console.error("QR ref method failed:", refError);
-            uri = null;
+          } catch (error) {
+            console.error("QR ref method failed:", error);
           }
         }
         
-        // Method 2: Try using API as fallback
+        // Fallback to API method
         if (!uri) {
-          console.log("Using API fallback method");
-          try {
-            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
-            console.log("API URL:", qrApiUrl);
-            
-            // Download directly to a file instead of creating a blob URL
-            const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
-            const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-            
-            const downloadResult = await FileSystem.downloadAsync(qrApiUrl, fileUri);
-            
-            if (downloadResult.status !== 200) {
-              throw new Error(`Download failed with status ${downloadResult.status}`);
-            }
-            
-            console.log("QR code downloaded successfully to:", fileUri);
-            uri = fileUri;
-          } catch (apiError) {
-            console.error("API fallback failed:", apiError);
-            throw new Error("All QR code generation methods failed");
-          }
+          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
+          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
+          const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+          
+          await FileSystem.downloadAsync(qrApiUrl, fileUri);
+          uri = fileUri;
         }
         
-        // Save the QR code
+        // Save to gallery
         if (uri) {
           // Create a unique filename
           const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
@@ -1600,310 +1568,95 @@ export default function TableSectionsScreen() {
             });
           }
           
+          // Save to media library
+          const asset = await MediaLibrary.createAssetAsync(fileUri);
+          
+          // Create album if it doesn't exist
           try {
-            // Save to media library
-            console.log("Saving to media library:", fileUri);
-            const asset = await MediaLibrary.createAssetAsync(fileUri);
-            console.log("QR code saved to gallery, asset ID:", asset.id);
-            
-            // Create album if it doesn't exist
-            try {
-              await MediaLibrary.createAlbumAsync("MenuMitra QR Codes", asset, false);
-            } catch (albumError) {
-              console.log("Album already exists or error creating album:", albumError);
-            }
-            
-            // Show success message
-            toast.show({
-              description: "QR code saved to gallery",
-              status: "success",
-              duration: 2000
-            });
-          } catch (saveError) {
-            console.error("Error saving QR code to gallery:", saveError);
-            toast.show({
-              description: "Failed to save QR code: " + (saveError.message || "Unknown error"),
-              status: "error",
-              duration: 3000
-            });
+            await MediaLibrary.createAlbumAsync("MenuMitra QR Codes", asset, false);
+          } catch (error) {
+            console.log("Album already exists or error creating album:", error);
           }
+          
+          toast.show({
+            description: "QR code saved to gallery",
+            status: "success",
+            duration: 2000
+          });
         } else {
           throw new Error("Failed to generate QR code");
         }
       } catch (error) {
-        console.error("QR Save Error:", error);
+        console.error("Download Error:", error);
         toast.show({
-          description: "Failed to save QR code: " + (error.message || "Unknown error"),
+          description: "Failed to save QR code: " + error.message,
           status: "error",
-          duration: 3000
         });
       } finally {
-        setIsLoadingQr(false);
+        setIsDownloading(false);
       }
     };
 
-    // Add function to save QR code to downloads folder
-    const saveToDownloads = async () => {
-      try {
-        setIsLoadingQr(true);
-        toast.show({
-          description: "Preparing to save QR code...",
-          status: "info",
-          duration: 2000
-        });
-        
-        // Generate QR code data
-        let qrDataUrl = null;
-        
-        if (global.nativeQRRef) {
-          // Get QR code as data URL using the ref, ensuring logo is included
-          qrDataUrl = await new Promise((resolve, reject) => {
-            // Options to ensure logo is included in the data URL
-            const options = {
-              width: 400,
-              height: 400,
-              quality: 0.9,
-              includeECLevel: true,
-              includeLogo: true,
-              color: true
-            };
-            
-            global.nativeQRRef.toDataURL((data) => {
-              if (data) {
-                console.log("QR data URL with logo generated for download");
-                resolve(data);
-              } else {
-                reject(new Error("Failed to generate QR code data"));
-              }
-            }, options);
-          });
-        }
-        
-        // If we have QR data, save it
-        if (qrDataUrl) {
-          // Create a unique filename based on table number and timestamp
-          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
-          
-          // Save to appropriate folder based on platform
-          if (Platform.OS === 'android') {
-            // For Android, we can save to the Downloads directory
-            const downloadPath = `${FileSystem.documentDirectory}${filename}`;
-            const base64Data = qrDataUrl.split(',')[1];
-            
-            await FileSystem.writeAsStringAsync(downloadPath, base64Data, {
-              encoding: FileSystem.EncodingType.Base64
-            });
-            
-            // For sharing the file or making it available in downloads
-            await Sharing.shareAsync(downloadPath, {
-              mimeType: 'image/png',
-              dialogTitle: 'Save QR Code',
-              UTI: 'public.png'
-            });
-            
-            toast.show({
-              description: "QR code saved. Check your Downloads folder.",
-              status: "success",
-              duration: 3000
-            });
-          } else if (Platform.OS === 'ios') {
-            // For iOS, use sharing to save to Files app
-            const tempFilePath = `${FileSystem.cacheDirectory}${filename}`;
-            const base64Data = qrDataUrl.split(',')[1];
-            
-            await FileSystem.writeAsStringAsync(tempFilePath, base64Data, {
-              encoding: FileSystem.EncodingType.Base64
-            });
-            
-            await Sharing.shareAsync(tempFilePath, {
-              mimeType: 'image/png',
-              dialogTitle: 'Save QR Code to Files',
-              UTI: 'public.png'
-            });
-            
-            toast.show({
-              description: "QR code ready to save",
-              status: "success",
-              duration: 3000
-            });
-          } else {
-            // For web or other platforms
-            throw new Error("Saving to downloads not supported on this platform");
-          }
-        } else {
-          // If no QR data from ref, try using API as fallback
-          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
-          
-          // Create a unique filename
-          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
-          const downloadPath = `${FileSystem.documentDirectory}${filename}`;
-          
-          // Download directly from API
-          await FileSystem.downloadAsync(qrApiUrl, downloadPath);
-          
-          // Share the file
-          await Sharing.shareAsync(downloadPath, {
-            mimeType: 'image/png', 
-            dialogTitle: 'Save QR Code',
-            UTI: 'public.png'
-          });
-          
-          toast.show({
-            description: "QR code ready to save",
-            status: "success",
-            duration: 3000
-          });
-        }
-        
-        setShowDownloadOptions(false);
-      } catch (error) {
-        console.error("Error saving to downloads:", error);
-        toast.show({
-          description: "Failed to save QR code: " + (error.message || "Unknown error"),
-          status: "error",
-          duration: 3000
-        });
-      } finally {
-        setIsLoadingQr(false);
-      }
-    };
-
-    // Add the missing handleShareQRCode function
-    const handleShareQRCode = async () => {
-      try {
-        setIsLoadingQr(true);
-        toast.show({
-          description: "Preparing to share QR code...",
-          status: "info",
-          duration: 2000
-        });
-
-        // Get QR code data URL
-        let qrDataUrl = null;
-        
-        if (global.nativeQRRef) {
-          // Get QR code as data URL
-          qrDataUrl = await new Promise((resolve, reject) => {
-            const options = {
-              width: 400,
-              height: 400,
-              quality: 0.9,
-              includeECLevel: true,
-              includeLogo: true,
-              color: true
-            };
-            
-            global.nativeQRRef.toDataURL((data) => {
-              if (data) {
-                console.log("QR data URL generated for sharing");
-                resolve(data);
-              } else {
-                reject(new Error("Failed to generate QR code data for sharing"));
-              }
-            }, options);
-          });
-        }
-        
-        if (qrDataUrl) {
-          // Save to temporary file for sharing
-          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
-          const filePath = `${FileSystem.cacheDirectory}${filename}`;
-          const base64Data = qrDataUrl.split(',')[1];
-          
-          await FileSystem.writeAsStringAsync(filePath, base64Data, {
-            encoding: FileSystem.EncodingType.Base64
-          });
-          
-          // Share the file
-          await Sharing.shareAsync(filePath, {
-            mimeType: 'image/png',
-            dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code`
-          });
-          
-          toast.show({
-            description: "QR code shared successfully",
-            status: "success",
-            duration: 2000
-          });
-        } else {
-          // Fallback to API if ref method fails
-          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
-          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
-          const filePath = `${FileSystem.cacheDirectory}${filename}`;
-          
-          // Download the QR code from API
-          await FileSystem.downloadAsync(qrApiUrl, filePath);
-          
-          // Share the file
-          await Sharing.shareAsync(filePath, {
-            mimeType: 'image/png',
-            dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code`
-          });
-          
-          toast.show({
-            description: "QR code shared successfully",
-            status: "success",
-            duration: 2000
-          });
-        }
-      } catch (error) {
-        console.error("QR Share Error:", error);
-        toast.show({
-          description: "Failed to share QR code: " + (error.message || "Unknown error"),
-          status: "error",
-          duration: 3000
-        });
-      } finally {
-        setIsLoadingQr(false);
-      }
-    };
-    
-    // Add the missing handlePDFDownload function
+    // Add handlePDFDownload function
     const handlePDFDownload = async () => {
       try {
-        setIsLoadingQr(true);
+        setIsDownloading(true);
         toast.show({
           description: "Generating PDF...",
           status: "info",
           duration: 2000
         });
         
-        // Wait for QR code to be ready
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
         // Get QR code as data URL
         let qrDataUrl = null;
         
         if (global.nativeQRRef) {
-          qrDataUrl = await new Promise((resolve, reject) => {
-            const options = {
-              width: 400,
-              height: 400,
-              quality: 0.9,
-              includeECLevel: true,
-              includeLogo: true,
-              color: true
-            };
-            
-            global.nativeQRRef.toDataURL((data) => {
-              if (data) {
-                console.log("QR data URL generated for PDF");
-                resolve(data);
-              } else {
-                reject(new Error("Failed to generate QR code data for PDF"));
-              }
-            }, options);
-          });
+          try {
+            qrDataUrl = await new Promise((resolve, reject) => {
+              const options = {
+                width: 400,
+                height: 400,
+                quality: 0.9,
+                includeECLevel: true,
+                includeLogo: true,
+                color: true
+              };
+              
+              global.nativeQRRef.toDataURL((data) => {
+                if (data) {
+                  console.log("QR data URL generated for PDF");
+                  resolve(data);
+                } else {
+                  reject(new Error("Failed to generate QR code data for PDF"));
+                }
+              }, options);
+            });
+          } catch (error) {
+            console.error("Failed to generate QR code image:", error);
+            qrDataUrl = null;
+          }
         }
         
         if (!qrDataUrl) {
-          throw new Error("Could not generate QR code image for PDF");
+          // Fallback to API method
+          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
+          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
+          const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+          
+          await FileSystem.downloadAsync(qrApiUrl, fileUri);
+          
+          // Convert to base64
+          const base64 = await FileSystem.readAsStringAsync(fileUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          
+          qrDataUrl = `data:image/png;base64,${base64}`;
         }
         
         // Get restaurant name for the PDF
         const outlet = await AsyncStorage.getItem("outlet_name") || "MenuMitra";
         
-        // Create HTML content with embedded QR code and logo
+        // Create HTML content with embedded QR code
         const tableInfo = `Table ${selectedTableForQR?.table_number || "Unknown"}`;
         const htmlContent = `
           <html>
@@ -1915,7 +1668,13 @@ export default function TableSectionsScreen() {
                 h1 { color: #333; }
                 .outlet-name { font-weight: bold; color: #0891b2; font-size: 22px; margin-bottom: 10px; }
                 .table-info { margin: 20px 0; font-size: 24px; font-weight: bold; color: #333; }
-                .qr-container { margin: 30px 0; }
+                .qr-container { margin: 30px 0; position: relative; }
+                .qr-container img { max-width: 100%; height: auto; }
+                .corner { position: absolute; width: 20px; height: 20px; }
+                .top-left { top: 2px; left: 2px; border-top: 5px solid #FF7043; border-left: 5px solid #FF7043; border-top-left-radius: 6px; }
+                .top-right { top: 2px; right: 2px; border-top: 5px solid #FF7043; border-right: 5px solid #FF7043; border-top-right-radius: 6px; }
+                .bottom-left { bottom: 2px; left: 2px; border-bottom: 5px solid #FF7043; border-left: 5px solid #FF7043; border-bottom-left-radius: 6px; }
+                .bottom-right { bottom: 2px; right: 2px; border-bottom: 5px solid #FF7043; border-right: 5px solid #FF7043; border-bottom-right-radius: 6px; }
                 .instructions { margin: 20px 0; font-size: 16px; color: #555; }
                 .footer { margin-top: 40px; font-size: 12px; color: #666; }
               </style>
@@ -1927,6 +1686,10 @@ export default function TableSectionsScreen() {
                 <div class="table-info">${tableInfo}</div>
                 <div class="qr-container">
                   <img src="${qrDataUrl}" width="350" height="350" />
+                  <div class="corner top-left"></div>
+                  <div class="corner top-right"></div>
+                  <div class="corner bottom-left"></div>
+                  <div class="corner bottom-right"></div>
                 </div>
                 <div class="instructions">
                   Scan this QR code with your smartphone camera to access the digital menu
@@ -1938,15 +1701,14 @@ export default function TableSectionsScreen() {
             </body>
           </html>
         `;
-
+        
         // Create and share PDF
-        console.log("Creating PDF with logo");
         const { uri: pdfUri } = await Print.printToFileAsync({
           html: htmlContent,
           base64: false
         });
-
-        console.log("Sharing PDF with logo");
+        
+        // Share the PDF
         await Sharing.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
           UTI: 'com.adobe.pdf',
@@ -1956,74 +1718,162 @@ export default function TableSectionsScreen() {
         toast.show({
           description: "QR code PDF created successfully",
           status: "success",
-          duration: 3000
+          duration: 2000
         });
         
-        setShowDownloadOptions(false);
       } catch (error) {
         console.error("PDF Generation Error:", error);
         toast.show({
-          description: "Failed to generate PDF: " + (error.message || "Unknown error"),
+          description: "Failed to generate PDF: " + error.message,
           status: "error",
           duration: 3000
         });
       } finally {
-        setIsLoadingQr(false);
+        setIsDownloading(false);
       }
     };
 
+    // Share QR code
+    const shareQRCode = async () => {
+      try {
+        setIsSharing(true);
+        
+        let uri = null;
+        
+        // Get QR code as data URL
+        if (global.nativeQRRef) {
+          try {
+            uri = await new Promise((resolve, reject) => {
+              const options = {
+                width: 400,
+                height: 400,
+                quality: 0.9,
+                includeECLevel: true,
+                includeLogo: true,
+                color: true
+              };
+              
+              global.nativeQRRef.toDataURL((data) => {
+                if (data) {
+                  resolve(data);
+                } else {
+                  reject(new Error("Failed to generate QR code data URL"));
+                }
+              }, options);
+            });
+          } catch (error) {
+            console.error("QR ref method failed:", error);
+          }
+        }
+        
+        // Fallback to API method
+        if (!uri) {
+          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
+          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
+          const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+          
+          await FileSystem.downloadAsync(qrApiUrl, fileUri);
+          uri = fileUri;
+        }
+        
+        if (uri) {
+          // Create a unique filename
+          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
+          let fileUri = uri;
+          
+          // Only process data URLs, file URLs are already handled
+          if (uri.startsWith('data:')) {
+            fileUri = `${FileSystem.cacheDirectory}${filename}`;
+            const base64Data = uri.split(',')[1];
+            await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+              encoding: FileSystem.EncodingType.Base64
+            });
+          }
+          
+          // Share the file
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'image/png',
+            dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code`
+          });
+        } else {
+          throw new Error("Failed to generate QR code for sharing");
+        }
+      } catch (error) {
+        console.error("Share Error:", error);
+        toast.show({
+          description: "Failed to share QR code: " + error.message,
+          status: "error",
+        });
+      } finally {
+        setIsSharing(false);
+      }
+    };
+    
     return (
-      <Modal 
-        isOpen={showQRModal} 
-        onClose={closeModal} 
-        size="md"
-        closeOnOverlayClick={false}
+      <Modal
+        isOpen={showQRModal}
+        onClose={closeModal}
+        closeOnOverlayClick={!isDownloading && !isSharing}
       >
-        <Modal.Content 
-          borderRadius="xl" 
-          p={4}
-          width="90%"
-          maxWidth="350px"
-          bg="white"
+        <Box 
+          position="absolute" 
+          top={0} 
+          bottom={0} 
+          left={0} 
+          right={0} 
+          bg="rgba(0,0,0,0.6)"
+          alignItems="center"
+          justifyContent="center"
         >
-          <HStack alignItems="center" justifyContent="space-between" mb={4}>
-            <Text fontSize="xl" fontWeight="medium">
-              Table {qrData?.table_number || selectedTableForQR?.table_number} QR Code
-            </Text>
-            <Pressable onPress={closeModal}>
-              <Icon as={MaterialIcons} name="close" size="md" color="gray.500" />
+          <Box 
+            bg="white" 
+            width="90%" 
+            maxWidth="400px" 
+            rounded="lg" 
+            p={5} 
+            shadow={5}
+            position="relative"
+          >
+            {/* Close Button */}
+            <Pressable 
+              position="absolute" 
+              right={3} 
+              top={3}
+              zIndex={2}
+              onPress={closeModal}
+              disabled={isDownloading || isSharing}
+            >
+              <Icon as={MaterialIcons} name="close" size="md" color="coolGray.500" />
             </Pressable>
-          </HStack>
-          <Modal.Body alignItems="center" p={0}>
-            {isLoadingQr ? (
-              <Center h={280} w={280}>
-                <Spinner size="lg" color="primary.500" />
-              </Center>
-            ) : qrValue ? (
-              <VStack space={6} alignItems="center" width="100%">
+
+            {/* Header */}
+            <Text 
+              fontSize="lg" 
+              fontWeight="bold" 
+              mb={4} 
+              color="coolGray.800"
+              textAlign="center"
+            >
+              Table {selectedTableForQR?.table_number} QR Code
+            </Text>
+
+            {qrValue ? (
+              <VStack space={4} alignItems="center">
+                {/* QR Code with ViewShot wrapper */}
                 <Box 
-                  alignItems="center"
-                  bg="white"
-                  borderRadius="lg"
-                  borderWidth={1}
-                  borderColor="gray.300"
-                  shadow={2}
-                  p={4}
                   ref={qrContainerRef}
                   collapsable={false}
                   key={"qrbox-" + qrRenderAttempt}
+                  bg="white"
+                  p={4}
+                  borderRadius="lg"
+                  position="relative"
                 >
-                  {/* Use a simple Box instead of ViewShot to avoid ref issues */}
-                  <Box 
-                    bg="white" 
-                    p={4} 
-                    borderRadius="md" 
-                    collapsable={false} 
-                    key={"qrcode-" + qrRenderAttempt}
-                  >
-                   <QRCode
+                  {/* QR Code */}
+                  <Box position="relative">
+                    <QRCode
                       value={qrValue}
-                      size={280}
+                      size={260}
                       logo={require('../../../../assets/images/mm-logo.png')}
                       logoSize={60}
                       logoBackgroundColor="white"
@@ -2032,111 +1882,128 @@ export default function TableSectionsScreen() {
                       backgroundColor="white"
                       color="#000000"
                       enableLinearGradient={false}
-                      ecl="H" // Higher error correction level to accommodate logo
+                      ecl="H"
                       quietZone={16}
                       logoHasBackground={false}
                       getRef={(c) => {
                         global.nativeQRRef = c;
-                        console.log("QR code ref set:", c ? "success" : "failed");
                       }}
-                      onError={(error) => {
-                        console.error("QR Code error:", error);
-                        setQrReady(false);
-                      }}
+                    />
+                    
+                    {/* Corner Markers */}
+                    <Box 
+                      position="absolute" 
+                      top={2} 
+                      left={2} 
+                      width={20} 
+                      height={20} 
+                      borderTopWidth={5} 
+                      borderLeftWidth={5} 
+                      borderTopColor="#FF7043" 
+                      borderLeftColor="#FF7043" 
+                      borderTopLeftRadius={6}
+                    />
+                    <Box 
+                      position="absolute" 
+                      top={2} 
+                      right={2} 
+                      width={20} 
+                      height={20} 
+                      borderTopWidth={5} 
+                      borderRightWidth={5} 
+                      borderTopColor="#FF7043" 
+                      borderRightColor="#FF7043" 
+                      borderTopRightRadius={6}
+                    />
+                    <Box 
+                      position="absolute" 
+                      bottom={2} 
+                      left={2} 
+                      width={20} 
+                      height={20} 
+                      borderBottomWidth={5} 
+                      borderLeftWidth={5} 
+                      borderBottomColor="#FF7043" 
+                      borderLeftColor="#FF7043" 
+                      borderBottomLeftRadius={6}
+                    />
+                    <Box 
+                      position="absolute" 
+                      bottom={2} 
+                      right={2} 
+                      width={20} 
+                      height={20} 
+                      borderBottomWidth={5} 
+                      borderRightWidth={5} 
+                      borderBottomColor="#FF7043" 
+                      borderRightColor="#FF7043" 
+                      borderBottomRightRadius={6}
                     />
                   </Box>
                 </Box>
-
-                <VStack space={2} alignItems="center">
-                  <Text fontSize="md" color="gray.700" fontWeight="medium">
+                
+                <Text fontSize="md" color="coolGray.600" textAlign="center">
                   Scan to place your order
                 </Text>
-                  <Text fontSize="xs" color="gray.500" textAlign="center">
-                    Point your camera at the QR code to open the menu
-                  </Text>
-                </VStack>
-
-                <HStack space={4} width="100%" px={4}>
-                  <Button
+                
+                {/* Download and Share Buttons */}
+                <HStack space={4} width="100%" px={2}>
+                  <Pressable
                     flex={1}
-                    size="lg"
-                    colorScheme="cyan"
-                    _pressed={{ bg: "cyan.600" }}
-                    leftIcon={<Icon as={MaterialIcons} name="download" size="sm" color="white" />}
-                    onPress={() => setShowDownloadOptions(true)}
-                    isDisabled={isLoadingQr}
-                    _text={{ fontWeight: "semibold" }}
+                    bg="#0dcaf0"
+                    py={3}
+                    rounded="md"
+                    flexDirection="row"
+                    justifyContent="center"
+                    alignItems="center"
+                    onPress={showDownloadOptions}
+                    disabled={isDownloading || isSharing}
+                    opacity={isDownloading || isSharing ? 0.7 : 1}
                   >
-                    Download
-                  </Button>
-                  <Button
+                    {isDownloading ? (
+                      <Spinner size="sm" color="white" />
+                    ) : (
+                      <HStack space={2} alignItems="center">
+                        <Icon as={MaterialIcons} name="download" size="sm" color="white" />
+                        <Text color="white" fontWeight="medium">
+                          Download
+                        </Text>
+                      </HStack>
+                    )}
+                  </Pressable>
+                  
+                  <Pressable
                     flex={1}
-                    size="lg"
-                    colorScheme="green"
-                    _pressed={{ bg: "green.700" }}
-                    leftIcon={<Icon as={MaterialIcons} name="share" size="sm" color="white" />}
-                    onPress={handleShareQRCode}
-                    isDisabled={isLoadingQr}
-                    _text={{ fontWeight: "semibold" }}
+                    bg="#198754"
+                    py={3}
+                    rounded="md"
+                    flexDirection="row"
+                    justifyContent="center"
+                    alignItems="center"
+                    onPress={shareQRCode}
+                    disabled={isDownloading || isSharing}
+                    opacity={isDownloading || isSharing ? 0.7 : 1}
                   >
-                    Share
-                  </Button>
+                    {isSharing ? (
+                      <Spinner size="sm" color="white" />
+                    ) : (
+                      <HStack space={2} alignItems="center">
+                        <Icon as={MaterialIcons} name="share" size="sm" color="white" />
+                        <Text color="white" fontWeight="medium">
+                          Share
+                        </Text>
+                      </HStack>
+                    )}
+                  </Pressable>
                 </HStack>
-
-                {/* Download Options Modal */}
-                <Modal isOpen={showDownloadOptions} onClose={() => setShowDownloadOptions(false)}>
-                  <Modal.Content maxWidth="320px" borderRadius="xl">
-                    <Modal.Header borderBottomWidth={0}>Download Options</Modal.Header>
-                    <Modal.CloseButton />
-                    <Modal.Body py={4}>
-                      <VStack space={4}>
-                        <Button
-                          size="lg"
-                          colorScheme="blue"
-                          _pressed={{ bg: "blue.600" }}
-                          leftIcon={<Icon as={MaterialIcons} name="image" size="sm" color="white" />}
-                          onPress={saveToGallery}
-                          isDisabled={isLoadingQr}
-                          _text={{ fontWeight: "semibold" }}
-                        >
-                          Save as Image
-                        </Button>
-                        <Button
-                          size="lg"
-                          colorScheme="red"
-                          _pressed={{ bg: "red.600" }}
-                          leftIcon={<Icon as={MaterialIcons} name="picture-as-pdf" size="sm" color="white" />}
-                          onPress={handlePDFDownload}
-                          isDisabled={isLoadingQr}
-                          _text={{ fontWeight: "semibold" }}
-                        >
-                          Save as PDF
-                        </Button>
-                        <Button
-                          size="lg"
-                          colorScheme="orange"
-                          _pressed={{ bg: "orange.600" }}
-                          leftIcon={<Icon as={MaterialIcons} name="folder" size="sm" color="white" />}
-                          onPress={saveToDownloads}
-                          isDisabled={isLoadingQr}
-                          _text={{ fontWeight: "semibold" }}
-                        >
-                          Save to Downloads
-                        </Button>
-                      </VStack>
-                    </Modal.Body>
-                  </Modal.Content>
-                </Modal>
               </VStack>
             ) : (
-              <VStack space={4} alignItems="center" py={4}>
-                <Icon as={MaterialIcons} name="error-outline" size="xl" color="red.500" />
-                <Text color="red.500" fontWeight="medium">Failed to generate QR code</Text>
-                <Button size="sm" onPress={closeModal}>Close</Button>
-              </VStack>
+              <Center py={10}>
+                <Spinner size="lg" color="#0891b2" />
+              </Center>
             )}
-          </Modal.Body>
-        </Modal.Content>
+          </Box>
+        </Box>
       </Modal>
     );
   };
@@ -2262,59 +2129,103 @@ export default function TableSectionsScreen() {
     startBlinking();
   }, []);
 
-  // Add this function to handle payment icon press
+  // Updated payment icon press handler to match RestaurantTables.js pattern
   const handlePaymentIconPress = (table, section) => {
+    // Reset states
+    setPaymentSuccess(false);
+    setPaymentLoading(false);
+    
+    // Store table and section info
     setSelectedTable({
       ...table,
       section_name: section.name,
       section_id: section.id
     });
-    setSelectedPaymentMethod("CASH");
+    
+    // Set default payment method
+    if (table.payment_method) {
+      setSelectedPaymentMethod(table.payment_method.toLowerCase());
+    } else {
+      setSelectedPaymentMethod('cash'); // Default to cash in our case
+    }
+    
+    // Set paid to true by default
     setIsPaid(true);
+    
+    // Open modal
     setIsPaymentModalVisible(true);
   };
 
-  // Add this function to handle payment settlement
+  // Updated handler to match RestaurantTables.js behavior
   const handleSettlePayment = async () => {
-    try {
-      if (!selectedPaymentMethod) {
-        toast.show({
-          description: "Please select a payment method",
-          status: "warning",
-        });
-        return;
-      }
+    // Validate payment method selection
+    if (!selectedPaymentMethod) {
+      toast.show({
+        description: "Please select a payment method",
+        status: "warning",
+        duration: 2000
+      });
+      return;
+    }
+    
+    // Make sure table has all required properties
+    if (!selectedTable || !selectedTable.order_id) {
+      toast.show({
+        description: "Order information is incomplete",
+        status: "error",
+        duration: 2000
+      });
+      return;
+    }
 
-      setLoading(true);
+    try {
+      // Start loading
+      setPaymentLoading(true);
+      
+      // Get user ID from storage
       const storedUserId = await AsyncStorage.getItem("user_id");
       
       if (!storedUserId) {
         throw new Error("User ID not found. Please login again.");
       }
-
+      
+      // Prepare request payload
+      const settleRequestBody = {
+        outlet_id: outletId.toString(),
+        order_id: selectedTable.order_id.toString(),
+        order_status: "paid", // Changed from "completed" to "paid" to match API requirements
+        user_id: storedUserId.toString(),
+        is_paid: isPaid ? "paid" : "0", // Changed from "1" to "paid" to match RestaurantTables.js
+        order_type: "dine-in",
+        tables: [{ table_no: selectedTable.table_number.toString() }],
+        section_id: selectedTable.section_id.toString(),
+        payment_method: selectedPaymentMethod.toLowerCase() // Ensure lowercase for API
+      };
+      
+      console.log("Payment payload:", settleRequestBody);
+      
+      // Make API request
       const data = await fetchWithAuth(`${getBaseUrl()}/update_order_status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          outlet_id: outletId.toString(),
-          order_id: selectedTable.order_id.toString(),
-          order_status: "completed",
-          user_id: storedUserId.toString(),
-          is_paid: isPaid ? "1" : "0",
-          order_type: "dine-in",
-          tables: [{ table_no: selectedTable.table_number.toString() }],
-          section_id: selectedTable.section_id.toString(),
-          payment_method: selectedPaymentMethod
-        }),
+        body: JSON.stringify(settleRequestBody),
       });
 
+      // Handle response
       if (data.st === 1) {
+        setPaymentSuccess(true);
+        
         toast.show({
           description: "Payment settled successfully",
           status: "success",
+          duration: 2000,
         });
-        setIsPaymentModalVisible(false);
-        await fetchSections(outletId);
+        
+        // Close modal after a delay to show success state
+        setTimeout(() => {
+          setIsPaymentModalVisible(false);
+          fetchSections(outletId); // Refresh tables
+        }, 1500);
       } else {
         throw new Error(data.msg || "Failed to settle payment");
       }
@@ -2323,153 +2234,222 @@ export default function TableSectionsScreen() {
       toast.show({
         description: error.message || "Failed to settle payment",
         status: "error",
+        duration: 3000,
       });
     } finally {
-      setLoading(false);
+      setPaymentLoading(false);
     }
   };
 
-  // Payment Modal Component
-  const PaymentModal = () => (
-    <Modal isOpen={isPaymentModalVisible} onClose={() => setIsPaymentModalVisible(false)}>
-      <Modal.Content maxWidth="350px" borderRadius="lg" shadow={6}>
-        <Modal.CloseButton />
-        <Modal.Header borderBottomWidth={1} borderBottomColor="coolGray.200" py={3}>
-          <Text fontSize="md" fontWeight="semibold">
-            Table {selectedTable?.table_number} | Order No {selectedTable?.order_number}
-          </Text>
-          <Text fontSize="xl" fontWeight="bold" color="#0891b2">
-            ₹{selectedTable?.grand_total?.toFixed(2)}
-          </Text>
-        </Modal.Header>
-        <Modal.Body py={4}>
-          <VStack space={5}>
-            <Text fontSize="md" fontWeight="semibold" color="coolGray.800">
-              Select Payment Method
-            </Text>
-            
-            <HStack space={3} justifyContent="space-between" alignItems="center">
-              <Pressable 
-                flex={1} 
-                onPress={() => setSelectedPaymentMethod("CASH")}
-                bg={selectedPaymentMethod === "CASH" ? "coolGray.100" : "transparent"}
-                p={3}
-                rounded="md"
-                borderWidth={1}
-                borderColor={selectedPaymentMethod === "CASH" ? "#0891b2" : "coolGray.300"}
-              >
-                <VStack alignItems="center" space={1}>
-                  <Icon 
-                    as={MaterialIcons} 
-                    name="payments" 
-                    size="md" 
-                    color={selectedPaymentMethod === "CASH" ? "#0891b2" : "coolGray.500"} 
-                  />
-                  <Text 
-                    fontSize="sm" 
-                    fontWeight="medium" 
-                    color={selectedPaymentMethod === "CASH" ? "#0891b2" : "coolGray.800"}
-                  >
-                    CASH
-                  </Text>
-                </VStack>
-              </Pressable>
-              
-              <Pressable 
-                flex={1} 
-                onPress={() => setSelectedPaymentMethod("UPI")}
-                bg={selectedPaymentMethod === "UPI" ? "coolGray.100" : "transparent"}
-                p={3}
-                rounded="md"
-                borderWidth={1}
-                borderColor={selectedPaymentMethod === "UPI" ? "#0891b2" : "coolGray.300"}
-              >
-                <VStack alignItems="center" space={1}>
-                  <Icon 
-                    as={MaterialIcons} 
-                    name="smartphone" 
-                    size="md" 
-                    color={selectedPaymentMethod === "UPI" ? "#0891b2" : "coolGray.500"} 
-                  />
-                  <Text 
-                    fontSize="sm" 
-                    fontWeight="medium" 
-                    color={selectedPaymentMethod === "UPI" ? "#0891b2" : "coolGray.800"}
-                  >
-                    UPI
-                  </Text>
-                </VStack>
-              </Pressable>
-              
-              <Pressable 
-                flex={1} 
-                onPress={() => setSelectedPaymentMethod("CARD")}
-                bg={selectedPaymentMethod === "CARD" ? "coolGray.100" : "transparent"}
-                p={3}
-                rounded="md"
-                borderWidth={1}
-                borderColor={selectedPaymentMethod === "CARD" ? "#0891b2" : "coolGray.300"}
-              >
-                <VStack alignItems="center" space={1}>
-                  <Icon 
-                    as={MaterialIcons} 
-                    name="credit-card" 
-                    size="md" 
-                    color={selectedPaymentMethod === "CARD" ? "#0891b2" : "coolGray.500"} 
-                  />
-                  <Text 
-                    fontSize="sm" 
-                    fontWeight="medium" 
-                    color={selectedPaymentMethod === "CARD" ? "#0891b2" : "coolGray.800"}
-                  >
-                    CARD
-                  </Text>
-                </VStack>
-              </Pressable>
-            </HStack>
-            
-            <HStack space={2} alignItems="center" pt={2}>
-              <Pressable onPress={() => setIsPaid(!isPaid)}>
-                <HStack space={2} alignItems="center">
-                  <Box
-                    size={6}
-                    rounded="sm"
-                    borderWidth={1}
-                    borderColor="#0891b2"
-                    alignItems="center"
-                    justifyContent="center"
-                    bg={isPaid ? "#0891b2" : "transparent"}
-                  >
-                    {isPaid && (
-                      <MaterialIcons name="check" size={16} color="white" />
-                    )}
-                  </Box>
-                  <Text color="coolGray.800" fontSize="md" fontWeight="medium">
-                    Received Full Payment
-                  </Text>
-                </HStack>
-              </Pressable>
-            </HStack>
-          </VStack>
-        </Modal.Body>
-        <Modal.Footer pt={0} borderTopWidth={0}>
-          <Button
-            w="full"
-            bg="#0891b2"
-            _pressed={{ bg: "#06748e" }}
-            rounded="md"
-            py={3}
-            onPress={handleSettlePayment}
-            isLoading={loading}
-            leftIcon={<Icon as={MaterialIcons} name="check-circle" size="sm" />}
-            shadow={2}
+  // Updated PaymentModal to match RestaurantTables.js UI - clean, simple design
+  const PaymentModal = () => {
+    return (
+      <Modal 
+        isOpen={isPaymentModalVisible} 
+        onClose={() => setIsPaymentModalVisible(false)}
+        closeOnOverlayClick={!paymentLoading}
+      >
+        <Modal.Content 
+          maxWidth="350px" 
+          p={4} 
+          borderRadius="md"
+          bg="white"
+        >
+          {/* Close button */}
+          <Pressable 
+            position="absolute" 
+            right={3} 
+            top={2}
+            zIndex={2}
+            onPress={() => setIsPaymentModalVisible(false)}
           >
-            SETTLE PAYMENT
-          </Button>
-        </Modal.Footer>
-      </Modal.Content>
-    </Modal>
-  );
+            <Icon as={MaterialIcons} name="close" size="sm" color="coolGray.500" />
+          </Pressable>
+
+          {/* Header */}
+          <Box mb={5} mt={2}>
+            <Text 
+              fontSize="md" 
+              fontWeight="medium" 
+              color="coolGray.800"
+            >
+              Table {selectedTable?.table_number} | Order No {selectedTable?.order_number} | ₹{selectedTable?.grand_total?.toFixed(2)}
+            </Text>
+          </Box>
+
+          {/* Success State */}
+          {paymentSuccess ? (
+            <VStack space={4} alignItems="center" py={3}>
+              <Icon 
+                as={MaterialIcons} 
+                name="check-circle" 
+                size="6xl" 
+                color="green.500" 
+              />
+              <Text 
+                fontSize="lg" 
+                fontWeight="bold" 
+                color="green.500" 
+                textAlign="center"
+              >
+                Payment Settled Successfully
+              </Text>
+            </VStack>
+          ) : (
+            <>
+              {/* Payment Method Selection */}
+              <Box mb={4}>
+                <Text 
+                  fontSize="sm" 
+                  fontWeight="medium" 
+                  color="coolGray.700" 
+                  mb={3}
+                >
+                  Select Payment Method
+                </Text>
+
+                <HStack space={3} alignItems="center">
+                  {/* CASH Option */}
+                  <HStack alignItems="center" space={1}>
+                    <Pressable 
+                      onPress={() => setSelectedPaymentMethod('cash')}
+                      disabled={paymentLoading}
+                    >
+                      <Box 
+                        width={5} 
+                        height={5} 
+                        rounded="full" 
+                        borderWidth={1}
+                        borderColor="#0891b2"
+                        justifyContent="center"
+                        alignItems="center"
+                      >
+                        {selectedPaymentMethod === 'cash' && (
+                          <Box 
+                            width={3} 
+                            height={3} 
+                            rounded="full" 
+                            bg="#0891b2" 
+                          />
+                        )}
+                      </Box>
+                    </Pressable>
+                    <Text fontSize="sm" color="coolGray.700">CASH</Text>
+                  </HStack>
+
+                  {/* UPI Option */}
+                  <HStack alignItems="center" space={1}>
+                    <Pressable 
+                      onPress={() => setSelectedPaymentMethod('upi')}
+                      disabled={paymentLoading}
+                    >
+                      <Box 
+                        width={5} 
+                        height={5} 
+                        rounded="full" 
+                        borderWidth={1}
+                        borderColor="#0891b2"
+                        justifyContent="center"
+                        alignItems="center"
+                      >
+                        {selectedPaymentMethod === 'upi' && (
+                          <Box 
+                            width={3} 
+                            height={3} 
+                            rounded="full" 
+                            bg="#0891b2" 
+                          />
+                        )}
+                      </Box>
+                    </Pressable>
+                    <Text fontSize="sm" color="coolGray.700">UPI</Text>
+                  </HStack>
+
+                  {/* CARD Option */}
+                  <HStack alignItems="center" space={1}>
+                    <Pressable 
+                      onPress={() => setSelectedPaymentMethod('card')}
+                      disabled={paymentLoading}
+                    >
+                      <Box 
+                        width={5} 
+                        height={5} 
+                        rounded="full" 
+                        borderWidth={1}
+                        borderColor="#0891b2"
+                        justifyContent="center"
+                        alignItems="center"
+                      >
+                        {selectedPaymentMethod === 'card' && (
+                          <Box 
+                            width={3} 
+                            height={3} 
+                            rounded="full" 
+                            bg="#0891b2" 
+                          />
+                        )}
+                      </Box>
+                    </Pressable>
+                    <Text fontSize="sm" color="coolGray.700">CARD</Text>
+                  </HStack>
+
+                  {/* Paid Checkbox - aligned to the right */}
+                  <Pressable 
+                    onPress={() => setIsPaid(!isPaid)}
+                    disabled={paymentLoading}
+                    ml="auto"
+                    flexDirection="row"
+                    alignItems="center"
+                  >
+                    <HStack space={1} alignItems="center">
+                      <Box
+                        width={5}
+                        height={5}
+                        rounded="sm"
+                        borderWidth={1}
+                        borderColor="#0891b2"
+                        justifyContent="center"
+                        alignItems="center"
+                        bg={isPaid ? "#0891b2" : "transparent"}
+                      >
+                        {isPaid && (
+                          <Icon 
+                            as={MaterialIcons} 
+                            name="check" 
+                            size="xs" 
+                            color="white" 
+                          />
+                        )}
+                      </Box>
+                      <Text fontSize="sm" color="coolGray.700">Paid</Text>
+                    </HStack>
+                  </Pressable>
+                </HStack>
+              </Box>
+
+              {/* Settle Button */}
+              <Button
+                width="100%"
+                height="45px"
+                bg="#0891b2"
+                _pressed={{ bg: "#0891b2" }}
+                rounded="md"
+                onPress={handleSettlePayment}
+                isLoading={paymentLoading}
+                isLoadingText="Settling..."
+                _text={{ fontWeight: "medium" }}
+                startIcon={<Icon as={MaterialIcons} name="check" size="sm" color="white" />}
+                disabled={paymentLoading || !selectedPaymentMethod}
+                opacity={!selectedPaymentMethod ? 0.7 : 1}
+              >
+                Settle
+              </Button>
+            </>
+          )}
+        </Modal.Content>
+      </Modal>
+    );
+  };
 
   return (
     <Box flex={1} bg="coolGray.100" safeAreaTop>
