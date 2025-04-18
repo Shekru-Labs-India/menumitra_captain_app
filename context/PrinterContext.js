@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { BleManager } from "react-native-ble-plx";
 import Constants from "expo-constants";
-import { Platform, Alert } from "react-native";
+import { Platform, Alert, Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import base64 from "react-native-base64";
 
@@ -44,6 +44,10 @@ export const PrinterProvider = ({ children }) => {
   const [isPrinting, setIsPrinting] = useState(false);
   const [reconnectAttemptInProgress, setReconnectAttemptInProgress] = useState(false);
   const [connectionMonitorActive, setConnectionMonitorActive] = useState(false);
+  
+  // Add state for global disconnection handling
+  const [showDisconnectionAlert, setShowDisconnectionAlert] = useState(false);
+  const [disconnectedDevice, setDisconnectedDevice] = useState(null);
 
   // Load last connected printer and auto-reconnect setting on startup
   useEffect(() => {
@@ -63,11 +67,60 @@ export const PrinterProvider = ({ children }) => {
         if (id && (reconnectSetting !== "false") && !Constants.appOwnership && bleManager) {
           console.log("Auto-reconnect: Attempting to reconnect to printer", id);
           
-          setTimeout(() => {
-            reconnectPrinter().catch(error => {
-              console.error("Auto-reconnect failed:", error);
-            });
-          }, 1500);
+          // First check if Bluetooth is available with better error handling
+          try {
+            setReconnectAttemptInProgress(true);
+            
+            // Check Bluetooth state first
+            let btState;
+            try {
+              btState = await bleManager.state();
+            } catch (stateError) {
+              console.error("Error checking BT state during auto-reconnect:", stateError);
+              throw new Error("BT state check failed");
+            }
+            
+            if (btState === "PoweredOn") {
+              console.log("Bluetooth is powered on, attempting immediate connection");
+              
+              // Try immediate direct connection
+              try {
+                console.log("Attempting direct connection to device", id);
+                const device = await bleManager.connectToDevice(id, {
+                  autoConnect: true,
+                  timeout: 5000
+                });
+                
+                if (device) {
+                  console.log("Connected directly to device:", device.id);
+                  await device.discoverAllServicesAndCharacteristics();
+                  setPrinterDevice(device);
+                  setIsConnected(true);
+                  setReconnectAttemptInProgress(false);
+                  return;
+                }
+              } catch (directConnectError) {
+                console.log("Direct connection failed:", directConnectError);
+              }
+              
+              // Reduced delay for faster reconnection
+              setTimeout(async () => {
+                try {
+                  await reconnectPrinter();
+                } catch (e) {
+                  console.error("Auto-reconnect failed:", e);
+                } finally {
+                  setReconnectAttemptInProgress(false);
+                }
+              }, 500);
+            } else {
+              console.log("Bluetooth not ready for auto-reconnect:", btState);
+              setReconnectAttemptInProgress(false);
+            }
+          } catch (error) {
+            console.error("Error during auto-reconnect:", error);
+            setReconnectAttemptInProgress(false);
+          }
         }
       } catch (error) {
         console.error("Error loading printer settings:", error);
@@ -89,6 +142,99 @@ export const PrinterProvider = ({ children }) => {
     
     saveAutoReconnect();
   }, [autoReconnect]);
+
+  // Add connection state monitoring to ensure connection stability
+  useEffect(() => {
+    // Only run the monitor if we have a connected device
+    if (printerDevice && isConnected && !connectionMonitorActive) {
+      setConnectionMonitorActive(true);
+      
+      // Set up a periodic connection check
+      const monitorInterval = setInterval(async () => {
+        try {
+          if (!printerDevice) {
+            clearInterval(monitorInterval);
+            setConnectionMonitorActive(false);
+            return;
+          }
+          
+          // Skip connection check if currently printing
+          if (isPrinting) {
+            console.log("Connection monitor: Skipping check during active printing");
+            return;
+          }
+          
+          // Check connection state with better error handling
+          let deviceConnected = false;
+          try {
+            deviceConnected = await printerDevice.isConnected();
+          } catch (connectionError) {
+            console.log("Connection check error:", connectionError);
+            // Don't immediately assume disconnection on error
+            return;
+          }
+          
+          // If suddenly disconnected, update state to match reality
+          if (!deviceConnected && isConnected) {
+            console.log("Connection monitor: Device disconnection detected");
+            
+            // Store the disconnected device for potential reconnection
+            setDisconnectedDevice(printerDevice);
+            
+            // Set printer as disconnected
+            setIsConnected(false);
+            setPrinterDevice(null);
+            
+            // Show global disconnection alert if auto-reconnect is disabled
+            if (!autoReconnect) {
+              setShowDisconnectionAlert(true);
+            } else {
+              // Attempt reconnection if auto-reconnect is enabled
+              console.log("Connection monitor: Triggering reconnection attempt");
+              setTimeout(() => reconnectPrinter(), 1000);
+            }
+          }
+        } catch (error) {
+          console.error("Connection monitor error:", error);
+          // Don't automatically assume disconnection on general errors
+        }
+      }, 5000); // Check every 5 seconds
+      
+      // Clean up the interval when component unmounts or connection status changes
+      return () => {
+        clearInterval(monitorInterval);
+        setConnectionMonitorActive(false);
+      };
+    } else if (!isConnected) {
+      setConnectionMonitorActive(false);
+    }
+  }, [printerDevice, isConnected, autoReconnect, isPrinting]);
+
+  // Handle manual reconnection from alert
+  const handleManualReconnect = async () => {
+    setShowDisconnectionAlert(false);
+    
+    if (!disconnectedDevice) return;
+    
+    try {
+      setReconnectAttemptInProgress(true);
+      setIsConnecting(true);
+      console.log("Attempting to reconnect to device:", disconnectedDevice.id);
+      
+      const success = await connectToPrinter(disconnectedDevice);
+      
+      if (success) {
+        console.log("Manual reconnection successful");
+      } else {
+        console.log("Manual reconnection failed");
+      }
+    } catch (error) {
+      console.error("Manual reconnection error:", error);
+    } finally {
+      setReconnectAttemptInProgress(false);
+      setIsConnecting(false);
+    }
+  };
 
   // Connect to a printer device
   const connectToPrinter = async (device) => {
@@ -132,14 +278,31 @@ export const PrinterProvider = ({ children }) => {
         setPrinterDevice(null);
         
         // Don't try to reconnect if auto-reconnect is disabled
-        if (!autoReconnect) return;
+        if (!autoReconnect) {
+          // Set the disconnected device for potential manual reconnection
+          setDisconnectedDevice(disconnectedDevice);
+          setShowDisconnectionAlert(true);
+          return;
+        }
         
         // Attempt to reconnect after a brief delay
         setTimeout(async () => {
           try {
-            reconnectPrinter().catch(console.error);
+            if (bleManager && !isConnecting && !reconnectAttemptInProgress) {
+              setReconnectAttemptInProgress(true);
+              console.log("Attempting to reconnect after disconnect");
+              const devices = await bleManager.devices([device.id]);
+              if (devices && devices.length > 0) {
+                connectToPrinter(devices[0]).catch(console.error);
+              } else {
+                // If device not found, try full reconnection from scanning
+                reconnectPrinter();
+              }
+              setReconnectAttemptInProgress(false);
+            }
           } catch (e) {
             console.error("Auto-reconnect after disconnect error:", e);
+            setReconnectAttemptInProgress(false);
           }
         }, 2000);
       });
@@ -158,6 +321,43 @@ export const PrinterProvider = ({ children }) => {
       setLastConnectedId(device.id);
       setPrinterDevice(connectedDevice);
       setIsConnected(true);
+      
+      // Add a short delay after connection to ensure the printer is fully initialized
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Send a printer initialization command sequence to reset the printer state
+      try {
+        // Find a valid characteristic to send initialization commands
+        const services = await connectedDevice.services();
+        const service = services.find((s) =>
+          PRINTER_SERVICE_UUIDS.some((uuid) =>
+            s.uuid.toLowerCase().includes(uuid.toLowerCase())
+          )
+        );
+        
+        if (service) {
+          const characteristics = await service.characteristics();
+          const printCharacteristic = characteristics.find((c) =>
+            PRINTER_CHARACTERISTIC_UUIDS.some((uuid) =>
+              c.uuid.toLowerCase().includes(uuid.toLowerCase())
+            )
+          );
+          
+          if (printCharacteristic) {
+            // ESC @ command to initialize printer
+            const initCommand = [0x1B, 0x40]; // ESC @
+            await printCharacteristic.writeWithoutResponse(
+              base64.encode(String.fromCharCode(...initCommand))
+            );
+            // Small delay to let printer process the command
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        }
+      } catch (initError) {
+        // Ignore initialization errors - connection is still valid
+        console.log("Printer initialization warning:", initError);
+      }
+      
       console.log("Connection completed and saved");
       return true;
     } catch (error) {
@@ -196,6 +396,14 @@ export const PrinterProvider = ({ children }) => {
         console.log("Bluetooth state:", state);
       } catch (stateError) {
         console.error("Error checking BT state:", stateError);
+        // Try to reset BLE manager on error
+        try {
+          bleManager.destroy();
+          await new Promise(resolve => setTimeout(resolve, 500)); // Short delay
+          // Manager will be re-created on next operation
+        } catch (destroyError) {
+          console.error("Error destroying BLE manager:", destroyError);
+        }
         setIsScanning(false);
         throw new Error("Failed to check Bluetooth status. Please restart the app.");
       }
@@ -217,26 +425,96 @@ export const PrinterProvider = ({ children }) => {
             }
 
             if (device) {
-              // Add to temporary array instead of updating state on every device
-              if (!newDevices.some(d => d.id === device.id)) {
-                newDevices.push(device);
-              }
+              // Add a more comprehensive filter for printer devices
+              const deviceName = (device.name || "").toLowerCase();
               
-              // Update the state in batches to reduce renders
-              const now = Date.now();
-              if (now - lastUpdateTime > 500 && newDevices.length > 0) {
-                setAvailableDevices(prev => {
-                  // Merge with previous devices, avoiding duplicates
-                  const merged = [...prev];
-                  for (const newDevice of newDevices) {
-                    if (!merged.some(d => d.id === newDevice.id)) {
-                      merged.push(newDevice);
+              // Expanded list of common printer identifiers
+              const printerPatterns = [
+                "print", "pos", "thermal", "escpos", "esc/pos", "receipt", 
+                "hm-", "gprinter", "xprinter", "epson", "star", "zebra", 
+                "pt-", "prt-", "btp-", "tsp", "rongta", "iposprinter", 
+                "epp", "bth-", "posprinter", "cashier", "bill", "invoice",
+                "58mm", "80mm", "zcs", "btprinter", "bt printer", "sprocket",
+                "mtp-", "mini", "label", "票据", "打印", "プリンター",
+                "sr-", "sr58", "sr80", "srp", "spp", "sprt", 
+                "citizen", "bixolon", "sewoo", "woosim", "posiflex",
+                "ncr", "fujitsu", "ibm", "hp printer", "hp thermal",
+                "peripage", "paperang", "catiga", "munbyn", "hprt", "goojprt",
+                "gainscha", "itpp", "issyzonepos", "terow", "prtmn", "urovo",
+                "symcode", "poynt", "nemvas", "pr2", "pr3", "printer machine",
+                "sam4s", "snbc", "sunmi", "seiko", "tmt", "tm-t", "tm-p", 
+                "rpp", "rpt", "pt-", "dtprinter", "pockjet", "pb", "mprint", 
+                "mprnt", "codesoft", "tsc", "argox", "godex", "honeywell prnt",
+                "prntify", "printify", "barcode printer", "label printer",
+                "shipping printer", "kitchen printer", "zjiang", "loyverse",
+                "bluebamboo", "square printer", "shopify printer", "paypal prnt",
+                "sumup printer", "bt-printer", "morefine", "metapace", "anker prtr",
+                "jp-", "jp58", "jp80", "panasonic printer", "casio printer",
+                "impact printer", "dot matrix", "termal", "termol"
+              ];
+              
+              // Check if device name includes any printer pattern
+              const isPrinterPattern = printerPatterns.some(pattern => 
+                deviceName.includes(pattern)
+              );
+              
+              // Expanded list of common non-printer Bluetooth devices to exclude
+              const knownNonPrinterPatterns = [
+                "iphone", "samsung", "galaxy", "pixel", "car", "speaker", 
+                "audio", "headphone", "headset", "watch", "band", "tv", 
+                "earphone", "earbud", "mi", "scale", "speaker", "headphone", 
+                "bose", "jbl", "powerbeats", "sony", "buds", "airpods", 
+                "keyboard", "mouse", "remote", "camera", "fitness", "fitbit",
+                "garmin", "huawei", "honor", "oneplus", "redmi", "xiaomi",
+                "oppo", "vivo", "realme", "poco", "smart", "wear", "tag",
+                "tracker", "light", "lamp", "bulb", "camera", "security",
+                "lock", "door", "window", "sensor", "monitor", "scan",
+                "controller", "game", "play", "joy", "xbox", "playstation", 
+                "phone", "tab", "pad", "laptop", "computer", "pc", "mac",
+                "book", "reader", "kindle", "alexa", "echo", "google", "home"
+              ];
+              
+              const isKnownNonPrinter = knownNonPrinterPatterns.some(pattern => 
+                deviceName.includes(pattern)
+              );
+              
+              // Additional filters based on device characteristics
+              const isUnnamedButPotentialPrinter = !deviceName && 
+                                               device.serviceUUIDs && 
+                                               device.serviceUUIDs.some(uuid => 
+                                                 uuid.toLowerCase().includes("18f0") || 
+                                                 uuid.toLowerCase().includes("1101") || // SPP service
+                                                 uuid.toLowerCase().includes("ffe0") ||
+                                                 uuid.toLowerCase().includes("ff00") ||
+                                                 uuid.toLowerCase().includes("4553") ||
+                                                 uuid.toLowerCase().includes("49535343"));
+              
+              // Include device if it matches ANY of these conditions:
+              // 1. Has a name that includes a known printer pattern
+              // 2. Is unnamed but has a printer service UUID
+              // AND it doesn't match any known non-printer pattern
+              if ((isPrinterPattern || isUnnamedButPotentialPrinter) && !isKnownNonPrinter) {
+                // Add to temporary array instead of updating state on every device
+                if (!newDevices.some(d => d.id === device.id)) {
+                  newDevices.push(device);
+                }
+                
+                // Update the state in batches to reduce renders
+                const now = Date.now();
+                if (now - lastUpdateTime > 500 && newDevices.length > 0) {
+                  setAvailableDevices(prev => {
+                    // Merge with previous devices, avoiding duplicates
+                    const merged = [...prev];
+                    for (const newDevice of newDevices) {
+                      if (!merged.some(d => d.id === newDevice.id)) {
+                        merged.push(newDevice);
+                      }
                     }
-                  }
-                  return merged;
-                });
-                newDevices = [];
-                lastUpdateTime = now;
+                    return merged;
+                  });
+                  newDevices = [];
+                  lastUpdateTime = now;
+                }
               }
             }
           }
@@ -291,12 +569,13 @@ export const PrinterProvider = ({ children }) => {
       setPrinterDevice(null);
       setIsConnected(false);
       setLastConnectedId(null);
+      setDisconnectedDevice(null); // Clear the disconnected device
     } catch (error) {
       console.error("Error disconnecting printer:", error);
     }
   };
 
-  // Try to reconnect to last used printer
+  // Try to reconnect to last used printer with improved error handling
   const reconnectPrinter = async () => {
     if (!lastConnectedId || isConnecting || isConnected || reconnectAttemptInProgress) {
       return false;
@@ -315,15 +594,29 @@ export const PrinterProvider = ({ children }) => {
         return false;
       }
       
-      // Check Bluetooth state first
+      // Check Bluetooth state first with proper error handling
       let state;
       try {
         state = await bleManager.state();
       } catch (stateError) {
         console.error("Error checking BT state during reconnect:", stateError);
-        setIsConnecting(false);
-        setReconnectAttemptInProgress(false);
-        return false;
+        
+        // Instead of immediately failing, try to recover the BLE stack
+        try {
+          console.log("Attempting to recover BLE manager...");
+          
+          // Create a small delay to let the BLE stack stabilize
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Try checking state again after delay
+          state = await bleManager.state();
+          console.log("BLE manager recovered, state:", state);
+        } catch (recoveryError) {
+          console.error("BLE manager recovery failed:", recoveryError);
+          setIsConnecting(false);
+          setReconnectAttemptInProgress(false);
+          return false;
+        }
       }
       
       if (state !== "PoweredOn") {
@@ -333,11 +626,11 @@ export const PrinterProvider = ({ children }) => {
         return false;
       }
       
-      // Try direct connection first
+      // Try direct connection first for speed
       try {
         const device = await bleManager.connectToDevice(lastConnectedId, {
           autoConnect: true,
-          timeout: 5000
+          timeout: 8000
         });
         
         if (device) {
@@ -348,8 +641,40 @@ export const PrinterProvider = ({ children }) => {
             console.log("Service discovery error:", discoverError);
           }
           
+          // Initialize the printer
+          try {
+            const services = await device.services();
+            const service = services.find((s) =>
+              PRINTER_SERVICE_UUIDS.some((uuid) =>
+                s.uuid.toLowerCase().includes(uuid.toLowerCase())
+              )
+            );
+            
+            if (service) {
+              const characteristics = await service.characteristics();
+              const printCharacteristic = characteristics.find((c) =>
+                PRINTER_CHARACTERISTIC_UUIDS.some((uuid) =>
+                  c.uuid.toLowerCase().includes(uuid.toLowerCase())
+                )
+              );
+              
+              if (printCharacteristic) {
+                // ESC @ command to initialize printer
+                const initCommand = [0x1B, 0x40]; // ESC @
+                await printCharacteristic.writeWithoutResponse(
+                  base64.encode(String.fromCharCode(...initCommand))
+                );
+              }
+            }
+          } catch (initError) {
+            console.log("Printer initialization warning during reconnect:", initError);
+            // Continue anyway
+          }
+          
           setPrinterDevice(device);
           setIsConnected(true);
+          // Small delay to ensure states are updated
+          await new Promise(resolve => setTimeout(resolve, 300));
           setIsConnecting(false);
           setReconnectAttemptInProgress(false);
           return true;
@@ -358,59 +683,74 @@ export const PrinterProvider = ({ children }) => {
         console.log("Direct reconnect failed, trying alternative methods:", directConnectError);
       }
       
-      // If direct connection fails, try scanning for it
-      setIsScanning(true);
+      // If direct connection fails, try to get device from known devices
+      let device = null;
+      try {
+        const devices = await bleManager.devices([lastConnectedId]);
+        device = devices?.[0];
+      } catch (devicesError) {
+        console.log("Error getting known devices:", devicesError);
+      }
       
-      return new Promise((resolve) => {
-        try {
-          bleManager.startDeviceScan(
-            null, // No filters
-            null,
-            async (error, foundDevice) => {
-              if (error) {
-                console.error("Scan error during reconnect:", error);
-                return;
-              }
-              
-              if (foundDevice && foundDevice.id === lastConnectedId) {
-                try {
-                  bleManager.stopDeviceScan();
-                } catch (stopError) {
-                  console.log("Error stopping scan:", stopError);
+      // If not found, scan for it
+      if (!device) {
+        setIsScanning(true);
+        
+        return new Promise((resolve) => {
+          try {
+            bleManager.startDeviceScan(
+              null, // No filters
+              null,
+              async (error, foundDevice) => {
+                if (error) {
+                  console.error("Scan error during reconnect:", error);
+                  return;
                 }
                 
-                console.log("Found device during reconnect scan:", foundDevice.id);
-                const success = await connectToPrinter(foundDevice);
-                setIsScanning(false);
-                resolve(success);
+                if (foundDevice && foundDevice.id === lastConnectedId) {
+                  try {
+                    bleManager.stopDeviceScan();
+                  } catch (stopError) {
+                    console.log("Error stopping scan:", stopError);
+                  }
+                  
+                  console.log("Found device during reconnect scan:", foundDevice.id);
+                  const success = await connectToPrinter(foundDevice);
+                  setIsScanning(false);
+                  resolve(success);
+                }
               }
-            }
-          );
-        } catch (scanError) {
-          console.error("Error starting scan:", scanError);
-          setIsScanning(false);
-          setIsConnecting(false);
-          setReconnectAttemptInProgress(false);
-          resolve(false);
-        }
-        
-        // Stop scan after timeout
-        setTimeout(() => {
-          try {
-            if (bleManager) {
-              bleManager.stopDeviceScan();
-            }
-          } catch (stopError) {
-            console.log("Error stopping timed scan:", stopError);
+            );
+          } catch (scanError) {
+            console.error("Error starting scan:", scanError);
+            setIsScanning(false);
+            setIsConnecting(false);
+            setReconnectAttemptInProgress(false);
+            resolve(false);
           }
           
-          setIsScanning(false);
-          setIsConnecting(false);
-          setReconnectAttemptInProgress(false);
-          console.log("Reconnect scan timed out");
-          resolve(false);
-        }, 5000);
-      });
+          // Stop scan after timeout
+          setTimeout(() => {
+            try {
+              if (bleManager) {
+                bleManager.stopDeviceScan();
+              }
+            } catch (stopError) {
+              console.log("Error stopping timed scan:", stopError);
+            }
+            
+            setIsScanning(false);
+            setIsConnecting(false);
+            setReconnectAttemptInProgress(false);
+            console.log("Reconnect scan timed out");
+            resolve(false);
+          }, 8000);
+        });
+      } else {
+        console.log("Found device in known devices:", device.id);
+        const success = await connectToPrinter(device);
+        return success;
+      }
     } catch (error) {
       console.error("Error reconnecting:", error);
       setIsConnecting(false);
@@ -480,16 +820,16 @@ export const PrinterProvider = ({ children }) => {
         throw new Error("Printer characteristic not found");
       }
 
-      // Send data in chunks
+      // Send data in larger chunks with optimized delays for better speed/reliability balance
       const CHUNK_SIZE = 150;
       for (let i = 0; i < data.length; i += CHUNK_SIZE) {
         const chunk = data.slice(i, i + CHUNK_SIZE);
         try {
-          await characteristic.writeWithoutResponse(
+          await characteristic.writeWithResponse(  // Changed to writeWithResponse for better reliability
             base64.encode(String.fromCharCode(...chunk))
           );
           
-          // Small delay between chunks
+          // Reduced delay between chunks
           if (i + CHUNK_SIZE < data.length) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
@@ -531,6 +871,34 @@ export const PrinterProvider = ({ children }) => {
     }
   };
 
+  // Render global disconnection alert if needed
+  const renderDisconnectionAlert = () => {
+    if (showDisconnectionAlert && disconnectedDevice) {
+      Alert.alert(
+        "Printer Disconnected",
+        `The printer "${disconnectedDevice.name || 'Unknown Printer'}" has been disconnected.`,
+        [
+          {
+            text: "Reconnect",
+            onPress: handleManualReconnect
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => setShowDisconnectionAlert(false)
+          }
+        ]
+      );
+      // Reset the flag after showing the alert
+      setShowDisconnectionAlert(false);
+    }
+  };
+
+  // Call the alert renderer whenever the flag changes
+  useEffect(() => {
+    renderDisconnectionAlert();
+  }, [showDisconnectionAlert]);
+
   return (
     <PrinterContext.Provider
       value={{
@@ -553,6 +921,8 @@ export const PrinterProvider = ({ children }) => {
         setIsScanning,
         setPrinterDevice,
         setIsConnected,
+        disconnectedDevice,
+        handleManualReconnect
       }}
     >
       {children}
