@@ -617,8 +617,6 @@ export default function MenuSelectionScreen() {
             </Box>
           )}
 
-    
-
           {item.offer > 0 && (
             <Box
               position="absolute"
@@ -787,7 +785,7 @@ export default function MenuSelectionScreen() {
   const renderTableSwitcherModal = () => {
     return (
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={showTableSwitcher}
         onRequestClose={() => setShowTableSwitcher(false)}
@@ -795,10 +793,15 @@ export default function MenuSelectionScreen() {
         <TouchableWithoutFeedback onPress={() => setShowTableSwitcher(false)}>
           <View style={styles.modalContainer}>
             <TouchableWithoutFeedback>
-              <View style={[styles.modalContent, { width: '90%', maxHeight: '80%' }]}>
-                <Text style={[styles.modalTitle, { marginBottom: 10 }]}>
-                  Switch Table {tableData?.table_number}
-                </Text>
+              <View style={styles.tableSwitcherContainer}>
+                <View style={styles.tableSwitcherHeader}>
+                  <Text style={styles.tableSwitcherTitle}>
+                    Available Tables
+                  </Text>
+                  <Pressable onPress={() => setShowTableSwitcher(false)}>
+                    <MaterialIcons name="close" size={24} color="#333" />
+                  </Pressable>
+                </View>
                 
                 {loadingTables ? (
                   <Center py={5}>
@@ -808,7 +811,7 @@ export default function MenuSelectionScreen() {
                 ) : availableTables.length === 0 ? (
                   <Center py={5}>
                     <MaterialIcons name="error-outline" size={44} color="#999" />
-                    <Text mt={3} color="gray.600">No available tables in this section</Text>
+                    <Text style={styles.noTablesText}>No available tables in this section</Text>
                   </Center>
                 ) : (
                   <FlatList
@@ -817,56 +820,23 @@ export default function MenuSelectionScreen() {
                     style={{ maxHeight: 300 }}
                     renderItem={({ item }) => (
                       <Pressable
-                        style={styles.tableSwitcherItem}
+                        style={styles.tableItem}
                         onPress={() => switchTable(item.table_id, item.table_number)}
                       >
-                        <HStack alignItems="center" space={3}>
-                          <Box 
-                            bg="cyan.100" 
-                            w={10} 
-                            h={10} 
-                            borderRadius={5}
-                            justifyContent="center"
-                            alignItems="center"
-                          >
-                            <Text fontSize="md" fontWeight="bold" color="cyan.700">
-                              {item.table_number}
-                            </Text>
-                          </Box>
-                          <VStack>
-                            <Text fontSize="md" fontWeight="medium">
-                              Table {item.table_number}
-                            </Text>
-                            <Text fontSize="xs" color="gray.500">
-                              {item.is_reserved ? "Reserved" : "Available"}
-                            </Text>
-                          </VStack>
-                          <MaterialIcons 
-                            name="arrow-forward-ios" 
-                            size={18} 
-                            color="#999"
-                            style={{ marginLeft: 'auto' }}
-                          />
-                        </HStack>
+                        <Text style={styles.tableItemText}>Table {item.table_number}</Text>
+                        <MaterialIcons name="arrow-forward-ios" size={20} color="#0dcaf0" />
                       </Pressable>
                     )}
+                    ItemSeparatorComponent={() => <View style={styles.separator} />}
                   />
                 )}
                 
-                <View style={styles.modalButtonsContainer}>
-                  <Pressable
-                    style={[styles.modalButton, { backgroundColor: '#F44336' }]}
-                    onPress={() => setShowTableSwitcher(false)}
-                  >
-                    <Text style={styles.modalButtonText}>Cancel</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.modalButton, { backgroundColor: '#4CAF50' }]}
-                    onPress={fetchAvailableTables}
-                  >
-                    <Text style={styles.modalButtonText}>Refresh</Text>
-                  </Pressable>
-                </View>
+                {/* <Pressable
+                  style={styles.refreshButton}
+                  onPress={fetchAvailableTables}
+                >
+                  <Text style={styles.refreshButtonText}>Refresh</Text>
+                </Pressable> */}
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -1363,10 +1333,66 @@ const styles = StyleSheet.create({
   disabledImage: {
     opacity: 0.5,
   },
-  tableSwitcherItem: {
+  tableSwitcherContainer: {
+    width: '80%',
+    maxHeight: '70%',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 16,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  tableSwitcherHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  tableSwitcherTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  noTablesText: {
+    textAlign: 'center',
+    padding: 20,
+    color: '#666',
+    fontSize: 16,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#e1e1e1',
+    width: '100%',
+  },
+  tableItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  tableItemText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  refreshButton: {
+    backgroundColor: "#0dcaf0",
     padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderRadius: 5,
+    marginTop: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  refreshButtonText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 
