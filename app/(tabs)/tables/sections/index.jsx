@@ -152,6 +152,9 @@ export default function TableSectionsScreen() {
   const [refExists, setRefExists] = useState(false);
   const qrContainerRef = useRef(null);
   const [isQrRefValid, setIsQrRefValid] = useState(false);
+  const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("CASH");
+  const [isPaid, setIsPaid] = useState(true);
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -837,13 +840,13 @@ export default function TableSectionsScreen() {
                       </Center>
                     ) : (
                       <VStack space={0}>
-                        <VStack space={0}>
+                        <VStack space={4}>
                           {Object.entries(tablesByRow).map(
                             ([rowIndex, row]) => (
                               <HStack
                                 key={rowIndex}
                                 px={0}
-                                py={2}
+                                py={4}
                                 alignItems="center"
                                 justifyContent="space-between"
                               >
@@ -965,6 +968,33 @@ export default function TableSectionsScreen() {
                                                 />
                                               )}
 
+                                              {/* Payment icon for occupied tables with orders */}
+                                              {isOccupied && table.order_id && (
+                                                <Box
+                                                  position="absolute"
+                                                  bottom={-13}
+                                                  left="50%"
+                                                  style={{ transform: [{ translateX: -16 }] }}
+                                                  zIndex={2}
+                                                >
+                                                  <Pressable
+                                                    onPress={() => handlePaymentIconPress(table, section)}
+                                                    bg="white"
+                                                    rounded="full"
+                                                    size={8}
+                                                    shadow={3}
+                                                    alignItems="center"
+                                                    justifyContent="center"
+                                                  >
+                                                    <MaterialIcons
+                                                      name="print"
+                                                      size={20}
+                                                      color="#f97316"
+                                                    />
+                                                  </Pressable>
+                                                </Box>
+                                              )}
+
                                               {/* Delete icon for last table */}
                                               {showEditIcons && 
                                                 table.table_id === getLastTable(section.tables)?.table_id && 
@@ -1016,7 +1046,7 @@ export default function TableSectionsScreen() {
                                                     color="coolGray.600"
                                                     textAlign="center"
                                                   >
-                                                    {table.timeSinceOccupied}
+                                                    {table.timeSinceOccupied || "3h+"}
                                                   </Text>
                                                 )}
                                               </VStack>
@@ -2232,6 +2262,215 @@ export default function TableSectionsScreen() {
     startBlinking();
   }, []);
 
+  // Add this function to handle payment icon press
+  const handlePaymentIconPress = (table, section) => {
+    setSelectedTable({
+      ...table,
+      section_name: section.name,
+      section_id: section.id
+    });
+    setSelectedPaymentMethod("CASH");
+    setIsPaid(true);
+    setIsPaymentModalVisible(true);
+  };
+
+  // Add this function to handle payment settlement
+  const handleSettlePayment = async () => {
+    try {
+      if (!selectedPaymentMethod) {
+        toast.show({
+          description: "Please select a payment method",
+          status: "warning",
+        });
+        return;
+      }
+
+      setLoading(true);
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      
+      if (!storedUserId) {
+        throw new Error("User ID not found. Please login again.");
+      }
+
+      const data = await fetchWithAuth(`${getBaseUrl()}/update_order_status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: outletId.toString(),
+          order_id: selectedTable.order_id.toString(),
+          order_status: "completed",
+          user_id: storedUserId.toString(),
+          is_paid: isPaid ? "1" : "0",
+          order_type: "dine-in",
+          tables: [{ table_no: selectedTable.table_number.toString() }],
+          section_id: selectedTable.section_id.toString(),
+          payment_method: selectedPaymentMethod
+        }),
+      });
+
+      if (data.st === 1) {
+        toast.show({
+          description: "Payment settled successfully",
+          status: "success",
+        });
+        setIsPaymentModalVisible(false);
+        await fetchSections(outletId);
+      } else {
+        throw new Error(data.msg || "Failed to settle payment");
+      }
+    } catch (error) {
+      console.error("Payment Error:", error);
+      toast.show({
+        description: error.message || "Failed to settle payment",
+        status: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Payment Modal Component
+  const PaymentModal = () => (
+    <Modal isOpen={isPaymentModalVisible} onClose={() => setIsPaymentModalVisible(false)}>
+      <Modal.Content maxWidth="350px" borderRadius="lg" shadow={6}>
+        <Modal.CloseButton />
+        <Modal.Header borderBottomWidth={1} borderBottomColor="coolGray.200" py={3}>
+          <Text fontSize="md" fontWeight="semibold">
+            Table {selectedTable?.table_number} | Order No {selectedTable?.order_number}
+          </Text>
+          <Text fontSize="xl" fontWeight="bold" color="#0891b2">
+            ₹{selectedTable?.grand_total?.toFixed(2)}
+          </Text>
+        </Modal.Header>
+        <Modal.Body py={4}>
+          <VStack space={5}>
+            <Text fontSize="md" fontWeight="semibold" color="coolGray.800">
+              Select Payment Method
+            </Text>
+            
+            <HStack space={3} justifyContent="space-between" alignItems="center">
+              <Pressable 
+                flex={1} 
+                onPress={() => setSelectedPaymentMethod("CASH")}
+                bg={selectedPaymentMethod === "CASH" ? "coolGray.100" : "transparent"}
+                p={3}
+                rounded="md"
+                borderWidth={1}
+                borderColor={selectedPaymentMethod === "CASH" ? "#0891b2" : "coolGray.300"}
+              >
+                <VStack alignItems="center" space={1}>
+                  <Icon 
+                    as={MaterialIcons} 
+                    name="payments" 
+                    size="md" 
+                    color={selectedPaymentMethod === "CASH" ? "#0891b2" : "coolGray.500"} 
+                  />
+                  <Text 
+                    fontSize="sm" 
+                    fontWeight="medium" 
+                    color={selectedPaymentMethod === "CASH" ? "#0891b2" : "coolGray.800"}
+                  >
+                    CASH
+                  </Text>
+                </VStack>
+              </Pressable>
+              
+              <Pressable 
+                flex={1} 
+                onPress={() => setSelectedPaymentMethod("UPI")}
+                bg={selectedPaymentMethod === "UPI" ? "coolGray.100" : "transparent"}
+                p={3}
+                rounded="md"
+                borderWidth={1}
+                borderColor={selectedPaymentMethod === "UPI" ? "#0891b2" : "coolGray.300"}
+              >
+                <VStack alignItems="center" space={1}>
+                  <Icon 
+                    as={MaterialIcons} 
+                    name="smartphone" 
+                    size="md" 
+                    color={selectedPaymentMethod === "UPI" ? "#0891b2" : "coolGray.500"} 
+                  />
+                  <Text 
+                    fontSize="sm" 
+                    fontWeight="medium" 
+                    color={selectedPaymentMethod === "UPI" ? "#0891b2" : "coolGray.800"}
+                  >
+                    UPI
+                  </Text>
+                </VStack>
+              </Pressable>
+              
+              <Pressable 
+                flex={1} 
+                onPress={() => setSelectedPaymentMethod("CARD")}
+                bg={selectedPaymentMethod === "CARD" ? "coolGray.100" : "transparent"}
+                p={3}
+                rounded="md"
+                borderWidth={1}
+                borderColor={selectedPaymentMethod === "CARD" ? "#0891b2" : "coolGray.300"}
+              >
+                <VStack alignItems="center" space={1}>
+                  <Icon 
+                    as={MaterialIcons} 
+                    name="credit-card" 
+                    size="md" 
+                    color={selectedPaymentMethod === "CARD" ? "#0891b2" : "coolGray.500"} 
+                  />
+                  <Text 
+                    fontSize="sm" 
+                    fontWeight="medium" 
+                    color={selectedPaymentMethod === "CARD" ? "#0891b2" : "coolGray.800"}
+                  >
+                    CARD
+                  </Text>
+                </VStack>
+              </Pressable>
+            </HStack>
+            
+            <HStack space={2} alignItems="center" pt={2}>
+              <Pressable onPress={() => setIsPaid(!isPaid)}>
+                <HStack space={2} alignItems="center">
+                  <Box
+                    size={6}
+                    rounded="sm"
+                    borderWidth={1}
+                    borderColor="#0891b2"
+                    alignItems="center"
+                    justifyContent="center"
+                    bg={isPaid ? "#0891b2" : "transparent"}
+                  >
+                    {isPaid && (
+                      <MaterialIcons name="check" size={16} color="white" />
+                    )}
+                  </Box>
+                  <Text color="coolGray.800" fontSize="md" fontWeight="medium">
+                    Received Full Payment
+                  </Text>
+                </HStack>
+              </Pressable>
+            </HStack>
+          </VStack>
+        </Modal.Body>
+        <Modal.Footer pt={0} borderTopWidth={0}>
+          <Button
+            w="full"
+            bg="#0891b2"
+            _pressed={{ bg: "#06748e" }}
+            rounded="md"
+            py={3}
+            onPress={handleSettlePayment}
+            isLoading={loading}
+            leftIcon={<Icon as={MaterialIcons} name="check-circle" size="sm" />}
+            shadow={2}
+          >
+            SETTLE PAYMENT
+          </Button>
+        </Modal.Footer>
+      </Modal.Content>
+    </Modal>
+  );
+
   return (
     <Box flex={1} bg="coolGray.100" safeAreaTop>
       {/* Header Component */}
@@ -2399,6 +2638,9 @@ export default function TableSectionsScreen() {
 
       {/* Add QR Code Modal */}
       <QRCodeModal />
+
+      {/* Add the PaymentModal */}
+      <PaymentModal />
     </Box>
   );
 }
