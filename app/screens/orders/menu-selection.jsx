@@ -82,6 +82,10 @@ export default function MenuSelectionScreen() {
   const [existingMenuQuantities, setExistingMenuQuantities] = useState({});
   const [isReserved, setIsReserved] = useState(false);
   const [reserveModalVisible, setReserveModalVisible] = useState(false);
+  // Add new state variables for table switching
+  const [showTableSwitcher, setShowTableSwitcher] = useState(false);
+  const [availableTables, setAvailableTables] = useState([]);
+  const [loadingTables, setLoadingTables] = useState(false);
 
   // Initialize cart from existing order if available
   useEffect(() => {
@@ -674,6 +678,203 @@ export default function MenuSelectionScreen() {
     return `New ${toTitleCase(orderType)} Order`;
   };
 
+  // Add fetchAvailableTables function
+  const fetchAvailableTables = async () => {
+    try {
+      setLoadingTables(true);
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      
+      if (!storedOutletId || !tableData || !storedUserId) {
+        throw new Error("Missing outlet, user, or table data");
+      }
+      
+      const response = await fetchWithAuth(`${getBaseUrl()}/get_available_tables`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: storedOutletId,
+          section_id: tableData.section_id,
+          current_table_id: tableData.table_id,
+          user_id: storedUserId.toString()
+        }),
+      });
+      
+      if (response.st === 1 && response.tables) {
+        // Filter out the current table
+        const tables = response.tables.filter(
+          (table) => table.table_id !== tableData.table_id
+        );
+        setAvailableTables(tables);
+      } else {
+        toast.show({
+          description: response.msg || "No available tables found",
+          status: "warning"
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching available tables:", error);
+      toast.show({
+        description: "Failed to load available tables",
+        status: "error"
+      });
+    } finally {
+      setLoadingTables(false);
+    }
+  };
+
+  // Add switchTable function
+  const switchTable = async (newTableId, newTableNumber) => {
+    try {
+      // First, close the modal immediately
+      setShowTableSwitcher(false);
+      
+      // Then show loading
+      setLoadingTables(true);
+      
+      const storedUserId = await AsyncStorage.getItem("user_id");
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      
+      if (!storedUserId || !storedOutletId || !tableData) {
+        throw new Error("Missing user, outlet, or table data");
+      }
+      
+      const response = await fetchWithAuth(`${getBaseUrl()}/update_table`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table_number: tableData.table_number.toString(),
+          new_table_number: newTableNumber.toString(),
+          section_id: tableData.section_id,
+          outlet_id: storedOutletId,
+          order_id: tableData.order_id,
+          user_id: storedUserId
+        }),
+      });
+      
+      if (response.st === 1) {
+        toast.show({
+          description: response.msg || `Table switched from ${tableData.table_number} to ${newTableNumber}`,
+          status: "success"
+        });
+        
+        // Navigate back to tables screen to refresh
+        router.replace({
+          pathname: "/(tabs)/tables",
+          params: { 
+            refresh: Date.now().toString(),
+            status: "completed"
+          }
+        });
+      } else {
+        toast.show({
+          description: response.msg || "Failed to switch table",
+          status: "error"
+        });
+      }
+    } catch (error) {
+      console.error("Error switching table:", error);
+      toast.show({
+        description: "Failed to switch table. Please try again.",
+        status: "error"
+      });
+    } finally {
+      setLoadingTables(false);
+    }
+  };
+
+  // Add TableSwitcherModal component
+  const renderTableSwitcherModal = () => {
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showTableSwitcher}
+        onRequestClose={() => setShowTableSwitcher(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowTableSwitcher(false)}>
+          <View style={styles.modalContainer}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.modalContent, { width: '90%', maxHeight: '80%' }]}>
+                <Text style={[styles.modalTitle, { marginBottom: 10 }]}>
+                  Switch Table {tableData?.table_number}
+                </Text>
+                
+                {loadingTables ? (
+                  <Center py={5}>
+                    <Spinner size="lg" color="cyan.500" />
+                    <Text mt={3} color="gray.600">Loading available tables...</Text>
+                  </Center>
+                ) : availableTables.length === 0 ? (
+                  <Center py={5}>
+                    <MaterialIcons name="error-outline" size={44} color="#999" />
+                    <Text mt={3} color="gray.600">No available tables in this section</Text>
+                  </Center>
+                ) : (
+                  <FlatList
+                    data={availableTables}
+                    keyExtractor={(item) => item.table_id.toString()}
+                    style={{ maxHeight: 300 }}
+                    renderItem={({ item }) => (
+                      <Pressable
+                        style={styles.tableSwitcherItem}
+                        onPress={() => switchTable(item.table_id, item.table_number)}
+                      >
+                        <HStack alignItems="center" space={3}>
+                          <Box 
+                            bg="cyan.100" 
+                            w={10} 
+                            h={10} 
+                            borderRadius={5}
+                            justifyContent="center"
+                            alignItems="center"
+                          >
+                            <Text fontSize="md" fontWeight="bold" color="cyan.700">
+                              {item.table_number}
+                            </Text>
+                          </Box>
+                          <VStack>
+                            <Text fontSize="md" fontWeight="medium">
+                              Table {item.table_number}
+                            </Text>
+                            <Text fontSize="xs" color="gray.500">
+                              {item.is_reserved ? "Reserved" : "Available"}
+                            </Text>
+                          </VStack>
+                          <MaterialIcons 
+                            name="arrow-forward-ios" 
+                            size={18} 
+                            color="#999"
+                            style={{ marginLeft: 'auto' }}
+                          />
+                        </HStack>
+                      </Pressable>
+                    )}
+                  />
+                )}
+                
+                <View style={styles.modalButtonsContainer}>
+                  <Pressable
+                    style={[styles.modalButton, { backgroundColor: '#F44336' }]}
+                    onPress={() => setShowTableSwitcher(false)}
+                  >
+                    <Text style={styles.modalButtonText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.modalButton, { backgroundColor: '#4CAF50' }]}
+                    onPress={fetchAvailableTables}
+                  >
+                    <Text style={styles.modalButtonText}>Refresh</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -681,118 +882,142 @@ export default function MenuSelectionScreen() {
         title={getHeaderTitle()} 
         rightComponent={
           orderType === "dine-in" && tableData ? (
-            isReserved ? (
-              <Pressable
-                onPress={async () => {
-                  try {
-                    const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        table_id: parseInt(tableData.table_id),
-                        table_number: parseInt(tableData.table_number),
-                        outlet_id: parseInt(tableData.outlet_id),
-                        is_reserved: false
-                      }),
-                    });
+            <HStack space={2}>
+              {/* Add Table Switch Button */}
+              {tableData.order_id && (
+                <Pressable
+                  onPress={() => {
+                    setShowTableSwitcher(true);
+                    fetchAvailableTables();
+                  }}
+                  bg="cyan.500"
+                  px={3}
+                  py={1.5}
+                  rounded="md"
+                  _pressed={{
+                    bg: "cyan.600"
+                  }}
+                >
+                  <HStack space={1} alignItems="center">
+                    <MaterialIcons name="swap-horiz" size={20} color="white" />
+                    <Text color="white" fontWeight="medium">Switch</Text>
+                  </HStack>
+                </Pressable>
+              )}
+              
+              {isReserved ? (
+                <Pressable
+                  onPress={async () => {
+                    try {
+                      const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          table_id: parseInt(tableData.table_id),
+                          table_number: parseInt(tableData.table_number),
+                          outlet_id: parseInt(tableData.outlet_id),
+                          is_reserved: false
+                        }),
+                      });
 
-                    if (response.st === 1) {
-                      setIsReserved(false);
+                      if (response.st === 1) {
+                        setIsReserved(false);
+                        toast.show({
+                          description: "Table has been unreserved",
+                          status: "success"
+                        });
+                        router.replace({
+                          pathname: "/(tabs)/tables",
+                          params: { 
+                            refresh: Date.now().toString(),
+                            status: "completed"
+                          }
+                        });
+                      } else {
+                        toast.show({
+                          description: response.msg || "Failed to unreserve table",
+                          status: "error"
+                        });
+                      }
+                    } catch (error) {
+                      console.error("Error unreserving table:", error);
                       toast.show({
-                        description: "Table has been unreserved",
-                        status: "success"
-                      });
-                      router.replace({
-                        pathname: "/(tabs)/tables",
-                        params: { 
-                          refresh: Date.now().toString(),
-                          status: "completed"
-                        }
-                      });
-                    } else {
-                      toast.show({
-                        description: response.msg || "Failed to unreserve table",
+                        description: "Failed to unreserve table",
                         status: "error"
                       });
                     }
-                  } catch (error) {
-                    console.error("Error unreserving table:", error);
-                    toast.show({
-                      description: "Failed to unreserve table",
-                      status: "error"
-                    });
-                  }
-                }}
-                bg="red.500"
-                px={3}
-                py={1.5}
-                rounded="md"
-                _pressed={{
-                  bg: "red.600"
-                }}
-              >
-                <HStack space={1} alignItems="center">
-                  <MaterialIcons name="event-busy" size={20} color="white" />
-                  <Text color="white" fontWeight="medium">Unreserve</Text>
-                </HStack>
-              </Pressable>
-            ) : !tableData.is_occupied && !tableData.order_id ? (
-              <Pressable
-                onPress={async () => {
-                  try {
-                    const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        table_id: parseInt(tableData.table_id),
-                        table_number: parseInt(tableData.table_number),
-                        outlet_id: parseInt(tableData.outlet_id),
-                        is_reserved: true
-                      }),
-                    });
+                  }}
+                  bg="red.500"
+                  px={3}
+                  py={1.5}
+                  rounded="md"
+                  _pressed={{
+                    bg: "red.600"
+                  }}
+                >
+                  <HStack space={1} alignItems="center">
+                    <MaterialIcons name="event-busy" size={20} color="white" />
+                    <Text color="white" fontWeight="medium">Unreserve</Text>
+                  </HStack>
+                </Pressable>
+              ) : !tableData.is_occupied && !tableData.order_id ? (
+                <Pressable
+                  onPress={async () => {
+                    try {
+                      const response = await fetchWithAuth(`${getBaseUrl()}/table_is_reserved`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          table_id: parseInt(tableData.table_id),
+                          table_number: parseInt(tableData.table_number),
+                          outlet_id: parseInt(tableData.outlet_id),
+                          is_reserved: true
+                        }),
+                      });
 
-                    if (response.st === 1) {
-                      setReserveModalVisible(true);
-                      setIsReserved(true);
+                      if (response.st === 1) {
+                        setReserveModalVisible(true);
+                        setIsReserved(true);
+                        toast.show({
+                          description: "Table has been reserved",
+                          status: "success"
+                        });
+                        router.replace({
+                          pathname: "/(tabs)/tables",
+                          params: { 
+                            refresh: Date.now().toString(),
+                            status: "completed"
+                          }
+                        });
+                      } else {
+                        toast.show({
+                          description: response.msg || "Failed to reserve table",
+                          status: "error"
+                        });
+                      }
+                    } catch (error) {
+                      console.error("Error reserving table:", error);
                       toast.show({
-                        description: "Table has been reserved",
-                        status: "success"
-                      });
-                      router.replace({
-                        pathname: "/(tabs)/tables",
-                        params: { 
-                          refresh: Date.now().toString(),
-                          status: "completed"
-                        }
-                      });
-                    } else {
-                      toast.show({
-                        description: response.msg || "Failed to reserve table",
+                        description: "Failed to reserve table",
                         status: "error"
                       });
                     }
-                  } catch (error) {
-                    console.error("Error reserving table:", error);
-                    toast.show({
-                      description: "Failed to reserve table",
-                      status: "error"
-                    });
-                  }
-                }}
-                bg="green.500"
-                px={3}
-                py={1.5}
-                rounded="md"
-                _pressed={{
-                  bg: "green.600"
-                }}
-              >
-                <HStack space={1} alignItems="center">
-                  <MaterialIcons name="event-available" size={20} color="white" />
-                  <Text color="white" fontWeight="medium">Reserve</Text>
-                </HStack>
-              </Pressable>
-            ) : null
+                  }}
+                  bg="green.500"
+                  px={3}
+                  py={1.5}
+                  rounded="md"
+                  _pressed={{
+                    bg: "green.600"
+                  }}
+                >
+                  <HStack space={1} alignItems="center">
+                    <MaterialIcons name="event-available" size={20} color="white" />
+                    <Text color="white" fontWeight="medium">Reserve</Text>
+                  </HStack>
+                </Pressable>
+              ) : null}
+            </HStack>
           ) : null
         }
       />
@@ -951,6 +1176,9 @@ export default function MenuSelectionScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
+      {/* Render Table Switcher Modal */}
+      {renderTableSwitcherModal()}
+
       {/* Floating un-reserve button */}
       {isReserved && orderType === "dine-in" && (
         <Pressable
@@ -1077,29 +1305,40 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
-    width: "80%",
     backgroundColor: "white",
     borderRadius: 10,
     padding: 20,
     alignItems: "center",
+    maxHeight: '80%',
+    width: '90%',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 20,
   },
+  modalButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 20,
+    paddingHorizontal: 10,
+  },
   modalButton: {
     backgroundColor: "#0dcaf0",
     padding: 10,
     borderRadius: 5,
-    marginVertical: 5,
-    width: "90%",
+    marginHorizontal: 5,
+    flex: 1,
     alignItems: "center",
+    justifyContent: "center",
+    height: 44,
   },
   modalButtonText: {
     color: '#fff',
     textAlign: 'center',
     fontSize: 16,
+    fontWeight: 'medium',
   },
   cancelButton: {
     marginTop: 10,
@@ -1123,6 +1362,11 @@ const styles = StyleSheet.create({
   },
   disabledImage: {
     opacity: 0.5,
+  },
+  tableSwitcherItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
   },
 });
 
