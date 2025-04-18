@@ -1078,220 +1078,152 @@ export default function TableSectionsScreen() {
   );
 
   const FilterButtons = () => (
-    <Box>
-      <Box py={4} borderBottomWidth={1} borderBottomColor="coolGray.200">
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 80,
-          }}
-        >
-          <HStack space={3} alignItems="center">
-            <Pressable onPress={() => setActiveFilter("ALL")}>
-              <Box
-                px={4}
-                py={1.5}
-                bg={activeFilter === "ALL" ? "primary.500" : "white"}
-                borderWidth={1}
-                borderColor="primary.500"
-                rounded="md"
-              >
-                <Text
-                  color={activeFilter === "ALL" ? "white" : "primary.500"}
-                  fontSize="sm"
-                  fontWeight="medium"
-                >
-                  All
-                </Text>
-              </Box>
-            </Pressable>
-            <Pressable onPress={() => setActiveFilter("AVAILABLE")}>
-              <Box
-                px={4}
-                py={1.5}
-                bg={activeFilter === "AVAILABLE" ? "green.500" : "white"}
-                borderWidth={1}
-                borderColor="green.500"
-                rounded="md"
-              >
-                <Text
-                  color={activeFilter === "AVAILABLE" ? "white" : "green.500"}
-                  fontSize="sm"
-                  fontWeight="medium"
-                >
-                  Available
-                </Text>
-              </Box>
-            </Pressable>
-            <Pressable onPress={() => setActiveFilter("ENGAGED")}>
-              <Box
-                px={1}
-                py={1}
-                bg={activeFilter === "ENGAGED" ? "red.500" : "white"}
-                borderWidth={1}
-                borderColor="red.500"
-                rounded="md"
-              >
-                <Text
-                  color={activeFilter === "ENGAGED" ? "white" : "red.500"}
-                  fontSize="sm"
-                  fontWeight="medium"
-                >
-                  Occupied
-                </Text>
-              </Box>
-            </Pressable>
-          </HStack>
-        </ScrollView>
-      </Box>
+    <Box bg="white" py={2} borderBottomWidth={1} borderBottomColor="coolGray.200">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+        }}
+      >
+        <HStack space={3} alignItems="center">
+          <Pressable
+            onPress={() =>
+              router.replace({
+                pathname: "/screens/orders/menu-selection",
+                params: {
+                  isSpecialOrder: "true",
+                  orderType: "counter",
+                  clearPrevious: "true",
+                },
+              })
+            }
+          >
+            <Box
+              px={4}
+              py={2}
+              bg="white"
+              borderWidth={1}
+              borderColor="#0891b2"
+              rounded="lg"
+              flexDirection="row"
+              alignItems="center"
+            >
+              <MaterialIcons
+                name="point-of-sale"
+                size={20}
+                color="#0891b2"
+                style={{ marginRight: 8 }}
+              />
+              <Text color="#0891b2" fontSize="sm" fontWeight="medium">
+                Counter
+              </Text>
+            </Box>
+          </Pressable>
 
-      <Box py={4} borderBottomWidth={1} borderBottomColor="coolGray.200">
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-          }}
-        >
-          <HStack space={3} alignItems="center">
-            <Pressable
-              onPress={() =>
-                router.replace({
-                  pathname: "/screens/orders/menu-selection",
-                  params: {
-                    isSpecialOrder: "true",
-                    orderType: "parcel",
-                    clearPrevious: "true",
-                  },
-                })
-              }
+          <Pressable
+            onPress={() =>
+              router.replace({
+                pathname: "/screens/orders/menu-selection",
+                params: {
+                  isSpecialOrder: "true",
+                  orderType: "parcel",
+                  clearPrevious: "true",
+                },
+              })
+            }
+          >
+            <Box
+              px={4}
+              py={2}
+              bg="white"
+              borderWidth={1}
+              borderColor="#0891b2"
+              rounded="lg"
+              flexDirection="row"
+              alignItems="center"
             >
-              <Box
-                px={1}
-                py={1}
-                bg="orange.500"
-                borderWidth={1}
-                borderColor="orange.500"
-                rounded="md"
-                flexDirection="row"
-                alignItems="center"
-              >
-                <MaterialIcons
-                  name="local-shipping"
-                  size={16}
-                  color="white"
-                  style={{ marginRight: 1 }}
-                />
-                <Text color="white" fontSize="sm" fontWeight="medium">
-                  Parcel
-                </Text>
-              </Box>
-            </Pressable>
+              <MaterialIcons
+                name="local-shipping"
+                size={20}
+                color="#0891b2"
+                style={{ marginRight: 8 }}
+              />
+              <Text color="#0891b2" fontSize="sm" fontWeight="medium">
+                Parcel
+              </Text>
+            </Box>
+          </Pressable>
 
-            <Pressable
-              onPress={() =>
-                router.replace({
-                  pathname: "/screens/orders/menu-selection",
-                  params: {
-                    isSpecialOrder: "true",
-                    orderType: "drive-through",
-                    clearPrevious: "true",
-                  },
-                })
-              }
+          <Pressable
+            onPress={() =>
+              router.replace({
+                pathname: "/screens/orders/menu-selection",
+                params: {
+                  isSpecialOrder: "true",
+                  orderType: "delivery",
+                  clearPrevious: "true",
+                },
+              })
+            }
+          >
+            <Box
+              px={4}
+              py={2}
+              bg="white"
+              borderWidth={1}
+              borderColor="#0891b2"
+              rounded="lg"
+              flexDirection="row"
+              alignItems="center"
             >
-              <Box
-                px={1}
-                py={1}
-                bg="blue.500"
-                borderWidth={1}
-                borderColor="blue.500"
-                rounded="md"
-                flexDirection="row"
-                alignItems="center"
-              >
-                <MaterialIcons
-                  name="drive-eta"
-                  size={16}
-                  color="white"
-                  style={{ marginRight: 1 }}
-                />
-                <Text color="white" fontSize="sm" fontWeight="medium">
-                  Drive Thru
-                </Text>
-              </Box>
-            </Pressable>
+              <MaterialIcons
+                name="delivery-dining"
+                size={20}
+                color="#0891b2"
+                style={{ marginRight: 8 }}
+              />
+              <Text color="#0891b2" fontSize="sm" fontWeight="medium">
+                Delivery
+              </Text>
+            </Box>
+          </Pressable>
 
-            <Pressable
-              onPress={() =>
-                router.replace({
-                  pathname: "/screens/orders/menu-selection",
-                  params: {
-                    isSpecialOrder: "true",
-                    orderType: "counter",
-                    clearPrevious: "true",
-                  },
-                })
-              }
+          <Pressable
+            onPress={() =>
+              router.replace({
+                pathname: "/screens/orders/menu-selection",
+                params: {
+                  isSpecialOrder: "true",
+                  orderType: "drive-through",
+                  clearPrevious: "true",
+                },
+              })
+            }
+          >
+            <Box
+              px={4}
+              py={2}
+              bg="white"
+              borderWidth={1}
+              borderColor="#0891b2"
+              rounded="lg"
+              flexDirection="row"
+              alignItems="center"
             >
-              <Box
-                px={1}
-                py={1}
-                bg="purple.500"
-                borderWidth={1}
-                borderColor="purple.500"
-                rounded="md"
-                flexDirection="row"
-                alignItems="center"
-              >
-                <MaterialIcons
-                  name="point-of-sale"
-                  size={16}
-                  color="white"
-                  style={{ marginRight: 1 }}
-                />
-                <Text color="white" fontSize="sm" fontWeight="medium">
-                  Counter
-                </Text>
-              </Box>
-            </Pressable>
-            <Pressable
-              onPress={() =>
-                router.replace({
-                  pathname: "/screens/orders/menu-selection",
-                  params: {
-                    isSpecialOrder: "true",
-                    orderType: "delivery",
-                    clearPrevious: "true",
-                  },
-                })
-              }
-            >
-              <Box
-                px={1}
-                py={1}
-                bg="green.500"
-                borderWidth={1}
-                borderColor="green.500"
-                rounded="md"
-                flexDirection="row"
-                alignItems="center"
-              >
-                <MaterialIcons
-                  name="delivery-dining"
-                  size={16}
-                  color="white"
-                  style={{ marginRight: 1 }}
-                />
-                <Text color="white" fontSize="sm" fontWeight="medium">
-                  Delivery
-                </Text>
-              </Box>
-            </Pressable>
-          </HStack>
-        </ScrollView>
-      </Box>
+              <MaterialIcons
+                name="drive-eta"
+                size={20}
+                color="#0891b2"
+                style={{ marginRight: 8 }}
+              />
+              <Text color="#0891b2" fontSize="sm" fontWeight="medium">
+                Drive
+              </Text>
+            </Box>
+          </Pressable>
+        </HStack>
+      </ScrollView>
     </Box>
   );
 
