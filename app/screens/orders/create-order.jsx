@@ -384,21 +384,67 @@ export default function CreateOrderScreen() {
   
   // Add this validation function near the top of your component
   const validateMobileNumber = (number) => {
-    const regex = /^[0-9]{0,10}$/; // Only allows up to 10 digits
-    return regex.test(number);
+    // Only allow digits
+    const numberRegex = /^\d*$/;
+    if (!numberRegex.test(number)) return false;
+    
+    // Check if first digit is valid for Indian mobile numbers
+    if (number.length === 1 && !['6', '7', '8', '9'].includes(number)) return false;
+    
+    // Check if length is valid (10 or less)
+    if (number.length > 10) return false;
+    
+    return true;
+  };
+
+  // Update the validateName function
+  const validateName = (name) => {
+    // Allow letters, spaces, and dots (for names like "Dr. John Smith")
+    const nameRegex = /^[a-zA-Z\s.]*$/;
+    return nameRegex.test(name);
   };
 
   // Update the handleCustomerDetailsChange function
   const handleCustomerDetailsChange = (field, value) => {
-    if ((field === "customer_mobile" || field === "customer_alternate_mobile")) {
-      // Only update if the value matches our validation or is empty
-      if (validateMobileNumber(value) || value === "") {
+    if (field === "customer_name") {
+      // Only update if the name is valid or empty
+      if (validateName(value) || value === "") {
         setCustomerDetails(prevDetails => ({
           ...prevDetails,
           [field]: value
         }));
       }
-    } else {
+    } 
+    else if (field === "customer_mobile" || field === "customer_alternate_mobile") {
+      // Only update if the mobile number is valid
+      if (validateMobileNumber(value)) {
+        setCustomerDetails(prevDetails => ({
+          ...prevDetails,
+          [field]: value
+        }));
+      }
+    } 
+    else if (field === "customer_address") {
+      // Allow alphanumeric, spaces, commas, dots, hyphens, forward slash, hash
+      const addressRegex = /^[a-zA-Z0-9\s,.-/#]*$/;
+      if (addressRegex.test(value) && value.length <= 200) {
+        setCustomerDetails(prevDetails => ({
+          ...prevDetails,
+          [field]: value
+        }));
+      }
+    } 
+    else if (field === "customer_landmark") {
+      // Allow alphanumeric, spaces, commas, dots, hyphens
+      const landmarkRegex = /^[a-zA-Z0-9\s,.-]*$/;
+      if (landmarkRegex.test(value) && value.length <= 100) {
+        setCustomerDetails(prevDetails => ({
+          ...prevDetails,
+          [field]: value
+        }));
+      }
+    } 
+    else {
       // For other fields, update normally
       setCustomerDetails(prevDetails => ({
         ...prevDetails,
@@ -3148,9 +3194,24 @@ const handleSettlePaymentConfirm = async () => {
                 placeholder="Customer Name"
                 value={customerDetails.customer_name}
                 onChangeText={(text) => handleCustomerDetailsChange("customer_name", text)}
-                borderColor="gray.300"
+                borderColor={
+                  customerDetails.customer_name && !validateName(customerDetails.customer_name)
+                    ? "red.500"
+                    : "gray.300"
+                }
                 bg="white"
                 fontSize="sm"
+                InputRightElement={
+                  customerDetails.customer_name && !validateName(customerDetails.customer_name) ? (
+                    <Icon
+                      as={MaterialIcons}
+                      name="error"
+                      size="sm"
+                      color="red.500"
+                      mr={2}
+                    />
+                  ) : null
+                }
               />
               <Input
                 flex={1}
@@ -3159,11 +3220,21 @@ const handleSettlePaymentConfirm = async () => {
                 onChangeText={(text) => handleCustomerDetailsChange("customer_mobile", text)}
                 keyboardType="numeric"
                 maxLength={10}
-                borderColor={customerDetails.customer_mobile && customerDetails.customer_mobile.length !== 10 ? "red.500" : "gray.300"}
+                borderColor={
+                  customerDetails.customer_mobile && (
+                    !validateMobileNumber(customerDetails.customer_mobile) || 
+                    customerDetails.customer_mobile.length !== 10
+                  )
+                    ? "red.500"
+                    : "gray.300"
+                }
                 bg="white"
                 fontSize="sm"
                 InputRightElement={
-                  customerDetails.customer_mobile && customerDetails.customer_mobile.length !== 10 ? (
+                  customerDetails.customer_mobile && (
+                    !validateMobileNumber(customerDetails.customer_mobile) || 
+                    customerDetails.customer_mobile.length !== 10
+                  ) ? (
                     <Icon
                       as={MaterialIcons}
                       name="error"
