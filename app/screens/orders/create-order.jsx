@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   TouchableWithoutFeedback,
   Keyboard,
@@ -12,6 +12,7 @@ import {
   NativeModules,
   NativeEventEmitter,
   Linking,
+  PermissionsAndroid,
 } from "react-native";
 import {
   Box,
@@ -49,13 +50,45 @@ import { sendNotificationToWaiter } from "../../../services/NotificationService"
 import { getBaseUrl } from "../../../config/api.config";
 import * as Print from "expo-print";
 import { BleManager } from "react-native-ble-plx";
-import { PermissionsAndroid } from "react-native";
 import Constants from "expo-constants";
 import base64 from "react-native-base64";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
 import { usePrinter } from "../../../context/PrinterContext";
 import axios from "axios";
 import Toast from "react-native-toast-message";
+import { Ionicons } from "@expo/vector-icons";
+
+// Helper function to get the API base URL with trailing slash
+const onGetProductionUrl = () => {
+  const baseUrl = getBaseUrl();
+  // Ensure the URL ends with a slash
+  return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+};
+
+// Create axios instance with default config
+const axiosInstance = axios.create({
+  timeout: 15000, // 15 seconds timeout
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
+
+// Add request interceptor to attach auth token
+axiosInstance.interceptors.request.use(
+  async (config) => {
+    try {
+      const accessToken = await AsyncStorage.getItem('access');
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
+      return config;
+    } catch (error) {
+      console.error("Error in axios interceptor:", error);
+      return config;
+    }
+  },
+  (error) => Promise.reject(error)
+);
 
 const PRINTER_SERVICE_UUIDS = [
   "49535343-FE7D-4AE5-8FA9-9FAFD205E455",
@@ -123,6 +156,18 @@ const orderTypeMap = {
   counter: "Counter",
   delivery: "Delivery",
   "dine-in": "Dine In",
+};
+
+const safeNumberToString = (value) => {
+  if (value === null || value === undefined) return "0";
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return value.toString();
+  return "0";
+};
+
+const formatCurrency = (amount) => {
+  if (amount === null || amount === undefined) return "₹0.00";
+  return `₹${parseFloat(amount).toFixed(2)}`;
 };
 
 // Add these helper functions at the top level
@@ -253,23 +298,48 @@ export default function CreateOrderScreen() {
   const toast = useToast();
   const isFocused = useIsFocused();
   
-  // Add printer context integration
+  // Use PrinterContext for improved printer management
   const {
     isConnected: printerConnected,
     printerDevice: contextPrinterDevice,
-    connectToPrinter: contextConnectPrinter,
-    sendDataToPrinter
+    connectToPrinter: contextConnectToPrinter,
+    isScanning: printerScanning,
+    scanForPrinters: contextScanForPrinters,
+    availableDevices: printerDevices,
+    sendDataToPrinter,
+    reconnectPrinter,
+    disconnectPrinter,
+    autoReconnect,
+    setAutoReconnect,
+    isPrinting
   } = usePrinter();
+
+  // Printer state management
+  const [isPrinterModalOpen, setIsPrinterModalOpen] = useState(false);
+  const [printerConnectionStatus, setPrinterConnectionStatus] = useState("");
+  
+  // Printer Device Selection Modal state
+  const [isDeviceSelectionModalVisible, setIsDeviceSelectionModalVisible] = useState(false);
   
   // Show printer connection status when focused
   useEffect(() => {
-    if (isFocused && printerConnected && contextPrinterDevice) {
+    if (isFocused) {
+      if (printerConnected && contextPrinterDevice) {
       console.log("Printer connected:", contextPrinterDevice?.id);
       toast.show({
-        description: "Printer connected and ready",
+          description: `Printer connected: ${contextPrinterDevice?.name || "Unknown printer"}`,
         placement: "top",
         duration: 2000,
-      });
+          status: "success"
+        });
+      }
+      
+      // Auto-reconnect to last printer if available
+      if (!printerConnected && autoReconnect && !printerScanning) {
+        reconnectPrinter().catch(error => {
+          console.log("Auto-reconnect error:", error);
+        });
+      }
     }
   }, [isFocused, printerConnected, contextPrinterDevice]);
   
@@ -382,6 +452,9 @@ export default function CreateOrderScreen() {
   const [isComplementary, setIsComplementary] = useState(false);
   const [isAdditionalOptionsOpen, setIsAdditionalOptionsOpen] = useState(false);
   
+  // Add the missing state variable for discount panel
+  const [showDiscountPanel, setShowDiscountPanel] = useState(false);
+  
   // Add this validation function near the top of your component
   const validateMobileNumber = (number) => {
     // Only allow digits
@@ -460,14 +533,9 @@ export default function CreateOrderScreen() {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       
-      const data = await fetchWithAuth(`${getBaseUrl()}/order_view`, {
+      const data = await fetchWithAuth(`${onGetProductionUrl()}order_view`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order_number: orderId,
-          order_id: params?.orderId?.toString() || "",
-          outlet_id: storedOutletId?.toString() || ""
-        }),
+        body: JSON.stringify({ order_id: orderId, device_type: "captain" }),
       });
 
       if (data.st === 1 && data.lists) {
@@ -489,13 +557,11 @@ export default function CreateOrderScreen() {
         setLoading(true);
         const storedOutletId = await AsyncStorage.getItem("outlet_id");
         
-        const data = await fetchWithAuth(`${getBaseUrl()}/order_view`, {
+        const data = await fetchWithAuth(`${onGetProductionUrl()}order_view`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            order_number: params.orderNumber,
-            order_id: params.orderId?.toString() || "",
-            outlet_id: storedOutletId?.toString() || ""
+            order_id: params.orderId,
+            device_type: "captain",
           }),
         });
 
@@ -589,575 +655,102 @@ export default function CreateOrderScreen() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("CASH");
   const [isPaidChecked, setIsPaidChecked] = useState(false);
 
-  const handleKOT = async (modalPaymentMethod = null) => {
+  // Add separate handleKOT function - prints KOT without saving order
+  const handleKOT = async () => {
     try {
-      setIsLoading(true);
-      setLoadingMessage("Processing order...");
-
       if (selectedItems.length === 0) {
-        Alert.alert("Error", "Please add items to cart before generating KOT");
+        toast.show({
+          description: "Please add items to the order",
+          status: "warning",
+          duration: 2000,
+        });
         return;
       }
 
-      const [restaurantId, userId, accessToken] = await Promise.all([
-        // getRestaurantId(),
-        // getUserId(),
-        AsyncStorage.getItem("access_token"),
-      ]);
-
-      // Set auth header for subsequent requests
-      // axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-
-      const orderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id?.toString(),
-        quantity: item.quantity?.toString(),
-        comment: item.specialInstructions || "",
-        half_or_full: (item.portion || "full").toLowerCase(),
-        price: item.price?.toString() || "0",
-        total_price: item.total_price?.toString() || "0",
-      }));
-
-      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
-      const effectivePaymentMethod = modalPaymentMethod || paymentMethod;
-
-      const baseRequestBody = {
-        user_id: userId?.toString(),
-        outlet_id: restaurantId?.toString(),
-        order_type: orderType || "dine-in",
-        order_items: orderItems,
-        grand_total: calculateGrandTotal()?.toString(),
-        action: "settle",
-        is_paid: paymentStatus,
-        payment_method: isPaid ? effectivePaymentMethod : "",
-        special_discount: specialDiscount,
-        charges: extraCharges,
-        tip: tip,
-        customer_name: customerDetails.customer_name || "",
-        customer_mobile: customerDetails.customer_mobile || "",
-        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-        customer_address: customerDetails.customer_address || "",
-        customer_landmark: customerDetails.customer_landmark || "",
-      };
-
-      let apiResponse;
-
-      if (tableData?.order_id) {
-        const updateRequestBody = {
-          ...baseRequestBody,
-          order_id: tableData.order_id?.toString(),
-          ...(orderType === "dine-in" && {
-            tables: [tableData.table_number?.toString()],
-            section_id: tableData.section_id?.toString(),
-          }),
-          is_paid: null
-        };
-
-        const updateResponse = await axiosInstance.post(
-          `${onGetProductionUrl()}update_order`,
-          updateRequestBody,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        const updateData = await updateResponse.data;
-        if (updateData.st !== 1) {
-          throw new Error(updateData.msg || "Failed to update order");
-        }
-
-        const statusRequestBody = {
-          outlet_id: restaurantId?.toString(),
-          order_id: tableData.order_id?.toString(),
-          order_status: isPaid ? "paid" : (orderDetails?.order_status || existingOrderDetails?.order_status || "placed"),
-          user_id: userId?.toString(),
-          action: "settle",
-          order_type: orderType || "dine-in",
-          is_paid: paymentStatus,
-          payment_method: isPaid ? effectivePaymentMethod : "",
-          customer_name: customerDetails.customer_name || "",
-          customer_mobile: customerDetails.customer_mobile || "",
-          customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-          customer_address: customerDetails.customer_address || "",
-          customer_landmark: customerDetails.customer_landmark || "",
-          ...(orderType === "dine-in" && {
-            tables: [tableData.table_number?.toString()],
-            section_id: tableData.section_id?.toString(),
-          }),
-        };
-
-        const statusResponse = await axiosInstance.post(
-          `${onGetProductionUrl()}update_order_status`,
-          statusRequestBody,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        const statusData = await statusResponse.data;
-        if (statusData.st !== 1) {
-          throw new Error(statusData.msg || "Failed to update order status");
-        }
-
-        apiResponse = updateData;
-      } else {
-        const createRequestBody = {
-          ...baseRequestBody,
-          ...(orderType === "dine-in" && {
-            tables: [tableData.table_number?.toString()],
-            section_id: tableData.section_id?.toString(),
-          }),
-        };
-
-        const response = await axiosInstance.post(
-          `${onGetProductionUrl()}create_order`,
-          createRequestBody,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        const data = await response.data;
-        if (data.st !== 1) {
-          throw new Error(data.msg || "Failed to create order");
-        }
-
-        apiResponse = data;
-      }
-
-      if (apiResponse.st === 1) {
-        setLoadingMessage("Processing KOT...");
-
-        if (!tableData?.order_id) {
-          apiResponse.order_number =
-            apiResponse.order_number || String(apiResponse.order_id);
-        }
+      setIsSubmitting(true);
+      setLoadingMessage("Printing KOT...");
       
-        if (printerConnected && contextPrinterDevice) {
-          try {
-            try {
-              const isDeviceConnected = await contextPrinterDevice.isConnected();
-              if (!isDeviceConnected) {
-                console.log("Device reports as not connected for KOT despite context state");
-                throw new Error("Printer connection not stable for KOT");
-              }
-              console.log("Printer verified as ready for KOT");
-            } catch (connectionError) {
-              console.error("KOT printer verification error:", connectionError);
-              throw new Error("Please disconnect and reconnect your printer before printing KOT");
-            }
-            
-            const kotCommands = await generateKOTCommands(apiResponse);
-            if (sendDataToPrinter) {
-              await sendDataToPrinter(kotCommands);
-            } else {
-              await sendToDevice(kotCommands, contextPrinterDevice);
-            }
-            
-            setSelectedItems([]);
-            navigation.navigate("RestaurantTables");
-          } catch (error) {
-            console.error("KOT print error:", error);
-            Alert.alert("Error", "Failed to print KOT. Please try again.");
-          }
-        } else {
-          if (Constants.appOwnership === "expo") {
-            Alert.alert(
-              "Print Options",
-              "How would you like to print?",
-              [
-                {
-                  text: "Print to PDF",
-                  onPress: async () => {
-                    try {
-                      await Print.printAsync({
-                        html: await generateKOTHTML(apiResponse),
-                        printerUrl: printerList[0]?.url,
-                        orientation: "portrait",
-                      });
-                      setSelectedItems([]);
-                      navigation.navigate("RestaurantTables");
-                    } catch (error) {
-                      console.error("PDF print error:", error);
-                      Alert.alert("Error", "Failed to generate KOT PDF");
-                    }
-                  },
-                },
-                {
-                  text: "Cancel",
-                  style: "cancel",
-                  onPress: () => {
-                    setSelectedItems([]);
-                    navigation.navigate("RestaurantTables");
-                  },
-                },
-              ],
-              {
-                cancelable: true,
-                onDismiss: () => {
-                  setSelectedItems([]);
-                  navigation.navigate("RestaurantTables");
-                },
-              }
-            );
-          } else {
-            Alert.alert(
-              "Printer Not Connected",
-              "Please connect a printer to print the KOT",
-              [
-                {
-                  text: "Connect Printer",
-                  onPress: () => navigation.navigate("PrinterManagement"),
-                },
-                {
-                  text: "Cancel",
-                  style: "cancel",
-                  onPress: () => {
-                    setSelectedItems([]);
-                    navigation.navigate("RestaurantTables");
-                  },
-                },
-              ],
-              {
-                cancelable: true,
-                onDismiss: () => {
-                  setSelectedItems([]);
-                  navigation.navigate("RestaurantTables");
-                },
-              }
-            );
-          }
-        }
-      }
-    } catch (error) {
-      console.error("KOT error:", error);
-      Alert.alert(
-        "Error",
-        error.response?.data?.msg ||
-          error.message ||
-          "Failed to process order and generate KOT"
-      );
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage("");
-    }
-  };
-
-  const generateKOTHTML = () => {
-    const items = selectedItems
-      .map(
-        (item) => `
-      <tr style="font-family: monospace;">
-        <td style="padding: 4px 0;">${item.menu_name}</td>
-        <td style="text-align: center;">${item.quantity}</td>
-      </tr>
-    `
-      )
-      .join("");
-
-    return `
-    <html>
-      <head>
-        <style>
-          @page { margin: 0; size: 80mm 297mm; }
-          body { 
-            font-family: monospace;
-            padding: 10px;
-            width: 80mm;
-            margin: 0 auto;
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 18px;
-            font-weight: bold;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          .divider {
-            border-top: 1px dashed #000;
-            margin: 8px 0;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">*** KOT ***</div>
-        
-        <div>
-          Order: #${params?.orderId || "New Order"}<br>
-          Table: ${params?.tableNumber || "-"}<br>
-          DateTime: ${new Date().toLocaleString()}
-        </div>
-
-        <div class="divider"></div>
-
-        <table>
-          <tr>
-            <th style="text-align: left;">Item</th>
-            <th style="text-align: center;">Qty</th>
-          </tr>
-          ${items}
-        </table>
-
-        <div class="divider"></div>
-        
-        <div style="text-align: right;">
-          Total Items: ${selectedItems.length}
-        </div>
-      </body>
-    </html>
-  `;
-  };
-
-  // Handle KOT and Save button press
-  const handleKOTAndSave = async () => {
-    try {
-      Keyboard.dismiss();
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      setIsLoading(true);
-      setLoadingMessage("Processing order...");
-
-      if (selectedItems.length === 0) {
-        Alert.alert("Error", "Please add items to cart before generating KOT");
-        return;
-      }
-      
-      // Check printer connection first
-      if (!printerConnected || !contextPrinterDevice) {
+      if (!printerDevice || !isConnected) {
         Alert.alert(
           "Printer Not Connected",
-          "You need to connect to a printer before printing KOT.",
+          "Do you want to connect a printer?",
           [
             {
-              text: "Connect Printer",
-              onPress: () => {
-                router.push("/profile/PrinterManagement");
-              },
+              text: "Yes",
+              onPress: () => setIsDeviceSelectionModalVisible(true)
             },
             {
-              text: "Skip Printer",
-              onPress: async () => {
-                try {
-                  setIsLoading(true);
-                  setLoadingMessage("Creating order without printing...");
-                  
-                  // Use the createOrder function for better error handling
-                  try {
-                    let result;
-                    if (tableData?.order_id) {
-                      // Update existing order
-                      result = await createOrder("placed", true);
-                    } else {
-                      // Create new order
-                      result = await createOrder("KOT", true);
-                    }
-                    
-                    Alert.alert(
-                      "Order Created",
-                      "Order has been created successfully without printing.",
-                      [
-                        {
-                          text: "OK",
-                          onPress: () => {
-                            setSelectedItems([]);
-                            navigation.navigate("RestaurantTables");
-                          }
-                        }
-                      ]
-                    );
-                  } catch (orderError) {
-                    // Don't show alert here as createOrder will already show the appropriate error
-                    console.error("Order creation error in Skip Printer KOT:", orderError);
-                    // Don't navigate away if there was an error with table occupation
-                  }
-                } finally {
-                  setIsLoading(false);
-                  setLoadingMessage("");
-                }
-              },
-            },
-            {
-              text: "Cancel",
-              style: "cancel",
-            },
+              text: "No",
+              style: "cancel"
+            }
           ]
         );
+        setIsSubmitting(false);
+        setLoadingMessage("");
         return;
       }
       
-      const [restaurantId, userId, accessToken] = await Promise.all([
-        // getRestaurantId(),
-        // getUserId(),
-        AsyncStorage.getItem("access_token"),
-      ]);
-
-      // Set auth header for subsequent requests
-      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-
-    const orderItems = selectedItems.map((item) => ({
-      menu_id: item.menu_id?.toString(),
-      quantity: item.quantity?.toString(),
-      comment: item.specialInstructions || "",
-        half_or_full: (item.portion || "full").toLowerCase(),
-      price: item.price?.toString() || "0",
-      total_price: item.total_price?.toString() || "0",
-    }));
-
-    const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
-    
-    const baseRequestBody = {
-        user_id: userId?.toString(),
-        outlet_id: restaurantId?.toString(),
-        order_type: orderType || "dine-in",
-      order_items: orderItems,
-        grand_total: calculateGrandTotal()?.toString(),
-      action: "KOT_and_save",
-      is_paid: paymentStatus,
-        payment_method: isPaid ? paymentMethod : "",
-        special_discount: specialDiscount,
-        charges: extraCharges,
-        tip: tip,
-      customer_name: customerDetails.customer_name || "",
-      customer_mobile: customerDetails.customer_mobile || "",
-      customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-      customer_address: customerDetails.customer_address || "",
-      customer_landmark: customerDetails.customer_landmark || "",
-    };
-    
-    let apiResponse;
-
-      // Handle existing order update
-      if (tableData?.order_id) {
-      const updateRequestBody = {
-        ...baseRequestBody,
-          order_id: tableData.order_id?.toString(),
-          ...(orderType === "dine-in" && {
-            tables: [tableData.table_number?.toString()],
-            section_id: tableData.section_id?.toString(),
-        }),
-      };
-
-        const updateResponse = await axiosInstance.post(
-          onGetProductionUrl() + "update_order",
-          updateRequestBody
-        );
-
-        apiResponse = updateResponse.data;
-      } else {
-        // Handle new order creation
-        const createRequestBody = {
-          ...baseRequestBody,
-          ...(orderType === "dine-in" && {
-            tables: [tableData.table_number?.toString()],
-            section_id: tableData.section_id?.toString(),
-        }),
-      };
-
-        const response = await axiosInstance.post(
-          onGetProductionUrl() + "create_order",
-          createRequestBody
-        );
-
-        apiResponse = response.data;
-      }
-
-      if (apiResponse.st === 1) {
-        setLoadingMessage("Printing KOT...");
-
-        try {
-          // Generate and print KOT
-          const kotCommands = await generateKOTCommands(apiResponse);
-          if (sendDataToPrinter) {
-            await sendDataToPrinter(kotCommands);
-    } else {
-            await sendToDevice(kotCommands);
-          }
-
-          Alert.alert("Success", "Order saved and KOT printed successfully!", [
-            {
-              text: "OK",
-              onPress: () => {
-                setSelectedItems([]);
-                navigation.navigate("RestaurantTables");
-              },
-            },
-          ]);
-        } catch (printError) {
-          console.error("KOT print error:", printError);
-          Alert.alert(
-            "Print Error",
-            "Order was saved but failed to print KOT. Would you like to retry printing?",
-            [
-              {
-                text: "Retry Print",
-                onPress: async () => {
-                  try {
-                    const kotCommands = await generateKOTCommands(apiResponse);
-                    if (sendDataToPrinter) {
-                      await sendDataToPrinter(kotCommands);
-                    } else {
-                      await sendToDevice(kotCommands);
-                    }
-                    setSelectedItems([]);
-                    navigation.navigate("RestaurantTables");
-                  } catch (retryError) {
-                    Alert.alert("Error", "Failed to print KOT");
-                  }
-                },
-              },
-              {
-                text: "Skip Print",
-                onPress: () => {
-                  setSelectedItems([]);
-                  navigation.navigate("RestaurantTables");
-                },
-              },
-            ]
-          );
-        }
-      } else {
-        throw new Error(apiResponse.msg || "Failed to process order");
-      }
+      await printKOT({
+        order_number: params?.orderId || "New",
+        datetime: new Date().toLocaleString(),
+        outlet_name: await AsyncStorage.getItem("outlet_name") || "Restaurant",
+        outlet_address: await AsyncStorage.getItem("outlet_address") || "",
+        outlet_mobile: await AsyncStorage.getItem("outlet_mobile") || "",
+        section: params?.sectionName || "",
+        table_number: [params?.tableNumber] || [""],
+      });
+      
+      toast.show({
+        description: "KOT printed successfully",
+        status: "success",
+        duration: 2000,
+      });
     } catch (error) {
       console.error("KOT error:", error);
-      Alert.alert(
-        "Error",
-        error.response?.data?.msg ||
-          error.message ||
-          "Failed to process order and print KOT"
-      );
+      toast.show({
+        description: "Error printing KOT: " + error.message,
+        status: "error",
+        duration: 3000,
+      });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
       setLoadingMessage("");
     }
   };
 
-  // KOT printing function
+  // Update the printKOT function to use the PrinterContext
   const printKOT = async (orderData) => {
     try {
-      // Generate KOT commands for the provided order data
-      console.log("Generating KOT commands for order data", orderData);
+      // Check printer connection
+      if (!printerConnected || !contextPrinterDevice) {
+        throw new Error("No printer connected");
+      }
+
+      console.log("Generating KOT commands...");
+      
+      // Generate KOT commands
       const kotCommands = await generateKOTCommands(orderData);
       
-      // Use the PrinterContext's sendDataToPrinter function
-      console.log("Sending KOT commands to printer");
+      console.log("Sending KOT to printer...");
+      
+      // Send commands to printer using PrinterContext
       await sendDataToPrinter(kotCommands);
-      console.log("KOT commands sent successfully!");
+      
+      console.log("KOT printed successfully");
       
       return true;
     } catch (error) {
-      console.error("Print KOT error:", error);
+      console.error("KOT printing error:", error);
+      
+      // Check if error is related to printer connection
+      if (
+        error.message?.includes("connection") || 
+        error.message?.includes("printer") ||
+        error.message?.includes("connected")
+      ) {
+        throw new Error("Printer connection lost. Please reconnect your printer and try again.");
+      }
+      
       throw error;
     }
   };
@@ -1251,8 +844,8 @@ const handleSettlePaymentConfirm = async () => {
     }
 
     const endpoint = params?.orderId ? 
-      `${getBaseUrl()}/update_order` : 
-      `${getBaseUrl()}/create_order`;
+      `${onGetProductionUrl()}update_order` : 
+      `${onGetProductionUrl()}create_order`;
 
     if (params?.orderId) {
       orderData.order_id = params.orderId?.toString();
@@ -1275,7 +868,7 @@ const handleSettlePaymentConfirm = async () => {
       };
 
       const settleResult = await fetchWithAuth(
-        `${getBaseUrl()}/update_order_status`,
+        `${onGetProductionUrl()}update_order_status`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -2057,155 +1650,79 @@ const handleSettlePaymentConfirm = async () => {
     return parseFloat(((totalDiscount / totalAmount) * 100).toFixed(2)) || 0;
   };
 
-  // Update handlePrint to match handleKOT pattern exactly
+  // Update handlePrint to use the PrinterContext
   const handlePrint = async () => {
     try {
-      if (selectedItems.length === 0) {
-        Alert.alert("Error", "Please add items to cart before printing");
-        return;
-      }
-
-      // Check printer connection first
-      if (!printerConnected || !contextPrinterDevice) {
-        Alert.alert(
-          "Printer Not Connected",
-          "You need to connect to a printer before printing.",
-          [
-            {
-              text: "Connect Printer",
-              onPress: () => {
-                router.push("/profile/PrinterManagement");
-              },
-            },
-            {
-              text: "Skip Printer",
-              onPress: async () => {
-                try {
-                  setIsProcessing(true);
-                  setLoadingMessage("Creating order without printing...");
-                  
-                  // Create/update the order without printing
-                  let orderResponse;
-                  if (params?.orderId) {
-                    // Update existing order and set status to "placed"
-                    orderResponse = await createOrder("placed", true);
-                  } else {
-                    orderResponse = await createOrder("print_and_save", true);
-                    if (!orderResponse?.order_id) {
-                      throw new Error("Failed to create order");
-                    }
-                  }
-                  
-                  toast.show({
-                    description: "Order saved successfully without printing",
-                    status: "success",
-                    duration: 3000,
-                    placement: "bottom",
-                  });
-                  
-                  // Navigate back to orders list after successful operation
-                  router.replace({
-                    pathname: "/(tabs)/tables",
-                    params: {
-                      refresh: Date.now()?.toString(),
-                    },
-                  });
-                } catch (error) {
-                  console.error("Order creation error:", error);
-                  toast.show({
-                    description: "Failed to create order",
-                    status: "error",
-                    duration: 3000,
-                    placement: "bottom",
-                  });
-                } finally {
-                  setIsProcessing(false);
-                  setLoadingMessage("");
-                }
-              },
-            },
-            {
-              text: "Cancel",
-              style: "cancel",
-            },
-          ]
-        );
+      // Check if we're connected to a printer
+      if (!printerDevice || !isConnected) {
+        toast.show({
+          description: "No printer connected. Please connect a printer first.",
+          placement: "top",
+          duration: 3000,
+        });
+        // Open the printer connection modal
+        setIsDeviceSelectionModalVisible(true);
         return;
       }
 
       setIsProcessing(true);
-      setLoadingMessage("Printing...");
+      setLoadingMessage("Processing print request...");
 
-      // First create/update the order
-      let orderResponse;
-      if (params?.orderId) {
-        // Update existing order and set status to "placed"
-        orderResponse = await createOrder("placed", true);  // Changed from "print" to "placed" and added returnResponse=true
-      } else {
-        orderResponse = await createOrder("print_and_save", true);
-        if (!orderResponse?.order_id) {
-          throw new Error("Failed to create order");
+      // Get order data to print
+      let apiResponse;
+      try {
+        // First save the order data if not already saved
+        apiResponse = await createOrder("saved", true);
+        
+        if (!apiResponse || apiResponse.st !== 1) {
+          throw new Error(apiResponse?.msg || "Failed to save order data");
         }
-      }
-
-      // Continue with the rest of the printing functionality
-      // Print receipt
-      if (Platform.OS === "web") {
-        const html = generateKOTHTML();
-        await Print.printAsync({
-          html,
-          orientation: "portrait",
-        });
-      } else {
-        await printReceipt(orderResponse);
-      }
-
-      toast.show({
-        description: "Order printed successfully",
-        status: "success",
-        duration: 3000,
-        placement: "bottom",
-      });
-
-      // Navigate back to orders list after successful operation
-      router.replace({
-        pathname: "/(tabs)/tables",
-        params: {
-          refresh: Date.now()?.toString(),
-        },
-      });
-    } catch (error) {
-      console.error("Print error:", error);
-      
-      // Check if error is related to printer connection
-      if (error.message?.includes("printer") || !printerConnected || !contextPrinterDevice) {
-        Alert.alert(
-          "Printer Connection Error",
-          "Failed to print. Would you like to check your printer connection?",
-          [
-            {
-              text: "Go to Printer Settings",
-              onPress: () => {
-                router.push("/profile/PrinterManagement");
-              },
-            },
-            {
-              text: "Cancel",
-              style: "cancel",
-            },
-          ]
-        );
-      } else {
+      } catch (error) {
+        console.error("Error saving order before print:", error);
         toast.show({
-          description: "Failed to print order",
+          description: `Error preparing print: ${error.message}`,
           status: "error",
           duration: 3000,
-          placement: "bottom",
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      // Print the receipt
+      try {
+        await printReceipt(apiResponse);
+        
+        toast.show({
+          description: "Receipt printed successfully",
+          status: "success",
+          duration: 2000,
+        });
+        
+        // After successful print and save, refresh order details
+        await refreshOrderDetails();
+        
+        // If this is a new order, update the order ID in the URL params
+        if (!params.orderId && apiResponse.lists?.order_details?.order_number) {
+          router.setParams({ orderId: apiResponse.lists.order_details.order_number });
+        }
+        
+      } catch (printError) {
+        console.error("Print error:", printError);
+        toast.show({
+          description: `Print error: ${printError.message}`,
+          status: "error",
+          duration: 3000,
         });
       }
+    } catch (error) {
+      console.error("Print and save error:", error);
+      toast.show({
+        description: `Error: ${error.message}`,
+        status: "error",
+        duration: 3000,
+      });
     } finally {
       setIsProcessing(false);
-      setLoadingMessage("");
     }
   };
 
@@ -2259,42 +1776,43 @@ const handleSettlePaymentConfirm = async () => {
   // Update handleDeviceSelection to handle both KOT and receipt printing the same way
   const handleDeviceSelection = async (device) => {
     try {
-      setIsConnecting(true);
-      setConnectionStatus("Connecting...");
-
-      const connectedDevice = await device.connect();
-      const discoveredDevice = await connectedDevice.discoverAllServicesAndCharacteristics();
-
-      setPrinterDevice(discoveredDevice);
-      setIsConnected(true);
-      setConnectionStatus("Connected successfully!");
-
-      // Add disconnect listener
-      device.onDisconnected((error, disconnectedDevice) => {
-        setIsConnected(false);
-        setPrinterDevice(null);
-        setConnectionStatus("Printer disconnected");
-      });
-
-      // After successful connection, try printing based on the current action
-      setTimeout(async () => {
-        setIsModalVisible(false);
-        setConnectionStatus("");
+      setPrinterConnectionStatus("Connecting to printer...");
+      
+      // Use the context's connectToPrinter function
+      const success = await contextConnectToPrinter(device);
+      
+      if (success) {
+        setPrinterConnectionStatus("Connected successfully!");
+        toast.show({
+          description: `Connected to printer: ${device.name || "Unknown device"}`,
+          status: "success",
+          duration: 3000,
+          placement: "top",
+        });
         
-        // Check which action triggered the connection and print accordingly
-        if (loadingMessage === "Processing KOT...") {
-          await printKOT();
-        } else if (loadingMessage === "Printing...") {
-          await printReceipt();
-        }
-      }, 1500);
-
+        // Close the modal after successful connection
+        setTimeout(() => {
+          setIsDeviceSelectionModalVisible(false);
+          setPrinterConnectionStatus("");
+        }, 1000);
+      } else {
+        setPrinterConnectionStatus("Connection failed");
+        toast.show({
+          description: "Failed to connect to printer",
+          status: "error",
+          duration: 3000,
+          placement: "top",
+        });
+      }
     } catch (error) {
       console.error("Connection error:", error);
-      setConnectionStatus("Connection failed");
-      Alert.alert("Error", "Failed to connect to printer. Please try again.");
-    } finally {
-      setIsConnecting(false);
+      setPrinterConnectionStatus("Connection error: " + error.message);
+      toast.show({
+        description: "Printer connection error",
+        status: "error",
+        duration: 3000,
+        placement: "top",
+      });
     }
   };
 
@@ -2434,13 +1952,90 @@ const handleSettlePaymentConfirm = async () => {
 
   // Update the printReceipt function
   const printReceipt = async (orderData) => {
-    try {
-      console.log("Preparing receipt data...");
-
-      // Check if printer is connected using PrinterContext
       if (!printerConnected || !contextPrinterDevice) {
         throw new Error("No printer connected");
       }
+
+    try {
+      // Set processing indicator
+      setIsProcessing(true);
+      setLoadingMessage("Generating receipt...");
+
+      // Generate printer commands for the receipt
+      const commands = await generatePrinterCommands(orderData);
+      
+      // Set to printing state
+      setLoadingMessage("Printing receipt...");
+      
+      // Use the context's sendDataToPrinter function
+      await sendDataToPrinter(commands);
+      
+      return true;
+    } catch (error) {
+      console.error("Receipt printing error:", error);
+      
+      // Check if error is related to printer connection
+      if (
+        error.message?.includes("connection") || 
+        error.message?.includes("printer") ||
+        error.message?.includes("connected")
+      ) {
+        throw new Error("Printer connection lost. Please reconnect your printer and try again.");
+      }
+      
+      throw error;
+    } finally {
+      setIsProcessing(false);
+      setLoadingMessage("");
+    }
+  };
+
+  // Add a function to open the printer selection modal
+  const openPrinterSelectionModal = () => {
+    // If we're already connected, show an alert with options
+    if (printerConnected && contextPrinterDevice) {
+      Alert.alert(
+        "Printer Connected",
+        `You are connected to ${contextPrinterDevice.name || "Unknown printer"}`,
+        [
+          {
+            text: "Disconnect",
+            onPress: async () => {
+              await disconnectPrinter();
+              toast.show({
+                description: "Printer disconnected",
+                status: "info",
+                duration: 2000,
+                placement: "top",
+              });
+            },
+            style: "destructive",
+          },
+          {
+            text: "Change Printer",
+            onPress: () => {
+              setIsDeviceSelectionModalVisible(true);
+              contextScanForPrinters();
+            },
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+        ]
+      );
+    } else {
+      // If not connected, open the selection modal and start scanning
+      setIsDeviceSelectionModalVisible(true);
+      contextScanForPrinters();
+    }
+  };
+
+  // Update the generatePrinterCommands function
+  const generatePrinterCommands = async (orderData) => {
+    try {
+      // Initialize commands with printer reset
+      let commands = [...COMMANDS.INITIALIZE];
 
       // Get outlet details
       const [outletName, outletAddress, outletMobile, upiId] = await Promise.all([
@@ -2489,9 +2084,8 @@ const handleSettlePaymentConfirm = async () => {
         params?.orderId || // Fallback to URL params
         "New"; 
 
-      // Generate receipt commands
-      const receiptData = [
-        ...textToBytes("\x1B\x40"), // Initialize printer
+      // Create header
+      commands.push(
         ...COMMANDS.LINE_SPACING_TIGHT, // Use tighter line spacing for entire receipt
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         ...textToBytes("\x1B\x21\x08"), // Double width, double height
@@ -2506,24 +2100,24 @@ const handleSettlePaymentConfirm = async () => {
         ...textToBytes(`DateTime: ${orderData?.datetime || formattedDate}\n`),
         ...textToBytes("--------------------------------\n"),
         ...textToBytes("Item           Qty  Rate     Amt\n"),
-        ...textToBytes("--------------------------------\n"),
-      ];
+        ...textToBytes("--------------------------------\n")
+      );
 
       // Add items
       selectedItems.forEach((item) => {
-        receiptData.push(...textToBytes(formatMenuItem(item)));
+        commands.push(...textToBytes(formatMenuItem(item)));
       });
 
       // Add totals and footer
-      receiptData.push(
+      commands.push(
         ...textToBytes("--------------------------------\n"),
         ...textToBytes(formatAmountLine("Subtotal", subtotal)),
         ...textToBytes(formatAmountLine(`Discount(${discountPercent}%)`, itemDiscountAmount, "-")),
-        specialDiscountAmount > 0 ? [...textToBytes(formatAmountLine("Special Discount", specialDiscountAmount, "-"))] : [],
-        extraChargesAmount > 0 ? [...textToBytes(formatAmountLine("Extra Charges", extraChargesAmount, "+"))] : [],
+        ...(specialDiscountAmount > 0 ? [...textToBytes(formatAmountLine("Special Discount", specialDiscountAmount, "-"))] : []),
+        ...(extraChargesAmount > 0 ? [...textToBytes(formatAmountLine("Extra Charges", extraChargesAmount, "+"))] : []),
         ...textToBytes(formatAmountLine(`Service(${serviceChargePercentage}%)`, serviceAmount, "+")),
         ...textToBytes(formatAmountLine(`GST(${gstPercentage}%)`, gstAmount, "+")),
-        tipAmount > 0 ? [...textToBytes(formatAmountLine("Tip", tipAmount, "+"))] : [],
+        ...(tipAmount > 0 ? [...textToBytes(formatAmountLine("Tip", tipAmount, "+"))] : []),
         ...textToBytes("--------------------------------\n"),
         ...textToBytes(formatAmountLine("Total", total)),
         ...textToBytes("\n"),
@@ -2536,14 +2130,12 @@ const handleSettlePaymentConfirm = async () => {
         ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n`),
         ...textToBytes("-----Thank You Visit Again!-----\n"),
         ...textToBytes("https://menumitra.com/\n"),
-        ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
+        ...textToBytes("\x1D\x56\x42\x40") // Cut paper
       );
 
-      // Use the PrinterContext's sendDataToPrinter function
-      await sendDataToPrinter(receiptData);
-      console.log("Receipt data sent successfully!");
+      return commands;
     } catch (error) {
-      console.error("Print receipt error:", error);
+      console.error("Error generating printer commands:", error);
       throw error;
     }
   };
@@ -2554,196 +2146,111 @@ const handleSettlePaymentConfirm = async () => {
   // Add KOT-specific command generator
   const generateKOTCommands = async (orderData) => {
     try {
-      // Get order details with proper structure
-      const orderDetails = orderData?.lists?.order_details || orderData;
-    
-      const orderNumber = 
-        orderDetails?.order_number || 
-        orderData?.order_number || 
-        tableData?.order_number || 
-        "New";
+      // Initialize with printer reset
+      let commands = [...COMMANDS.INITIALIZE];
+      
+      // Get restaurant name and current date/time
+      const [outletName, outletAddress] = await Promise.all([
+        AsyncStorage.getItem("outlet_name"),
+        AsyncStorage.getItem("outlet_address"),
+      ]);
 
       const getCurrentDateTime = () => {
         const now = new Date();
-        const day = String(now.getDate()).padStart(2, '0');
-        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-        const month = monthNames[now.getMonth()];
-        const year = now.getFullYear();
-        let hours = now.getHours();
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-        hours = String(hours).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+        return `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
       };
       
-      const [storedOutletName, storedOutletAddress, storedOutletNumber] = 
-        await Promise.all([
-          AsyncStorage.getItem("outlet_name"),
-          AsyncStorage.getItem("outlet_address"),
-          AsyncStorage.getItem("outlet_mobile"), 
-        ]);
+      // Get order number with fallbacks
+      const orderNumber = 
+        orderData?.lists?.order_details?.order_number || // For existing orders
+        orderData?.order_number || // For new orders
+        params?.orderId || 
+        "New";
       
-      const outletName = storedOutletName || "Restaurant";
-      const outletAddress = storedOutletAddress || "";
-      const outletNumber = storedOutletNumber || "";
+      // Get table info with fallbacks
+      const tableInfo = params?.tableNumber 
+        ? `${params.sectionName || ""} - ${params.tableNumber}`
+        : (params?.orderType || "dine-in");
+      
       const getDottedLine = () => "-------------------------------\n";
 
-      // Check if this is an existing order
-      const isExistingOrder = Boolean(tableData?.order_id);
-      
-      // Get list of items to print based on whether it's a new or existing order
-      let itemsToPrint = [];
-      let totalQuantityToPrint = 0;
-      
-      console.log("Items for KOT:", selectedItems.map(item => 
-        `${item.name || item.menu_name}: ${item.quantity} (${item.isNewItem ? 'new' : 'existing'}, orig: ${item.originalQuantity || 0})`
-      ));
-      
-      if (isExistingOrder) {
-        console.log("Existing order detected. Preparing incremental KOT");
+      // Create header
+      commands.push(
+        ...textToBytes("\x1B\x61\x01"), // Center alignment
+        ...textToBytes("\x1B\x21\x10"), // Double height
+        ...textToBytes("KOT\n"),
+        ...textToBytes("\x1B\x21\x00"), // Normal text
+        ...textToBytes(`${outletName || "Restaurant"}\n`),
         
-        // Extract items with their isNewItem and other flags
-        let hasChanges = false;
-        
-        itemsToPrint = selectedItems.map(item => {
-          const currentQty = parseInt(item.quantity) || 0;
-          const originalQty = parseInt(item.originalQuantity) || 0;
+        ...textToBytes("\x1B\x61\x00"), // Left align
+        ...textToBytes(`Order: #${orderNumber}\n`),
+        ...textToBytes(`Table: ${tableInfo}\n`),
+        ...textToBytes(`Date: ${orderData?.datetime || getCurrentDateTime()}\n`),
+        ...textToBytes(`${getDottedLine()}`),
+        ...textToBytes("Item                      Qty\n"),
+        ...textToBytes(`${getDottedLine()}`)
+      );
+      
+      // Add menu items
+      let totalQty = 0;
+      
+      // Use the items from the order, if available
+      const items = selectedItems;
+      
+      // Make sure items exist
+      if (items && items.length > 0) {
+        items.forEach((item) => {
+          const itemName = item.menu_name || "";
+          const quantity = item.quantity || 0;
+          totalQty += quantity;
           
-          // For new items
-          if (item.isNewItem === true) {
-            console.log(`Including new item: ${item.name || item.menu_name}, Qty: ${item.quantity}`);
-            hasChanges = true;
-            return {
-              ...item,
-              isNewItem: true,
-              isQuantityChange: false
-            };
+          // Format item line (left-aligned item name, right-aligned quantity)
+          let line = itemName;
+          
+          // Append portion size if applicable
+          if (item.portionSize && item.portionSize.toLowerCase() !== "full") {
+            line += ` (${item.portionSize})`;
           }
           
-          // For items with increased quantities
-          if (currentQty > originalQty) {
-            const diff = currentQty - originalQty;
-            console.log(`Including changed quantity item: ${item.name || item.menu_name}, Original: ${originalQty}, Current: ${currentQty}, Diff: ${diff}`);
-            hasChanges = true;
-            return {
-              ...item,
-              quantity: diff,
-              isNewItem: false,
-              isQuantityChange: true
-            };
+          // Add instructions if available
+          let instructions = "";
+          if (item.specialInstructions) {
+            instructions = `  * ${item.specialInstructions}`;
           }
           
-          return null;
-        }).filter(Boolean);
-        
-        if (!hasChanges || itemsToPrint.length === 0) {
-          console.log("No changes detected. Printing all items from existing order");
-          itemsToPrint = selectedItems.map(item => ({
-            ...item,
-            isExistingReprint: true
-          }));
-        }
+          // Truncate and pad the line
+          if (line.length > 22) {
+            line = line.substring(0, 19) + "...";
+          }
           
-        totalQuantityToPrint = itemsToPrint?.reduce((sum, item) => 
-          sum + (parseInt(item.quantity) || 0), 0
-        );
-      } else {
-        console.log("New order detected. Printing all items");
-        itemsToPrint = selectedItems;
-        totalQuantityToPrint = selectedItems?.reduce((sum, item) => 
-          sum + (parseInt(item.quantity) || 0), 0
-        );
+          // Pad with spaces to align quantity
+          const padding = 22 - line.length;
+          line += " ".repeat(padding > 0 ? padding : 1) + quantity.toString();
+          
+          commands.push(
+            ...textToBytes(line + "\n")
+          );
+          
+          // Add instructions on next line if present
+          if (instructions) {
+            commands.push(
+              ...textToBytes("\x1B\x21\x00"), // Normal size
+              ...textToBytes(instructions + "\n")
+            );
+          }
+        });
       }
       
-      const kotHeader = isExistingOrder 
-        ? (itemsToPrint.some(item => item.isExistingReprint) 
-            ? "*** REPRINT KOT ***\n\n" 
-            : "*** ADDITIONAL KOT ***\n\n")
-        : "*** KOT ***\n\n";
-
-      return [
-        ...textToBytes("\x1B\x40"),
-        ...textToBytes("\x1B\x61\x01"),
-        ...textToBytes("\x1B\x21\x10"),
-        ...textToBytes(kotHeader),
-        ...textToBytes(`${outletName}\n`),
-        ...textToBytes("\x1B\x21\x00"),
-        ...textToBytes(`${outletAddress}\n`),
-        ...textToBytes(`${outletNumber}\n\n`),
-        
-        ...textToBytes("\x1B\x61\x00"),
-        ...textToBytes(`Bill no: ${orderNumber}\n`),
-        ...textToBytes(
-          orderType === "dine-in"
-            ? `Table: ${tableData?.section || tableData?.section_name || tableSectionName} - ${tableData?.table_number || tableNumber}\n`
-            : `Type: ${orderType?.toUpperCase()}\n`
-        ),
-        ...textToBytes(`DateTime: ${getCurrentDateTime()}\n`),
-        
-        ...(customerDetails?.name ? [textToBytes(`Name: ${customerDetails.name}\n`)] : []),
-        
-        ...textToBytes(getDottedLine()),
-        ...textToBytes("Item                    Qty\n"),
-        ...textToBytes(getDottedLine()),
-        
-        ...itemsToPrint.map(item => {
-          const name = item.name || item.menu_name || "";
-          const qty = item.quantity?.toString() || "";
-          
-          let prefix = "";
-          if (isExistingOrder && !item.isExistingReprint) {
-            if (item.isNewItem) {
-              prefix = "+ ";  // Add prefix for new items
-            } else if (item.isQuantityChange) {
-              prefix = "^ ";  // Add prefix for quantity changes
-            }
-          }
-          
-          let itemText = "";
-          if ((prefix + name).length > 23) {
-            const prefixLength = prefix.length;
-            const firstLineMaxLength = 23 - prefixLength;
-            const restMaxLength = 23;
-            
-            let lines = [];
-            let remaining = name;
-            
-            lines.push(`${prefix}${remaining.substring(0, firstLineMaxLength)}`);
-            remaining = remaining.substring(firstLineMaxLength);
-            
-            while (remaining.length > 0) {
-              lines.push(remaining.substring(0, restMaxLength));
-              remaining = remaining.substring(restMaxLength);
-            }
-            
-            itemText = lines
-              .map((line, index) =>
-                index === 0
-                  ? `${line.padEnd(23)} ${qty}\n`
-                  : `${' '.repeat(prefixLength)}${line.padEnd(23 - prefixLength)}\n`
-              )
-              .join("");
-          } else {
-            itemText = `${prefix}${name.padEnd(23 - prefix.length)} ${qty}\n`;
-          }
-
-          if (item.portion && item.portion !== "full") {
-            itemText += `   (${item.portion})\n`;
-          }
-          if (item.specialInstructions) {
-            itemText += `   Note: ${item.specialInstructions}\n`;
-          }
-
-          return textToBytes(itemText);
-        }).flat(),
-        
-        ...textToBytes(getDottedLine()),
-        ...textToBytes(`${"Total Items:".padEnd(23)} ${totalQuantityToPrint}\n`),
-        ...textToBytes("\n"),
-        ...textToBytes("\x1D\x56\x42\x40"),
-      ];
+      // Add footer
+      commands.push(
+        ...textToBytes(`${getDottedLine()}`),
+        ...textToBytes(`Total Items: ${totalQty}\n\n`),
+        ...textToBytes("\x1B\x61\x01"), // Center alignment
+        ...textToBytes("*** KITCHEN COPY ***\n\n\n"),
+        ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
+      );
+      
+      return commands;
     } catch (error) {
       console.error("Error generating KOT commands:", error);
       throw error;
@@ -2756,126 +2263,82 @@ const handleSettlePaymentConfirm = async () => {
   // Add this function to generate KOT HTML
 
   // Add this component for the device selection modal
-  const DeviceSelectionModal = ({ visible, devices, onSelect, onClose }) => {
+  const DeviceSelectionModal = ({ visible, onClose }) => {
+    if (!visible) return null;
+
     return (
-      <Modal
-        isOpen={visible}
-        onClose={() => {
-          onClose();
-          setConnectionStatus("");
-        }}
-      >
-        <Modal.Content maxW="90%" maxH="80%">
-          <Modal.Header>
-            <HStack justifyContent="space-between" alignItems="center" w="100%">
-              <Text fontSize="lg" fontWeight="bold">
-                Select Printer Device
-              </Text>
-              <IconButton
-                icon={<Icon as={MaterialIcons} name="refresh" size="sm" />}
-                onPress={() => {
-                  setAvailableDevices([]);
-                  bleManager?.stopDeviceScan();
-                  scanForPrinters();
-                  setConnectionStatus("");
-                }}
-                borderRadius="full"
-                _icon={{
-                  color: "blue.500",
-                }}
-              />
-            </HStack>
-          </Modal.Header>
-
+      <Modal isOpen={visible} onClose={onClose} avoidKeyboard size="lg">
+        <Modal.Content>
+          <Modal.CloseButton />
+          <Modal.Header>Select Printer</Modal.Header>
           <Modal.Body>
-            <VStack space={4}>
-              {/* Connection Status */}
-              {connectionStatus && (
-                <Box
-                  p={3}
-                  borderRadius="md"
-                  bg={
-                    connectionStatus.includes("success")
-                      ? "success.100"
-                      : connectionStatus === "Connecting..."
-                      ? "blue.100"
-                      : "error.100"
-                  }
+            {printerScanning ? (
+              <HStack space={2} justifyContent="center" alignItems="center" my={4}>
+                <Spinner size="sm" color="blue.500" />
+                <Text>Scanning for printers...</Text>
+              </HStack>
+            ) : printerDevices.length === 0 ? (
+              <VStack space={4} alignItems="center">
+                <Text>No printers found.</Text>
+                <Button
+                  leftIcon={<Icon as={MaterialIcons} name="refresh" size="sm" />}
+                onPress={() => {
+                    contextScanForPrinters();
+                  }}
                 >
-                  <Text
-                    textAlign="center"
-                    color={
-                      connectionStatus.includes("success")
-                        ? "success.700"
-                        : connectionStatus === "Connecting..."
-                        ? "blue.700"
-                        : "error.700"
-                    }
-                    fontWeight="medium"
-                  >
-                    {connectionStatus}
-                  </Text>
-                </Box>
-              )}
-
-              {/* Scanning Indicator */}
-              {isScanning && (
-                <HStack space={2} justifyContent="center" alignItems="center">
-                  <Spinner color="blue.500" />
-                  <Text color="blue.500">Scanning for devices...</Text>
-                </HStack>
-              )}
-
-              {/* Device List */}
-              <ScrollView>
-                <VStack space={2}>
-                  {devices.length > 0 ? (
-                    devices.map((device) => (
+                  Scan Again
+                </Button>
+              </VStack>
+            ) : (
+              <VStack space={3}>
+                <Text mb={2}>Available Printers:</Text>
+                <ScrollView maxH="300px">
+                  {printerDevices.map((device) => (
                       <Pressable
                         key={device.id}
-                        onPress={() => onSelect(device)}
-                        disabled={isConnecting}
-                        opacity={isConnecting ? 0.5 : 1}
-                      >
-                        <Box
-                          p={4}
-                          bg="gray.100"
+                      onPress={() => handleDeviceSelection(device)}
+                      bg="coolGray.100"
+                      _pressed={{ bg: "coolGray.200" }}
+                      px={4}
+                      py={3}
                           borderRadius="md"
-                          borderWidth={1}
-                          borderColor="gray.200"
+                      mb={2}
                         >
+                      <HStack justifyContent="space-between" alignItems="center">
                           <VStack>
-                            <Text fontSize="md" fontWeight="600">
-                              {device.name || "Unknown Device"}
-                            </Text>
-                            <Text fontSize="xs" color="gray.500">
+                          <Text fontWeight="500">{device.name || "Unknown Device"}</Text>
+                          <Text fontSize="xs" color="coolGray.500">
                               {device.id}
                             </Text>
                           </VStack>
-                        </Box>
+                        <Icon as={MaterialIcons} name="print" size="sm" color="blue.500" />
+                      </HStack>
                       </Pressable>
-                    ))
-                  ) : (
-                    <Box py={10}>
-                      <Text textAlign="center" color="gray.500">
-                        {isScanning ? "Searching for devices..." : "No devices found"}
-                      </Text>
-                    </Box>
-                  )}
-                </VStack>
+                  ))}
               </ScrollView>
+                <Button
+                  mt={2}
+                  leftIcon={<Icon as={MaterialIcons} name="refresh" size="sm" />}
+                  variant="outline"
+                  onPress={() => {
+                    contextScanForPrinters();
+                  }}
+                >
+                  Scan Again
+                </Button>
             </VStack>
+            )}
           </Modal.Body>
-
           <Modal.Footer>
+            <Button.Group space={2}>
             <Button
-              w="full"
+                variant="ghost"
+                colorScheme="blueGray"
               onPress={onClose}
-              variant="subtle"
-              colorScheme="blue"
             >
-              Close
+                Cancel
             </Button>
+            </Button.Group>
           </Modal.Footer>
         </Modal.Content>
       </Modal>
@@ -2990,7 +2453,7 @@ const handleSettlePaymentConfirm = async () => {
         onGetProductionUrl() + "create_order";
 
       if (params?.orderId) {
-        orderData.order_id = params.orderId;
+        orderData.order_id = params.orderId?.toString();
       }
 
       console.log(`Making request to ${endpoint}`);
@@ -3068,9 +2531,8 @@ const handleSettlePaymentConfirm = async () => {
         return;
       }
 
-      const response = await fetchWithAuth(`${getBaseUrl()}/force_cancel_order`, {
+      const response = await fetchWithAuth(`${onGetProductionUrl()}force_cancel_order`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           order_id: params.orderId,
           user_id: storedUserId
@@ -3098,8 +2560,255 @@ const handleSettlePaymentConfirm = async () => {
     }
   };
 
+  // Add Printer Status Indicator component
+  const PrinterStatusIndicator = () => (
+    <Pressable 
+      onPress={openPrinterSelectionModal}
+      position="absolute"
+      top={4}
+      right={4}
+      flexDirection="row"
+      alignItems="center"
+      bg={printerConnected ? "success.100" : "coolGray.100"}
+      px={3}
+      py={2}
+      borderRadius="full"
+      zIndex={999}
+    >
+      <Icon 
+        as={MaterialIcons} 
+        name="print" 
+        size="sm" 
+        color={printerConnected ? "success.600" : "coolGray.500"} 
+        mr={1}
+      />
+      <Text fontSize="xs" color={printerConnected ? "success.600" : "coolGray.500"}>
+        {printerConnected 
+          ? `Printer: ${contextPrinterDevice?.name?.substring(0, 15) || "Connected"}` 
+          : "Connect Printer"}
+      </Text>
+    </Pressable>
+  );
 
+  const getDottedLine = () => "-------------------------------\n";
+
+  const centerText = (text) => {
+    // For standard 58mm receipt printers (32 characters per line)
+    const maxLength = 32;
+    
+    if (text.length >= maxLength) {
+      return text;
+    }
+    
+    const padLength = Math.floor((maxLength - text.length) / 2);
+    return " ".repeat(padLength) + text + "\n";
+  };
+
+  // Add this function after the handleKOT function
+  const handleKOTAndSave = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      // First print the KOT
+      if (printerDevice && isConnected) {
+        try {
+          await printKOT({
+            order_number: params?.orderId || "New",
+            datetime: new Date().toLocaleString(),
+            outlet_name: await AsyncStorage.getItem("outlet_name") || "Restaurant",
+            outlet_address: await AsyncStorage.getItem("outlet_address") || "",
+            outlet_mobile: await AsyncStorage.getItem("outlet_mobile") || "",
+            section: params?.sectionName || "",
+            table_number: [params?.tableNumber] || [""],
+          });
+          
+          toast.show({
+            description: "KOT printed successfully",
+            placement: "top",
+            duration: 2000,
+          });
+        } catch (error) {
+          toast.show({
+            description: "Error printing KOT: " + error.message,
+            placement: "top",
+            duration: 3000,
+          });
+        }
+      } else {
+        toast.show({
+          description: "No printer connected. Connect a printer to print KOT.",
+          placement: "top",
+          duration: 3000,
+        });
+      }
+      
+      // Then save the order
+      const response = await createOrder("saved");
+      
+      if (response && response.st === 1) {
+        toast.show({
+          description: "Order saved successfully",
+          placement: "top",
+          duration: 2000,
+        });
+        
+        // Update order status
+        if (response.lists && response.lists.order_details) {
+          setOrderStatus("saved");
+          
+          // If this is a new order, update the order ID
+          if (!params.orderId && response.lists.order_details.order_number) {
+            router.setParams({ orderId: response.lists.order_details.order_number });
+          }
+          
+          // Refresh order details
+          await refreshOrderDetails();
+        }
+      } else {
+        toast.show({
+          description: response?.msg || "Failed to save order",
+          placement: "top",
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Error in KOT and Save:", error);
+      toast.show({
+        description: "Failed to process order: " + error.message,
+        placement: "top",
+        duration: 3000,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Update this function to handle table reservation properly
+  const handleTableReservation = async () => {
+    try {
+      setIsSubmitting(true);
+      setLoadingMessage("Reserving table...");
+      
+      // Get stored outlet ID and user ID
+      const [storedOutletId, storedUserId] = await Promise.all([
+        AsyncStorage.getItem("outlet_id"),
+        AsyncStorage.getItem("user_id")
+      ]);
+      
+      if (!storedOutletId || !params.tableId || !storedUserId) {
+        throw new Error("Missing outlet, user, or table data");
+      }
+      
+      // Call the API to reserve the table
+      const response = await fetchWithAuth(
+        onGetProductionUrl() + "table_is_reserved",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            table_id: params.tableId.toString(),
+            table_number: params.tableNumber.toString(),
+            outlet_id: storedOutletId.toString(),
+            is_reserved: true,
+            user_id: storedUserId.toString()
+          })
+        }
+      );
+      
+      if (response.st === 1) {
+        toast.show({
+          description: "Table has been reserved",
+          placement: "top",
+          duration: 3000,
+          status: "success"
+        });
+        
+        // Navigate back to tables screen with refresh params
+        router.replace({
+          pathname: "/screens/tables",
+          params: { 
+            refresh: Date.now().toString(),
+            status: "completed"
+          }
+        });
+      } else {
+        toast.show({
+          description: response.msg || "Failed to reserve table",
+          placement: "top",
+          duration: 3000,
+          status: "error"
+        });
+      }
+    } catch (error) {
+      console.error("Reserve table error:", error);
+      toast.show({
+        description: "Failed to reserve table",
+        placement: "top",
+        duration: 3000,
+        status: "error"
+      });
+    } finally {
+      setIsSubmitting(false);
+      setLoadingMessage("");
+    }
+  };
+
+  // Add the missing quantity functions if they don't exist
+  const decreaseQuantity = (item) => {
+    if (item.quantity > 1) {
+      const updatedItems = selectedItems.map(i => {
+        if (i.menu_id === item.menu_id && i.portion_size === item.portion_size) {
+          return {
+            ...i,
+            quantity: i.quantity - 1,
+            total_price: calculateItemTotal(i.price, i.quantity - 1, i.offer)
+          };
+        }
+        return i;
+      });
+      setSelectedItems(updatedItems);
+    }
+  };
   
+  const increaseQuantity = (item) => {
+    if (item.quantity < 20) {
+      const updatedItems = selectedItems.map(i => {
+        if (i.menu_id === item.menu_id && i.portion_size === item.portion_size) {
+          return {
+            ...i,
+            quantity: i.quantity + 1,
+            total_price: calculateItemTotal(i.price, i.quantity + 1, i.offer)
+          };
+        }
+        return i;
+      });
+      setSelectedItems(updatedItems);
+    }
+  };
+
+  // Add a new function to navigate to tables
+  const navigateToTables = () => {
+    if (selectedItems.length > 0) {
+      Alert.alert(
+        "Unsaved Changes",
+        "You have unsaved changes. Are you sure you want to leave?",
+        [
+          {
+            text: "Stay",
+            style: "cancel"
+          },
+          {
+            text: "Leave",
+            onPress: () => router.replace("/screens/tables")
+          }
+        ]
+      );
+    } else {
+      router.replace("/screens/tables");
+    }
+  };
 
   return (
     <Box flex={1} bg="white" safeArea>
@@ -3132,10 +2841,9 @@ const handleSettlePaymentConfirm = async () => {
           <Box position="absolute" right={-5} top={-2}>
             <OrderBadge />    
           </Box>
-          
         }
-        
       />
+      {/* <PrinterStatusIndicator /> */}
        
       {isLoadingOrder ? (
         <Center flex={1} bg="coolGray.100">
@@ -3152,13 +2860,13 @@ const handleSettlePaymentConfirm = async () => {
           <VStack flex={1} bg="coolGray.100" px={4}>
             {isOccupied === "1" && orderNumber && <OrderSummary />}
             
-            {/* Add More Items Button */}
+            {/* Add More Items Button - make it blue and full-width */}
             <Button
               mb={2}
-              leftIcon={<Icon as={MaterialIcons} name="add-shopping-cart" size="sm" color="white" />}
-              bg="cyan.500"
+              leftIcon={<Icon as={MaterialIcons} name="add" size="sm" color="white" />}
+              bg="#00B0F0"
               _text={{ color: "white", fontWeight: "semibold" }}
-              _pressed={{ bg: "cyan.600" }}
+              _pressed={{ bg: "#00A0E0" }}
               onPress={() => router.replace({
                 pathname: "/screens/orders/menu-selection",
                 params: {
@@ -3182,13 +2890,15 @@ const handleSettlePaymentConfirm = async () => {
                   }),
                 },
               })}
+              borderRadius="md"
+              height={12}
+              w="100%"
             >
               Add More Items
             </Button>
             
-            {/* Customer Details Section */}
-            <HStack space={2} mt={1} mb={1}>
-             
+            {/* Customer Details Section - adjust to match screenshot */}
+            <HStack space={2} mt={1} mb={3}>
               <Input
                 flex={1}
                 placeholder="Customer Name"
@@ -3201,21 +2911,12 @@ const handleSettlePaymentConfirm = async () => {
                 }
                 bg="white"
                 fontSize="sm"
-                InputRightElement={
-                  customerDetails.customer_name && !validateName(customerDetails.customer_name) ? (
-                    <Icon
-                      as={MaterialIcons}
-                      name="error"
-                      size="sm"
-                      color="red.500"
-                      mr={2}
-                    />
-                  ) : null
-                }
+                height={12}
+                borderRadius="md"
               />
               <Input
                 flex={1}
-                placeholder="Mob no."
+                placeholder="Mobile Number"
                 value={customerDetails.customer_mobile}
                 onChangeText={(text) => handleCustomerDetailsChange("customer_mobile", text)}
                 keyboardType="numeric"
@@ -3230,20 +2931,8 @@ const handleSettlePaymentConfirm = async () => {
                 }
                 bg="white"
                 fontSize="sm"
-                InputRightElement={
-                  customerDetails.customer_mobile && (
-                    !validateMobileNumber(customerDetails.customer_mobile) || 
-                    customerDetails.customer_mobile.length !== 10
-                  ) ? (
-                    <Icon
-                      as={MaterialIcons}
-                      name="error"
-                      size="sm"
-                      color="red.500"
-                      mr={2}
-                    />
-                  ) : null
-                }
+                height={12}
+                borderRadius="md"
               />
               <IconButton
                 icon={<Icon as={MaterialIcons} name="add" size="sm" color="gray.600" />}
@@ -3252,6 +2941,8 @@ const handleSettlePaymentConfirm = async () => {
                 borderWidth={1}
                 borderColor="gray.300"
                 onPress={() => setShowCustomerDetailsModal(true)}
+                height={12}
+                width={12}
               />
             </HStack>
 
@@ -3260,11 +2951,30 @@ const handleSettlePaymentConfirm = async () => {
                 flex={1}
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={{
-                  paddingBottom: selectedItems.length > 0 ? 30 : 20,
+                  paddingBottom: selectedItems.length > 0 ? 150 : 20,
                 }}
                 nestedScrollEnabled={true}
               >
-                <VStack space={2} mb={selectedItems.length > 0 ? 280 : 0}>
+                <VStack space={2} mb={0}>
+                  {/* Add Items Count and Clear All row */}
+                  <HStack justifyContent="space-between" alignItems="center" pb={2} pt={2}>
+                    <Text color="gray.700">{selectedItems.length} {selectedItems.length === 1 ? "Item" : "Items"}</Text>
+                    {!isExistingOrder && selectedItems.length > 0 && (
+                      <Pressable
+                        onPress={() => {
+                          setSelectedItems([]);
+                          toast.show({
+                            description: "All items cleared",
+                            status: "info",
+                            duration: 2000,
+                          });
+                        }}
+                      >
+                        <Text color="gray.500">Clear All</Text>
+                      </Pressable>
+                    )}
+                  </HStack>
+
                   {selectedItems.length === 0 ? (
                     <Box
                       flex={1}
@@ -3283,208 +2993,58 @@ const handleSettlePaymentConfirm = async () => {
                     </Box>
                   ) : (
                     <>
-                      <Box>
-                        <HStack
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <HStack space={2} alignItems="center">
-                            {params?.isOccupied === "1" &&
-                              params?.orderNumber && (
-                                <IconButton
-                                  icon={
-                                    <MaterialIcons
-                                      name="refresh"
-                                      size={20}
-                                      color="gray"
-                                    />
-                                  }
-                                  size="sm"
-                                  variant="ghost"
-                                  _pressed={{ bg: "coolGray.100" }}
-                                  onPress={async () => {
-    try {
-      setIsProcessing(true);
-                                      setLoadingMessage(
-                                        "Refreshing order details..."
-                                      );
-                                      await fetchOrderDetails(
-                                        params.orderNumber
-                                      );
-                                    } catch (error) {
-                                      console.error(
-                                        "Error refreshing order:",
-                                        error
-                                      );
-                                    } finally {
-                                      setIsProcessing(false);
-                                      setLoadingMessage("");
-                                    }
-                                  }}
-                                />
-                              )}
-                            <Text fontSize="sm" color="gray.500">
-                              {selectedItems.length}{" "}
-                              {selectedItems.length === 1 ? "Item" : "Items"}
-                            </Text>
-                          </HStack>
-                          {!isExistingOrder && (
-                            <Button
-                              variant="ghost"
-                              _text={{ color: "gray.500" }}
-                              onPress={() => {
-                                setSelectedItems([]);
-                                toast.show({
-                                  description: "All items cleared",
-                                  status: "info",
-                                  duration: 2000,
-                                });
-                              }}
-                            >
-                              Clear All
-                            </Button>
-                          )}
-                        </HStack>
-                      </Box>
+                      {/* Simplified item display */}
                       {selectedItems.map((item, index) => (
                         <Box
                           key={index}
                           bg="white"
-                          p={2}
+                          px={4}
+                          py={3}
                           mb={1}
-                          rounded="lg"
-                          borderWidth={1}
-                          borderColor="coolGray.200"
+                          borderBottomWidth={1}
+                          borderBottomColor="gray.200"
                         >
-                          <VStack space={1}>
-                            <HStack
-                              justifyContent="space-between"
-                              alignItems="center"
-                            >
-                              <HStack space={2} flex={1} alignItems="center">
-                                <Text
-                                  fontWeight={600}
-                                  numberOfLines={1}
-                                  fontSize={18}
-                                >
-                                  {item.menu_name}
-                                  {item.offer > 0 && (
-                                    <Text color="green.600" fontSize={14}>
-                                      {" "}
-                                      ({item.offer}% off)
-                                    </Text>
-                                  )}
-                                </Text>
-                              </HStack>
-                              {(item.isNewlyAdded || !isExistingOrder) && (
-                                <IconButton
-                                  icon={
-                                    <MaterialIcons
-                                      name="close"
-                                      size={16}
-                                      color="gray"
-                                    />
-                                  }
-                                  size="xs"
-                                  p={1}
-                                  onPress={() => {
-                                    removeFromCart(
-                                      item.menu_id,
-                                      item.portionSize
-                                    );
-                                  }}
-                                />
-                              )}
-                            </HStack>
-
-                            <HStack
-                              justifyContent="space-between"
-                              alignItems="center"
-                            >
-                              <HStack space={1} alignItems="center">
-                                <IconButton
-                                  borderWidth={1}
-                                  borderColor="gray.300"
-                                  icon={
-                                    <MaterialIcons
-                                      name="remove"
-                                      size={16}
-                                      color="gray"
-                                    />
-                                  }
-                                  size="xs"
-                                  variant="outline"
-                                  borderRadius="sm"
-                                  bg="white"
-                                  _pressed={{ bg: "transparent" }}
-                                  onPress={() => {
-                                    if (item.quantity > 1) {
-                                      const newItems = [...selectedItems];
-                                      newItems[index].quantity--;
-                                      newItems[index].total_price =
-                                        item.portionSize === "Half"
-                                          ? Number(item.half_price) *
-                                            newItems[index].quantity
-                                          : Number(item.full_price) *
-                                            newItems[index].quantity;
-                                      setSelectedItems(newItems);
-                                    }
-                                  }}
-                                />
-                                <Text
-                                  w="10"
-                                  textAlign="center"
-                                  fontSize={16}
-                                  fontWeight="600"
-                                >
-                                  {item.quantity}
-                                </Text>
-                                <IconButton
-                                  borderWidth={1}
-                                  borderColor="gray.300"
-                                  icon={
-                                    <MaterialIcons
-                                      name="add"
-                                      size={16}
-                                      color="gray"
-                                    />
-                                  }
-                                  size="xs"
-                                  variant="outline"
-                                  borderRadius="sm"
-                                  bg="white"
-                                  _pressed={{ bg: "transparent" }}
-                                  onPress={() => {
-                                    if (item.quantity < 20) {
-                                      const newItems = [...selectedItems];
-                                      newItems[index].quantity++;
-                                      newItems[index].total_price =
-                                        item.portionSize === "Half"
-                                          ? Number(item.half_price) *
-                                            newItems[index].quantity
-                                          : Number(item.full_price) *
-                                            newItems[index].quantity;
-                                      setSelectedItems(newItems);
-                                    }
-                                  }}
-                                />
-                              </HStack>
-
-                              <Text fontSize={14} color="gray.600">
-                                {item.half_or_full
-                                  ? item.half_or_full.charAt(0).toUpperCase() +
-                                    item.half_or_full.slice(1)
-                                  : item.portionSize}
-                                : ₹
-                                {(item.price
-                                  ? Number(item.price) * item.quantity
-                                  : item.portionSize === "Half"
-                                  ? Number(item.half_price) * item.quantity
-                                  : Number(item.full_price) * item.quantity
-                                ).toFixed(2)}
+                          <HStack justifyContent="space-between" alignItems="center">
+                            <VStack>
+                              <Text fontWeight={600} fontSize={16}>
+                                {item.menu_name}
                               </Text>
+                            </VStack>
+                            <Pressable
+                              onPress={() => removeFromCart(item.menu_id, item.portion_size)}
+                              hitSlop={8}
+                            >
+                              <Icon as={MaterialIcons} name="close" size="sm" color="gray.500" />
+                            </Pressable>
+                          </HStack>
+                          <HStack mt={2} justifyContent="space-between" alignItems="center">
+                            <HStack space={3} alignItems="center">
+                              <IconButton
+                                icon={<Icon as={MaterialIcons} name="remove" size="xs" />}
+                                borderRadius="full"
+                                variant="outline"
+                                borderColor="gray.300"
+                                size="sm"
+                                p={0}
+                                onPress={() => {
+                                  if (item.quantity > 1) {
+                                    decreaseQuantity(item);
+                                  }
+                                }}
+                              />
+                              <Text>{item.quantity}</Text>
+                              <IconButton
+                                icon={<Icon as={MaterialIcons} name="add" size="xs" />}
+                                borderRadius="full"
+                                variant="outline"
+                                borderColor="gray.300"
+                                size="sm"
+                                p={0}
+                                onPress={() => increaseQuantity(item)}
+                              />
                             </HStack>
-                          </VStack>
+                            <Text>Full: ₹{calculateItemTotal(item.price, item.quantity, item.offer).toFixed(2)}</Text>
+                          </HStack>
                         </Box>
                       ))}
                     </>
@@ -3493,172 +3053,148 @@ const handleSettlePaymentConfirm = async () => {
               </ScrollView>
             </Box>
 
+            {/* Update the collapsible section with discount fields */}
             {selectedItems.length > 0 && (
-              <>
-                {/* Card 1: Additional options/charges card */}
+              <Box width="100%">
+                {/* Collapsible discount panel */}
                 <Box
-                  position="fixed"
-                  bottom={205}
+                  width="100%"
                   bg="white"
-                  borderWidth={1}   
-                  borderColor="gray.200"
-                  borderRadius="xl"
-                  overflow="hidden"
-                  shadow={1}
-                  mb={8}
-                  zIndex={1}
+                  borderRadius="lg"
+                  shadow={2}
+                  mb={2}
                 >
-                  <Pressable onPress={() => setIsAdditionalOptionsOpen(!isAdditionalOptionsOpen)}>
-                    <Box py={2} borderBottomWidth={0}>
-                      <Icon 
-                        as={MaterialIcons} 
-                        name={isAdditionalOptionsOpen ? "keyboard-arrow-down" : "keyboard-arrow-up"}
-                        size="sm" 
-                        alignSelf="center"
-                        color="gray.500" 
-                      />
-                    </Box>
+                  <Pressable 
+                    onPress={() => setShowDiscountPanel(!showDiscountPanel)}
+                    py={2}
+                    alignItems="center"
+                  >
+                    <Icon
+                      as={MaterialIcons}
+                      name={showDiscountPanel ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                      size="md"
+                      color="gray.500"
+                    />
                   </Pressable>
-
-                  {isAdditionalOptionsOpen && (
-                    <Box p={4} pt={2}>
-                      <VStack space={4}>
-                        <HStack space={4} justifyContent="space-between">
-                          <VStack flex={1}>
-                            <Text fontSize="sm" color="gray.600" mb={1}>Special Discount</Text>
-                            <Input 
-                              value={specialDiscount || "0"}
-                              onChangeText={setSpecialDiscount}
-                              textAlign="center"
-                              keyboardType="numeric"
-                              borderRadius="md"
-                              borderColor="gray.300"
-                              h={10}
-                              fontSize="md"
-                            />
-                          </VStack>
-                          
-                          <VStack flex={1}>
-                            <Text fontSize="sm" color="gray.600" mb={1}>Extra Charges</Text>
-                            <Input 
-                              value={extraCharges || "0"}
-                              onChangeText={setExtraCharges}
-                              textAlign="center"
-                              keyboardType="numeric" 
-                              borderRadius="md"
-                              borderColor="gray.300"
-                              h={10}
-                              fontSize="md"
-                            />
-                          </VStack>
-                          
-                          <VStack flex={1}>
-                            <Text fontSize="sm" color="gray.600" mb={1}>Tip</Text>
-                            <Input 
-                              value={tip || "0"}
-                              onChangeText={setTip}
-                              textAlign="center"
-                              keyboardType="numeric"
-                              borderRadius="md"
-                              borderColor="gray.300"
-                              h={10}
-                              fontSize="md"
-                            />
-                          </VStack>
-                        </HStack>
+                  
+                  {showDiscountPanel && (
+                    <Box px={4} pb={4}>
+                      <HStack space={2} justifyContent="space-between" mb={3}>
+                        <VStack flex={1}>
+                          <Text fontSize="xs" color="gray.500" mb={1}>Special Discount</Text>
+                          <Input
+                            keyboardType="numeric"
+                            value={specialDiscount?.toString()}
+                            onChangeText={(text) => setSpecialDiscount(text ? parseFloat(text) : 0)}
+                            variant="outline"
+                            size="sm"
+                            bg="white"
+                            placeholder="0"
+                            borderColor="gray.300"
+                          />
+                        </VStack>
                         
-                        <HStack justifyContent="space-between" alignItems="center">
-                          {!isPaid && (
-                            <Checkbox 
-                              colorScheme="blue" 
-                              isChecked={isComplementary}
-                              onChange={setIsComplementary}
-                              borderRadius="sm" 
-                              size="md"
-                            >
-                              <Text fontSize="sm">Complementary</Text>
-                            </Checkbox>
-                          )}
-                          
-                          {isPaid && (
-                            <HStack space={4} flex={1}>
-                              <Radio.Group 
-                                name="paymentMethod" 
-                                value={paymentMethod} 
-                                onChange={setPaymentMethod}
-                              >
-                                <HStack space={4}>
-                                  <Radio value="CASH" size="sm">
-                                    <Text fontSize="sm">CASH</Text>
-                                  </Radio>
-                                  <Radio value="UPI" size="sm">
-                                    <Text fontSize="sm">UPI</Text>
-                                  </Radio>
-                                  <Radio value="CARD" size="sm">
-                                    <Text fontSize="sm">CARD</Text>
-                                  </Radio>
-                                </HStack>
-                              </Radio.Group>
-                            </HStack>
-                          )}
-                          
-                          <Checkbox 
-                            colorScheme="blue" 
-                            isChecked={isPaid}
-                            onChange={(newValue) => {
-                              setIsPaid(newValue);
-                              if (newValue) {
-                                setIsComplementary(false);
-                              }
-                            }}
-                            borderRadius="sm" 
-                            size="md"
-                          >
-                            <Text fontSize="sm">Paid</Text>
-                          </Checkbox>
-                        </HStack>
-                      </VStack>
+                        <VStack flex={1}>
+                          <Text fontSize="xs" color="gray.500" mb={1}>Extra Charges</Text>
+                          <Input
+                            keyboardType="numeric"
+                            value={extraCharges?.toString()}
+                            onChangeText={(text) => setExtraCharges(text ? parseFloat(text) : 0)}
+                            variant="outline"
+                            size="sm"
+                            bg="white"
+                            placeholder="0"
+                            borderColor="gray.300"
+                          />
+                        </VStack>
+                        
+                        <VStack flex={1}>
+                          <Text fontSize="xs" color="gray.500" mb={1}>Tip</Text>
+                          <Input
+                            keyboardType="numeric"
+                            value={tip?.toString()}
+                            onChangeText={(text) => setTip(text ? parseFloat(text) : 0)}
+                            variant="outline"
+                            size="sm"
+                            bg="white"
+                            placeholder="0"
+                            borderColor="gray.300"
+                          />
+                        </VStack>
+                      </HStack>
+                      
+                      <HStack justifyContent="space-between" alignItems="center">
+                        <Checkbox
+                          value="complementary"
+                          isChecked={isComplementary}
+                          onChange={(value) => {
+                            setIsComplementary(value);
+                            if (value) {
+                              setIsPaid(false);
+                            }
+                          }}
+                          size="sm"
+                          colorScheme="green"
+                        >
+                          <Text fontSize="sm">Complementary</Text>
+                        </Checkbox>
+                        
+                        <Checkbox
+                          value="paid"
+                          isChecked={isPaid}
+                          onChange={(value) => {
+                            setIsPaid(value);
+                            if (value) {
+                              setIsComplementary(false);
+                            }
+                          }}
+                          size="sm"
+                          colorScheme="green"
+                        >
+                          <Text fontSize="sm">Paid</Text>
+                        </Checkbox>
+                      </HStack>
                     </Box>
                   )}
                 </Box>
 
-                {/* Card 2: Price summary row */}
-                <Box 
-                  position="absolute"
-                  bottom={125}
-                  left={4}
-                  right={4}
-                  bg="white" 
-                  borderWidth={1}
-                  borderColor="gray.200"
-                  borderRadius="xl"
-                  overflow="hidden"
-                  shadow={1}
-                  p={3}
-                  mb={3}
-                  zIndex={10}
+                {/* Bottom section with pricing and buttons */}
+                <Box
+                  width="100%"
+                  bg="white"
+                  pb={Platform.OS === "ios" ? 8 : 4}
+                  borderTopWidth={1}
+                  borderTopColor="gray.200"
+                  style={{
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: -3 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 2,
+                    elevation: 3,
+                  }}
                 >
-                  <HStack space={0.5} justifyContent="space-between">
-                    <VStack flex={1} alignItems="center">
-                      <Text fontSize="13px" fontWeight="semibold" color="black">₹{calculateSubtotal(selectedItems).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Items Total</Text>
+                  {/* Price summary row */}
+                  <HStack justifyContent="space-between" mb={2} p={2}>
+                    <VStack alignItems="center">
+                      <Text fontWeight="semibold" fontSize="xs">₹{calculateSubtotal(selectedItems).toFixed(2)}</Text>
+                      <Text fontSize="2xs" color="gray.500">Total</Text>
                     </VStack>
 
-                    <VStack flex={1} alignItems="center">
-                      <Text fontSize="13px" fontWeight="semibold" color="red.500">-₹{calculateItemDiscount(selectedItems).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Item Disc({specialDiscount}%)</Text>
+                    <VStack alignItems="center">
+                      <Text fontWeight="semibold" fontSize="xs" color="red.500">-₹{calculateItemDiscount(selectedItems).toFixed(2)}</Text>
+                      <Text fontSize="2xs" color="gray.500">Disc ({specialDiscount || 0}%)</Text>
                     </VStack>
 
-                    <VStack flex={1} alignItems="center">
-                      <Text fontSize="13px" fontWeight="semibold" color="black">+₹{calculateServiceCharges(
+                    <VStack alignItems="center">
+                      <Text fontWeight="semibold" fontSize="xs">+₹{calculateServiceCharges(
                         calculateTotalAfterDiscounts(selectedItems, specialDiscount) + parseFloat(extraCharges || 0),
                         serviceChargePercentage
                       ).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Service ({serviceChargePercentage}%)</Text>
+                      <Text fontSize="2xs" color="gray.500">Service ({serviceChargePercentage}%)</Text>
                     </VStack>
 
-                    <VStack flex={1} alignItems="center">
-                      <Text fontSize="13px" fontWeight="semibold" color="black">+₹{calculateGST(
+                    <VStack alignItems="center">
+                      <Text fontWeight="semibold" fontSize="xs">+₹{calculateGST(
                         calculateTotalAfterDiscounts(selectedItems, specialDiscount) + 
                         parseFloat(extraCharges || 0) + 
                         calculateServiceCharges(
@@ -3667,11 +3203,11 @@ const handleSettlePaymentConfirm = async () => {
                         ),
                         gstPercentage
                       ).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">GST({gstPercentage}%)</Text>
+                      <Text fontSize="2xs" color="gray.500">GST ({gstPercentage}%)</Text>
                     </VStack>
 
-                    <VStack flex={1} alignItems="center">
-                      <Text fontSize="13px" fontWeight="semibold" color="green.500">₹{calculateGrandTotal(
+                    <VStack alignItems="center">
+                      <Text fontWeight="semibold" fontSize="xs" color="green.500">₹{calculateGrandTotal(
                         selectedItems,
                         specialDiscount,
                         extraCharges,
@@ -3679,113 +3215,101 @@ const handleSettlePaymentConfirm = async () => {
                         gstPercentage,
                         tip
                       ).toFixed(2)}</Text>
-                      <Text fontSize="xs" color="gray.500">Grand Total</Text>
+                      <Text fontSize="2xs" color="gray.500">Grand Total</Text>
                     </VStack>
                   </HStack>
-                </Box>
-              </>
-            )}
 
-            {selectedItems.length > 0 && (
-              <Box
-                position="absolute"
-                bottom={0}
-                left={0}
-                right={0}
-                bg="white"
-                px={4}
-                py={4}
-                borderTopWidth={1}
-                borderTopColor="coolGray.200"
-                    style={{
-                  shadowColor: "#000",
-                  shadowOffset: {
-                    width: 0,
-                    height: -2,
-                  },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 3,
-                  elevation: 5,
-                }}
-              >
-                {/* Updated button layout to match screenshot */}
-                <VStack space={3}>
-                  <HStack space={3} justifyContent="space-between">
-                    <Button
-                      flex={1}
-                      bg="#FF9800"
-                      leftIcon={<Icon as={MaterialIcons} name="print" size="sm" color="white" />}
-                      _text={{ color: "white", fontWeight: "semibold" }}
-                      onPress={handlePrint}
-                      borderRadius="md"
-                      py={2.5}
-                      height={12}
-                    >
-                      Print & Save
-                    </Button>
-
-                  <Button
-                    flex={1}
-                    bg="black"
-                      _text={{ color: "white", fontWeight: "semibold" }}
-                    onPress={handleKOT}
-                      borderRadius="md"
-                      py={2.5}
-                      height={12}
-                    >
-                      <HStack space={2} alignItems="center">
-                        <Icon as={MaterialIcons} name="receipt" size="sm" color="white" />
-                        <Text color="white" fontWeight="semibold">KOT</Text>
-                      </HStack>
-                  </Button>
-
-                  <Button
-                    flex={1}
-                      bg="blue.500"
-                      _text={{ color: "white", fontWeight: "semibold" }}
-                      onPress={handleSettleOrder}  // Updated to use new handler
-                      borderRadius="md"
-                      py={2.5}
-                      height={12}
-                    >
-                      <HStack space={2} alignItems="center">
-                        <Icon as={MaterialIcons} name="check-circle" size="sm" color="white" />
-                        <Text color="white" fontWeight="semibold">Settle</Text>
-                      </HStack>
-                    </Button>
-                  </HStack>
-                  
-                  <HStack space={3} justifyContent="space-between">
-                    <Button
-                      flex={5}
-                      bg="black"
-                      _text={{ color: "white", fontWeight: "semibold" }}
-                      onPress={() => {handleKOTAndSave();}}
-                      borderRadius="md"
-                      py={2.5}
-                      height={12}
-                    >
-                      <HStack space={2} alignItems="center">
-                        <Icon as={MaterialIcons} name="receipt" size="sm" color="white" />
-                        <Text color="white" fontWeight="semibold">KOT & Save</Text>
-                      </HStack>
-                    </Button>
-
-                    {params?.isOccupied === "1" && params?.orderId && (
+                  {/* Buttons */}
+                  <VStack space={1} p={2} pt={0}>
+                    {/* Top row - 3 buttons, matching screenshot */}
+                    <HStack space={1}>
                       <Button
                         flex={1}
-                        bg="red.500"
-                        _text={{ color: "white", fontWeight: "semibold" }}
-                        onPress={handleForceCancel}
+                        h={10}
+                        bg="#FF9800"
+                        _pressed={{ bg: "#F57C00" }}
                         borderRadius="md"
-                        py={2.5}
-                        height={12}
+                        leftIcon={<Icon as={MaterialIcons} name="print" size="sm" color="white" />}
+                        onPress={handlePrint}
+                        py={0}
                       >
-                        <Icon as={MaterialIcons} name="close" size="sm" color="white" />
+                        <Text color="white" fontSize="xs">Print & Save</Text>
                       </Button>
-                    )}
-                  </HStack>
-                </VStack>
+                      
+                      <Button
+                        flex={1}
+                        h={10}
+                        bg="black"
+                        _pressed={{ bg: "#333" }}
+                        borderRadius="md"
+                        leftIcon={<Icon as={MaterialIcons} name="receipt" size="sm" color="white" />}
+                        onPress={handleKOT}
+                        py={0}
+                      >
+                        <Text color="white" fontSize="xs">KOT</Text>
+                      </Button>
+                      
+                      <Button
+                        flex={1}
+                        h={10}
+                        bg="#00B0F0"
+                        _pressed={{ bg: "#0099CC" }}
+                        borderRadius="md"
+                        onPress={handleSettleOrder}
+                        py={0}
+                      >
+                        <Text color="white" fontSize="xs">Settle</Text>
+                      </Button>
+                    </HStack>
+                    
+                    {/* Middle row - Lock icon and KOT & Save */}
+                    <HStack space={1}>
+                      <Button
+                        w="36px"
+                        h={10}
+                        bg="#242424"
+                        _pressed={{ bg: "#333" }}
+                        borderRadius="md"
+                        py={0}
+                        onPress={handleTableReservation}
+                        alignItems="center"
+                        justifyContent="center"
+                      >
+                        <Icon as={MaterialIcons} name="lock" size="sm" color="white" />
+                      </Button>
+                      
+                      <Button
+                        flex={1}
+                        h={10}
+                        bg="black"
+                        _pressed={{ bg: "#333" }}
+                        borderRadius="md"
+                        leftIcon={<Icon as={MaterialIcons} name="receipt" size="sm" color="white" />}
+                        onPress={handleKOTAndSave}
+                        py={0}
+                      >
+                        <Text color="white" fontSize="xs">KOT & Save</Text>
+                      </Button>
+                    </HStack>
+                    
+                    {/* Reserve Table Button - conditional */}
+                    {/* {params?.orderType === "dine-in" && params?.isOccupied !== "1" && (
+                      <Button
+                        w="100%"
+                        h={10}
+                        bg="#00A67E"
+                        _pressed={{ bg: "#00916A" }}
+                        borderRadius="md"
+                        py={0}
+                        mt={1}
+                        leftIcon={<Icon as={MaterialIcons} name="event-seat" size="sm" color="white" />}
+                        onPress={handleTableReservation}
+                      >
+                        <Text color="white" fontSize="xs">Reserve Table</Text>
+                      </Button>
+                    )} */}
+                  </VStack>
+                </Box>
               </Box>
             )}
           </VStack>
@@ -3904,14 +3428,8 @@ const handleSettlePaymentConfirm = async () => {
       )}
 
       <DeviceSelectionModal
-        visible={isModalVisible}
-        devices={availableDevices}
-        onSelect={handleDeviceSelection}
-        onClose={() => {
-          setIsModalVisible(false);
-          setIsScanning(false);
-          bleManager?.stopDeviceScan();
-        }}
+        visible={isDeviceSelectionModalVisible}
+        onClose={() => setIsDeviceSelectionModalVisible(false)}
       />
 
       {/* Payment Selection Modal */}

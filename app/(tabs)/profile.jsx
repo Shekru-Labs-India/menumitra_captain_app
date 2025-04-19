@@ -405,14 +405,14 @@ export default function ProfileScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                // onPress={async () => {
-                //   try {
-                //     await AsyncStorage.clear();
-                //     router.replace('/login');
-                //   } catch (error) {
-                //     console.error('Error clearing storage:', error);
-                //   }
-                // }}
+                onPress={async () => {
+                  try {
+                    await AsyncStorage.clear();
+                    router.replace('/login');
+                  } catch (error) {
+                    console.error('Error clearing storage:', error);
+                  }
+                }}
               >
                 <Text fontSize="2xs" color="black.500" mt={1} textAlign="center">
                   (version {version || "1.0.0"})
