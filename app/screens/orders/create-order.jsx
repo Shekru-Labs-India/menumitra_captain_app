@@ -2915,7 +2915,7 @@ const handleSettleOrder = async () => {
   // Update this function to handle table reservation properly
   const handleTableReservation = async () => {
     try {
-      setIsSubmitting(true);
+      setIsLoading(true);
       setLoadingMessage("Reserving table...");
       
       // Get stored outlet ID and user ID
@@ -2949,14 +2949,13 @@ const handleSettleOrder = async () => {
       if (response.st === 1) {
         toast.show({
           description: "Table has been reserved",
-          placement: "top",
-          duration: 3000,
-          status: "success"
+          status: "success",
+          duration: 2000
         });
         
-        // Navigate back to tables screen with refresh params
+        // Navigate to tables screen to refresh
         router.replace({
-          pathname: "/(tabs)/tables/sections",
+          pathname: "/(tabs)/tables",
           params: { 
             refresh: Date.now().toString(),
             status: "completed"
@@ -2965,21 +2964,19 @@ const handleSettleOrder = async () => {
       } else {
         toast.show({
           description: response.msg || "Failed to reserve table",
-          placement: "top",
-          duration: 3000,
-          status: "error"
+          status: "error",
+          duration: 3000
         });
       }
     } catch (error) {
-      console.error("Reserve table error:", error);
+      console.error("Error reserving table:", error);
       toast.show({
         description: "Failed to reserve table",
-        placement: "top",
-        duration: 3000,
-        status: "error"
+        status: "error",
+        duration: 3000
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
       setLoadingMessage("");
     }
   };
