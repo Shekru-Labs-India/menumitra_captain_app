@@ -557,7 +557,9 @@ export default function TableSectionsScreen() {
       case "occupied":
         return filteredBySearch.filter(table => table.is_occupied === 1);
       case "available":
-        return filteredBySearch.filter(table => table.is_occupied === 0);
+        return filteredBySearch.filter(table => table.is_occupied === 0 && !table.is_reserved);
+      case "reserved":
+        return filteredBySearch.filter(table => table.is_reserved === true);
       default:
         return filteredBySearch;
     }
@@ -2576,6 +2578,23 @@ export default function TableSectionsScreen() {
                   fontWeight={filterStatus === "occupied" ? "bold" : "medium"}
                 >
                   Occupied
+                </Text>
+              </Pressable>
+              
+              <Pressable
+                onPress={() => setFilterStatus("reserved")}
+                bg={filterStatus === "reserved" ? "gray.100" : "coolGray.100"}
+                px={4}
+                py={2}
+                rounded="md"
+                borderWidth={1}
+                borderColor={filterStatus === "reserved" ? "gray.500" : "coolGray.300"}
+              >
+                <Text
+                  color={filterStatus === "reserved" ? "gray.700" : "coolGray.700"}
+                  fontWeight={filterStatus === "reserved" ? "bold" : "medium"}
+                >
+                  Reserved
                 </Text>
               </Pressable>
               
