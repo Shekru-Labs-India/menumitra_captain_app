@@ -136,6 +136,7 @@ export default function TableSectionsScreen() {
   const [selectedSection, setSelectedSection] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const refreshInterval = useRef(null);
+  const qrStableTimeout = useRef(null);
   const [editingSectionId, setEditingSectionId] = useState(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedTableForQR, setSelectedTableForQR] = useState(null);
@@ -158,6 +159,8 @@ export default function TableSectionsScreen() {
   const [editedSectionName, setEditedSectionName] = useState("");
   const [blinkAnimation] = useState(new Animated.Value(1));
   const [qrReady, setQrReady] = useState(false);
+  const [qrRenderAttempt, setQrRenderAttempt] = useState(0);
+  const qrContainerRef = useRef(null);
   const [printerDevice, setPrinterDevice] = useState(null);
   const [newTableNumber, setNewTableNumber] = useState("");
   const [creatingTableSectionId, setCreatingTableSectionId] = useState(null);
@@ -1471,6 +1474,9 @@ export default function TableSectionsScreen() {
     
     // Close modal function
     const closeModal = () => {
+      if (qrStableTimeout.current) {
+        clearTimeout(qrStableTimeout.current);
+      }
       setShowQRModal(false);
       setQrData(null);
       setIsQRModalOpen(false);
@@ -1965,8 +1971,8 @@ export default function TableSectionsScreen() {
                     justifyContent="center"
                     alignItems="center"
                     onPress={showDownloadOptions}
-                    disabled={isDownloading || isSharing}
-                    opacity={isDownloading || isSharing ? 0.7 : 1}
+                    disabled={isDownloading || isSharing || !qrReady}
+                    opacity={isDownloading || isSharing || !qrReady ? 0.7 : 1}
                   >
                     {isDownloading ? (
                       <Spinner size="sm" color="white" />
@@ -1989,8 +1995,8 @@ export default function TableSectionsScreen() {
                     justifyContent="center"
                     alignItems="center"
                     onPress={shareQRCode}
-                    disabled={isDownloading || isSharing}
-                    opacity={isDownloading || isSharing ? 0.7 : 1}
+                    disabled={isDownloading || isSharing || !qrReady}
+                    opacity={isDownloading || isSharing || !qrReady ? 0.7 : 1}
                   >
                     {isSharing ? (
                       <Spinner size="sm" color="white" />
@@ -2021,6 +2027,8 @@ export default function TableSectionsScreen() {
     setIsLoadingQr(true);
     setIsQRModalOpen(true);
     setShowQRModal(true);
+    setQrReady(false);
+    setQrRenderAttempt(prev => prev + 1);
     setSelectedTableForQR({
       ...table,
       section_id: section.id
@@ -2056,6 +2064,15 @@ export default function TableSectionsScreen() {
         table_number: data.table_number,
       });
 
+      // Add a stability timeout to ensure QR code is stable before user interactions
+      if (qrStableTimeout.current) {
+        clearTimeout(qrStableTimeout.current);
+      }
+      
+      qrStableTimeout.current = setTimeout(() => {
+        setQrReady(true);
+      }, 500);
+
     } catch (error) {
       console.error("Error generating QR code:", error);
       toast.show({
@@ -2074,8 +2091,8 @@ export default function TableSectionsScreen() {
   useEffect(() => {
     return () => {
       // Clear any timeouts when component unmounts
-      if (qrStableTimeout) {
-        clearTimeout(qrStableTimeout);
+      if (qrStableTimeout.current) {
+        clearTimeout(qrStableTimeout.current);
       }
     };
   }, []);
