@@ -3334,28 +3334,13 @@ const handleSettleOrder = async () => {
           },
         })}
         rightComponent={
-          <HStack space={2} alignItems="center">
-            {params?.orderId && (
-              <Pressable
-                onPress={handleCancelOrder}
-                style={{
-                  backgroundColor: "#dc3545",
-                  borderRadius: 20,
-                  padding: 8,
-                  marginRight: 8
-                }}
-              >
-                <Icon as={MaterialIcons} name="close" size="sm" color="white" />
-              </Pressable>
-            )}
-            <Box position="relative">
-              <OrderBadge />    
-            </Box>
-          </HStack>
+          <Box position="relative">
+            <OrderBadge />    
+          </Box>
         }
       />
       {/* <PrinterStatusIndicator /> */}
-       
+      
       {isLoadingOrder ? (
         <Center flex={1} bg="coolGray.100">
           <VStack space={3} alignItems="center">
@@ -3801,6 +3786,24 @@ const handleSettleOrder = async () => {
                       >
                         <Text color="white" fontSize="xs">KOT & Save</Text>
                       </Button>
+                      
+                      {/* Add Cancel Order button for existing orders */}
+                      {params?.orderId && (
+                        <Button
+                          w="36px"
+                          h={10}
+                          bg="red.600"
+                          _pressed={{ bg: "red.700" }}
+                          borderRadius="md"
+                          py={0}
+                          ml={1}
+                          onPress={handleCancelOrder}
+                          alignItems="center"
+                          justifyContent="center"
+                        >
+                          <Icon as={MaterialIcons} name="close" size="sm" color="white" />
+                        </Button>
+                      )}
                     </HStack>
                     
                     {/* Reserve Table Button - conditional */}
