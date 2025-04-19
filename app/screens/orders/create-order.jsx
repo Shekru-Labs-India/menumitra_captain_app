@@ -667,9 +667,124 @@ export default function CreateOrderScreen() {
         return;
       }
 
-      setIsSubmitting(true);
-      setLoadingMessage("Printing KOT...");
+      setIsLoading(true); // Use isLoading instead of isSubmitting
+      setLoadingMessage("Processing order...");
+
+      // Verify authentication token is present
+      const token = await AsyncStorage.getItem('access');
+      if (!token) {
+        toast.show({
+          description: "Authentication error. Please log in again.",
+          status: "error",
+          duration: 3000,
+        });
+        
+        setTimeout(() => {
+          router.replace("/login");
+        }, 1500);
+        return;
+      }
+
+      // First save the order to get the order data
+      const [storedUserId, storedOutletId] = await Promise.all([
+        AsyncStorage.getItem("user_id"),
+        AsyncStorage.getItem("outlet_id"),
+      ]);
+
+      if (!storedUserId || !storedOutletId) {
+        throw new Error("Missing required information");
+      }
+
+      const orderItems = selectedItems.map((item) => ({
+        menu_id: item.menu_id?.toString(),
+        quantity: parseInt(item.quantity) || 1,
+        comment: item.specialInstructions || "",
+        half_or_full: (item.portionSize || "full").toLowerCase(),
+        price: parseFloat(item.price) || 0,
+        total_price: parseFloat(item.total_price) || 0,
+      }));
+
+      // Determine payment status
+      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
+      const effectivePaymentMethod = isPaid ? selectedPaymentMethod.toLowerCase() : "";
+
+      // Create order data object
+      const orderData = {
+        user_id: storedUserId?.toString(),
+        outlet_id: storedOutletId?.toString(),
+        order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
+        order_items: orderItems,
+        grand_total: calculateGrandTotal(
+          selectedItems,
+          specialDiscount,
+          extraCharges,
+          serviceChargePercentage,
+          gstPercentage,
+          tip
+        )?.toString(),
+        action: "settle", // IMPORTANT: Use "settle" for KOT - matches owner app (OrderCreate.js)
+        is_paid: paymentStatus,
+        payment_method: effectivePaymentMethod,
+        special_discount: specialDiscount?.toString(),
+        charges: extraCharges?.toString(),
+        tip: tip?.toString(),
+        customer_name: customerDetails.customer_name || "",
+        customer_mobile: customerDetails.customer_mobile || "",
+        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+        customer_address: customerDetails.customer_address || "",
+        customer_landmark: customerDetails.customer_landmark || "",
+      };
+
+      if (!params?.isSpecialOrder) {
+        if (!params.tableNumber || !params.sectionId) {
+          throw new Error("Missing table or section information for dine-in order");
+        }
+        orderData.tables = [params.tableNumber?.toString()];
+        orderData.section_id = params.sectionId?.toString();
+      }
+
+      if (params?.orderId) {
+        orderData.order_id = params.orderId?.toString();
+      }
+
+      // Make API request
+      const endpoint = params?.orderId ? 
+        onGetProductionUrl() + "update_order" : 
+        onGetProductionUrl() + "create_order";
+
+      console.log(`Making KOT request to ${endpoint}`);
       
+      // Use fetchWithAuth for better authentication handling
+      let apiResponse;
+      try {
+        apiResponse = await fetchWithAuth(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderData)
+        });
+        
+        if (apiResponse.st !== 1) {
+          throw new Error(apiResponse.msg || "Failed to process order");
+        }
+      } catch (apiError) {
+        console.error("API error during KOT:", apiError);
+        toast.show({
+          description: apiError.message || "Failed to connect to server",
+          status: "error",
+          duration: 3000
+        });
+        setIsLoading(false);
+        setLoadingMessage("");
+        return;
+      }
+
+      setLoadingMessage("Preparing KOT...");
+
+      // Ensure we have order number
+      if (!params?.orderId && apiResponse.order_number) {
+        apiResponse.order_number = apiResponse.order_number || String(apiResponse.order_id);
+      }
+        
       // Check if printer is connected using the PrinterContext
       if (!printerConnected || !contextPrinterDevice) {
         Alert.alert(
@@ -681,31 +796,81 @@ export default function CreateOrderScreen() {
               onPress: () => setIsDeviceSelectionModalVisible(true)
             },
             {
-              text: "No",
-              style: "cancel"
+              text: "Skip Printing",
+              style: "cancel",
+              onPress: () => {
+                router.replace("/screens/tables");
+              }
             }
           ]
         );
-        setIsSubmitting(false);
+        setIsLoading(false);
         setLoadingMessage("");
         return;
       }
       
-      await printKOT({
-        order_number: params?.orderId || "New",
-        datetime: new Date().toLocaleString(),
-        outlet_name: await AsyncStorage.getItem("outlet_name") || "Restaurant",
-        outlet_address: await AsyncStorage.getItem("outlet_address") || "",
-        outlet_mobile: await AsyncStorage.getItem("outlet_mobile") || "",
-        section: params?.sectionName || "",
-        table_number: [params?.tableNumber] || [""],
-      });
+      // Verify printer connection is stable before KOT printing
+      try {
+        if (contextPrinterDevice.isConnected) {
+          const isDeviceConnected = await contextPrinterDevice.isConnected();
+          if (!isDeviceConnected) {
+            console.log("Device reports as not connected for KOT despite context state");
+            throw new Error("Printer connection not stable for KOT");
+          }
+          console.log("Printer verified as ready for KOT");
+        }
+      } catch (connectionError) {
+        console.error("KOT printer verification error:", connectionError);
+        throw new Error("Please disconnect and reconnect your printer before printing KOT");
+      }
+
+      // Generate KOT commands with order data
+      let kotCommands;
+      try {
+        setLoadingMessage("Generating KOT...");
+        kotCommands = await generateKOTCommands(apiResponse);
+        if (!kotCommands || !Array.isArray(kotCommands)) {
+          throw new Error("Failed to generate valid KOT data");
+        }
+      } catch (kotError) {
+        console.error("KOT generation error:", kotError);
+        toast.show({
+          description: "Error preparing KOT: " + kotError.message,
+          status: "error",
+          duration: 3000,
+        });
+        setIsLoading(false);
+        setLoadingMessage("");
+        return;
+      }
       
+      // Send commands to printer
+      try {
+        setLoadingMessage("Printing KOT...");
+        await sendDataToPrinter(kotCommands);
+        console.log("KOT data sent to printer successfully");
+      } catch (printError) {
+        console.error("KOT printing error:", printError);
+        toast.show({
+          description: "Error printing KOT: " + printError.message,
+          status: "error",
+          duration: 3000,
+        });
+        // Don't return, allow navigation back to tables screen
+      }
+      
+      // Success message and navigation
       toast.show({
-        description: "KOT printed successfully",
+        description: "KOT processed successfully",
         status: "success",
         duration: 2000,
       });
+
+      // After successful print, navigate back to tables screen
+      setTimeout(() => {
+        router.replace("/screens/tables");
+      }, 1000);
+      
     } catch (error) {
       console.error("KOT error:", error);
       toast.show({
@@ -714,7 +879,7 @@ export default function CreateOrderScreen() {
         duration: 3000,
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
       setLoadingMessage("");
     }
   };
@@ -729,16 +894,31 @@ export default function CreateOrderScreen() {
 
       console.log("Generating KOT commands...");
       
-      // Generate KOT commands
-      const kotCommands = await generateKOTCommands(orderData);
+      // Generate KOT commands with error handling
+      let kotCommands;
+      try {
+        kotCommands = await generateKOTCommands(orderData);
+        if (!kotCommands || !Array.isArray(kotCommands)) {
+          throw new Error("Invalid KOT commands generated");
+        }
+        console.log("KOT commands generated successfully");
+      } catch (genError) {
+        console.error("Error generating KOT commands:", genError);
+        throw new Error("Failed to prepare KOT data: " + genError.message);
+      }
       
       console.log("Sending KOT to printer...");
       
       // Send commands to printer using PrinterContext
-      await sendDataToPrinter(kotCommands);
+      try {
+        await sendDataToPrinter(kotCommands);
+        console.log("KOT data sent to printer successfully");
+      } catch (printError) {
+        console.error("Error sending data to printer:", printError);
+        throw new Error("Failed to send KOT data to printer: " + printError.message);
+      }
       
       console.log("KOT printed successfully");
-      
       return true;
     } catch (error) {
       console.error("KOT printing error:", error);
@@ -781,107 +961,6 @@ const handleSettleOrder = async () => {
   setShowPaymentModal(true);
 };
 
-// Add this new function to handle settle payment confirmation
-const handleSettlePaymentConfirm = async () => {
-  try {
-    setIsLoading(true);
-    setLoadingMessage("Processing settlement...");
-    setShowPaymentModal(false);
-
-    const [storedUserId, storedOutletId] = await Promise.all([
-      AsyncStorage.getItem("user_id"),
-      AsyncStorage.getItem("outlet_id"),
-    ]);
-
-    if (!storedUserId || !storedOutletId) {
-      throw new Error("Missing required information");
-    }
-
-    const orderItems = selectedItems.map((item) => ({
-      menu_id: item.menu_id?.toString(),
-      quantity: parseInt(item.quantity) || 1,
-      comment: item.specialInstructions || "",
-      half_or_full: (item.portionSize || "full").toLowerCase(),
-      price: parseFloat(item.price) || 0,
-      total_price: parseFloat(item.total_price) || 0,
-    }));
-
-    // Use the selected payment method and paid status from the modal
-    const paymentStatus = isPaidChecked ? "paid" : (isComplementary ? "complementary" : "unpaid");
-    const effectivePaymentMethod = isPaidChecked ? selectedPaymentMethod.toLowerCase() : "";
-
-    const orderData = {
-      user_id: storedUserId?.toString(),
-      outlet_id: storedOutletId?.toString(),
-      order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
-      order_items: orderItems,
-      grand_total: calculateGrandTotal(
-        selectedItems,
-        specialDiscount,
-        extraCharges,
-        serviceChargePercentage,
-        gstPercentage,
-        tip
-      )?.toString(),
-      action: "settle",
-      is_paid: paymentStatus,
-      payment_method: effectivePaymentMethod,
-      special_discount: specialDiscount?.toString(),
-      charges: extraCharges?.toString(),
-      tip: tip?.toString(),
-      customer_name: customerDetails.customer_name || "",
-      customer_mobile: customerDetails.customer_mobile || "",
-      customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-      customer_address: customerDetails.customer_address || "",
-      customer_landmark: customerDetails.customer_landmark || "",
-    };
-
-    if (!params?.isSpecialOrder) {
-      if (!params.tableNumber || !params.sectionId) {
-        throw new Error("Missing table or section information for dine-in order");
-      }
-      orderData.tables = [params.tableNumber?.toString()];
-      orderData.section_id = params.sectionId?.toString();
-    }
-
-    const endpoint = params?.orderId ? 
-      `${onGetProductionUrl()}update_order` : 
-      `${onGetProductionUrl()}create_order`;
-
-    if (params?.orderId) {
-      orderData.order_id = params.orderId?.toString();
-    }
-
-    console.log(`Making request to ${endpoint}`);
-    const response = await axiosInstance.post(endpoint, orderData);
-    
-    if (response.data.st !== 1) {
-      throw new Error(response.data.msg || "Failed to settle order");
-    }
-
-    toast.show({
-      description: "Order settled successfully",
-      status: "success",
-      duration: 3000,
-    });
-
-    // Refresh order details
-    await refreshOrderDetails();
-
-    // Navigate back to tables
-    router.replace("/screens/tables");
-  } catch (error) {
-    console.error("Error settling order:", error);
-    toast.show({
-      description: error.response?.data?.msg || error.message || "Failed to settle order",
-      status: "error",
-      duration: 3000,
-    });
-  } finally {
-    setIsLoading(false);
-    setLoadingMessage("");
-  }
-};
 
 
   useEffect(() => {
@@ -1654,6 +1733,7 @@ const handleSettlePaymentConfirm = async () => {
         }
         
         // First save the order data if not already saved
+        // IMPORTANT: Using "print_and_save" action type - matches owner app (OrderCreate.js)
         apiResponse = await createOrder("print_and_save", true);
         
         if (!apiResponse || apiResponse.st !== 1) {
@@ -2154,14 +2234,38 @@ const handleSettlePaymentConfirm = async () => {
       let commands = [...COMMANDS.INITIALIZE];
       
       // Get restaurant name and current date/time
-      const [outletName, outletAddress] = await Promise.all([
+      const [outletName, outletAddress, outletMobile] = await Promise.all([
         AsyncStorage.getItem("outlet_name"),
         AsyncStorage.getItem("outlet_address"),
+        AsyncStorage.getItem("outlet_mobile"),
       ]);
 
+      // Improved date/time formatting to match owner app
       const getCurrentDateTime = () => {
         const now = new Date();
-        return `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+        
+        // Get the day as 2-digit
+        const day = String(now.getDate()).padStart(2, '0');
+        
+        // Get the month name in uppercase
+        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const month = monthNames[now.getMonth()];
+        
+        // Get the year
+        const year = now.getFullYear();
+        
+        // Get hours and format for 12-hour clock
+        let hours = now.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // the hour '0' should be '12'
+        hours = String(hours).padStart(2, '0');
+        
+        // Get minutes
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        
+        // Format the final date string
+        return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
       };
       
       // Get order number with fallbacks
@@ -2182,72 +2286,86 @@ const handleSettlePaymentConfirm = async () => {
       commands.push(
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         ...textToBytes("\x1B\x21\x10"), // Double height
-        ...textToBytes("KOT\n"),
+        ...textToBytes("*** KOT ***\n\n"),
         ...textToBytes("\x1B\x21\x00"), // Normal text
         ...textToBytes(`${outletName || "Restaurant"}\n`),
+        ...textToBytes(`${outletAddress || ""}\n`),
+        ...textToBytes(`${outletMobile || ""}\n\n`),
         
         ...textToBytes("\x1B\x61\x00"), // Left align
-        ...textToBytes(`Order: #${orderNumber}\n`),
+        ...textToBytes(`Bill no: ${orderNumber}\n`),
         ...textToBytes(`Table: ${tableInfo}\n`),
-        ...textToBytes(`Date: ${orderData?.datetime || getCurrentDateTime()}\n`),
-        ...textToBytes(`${getDottedLine()}`),
-        ...textToBytes("Item                      Qty\n"),
-        ...textToBytes(`${getDottedLine()}`)
+        ...textToBytes(`DateTime: ${orderData?.datetime || getCurrentDateTime()}\n`), 
+        
+        ...(customerDetails?.customer_name ? [textToBytes(`Name: ${customerDetails.customer_name}\n`)] : []),
+        
+        ...textToBytes(getDottedLine()),
+        ...textToBytes("Item                    Qty\n"),
+        ...textToBytes(getDottedLine())
       );
       
       // Add menu items
       let totalQty = 0;
       
       // Use the items from the order, if available
-      const items = selectedItems;
+      const items = selectedItems || [];
       
-      // Make sure items exist
+      // Make sure items exist and handle safely
       if (items && items.length > 0) {
-        items.forEach((item) => {
-          const itemName = item.menu_name || "";
-          const quantity = item.quantity || 0;
-          totalQty += quantity;
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (!item) continue;
           
-          // Format item line (left-aligned item name, right-aligned quantity)
-          let line = itemName;
-          
-          // Append portion size if applicable
-          if (item.portionSize && item.portionSize.toLowerCase() !== "full") {
-            line += ` (${item.portionSize})`;
-          }
-          
-          // Add instructions if available
-          let instructions = "";
-          if (item.specialInstructions) {
-            instructions = `  * ${item.specialInstructions}`;
-          }
-          
-          // Truncate and pad the line
-          if (line.length > 22) {
-            line = line.substring(0, 19) + "...";
-          }
-          
-          // Pad with spaces to align quantity
-          const padding = 22 - line.length;
-          line += " ".repeat(padding > 0 ? padding : 1) + quantity.toString();
-          
-          commands.push(
-            ...textToBytes(line + "\n")
-          );
-          
-          // Add instructions on next line if present
-          if (instructions) {
+          try {
+            const itemName = item.menu_name || item.name || "Unknown Item";
+            const quantity = parseInt(item.quantity) || 0;
+            totalQty += quantity;
+            
+            // Format item line (left-aligned item name, right-aligned quantity)
+            let line = itemName;
+            
+            // Append portion size if applicable
+            if (item.portionSize && item.portionSize.toLowerCase() !== "full") {
+              line += ` (${item.portionSize})`;
+            }
+            
+            // Add instructions if available
+            let instructions = "";
+            if (item.specialInstructions) {
+              instructions = `  * ${item.specialInstructions}`;
+            }
+            
+            // Truncate and pad the line
+            if (line.length > 22) {
+              line = line.substring(0, 19) + "...";
+            }
+            
+            // Pad with spaces to align quantity
+            const padding = 22 - line.length;
+            line += " ".repeat(padding > 0 ? padding : 1) + quantity.toString();
+            
             commands.push(
-              ...textToBytes("\x1B\x21\x00"), // Normal size
-              ...textToBytes(instructions + "\n")
+              ...textToBytes(line + "\n")
             );
+            
+            // Add instructions on next line if present
+            if (instructions) {
+              commands.push(
+                ...textToBytes("\x1B\x21\x00"), // Normal size
+                ...textToBytes(instructions + "\n")
+              );
+            }
+          } catch (itemError) {
+            console.error("Error processing item for KOT:", itemError);
+            // Continue with next item instead of crashing
+            continue;
           }
-        });
+        }
       }
       
       // Add footer
       commands.push(
-        ...textToBytes(`${getDottedLine()}`),
+        ...textToBytes(getDottedLine()),
         ...textToBytes(`Total Items: ${totalQty}\n\n`),
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         ...textToBytes("*** KITCHEN COPY ***\n\n\n"),
@@ -2257,7 +2375,7 @@ const handleSettlePaymentConfirm = async () => {
       return commands;
     } catch (error) {
       console.error("Error generating KOT commands:", error);
-      throw error;
+      throw new Error("Failed to generate KOT data: " + (error.message || "Unknown error"));
     }
   };
 
@@ -2721,6 +2839,7 @@ const handleSettlePaymentConfirm = async () => {
       }
       
       // Then save the order with the KOT_and_save action type
+      // IMPORTANT: Using "KOT_and_save" action type - matches owner app (OrderCreate.js)
       const response = await createOrder("KOT_and_save");
       console.log("KOT_and_save response:", response);
       
@@ -2906,6 +3025,184 @@ const handleSettlePaymentConfirm = async () => {
     } else {
       router.replace("/screens/tables");
     }
+  };
+
+  // Add state for tracking the current action and modal state
+  const [currentAction, setCurrentAction] = useState(""); // "kot" or "settle"
+
+  // Add the handleSettlePaymentConfirm function inside the component
+  const handleSettlePaymentConfirm = async () => {
+    try {
+      setIsLoading(true);
+      setLoadingMessage("Processing settlement...");
+      setShowPaymentModal(false);
+  
+      const [storedUserId, storedOutletId] = await Promise.all([
+        AsyncStorage.getItem("user_id"),
+        AsyncStorage.getItem("outlet_id"),
+      ]);
+  
+      if (!storedUserId || !storedOutletId) {
+        throw new Error("Missing required information");
+      }
+  
+      const orderItems = selectedItems.map((item) => ({
+        menu_id: item.menu_id?.toString(),
+        quantity: parseInt(item.quantity) || 1,
+        comment: item.specialInstructions || "",
+        half_or_full: (item.portionSize || "full").toLowerCase(),
+        price: parseFloat(item.price) || 0,
+        total_price: parseFloat(item.total_price) || 0,
+      }));
+  
+      // Use the selected payment method and paid status from the modal
+      const paymentStatus = isPaidChecked ? "paid" : (isComplementary ? "complementary" : "unpaid");
+      const effectivePaymentMethod = isPaidChecked ? selectedPaymentMethod.toLowerCase() : "";
+  
+      const orderData = {
+        user_id: storedUserId?.toString(),
+        outlet_id: storedOutletId?.toString(),
+        order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
+        order_items: orderItems,
+        grand_total: calculateGrandTotal(
+          selectedItems,
+          specialDiscount,
+          extraCharges,
+          serviceChargePercentage,
+          gstPercentage,
+          tip
+        )?.toString(),
+        action: "settle",
+        is_paid: paymentStatus,
+        payment_method: effectivePaymentMethod,
+        special_discount: specialDiscount?.toString(),
+        charges: extraCharges?.toString(),
+        tip: tip?.toString(),
+        customer_name: customerDetails.customer_name || "",
+        customer_mobile: customerDetails.customer_mobile || "",
+        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+        customer_address: customerDetails.customer_address || "",
+        customer_landmark: customerDetails.customer_landmark || "",
+      };
+  
+      if (!params?.isSpecialOrder) {
+        if (!params.tableNumber || !params.sectionId) {
+          throw new Error("Missing table or section information for dine-in order");
+        }
+        orderData.tables = [params.tableNumber?.toString()];
+        orderData.section_id = params.sectionId?.toString();
+      }
+  
+      const endpoint = params?.orderId ? 
+        `${onGetProductionUrl()}update_order` : 
+        `${onGetProductionUrl()}create_order`;
+  
+      if (params?.orderId) {
+        orderData.order_id = params.orderId?.toString();
+      }
+  
+      console.log(`Making request to ${endpoint}`);
+      const response = await axiosInstance.post(endpoint, orderData);
+      
+      if (response.data.st !== 1) {
+        throw new Error(response.data.msg || "Failed to settle order");
+      }
+  
+      toast.show({
+        description: "Order settled successfully",
+        status: "success",
+        duration: 3000,
+      });
+  
+      // Refresh order details
+      await refreshOrderDetails();
+  
+      // Navigate back to tables
+      router.replace("/screens/tables");
+    } catch (error) {
+      console.error("Error settling order:", error);
+      toast.show({
+        description: error.response?.data?.msg || error.message || "Failed to settle order",
+        status: "error",
+        duration: 3000,
+      });
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage("");
+    }
+  }; 
+
+  // Add a handlePaymentModalConfirm function similar to the owner app
+  const handlePaymentModalConfirm = () => {
+    // Validate payment method selection when paid is checked
+    if (isPaidChecked && !selectedPaymentMethod) {
+      toast.show({
+        description: "Please select a payment method",
+        status: "warning",
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Store the current selected payment method before closing the modal
+    const selectedMethod = selectedPaymentMethod;
+    
+    // Close the modal
+    setShowPaymentModal(false);
+    
+    // Transfer the isPaidChecked value to isPaid
+    setIsPaid(isPaidChecked);
+    
+    // Call the appropriate handler based on which button was clicked
+    if (currentAction === 'kot') {
+      // For KOT, we can call the handleKOT function
+      handleKOT();
+    } else if (currentAction === 'settle') {
+      // For Settle, call the handleSettlePaymentConfirm function
+      handleSettlePaymentConfirm();
+    }
+  };
+
+  // Add handler for KOT button press
+  const onKOTPress = () => {
+    if (selectedItems.length === 0) {
+      toast.show({
+        description: "Please add items to the order",
+        status: "warning",
+        duration: 2000,
+      });
+      return;
+    }
+    
+    // Set the current action to 'kot'
+    setCurrentAction('kot');
+    
+    // Set isPaidChecked to true by default for the modal
+    setIsPaidChecked(true);
+    
+    // Show the payment modal
+    setShowPaymentModal(true);
+  };
+
+  // Add handler for Settle button press
+  const onSettlePress = () => {
+    if (selectedItems.length === 0) {
+      toast.show({
+        description: "Please add items to the order",
+        status: "warning",
+        duration: 2000,
+      });
+      return;
+    }
+    
+    // Set the current action to 'settle'
+    setCurrentAction('settle');
+    
+    // Set isPaidChecked to true by default for the modal
+    setIsPaidChecked(true);
+    
+    // Show the payment modal
+    setShowPaymentModal(true);
   };
 
   return (
@@ -3601,14 +3898,14 @@ const handleSettlePaymentConfirm = async () => {
                 size="lg"
                 bg={isPaidChecked ? "blue.500" : "coolGray.400"}
                 _pressed={{ bg: isPaidChecked ? "blue.600" : "coolGray.500" }}
-                onPress={loadingMessage.includes("KOT") ? handlePaymentConfirm : handleSettlePaymentConfirm}
+                onPress={handlePaymentModalConfirm}
                 isDisabled={!isPaidChecked}
                 _disabled={{
                   bg: "coolGray.400",
                   opacity: 0.5
                 }}
               >
-                Settle
+                {currentAction === 'kot' ? 'Generate KOT' : 'Settle'}
               </Button>
             </VStack>
           </Modal.Body>
