@@ -655,7 +655,7 @@ export default function CreateOrderScreen() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("CASH");
   const [isPaidChecked, setIsPaidChecked] = useState(false);
 
-  // Add separate handleKOT function - prints KOT without saving order
+  // Update handleKOT function to check for printer connection properly
   const handleKOT = async () => {
     try {
       if (selectedItems.length === 0) {
@@ -670,7 +670,8 @@ export default function CreateOrderScreen() {
       setIsSubmitting(true);
       setLoadingMessage("Printing KOT...");
       
-      if (!printerDevice || !isConnected) {
+      // Check if printer is connected using the PrinterContext
+      if (!printerConnected || !contextPrinterDevice) {
         Alert.alert(
           "Printer Not Connected",
           "Do you want to connect a printer?",
@@ -851,57 +852,30 @@ const handleSettlePaymentConfirm = async () => {
       orderData.order_id = params.orderId?.toString();
     }
 
-    const result = await fetchWithAuth(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(orderData),
+    console.log(`Making request to ${endpoint}`);
+    const response = await axiosInstance.post(endpoint, orderData);
+    
+    if (response.data.st !== 1) {
+      throw new Error(response.data.msg || "Failed to settle order");
+    }
+
+    toast.show({
+      description: "Order settled successfully",
+      status: "success",
+      duration: 3000,
     });
 
-    if (result.st === 1) {
-      // If order was successful, update the payment status
-      const settleRequestBody = {
-        outlet_id: storedOutletId?.toString(),
-        order_id: (params?.orderId || result.order_id)?.toString(),
-        order_status: "paid",
-        payment_method: selectedPaymentMethod.toLowerCase(),
-        user_id: storedUserId?.toString(),
-      };
+    // Refresh order details
+    await refreshOrderDetails();
 
-      const settleResult = await fetchWithAuth(
-        `${onGetProductionUrl()}update_order_status`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(settleRequestBody),
-        }
-      );
-
-      if (settleResult.st !== 1) {
-        throw new Error(settleResult.msg || "Failed to settle order");
-      }
-
-      toast.show({
-        description: "Order settled successfully!",
-        status: "success"
-      });
-
-      // Clear states and navigate
-      setSelectedItems([]);
-      router.replace({
-        pathname: "/(tabs)/tables",
-        params: { 
-          refresh: Date.now()?.toString(),
-          status: "completed"
-        }
-      });
-    } else {
-      throw new Error(result.msg || "Failed to process order");
-    }
+    // Navigate back to tables
+    router.replace("/screens/tables");
   } catch (error) {
     console.error("Error settling order:", error);
     toast.show({
-      description: error.message || "Failed to settle order",
-      status: "error"
+      description: error.response?.data?.msg || error.message || "Failed to settle order",
+      status: "error",
+      duration: 3000,
     });
   } finally {
     setIsLoading(false);
@@ -1653,8 +1627,8 @@ const handleSettlePaymentConfirm = async () => {
   // Update handlePrint to use the PrinterContext
   const handlePrint = async () => {
     try {
-      // Check if we're connected to a printer
-      if (!printerDevice || !isConnected) {
+      // Check if we're connected to a printer using PrinterContext
+      if (!printerConnected || !contextPrinterDevice) {
         toast.show({
           description: "No printer connected. Please connect a printer first.",
           placement: "top",
@@ -1671,14 +1645,39 @@ const handleSettlePaymentConfirm = async () => {
       // Get order data to print
       let apiResponse;
       try {
+        console.log("Starting print process - verifying authentication");
+        
+        // Verify authentication token is present
+        const token = await AsyncStorage.getItem('access');
+        if (!token) {
+          throw new Error("Authentication token missing. Please log in again.");
+        }
+        
         // First save the order data if not already saved
-        apiResponse = await createOrder("saved", true);
+        apiResponse = await createOrder("print_and_save", true);
         
         if (!apiResponse || apiResponse.st !== 1) {
           throw new Error(apiResponse?.msg || "Failed to save order data");
         }
+        
+        console.log("Order saved successfully for printing, response:", JSON.stringify(apiResponse));
       } catch (error) {
         console.error("Error saving order before print:", error);
+        
+        // Check if it's an auth error
+        if (error.message?.includes("401") || error.message?.includes("Unauthorized")) {
+          toast.show({
+            description: "Authentication error. Please log in again.",
+            status: "error",
+            duration: 3000,
+          });
+          
+          setTimeout(() => {
+            router.replace("/login");
+          }, 1500);
+          return;
+        }
+        
         toast.show({
           description: `Error preparing print: ${error.message}`,
           status: "error",
@@ -2034,6 +2033,8 @@ const handleSettlePaymentConfirm = async () => {
   // Update the generatePrinterCommands function
   const generatePrinterCommands = async (orderData) => {
     try {
+      console.log("Generating printer commands with data:", JSON.stringify(orderData));
+      
       // Initialize commands with printer reset
       let commands = [...COMMANDS.INITIALIZE];
 
@@ -2077,12 +2078,15 @@ const handleSettlePaymentConfirm = async () => {
         `upi://pay?pa=${upiId}&pn=${encodeURIComponent(outletName || "Restaurant")}&am=${total.toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Bill #${params?.orderId || "New"}`)}` : 
         "8459719119-2@ibl";
 
-      // Get order number with fallbacks
+      // Get order number with fallbacks, adapting to various response formats
       const orderNumber = 
-        orderData?.lists?.order_details?.order_number || // For existing orders (from API response)
-        orderData?.order_number || // For new orders (from API response)
-        params?.orderId || // Fallback to URL params
+        orderData?.lists?.order_details?.order_number || // Old format
+        orderData?.order_details?.order_number || // New format
+        orderData?.order_number || // Direct format
+        params?.orderId || // URL param fallback
         "New"; 
+      
+      console.log("Using order number:", orderNumber);
 
       // Create header
       commands.push(
@@ -2361,6 +2365,22 @@ const handleSettlePaymentConfirm = async () => {
         return;
       }
 
+      // Add token verification step
+      const accessToken = await AsyncStorage.getItem('access');
+      if (!accessToken) {
+        console.error("Authentication token missing");
+        toast.show({
+          description: "Authentication error. Please log in again.",
+          status: "error",
+          duration: 3000,
+        });
+        
+        // Delay to allow toast to show before potentially navigating
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        router.replace("/login");
+        return;
+      }
+
       const [storedUserId, storedOutletId] = await Promise.all([
         AsyncStorage.getItem("user_id"),
         AsyncStorage.getItem("outlet_id"),
@@ -2373,16 +2393,20 @@ const handleSettlePaymentConfirm = async () => {
       // If this is a new order for a table, check if the table is already occupied
       if (!params?.orderId && params?.tableNumber && params?.isOccupied !== "1") {
         try {
-          const tableCheckResponse = await axiosInstance.post(
-            onGetProductionUrl() + "check_table_is_reserved",
-            {
-              outlet_id: storedOutletId?.toString(),
-              table_number: params.tableNumber?.toString(),
-              section_id: params.sectionId?.toString(),
+          // Use fetchWithAuth instead of axiosInstance
+          const tableCheckResponse = await fetchWithAuth(
+            onGetProductionUrl() + "check_table_is_reserved", {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                outlet_id: storedOutletId?.toString(),
+                table_number: params.tableNumber?.toString(),
+                section_id: params.sectionId?.toString(),
+              })
             }
           );
           
-          if (tableCheckResponse.data.st === 0) {
+          if (tableCheckResponse.st === 0) {
             throw new Error(`Table ${params.tableNumber} is currently occupied`);
           }
         } catch (tableCheckError) {
@@ -2427,7 +2451,7 @@ const handleSettlePaymentConfirm = async () => {
           gstPercentage,
           tip
         )?.toString(),
-        action: orderStatus,
+        action: orderStatus, // This can now be "create_order", "saved", "settle", "KOT_and_save", or "print_and_save"
         is_paid: paymentStatus,
         payment_method: effectivePaymentMethod,
         special_discount: specialDiscount?.toString(),
@@ -2456,29 +2480,67 @@ const handleSettlePaymentConfirm = async () => {
         orderData.order_id = params.orderId?.toString();
       }
 
-      console.log(`Making request to ${endpoint}`);
-      const response = await axiosInstance.post(endpoint, orderData);
+      console.log(`Making request to ${endpoint} with action: ${orderStatus}`);
+      console.log('Using auth token:', accessToken.substring(0, 10) + '...');
+      console.log('Order data:', JSON.stringify(orderData, null, 2));
+      
+      // Use fetchWithAuth instead of axiosInstance for better auth handling
+      const response = await fetchWithAuth(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData)
+      });
       
       // Log whole response
-      console.log(`${orderStatus} Response:`, response.data);
+      console.log(`${orderStatus} Response:`, response);
 
-      if (response.data.st !== 1) {
-        throw new Error(response.data.msg || "Failed to process order");
+      if (response.st !== 1) {
+        throw new Error(response.msg || "Failed to process order");
       }
 
       if (returnResponse) {
-        return response.data;
+        return response;
       }
 
+      let successMessage = "Order processed successfully";
+      
+      // Customize message based on action type
+      if (orderStatus === "create_order") {
+        successMessage = `Order ${params?.orderId ? "updated" : "created"} successfully`;
+      } else if (orderStatus === "saved") {
+        successMessage = "Order saved successfully";
+      } else if (orderStatus === "settle") {
+        successMessage = "Order settled successfully";
+      } else if (orderStatus === "KOT_and_save") {
+        successMessage = "Order saved with KOT successfully";
+      } else if (orderStatus === "print_and_save") {
+        successMessage = "Order saved for printing successfully";
+      }
+      
       toast.show({
-        description: `Order ${params?.orderId ? "updated" : "created"} successfully`,
+        description: successMessage,
         status: "success",
         duration: 3000,
       });
 
-      return true;
+      return response;
     } catch (error) {
       console.error(`${orderStatus} Error:`, error);
+      
+      // Check if it's an authentication error
+      if (error.message?.includes("Unauthorized") || error.message?.includes("401")) {
+        toast.show({
+          description: "Your session has expired. Please log in again.",
+          status: "error",
+          duration: 4000,
+        });
+        
+        // Delay to allow toast to show
+        setTimeout(() => {
+          router.replace("/login");
+        }, 1500);
+        return false;
+      }
       
       if (error.message?.includes("currently occupied")) {
         toast.show({
@@ -2490,7 +2552,7 @@ const handleSettlePaymentConfirm = async () => {
       } else {
         if (!returnResponse) {
           toast.show({
-            description: error.response?.data?.msg || error.message || "Failed to process order",
+            description: error.response?.msg || error.message || "Failed to process order",
             status: "error",
             duration: 3000,
           });
@@ -2609,8 +2671,23 @@ const handleSettlePaymentConfirm = async () => {
     try {
       setIsSubmitting(true);
       
+      // Verify authentication
+      const token = await AsyncStorage.getItem('access');
+      if (!token) {
+        toast.show({
+          description: "Authentication error. Please log in again.",
+          status: "error",
+          duration: 3000,
+        });
+        
+        setTimeout(() => {
+          router.replace("/login");
+        }, 1500);
+        return;
+      }
+      
       // First print the KOT
-      if (printerDevice && isConnected) {
+      if (printerConnected && contextPrinterDevice) {
         try {
           await printKOT({
             order_number: params?.orderId || "New",
@@ -2628,6 +2705,7 @@ const handleSettlePaymentConfirm = async () => {
             duration: 2000,
           });
         } catch (error) {
+          console.error("KOT print error:", error);
           toast.show({
             description: "Error printing KOT: " + error.message,
             placement: "top",
@@ -2642,8 +2720,9 @@ const handleSettlePaymentConfirm = async () => {
         });
       }
       
-      // Then save the order
-      const response = await createOrder("saved");
+      // Then save the order with the KOT_and_save action type
+      const response = await createOrder("KOT_and_save");
+      console.log("KOT_and_save response:", response);
       
       if (response && response.st === 1) {
         toast.show({
@@ -2653,26 +2732,45 @@ const handleSettlePaymentConfirm = async () => {
         });
         
         // Update order status
-        if (response.lists && response.lists.order_details) {
-          setOrderStatus("saved");
-          
-          // If this is a new order, update the order ID
-          if (!params.orderId && response.lists.order_details.order_number) {
-            router.setParams({ orderId: response.lists.order_details.order_number });
-          }
-          
-          // Refresh order details
-          await refreshOrderDetails();
+        setOrderStatus("saved");
+        
+        // If this is a new order, update the order ID
+        const orderNumber = 
+          response.lists?.order_details?.order_number || // Old format
+          response.order_details?.order_number || // New format
+          response.order_number; // Direct format
+        
+        if (!params.orderId && orderNumber) {
+          console.log("Updating order ID in params:", orderNumber);
+          router.setParams({ orderId: orderNumber });
         }
+        
+        // Refresh order details
+        await refreshOrderDetails();
       } else {
         toast.show({
-          description: response?.msg || "Failed to save order",
+          description: "Failed to save order",
           placement: "top",
           duration: 3000,
         });
       }
     } catch (error) {
       console.error("Error in KOT and Save:", error);
+      
+      // Check if it's an authentication error
+      if (error.message?.includes("401") || error.message?.includes("Unauthorized")) {
+        toast.show({
+          description: "Authentication error. Please log in again.",
+          status: "error",
+          duration: 3000,
+        });
+        
+        setTimeout(() => {
+          router.replace("/login");
+        }, 1500);
+        return;
+      }
+      
       toast.show({
         description: "Failed to process order: " + error.message,
         placement: "top",
