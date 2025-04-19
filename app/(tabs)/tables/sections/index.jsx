@@ -734,402 +734,389 @@ export default function TableSectionsScreen() {
 
   // Update the renderGridView function's table rendering logic
   const renderGridView = (sections) => (
-    <ScrollView
-      contentContainerStyle={{ padding: 8 }}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          colors={["#0891b2"]}
-          tintColor="#0891b2"
-          progressBackgroundColor="#ffffff"
-        />
-      }
-    >
-      <VStack space={4}>
-        {sections.map((section) => {
-          // Filter tables based on current criteria (search and status filter)
-          const filteredTables = getFilteredTables(section.tables);
-          
-          // Skip this section entirely if no tables match the filter criteria
-          if (filteredTables.length === 0 && filterStatus !== "all") {
-            return null;
-          }
-          
-          const tablesByRow = getTablesByRow(section.tables);
-          const hasNoTables = !section.tables || section.tables.length === 0;
+    <VStack space={4} p={2} pb={24}>
+      {sections.map((section) => {
+        // Filter tables based on current criteria (search and status filter)
+        const filteredTables = getFilteredTables(section.tables);
+        
+        // Skip this section entirely if no tables match the filter criteria
+        if (filteredTables.length === 0 && filterStatus !== "all") {
+          return null;
+        }
+        
+        const tablesByRow = getTablesByRow(section.tables);
+        const hasNoTables = !section.tables || section.tables.length === 0;
 
-          return (
-            <Box key={section.id}>
-              <Box mb={2}>
-                <Box bg="white" p={4} rounded="lg" shadow={1}>
-                  <VStack space={4}>
-                    {/* Section Header */}
-                    <VStack space={1}>
-                      <HStack
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <HStack space={2} alignItems="center" flex={1}>
-                          {editingSectionId === section.id ? (
-                            <Input
-                              defaultValue={section.name}
-                              onChangeText={(text) => setEditedSectionName(text)}
-                              autoFocus
-                              size="lg"
-                              variant="unstyled"
-                              px={2}
-                              py={1}
-                              bg="coolGray.100"
-                              rounded="md"
-                              onBlur={() => {
-                                if (editedSectionName) {
-                                  handleEditSectionNameChange(section);
-                                } else {
-                                  setEditingSectionId(null);
-                                }
-                              }}
-                              onSubmitEditing={() => {
-                                if (editedSectionName) {
-                                  handleEditSectionNameChange(section);
-                                } else {
-                                  setEditingSectionId(null);
-                                }
-                              }}
-                            />
-                          ) : (
-                            <Text fontSize="lg" fontWeight="bold">
-                              {section.name}
-                            </Text>
-                          )}
-                        </HStack>
-                        
-                        {showEditIcons && (
-                          <HStack space={2} alignItems="center">
-                            <IconButton
-                              size="sm"
-                              variant="ghost"
-                              colorScheme="blue"
-                              icon={<MaterialIcons name="edit" size={20} color="blue.500" />}
-                              onPress={() => {
-                                setEditingSectionId(section.id);
-                                setEditedSectionName(section.name);
-                              }}
-                            />
-                            <IconButton
-                              size="sm"
-                              variant="ghost"
-                              colorScheme="red"
-                              icon={<MaterialIcons name="delete" size={20} color="red.500" />}
-                              onPress={() => {
-                                setActiveSection(section);
-                                setShowDeleteModal(true);
-                              }}
-                            />
-                          </HStack>
+        return (
+          <Box key={section.id}>
+            <Box mb={2}>
+              <Box bg="white" p={4} rounded="lg" shadow={1}>
+                <VStack space={4}>
+                  {/* Section Header */}
+                  <VStack space={1}>
+                    <HStack
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <HStack space={2} alignItems="center" flex={1}>
+                        {editingSectionId === section.id ? (
+                          <Input
+                            defaultValue={section.name}
+                            onChangeText={(text) => setEditedSectionName(text)}
+                            autoFocus
+                            size="lg"
+                            variant="unstyled"
+                            px={2}
+                            py={1}
+                            bg="coolGray.100"
+                            rounded="md"
+                            onBlur={() => {
+                              if (editedSectionName) {
+                                handleEditSectionNameChange(section);
+                              } else {
+                                setEditingSectionId(null);
+                              }
+                            }}
+                            onSubmitEditing={() => {
+                              if (editedSectionName) {
+                                handleEditSectionNameChange(section);
+                              } else {
+                                setEditingSectionId(null);
+                              }
+                            }}
+                          />
+                        ) : (
+                          <Text fontSize="lg" fontWeight="bold">
+                            {section.name}
+                          </Text>
                         )}
                       </HStack>
                       
-                      {/* Section Stats */}
-                      <HStack space={3} alignItems="center">
-                        <HStack space={1} alignItems="center">
-                          <Box w={3} h={3} bg="gray.400" rounded="full" />
-                          <Text fontSize="xs" color="coolGray.600">
-                            Total: {section.totalTables}
-                          </Text>
+                      {showEditIcons && (
+                        <HStack space={2} alignItems="center">
+                          <IconButton
+                            size="sm"
+                            variant="ghost"
+                            colorScheme="blue"
+                            icon={<MaterialIcons name="edit" size={20} color="blue.500" />}
+                            onPress={() => {
+                              setEditingSectionId(section.id);
+                              setEditedSectionName(section.name);
+                            }}
+                          />
+                          <IconButton
+                            size="sm"
+                            variant="ghost"
+                            colorScheme="red"
+                            icon={<MaterialIcons name="delete" size={20} color="red.500" />}
+                            onPress={() => {
+                              setActiveSection(section);
+                              setShowDeleteModal(true);
+                            }}
+                          />
                         </HStack>
-                        <HStack space={1} alignItems="center">
-                          <Box w={3} h={3} bg="red.400" rounded="full" />
-                          <Text fontSize="xs" color="coolGray.600">
-                            Occupied: {section.engagedTables}
-                          </Text>
-                        </HStack>
-                        <HStack space={1} alignItems="center">
-                          <Box w={3} h={3} bg="green.400" rounded="full" />
-                          <Text fontSize="xs" color="coolGray.600">
-                            Available: {section.totalTables - section.engagedTables}
-                          </Text>
-                        </HStack>
-                      </HStack>
-                    </VStack>
-
-                    {/* Divider */}
-                    <Box height={0.5} bg="coolGray.200" />
-
-                    {/* Show tables or no tables message */}
-                    {filteredTables.length === 0 ? (
-                      <Center py={4}>
-                        <Text color="coolGray.500" fontSize="sm">
-                          No tables match the current filter.
+                      )}
+                    </HStack>
+                    
+                    {/* Section Stats */}
+                    <HStack space={3} alignItems="center">
+                      <HStack space={1} alignItems="center">
+                        <Box w={3} h={3} bg="gray.400" rounded="full" />
+                        <Text fontSize="xs" color="coolGray.600">
+                          Total: {section.totalTables}
                         </Text>
-                      </Center>
-                    ) : (
-                      <VStack space={0}>
-                        <VStack space={4}>
-                          {Object.entries(tablesByRow).map(
-                            ([rowIndex, row]) => (
-                              <HStack
-                                key={rowIndex}
-                                px={0}
-                                py={4}
-                                alignItems="center"
-                                justifyContent="space-between"
-                              >
-                                {Array.from({ length: 4 }).map(
-                                  (_, colIndex) => {
-                                    const isAddTableSlot =
-                                      showEditIcons &&
-                                      ((hasNoTables &&
-                                        rowIndex === "0" &&
-                                        colIndex === 0) ||
-                                        (!hasNoTables &&
-                                          rowIndex ===
-                                            Math.floor(
-                                              section.tables.length / 4
-                                            ).toString() &&
-                                          colIndex ===
-                                            section.tables.length % 4));
+                      </HStack>
+                      <HStack space={1} alignItems="center">
+                        <Box w={3} h={3} bg="red.400" rounded="full" />
+                        <Text fontSize="xs" color="coolGray.600">
+                          Occupied: {section.engagedTables}
+                        </Text>
+                      </HStack>
+                      <HStack space={1} alignItems="center">
+                        <Box w={3} h={3} bg="green.400" rounded="full" />
+                        <Text fontSize="xs" color="coolGray.600">
+                          Available: {section.totalTables - section.engagedTables}
+                        </Text>
+                      </HStack>
+                    </HStack>
+                  </VStack>
 
-                                    const table = row[colIndex];
-                                    const isOccupied = table?.is_occupied === 1;
+                  {/* Divider */}
+                  <Box height={0.5} bg="coolGray.200" />
 
-                                    return (
-                                      <Box key={`${rowIndex}-${colIndex}`}>
-                                        {table ? (
-                                          <Pressable
-                                            onPress={() =>
-                                              handleTablePress(table, section)
-                                            }
-                                          >
-                                            <Box
-                                              p={2}
-                                              rounded="lg"
-                                              width={20}
-                                              height={20}
-                                              bg={
-                                                isOccupied
-                                                  ? table.order_id ? "orange.100" : "red.100"
-                                                  : table.is_reserved ? "gray.100" : "green.100"
-                                              }
-                                              borderWidth={1}
-                                              borderStyle="dashed"
-                                              borderColor={
-                                                isOccupied
-                                                  ? table.order_id ? "orange.600" : "red.600"
-                                                  : table.is_reserved ? "gray.600" : "green.600"
-                                              }
-                                              position="relative"
-                                            >
-                                              {/* Price banner for occupied tables */}
-                                              {isOccupied && (
-                                                <Box
-                                                  position="absolute"
-                                                  top={-10}
-                                                  left={-2}
-                                                  right={-2}
-                                                  bg={table.order_id ? "orange.500" : "red.500"}
-                                                  py={0.5}
-                                                  rounded="md"
-                                                  shadow={1}
-                                                  zIndex={1}
-                                                  alignItems="center"
-                                                >
-                                                  <Text
-                                                    color="white"
-                                                    fontSize="sm"
-                                                    fontWeight="bold"
-                                                    numberOfLines={1}
-                                                    adjustsFontSizeToFit
-                                                  >
-                                                    ₹{(table.grand_total || 0).toFixed(2)}
-                                                  </Text>
-                                                </Box>
-                                              )}
+                  {/* Show tables or no tables message */}
+                  {filteredTables.length === 0 ? (
+                    <Center py={4}>
+                      <Text color="coolGray.500" fontSize="sm">
+                        No tables match the current filter.
+                      </Text>
+                    </Center>
+                  ) : (
+                    <VStack space={0}>
+                      <VStack space={4}>
+                        {Object.entries(tablesByRow).map(
+                          ([rowIndex, row]) => (
+                            <HStack
+                              key={rowIndex}
+                              px={0}
+                              py={4}
+                              alignItems="center"
+                              justifyContent="space-between"
+                            >
+                              {Array.from({ length: 4 }).map(
+                                (_, colIndex) => {
+                                  const isAddTableSlot =
+                                    showEditIcons &&
+                                    ((hasNoTables &&
+                                      rowIndex === "0" &&
+                                      colIndex === 0) ||
+                                      (!hasNoTables &&
+                                        rowIndex ===
+                                          Math.floor(
+                                            section.tables.length / 4
+                                          ).toString() &&
+                                        colIndex ===
+                                          section.tables.length % 4));
 
-                                              {/* Reserved label */}
-                                              {table.is_reserved && (
-                                                <Box
-                                                  position="absolute"
-                                                  top={-10}
-                                                  left="95%"
-                                                  style={{ transform: [{ translateX: -50 }] }}
-                                                  bg="gray.500"
-                                                  px={0.5}
-                                                  py={1}
-                                                  rounded="10px"
-                                                  zIndex={1}
-                                                >
-                                                  <Text
-                                                    fontSize={12}
-                                                    color="white"
-                                                    fontWeight="medium"
-                                                  >
-                                                    Reserved
-                                                  </Text>
-                                                </Box>
-                                              )}
+                                  const table = row[colIndex];
+                                  const isOccupied = table?.is_occupied === 1;
 
-                                              {/* QR icon when settings is active */}
-                                              {showEditIcons && (
-                                                <IconButton
-                                                  position="absolute"
-                                                  bottom={-2}
-                                                  right={-2}
-                                                  zIndex={2}
-                                                  size="sm"
-                                                  rounded="full"
-                                                  bg="white"
-                                                  shadow={2}
-                                                  _pressed={{ bg: "gray.100" }}
-                                                  _hover={{ bg: "gray.50" }}
-                                                  icon={
-                                                    <MaterialIcons
-                                                      name="qr-code"
-                                                      size={16}
-                                                      color="gray"
-                                                    />
-                                                  }
-                                                  onPress={() => handleQRIconPress(table, section)}
-                                                />
-                                              )}
-
-                                              {/* Payment icon for occupied tables with orders */}
-                                              {isOccupied && table.order_id && (
-                                                <Box
-                                                  position="absolute"
-                                                  bottom={-13}
-                                                  left="50%"
-                                                  style={{ transform: [{ translateX: -16 }] }}
-                                                  zIndex={2}
-                                                >
-                                                  <Pressable
-                                                    onPress={() => handlePaymentIconPress(table, section)}
-                                                    bg="white"
-                                                    rounded="full"
-                                                    size={8}
-                                                    shadow={3}
-                                                    alignItems="center"
-                                                    justifyContent="center"
-                                                  >
-                                                    <MaterialIcons
-                                                      name="print"
-                                                      size={20}
-                                                      color="#f97316"
-                                                    />
-                                                  </Pressable>
-                                                </Box>
-                                              )}
-
-                                              {/* Delete icon for last table */}
-                                              {showEditIcons && 
-                                                table.table_id === getLastTable(section.tables)?.table_id && 
-                                                table.is_occupied === 0 && (
-                                                <IconButton
-                                                  position="absolute"
-                                                  top={-2}
-                                                  right={-2}
-                                                  zIndex={2}
-                                                  size="sm"
-                                                  rounded="full"
-                                                  bg="white"
-                                                  shadow={2}
-                                                  _pressed={{ bg: "gray.100" }}
-                                                  _hover={{ bg: "gray.50" }}
-                                                  icon={
-                                                    <MaterialIcons
-                                                      name="delete"
-                                                      size={16}
-                                                      color="red"
-                                                    />
-                                                  }
-                                                  onPress={() => handleDeleteTable(section.id, table.table_id)}
-                                                />
-                                              )}
-
-                                              <VStack
-                                                space={2}
-                                                alignItems="center"
-                                                justifyContent="center"
-                                                height="100%"
-                                              >
-                                                <Text
-                                                  fontSize={24}
-                                                  fontWeight="bold"
-                                                  textAlign="center"
-                                                  color={
-                                                    isOccupied
-                                                      ? table.order_id ? "orange.500" : "red.500"
-                                                      : table.is_reserved ? "gray.500" : "green.500"
-                                                  }
-                                                >
-                                                  {table.table_number}
-                                                </Text>
-                                                {isOccupied && (
-                                                  <Text
-                                                    fontSize={12}
-                                                    mt={-2}
-                                                    color="coolGray.600"
-                                                    textAlign="center"
-                                                  >
-                                                    {table.timeSinceOccupied || "3h+"}
-                                                  </Text>
-                                                )}
-                                              </VStack>
-                                            </Box>
-                                          </Pressable>
-                                        ) : isAddTableSlot ? (
-                                          <Pressable
-                                            onPress={() => {
-                                              setSelectedSection(section.id);
-                                              setShowCreateTableModal(true);
-                                            }}
-                                          >
-                                            <Box
-                                              p={2}
-                                              rounded="lg"
-                                              width={20}
-                                              height={20}
-                                              borderWidth={1}
-                                              borderStyle="dashed"
-                                              borderColor="green.500"
-                                              justifyContent="center"
-                                              alignItems="center"
-                                              opacity={0.8}
-                                            >
-                                              <MaterialIcons
-                                                name="add-circle-outline"
-                                                size={24}
-                                                color="green"
-                                              />
-                                            </Box>
-                                          </Pressable>
-                                        ) : (
+                                  return (
+                                    <Box key={`${rowIndex}-${colIndex}`}>
+                                      {table ? (
+                                        <Pressable
+                                          onPress={() =>
+                                            handleTablePress(table, section)
+                                          }
+                                        >
                                           <Box
                                             p={2}
                                             rounded="lg"
                                             width={20}
                                             height={20}
-                                            opacity={0}
-                                          />
-                                        )}
-                                      </Box>
-                                    );
-                                  }
-                                )}
-                              </HStack>
-                            )
-                          )}
-                        </VStack>
+                                            bg={
+                                              isOccupied
+                                                ? table.order_id ? "orange.100" : "red.100"
+                                                : table.is_reserved ? "gray.100" : "green.100"
+                                            }
+                                            borderWidth={1}
+                                            borderStyle="dashed"
+                                            borderColor={
+                                              isOccupied
+                                                ? table.order_id ? "orange.600" : "red.600"
+                                                : table.is_reserved ? "gray.600" : "green.600"
+                                            }
+                                            position="relative"
+                                          >
+                                            {/* Price banner for occupied tables */}
+                                            {isOccupied && (
+                                              <Box
+                                                position="absolute"
+                                                top={-10}
+                                                left={-2}
+                                                right={-2}
+                                                bg={table.order_id ? "orange.500" : "red.500"}
+                                                py={0.5}
+                                                rounded="md"
+                                                shadow={1}
+                                                zIndex={1}
+                                                alignItems="center"
+                                              >
+                                                <Text
+                                                  color="white"
+                                                  fontSize="sm"
+                                                  fontWeight="bold"
+                                                  numberOfLines={1}
+                                                  adjustsFontSizeToFit
+                                                >
+                                                  ₹{(table.grand_total || 0).toFixed(2)}
+                                                </Text>
+                                              </Box>
+                                            )}
+
+                                            {/* Reserved label */}
+                                            {table.is_reserved && (
+                                              <Box
+                                                position="absolute"
+                                                top={-10}
+                                                left="95%"
+                                                style={{ transform: [{ translateX: -50 }] }}
+                                                bg="gray.500"
+                                                px={0.5}
+                                                py={1}
+                                                rounded="10px"
+                                                zIndex={1}
+                                              >
+                                                <Text
+                                                  fontSize={12}
+                                                  color="white"
+                                                  fontWeight="medium"
+                                                >
+                                                  Reserved
+                                                </Text>
+                                              </Box>
+                                            )}
+
+                                            {/* QR icon when settings is active */}
+                                            {showEditIcons && (
+                                              <IconButton
+                                                position="absolute"
+                                                bottom={-2}
+                                                right={-2}
+                                                zIndex={2}
+                                                size="sm"
+                                                rounded="full"
+                                                bg="white"
+                                                shadow={2}
+                                                _pressed={{ bg: "gray.100" }}
+                                                _hover={{ bg: "gray.50" }}
+                                                icon={
+                                                  <MaterialIcons
+                                                    name="qr-code"
+                                                    size={16}
+                                                    color="gray"
+                                                  />
+                                                }
+                                                onPress={() => handleQRIconPress(table, section)}
+                                              />
+                                            )}
+
+                                            {/* Payment icon for occupied tables with orders */}
+                                            {isOccupied && table.order_id && (
+                                              <Box
+                                                position="absolute"
+                                                bottom={-13}
+                                                left="50%"
+                                                style={{ transform: [{ translateX: -16 }] }}
+                                                zIndex={2}
+                                              >
+                                                <Pressable
+                                                  onPress={() => handlePaymentIconPress(table, section)}
+                                                  bg="white"
+                                                  rounded="full"
+                                                  size={8}
+                                                  shadow={3}
+                                                  alignItems="center"
+                                                  justifyContent="center"
+                                                >
+                                                  <MaterialIcons
+                                                    name="print"
+                                                    size={20}
+                                                    color="#f97316"
+                                                  />
+                                                </Pressable>
+                                              </Box>
+                                            )}
+
+                                            {/* Delete icon for last table */}
+                                            {showEditIcons && 
+                                              table.table_id === getLastTable(section.tables)?.table_id && 
+                                              table.is_occupied === 0 && (
+                                              <IconButton
+                                                position="absolute"
+                                                top={-2}
+                                                right={-2}
+                                                zIndex={2}
+                                                size="sm"
+                                                rounded="full"
+                                                bg="white"
+                                                shadow={2}
+                                                _pressed={{ bg: "gray.100" }}
+                                                _hover={{ bg: "gray.50" }}
+                                                icon={
+                                                  <MaterialIcons
+                                                    name="delete"
+                                                    size={16}
+                                                    color="red"
+                                                  />
+                                                }
+                                                onPress={() => handleDeleteTable(section.id, table.table_id)}
+                                              />
+                                            )}
+
+                                            <VStack
+                                              space={2}
+                                              alignItems="center"
+                                              justifyContent="center"
+                                              height="100%"
+                                            >
+                                              <Text
+                                                fontSize={24}
+                                                fontWeight="bold"
+                                                textAlign="center"
+                                                color={
+                                                  isOccupied
+                                                    ? table.order_id ? "orange.500" : "red.500"
+                                                    : table.is_reserved ? "gray.500" : "green.500"
+                                                }
+                                              >
+                                                {table.table_number}
+                                              </Text>
+                                              {isOccupied && (
+                                                <Text
+                                                  fontSize={12}
+                                                  mt={-2}
+                                                  color="coolGray.600"
+                                                  textAlign="center"
+                                                >
+                                                  {table.timeSinceOccupied || "3h+"}
+                                                </Text>
+                                              )}
+                                            </VStack>
+                                          </Box>
+                                        </Pressable>
+                                      ) : isAddTableSlot ? (
+                                        <Pressable
+                                          onPress={() => {
+                                            setSelectedSection(section.id);
+                                            setShowCreateTableModal(true);
+                                          }}
+                                        >
+                                          <Box
+                                            p={2}
+                                            rounded="lg"
+                                            width={20}
+                                            height={20}
+                                            borderWidth={1}
+                                            borderStyle="dashed"
+                                            borderColor="green.500"
+                                            justifyContent="center"
+                                            alignItems="center"
+                                            opacity={0.8}
+                                          >
+                                            <MaterialIcons
+                                              name="add-circle-outline"
+                                              size={24}
+                                              color="green"
+                                            />
+                                          </Box>
+                                        </Pressable>
+                                      ) : (
+                                        <Box
+                                          p={2}
+                                          rounded="lg"
+                                          width={20}
+                                          height={20}
+                                          opacity={0}
+                                        />
+                                      )}
+                                    </Box>
+                                  );
+                                }
+                              )}
+                            </HStack>
+                          )
+                        )}
                       </VStack>
-                    )}
-                  </VStack>
-                </Box>
+                    </VStack>
+                  )}
+                </VStack>
               </Box>
             </Box>
-          );
-        })}
-      </VStack>
-    </ScrollView>
+          </Box>
+        );
+      })}
+    </VStack>
   );
 
   const FilterButtons = () => (
@@ -2475,9 +2462,7 @@ export default function TableSectionsScreen() {
   return (
     <Box safeArea flex={1} bg="coolGray.100">
       <ScrollView
-        nestedScrollEnabled
         contentContainerStyle={{ flexGrow: 1 }}
-        scrollEnabled={false}
       >
         <VStack flex={1}>
           <HStack
@@ -2498,7 +2483,12 @@ export default function TableSectionsScreen() {
                 variant="ghost"
                 colorScheme="coolGray"
                 icon={<Icon as={MaterialIcons} name="settings" />}
-                onPress={() => router.push("/settings")}
+                onPress={() => setShowEditIcons(!showEditIcons)}
+                bg={showEditIcons ? "primary.500" : "transparent"}
+                _pressed={{
+                  bg: showEditIcons ? "primary.600" : "coolGray.100",
+                }}
+                rounded="full"
               />
             </HStack>
           </HStack>
@@ -2546,75 +2536,83 @@ export default function TableSectionsScreen() {
 
           {/* Status Filter Buttons (Similar to owner app) */}
           <Box px={4} py={2} bg="white" borderBottomWidth={1} borderBottomColor="coolGray.200">
-            <HStack space={2} justifyContent="center">
-              <Pressable
-                onPress={() => setFilterStatus("all")}
-                bg={filterStatus === "all" ? "blue.100" : "coolGray.100"}
-                px={4}
-                py={2}
-                rounded="md"
-                borderWidth={1}
-                borderColor={filterStatus === "all" ? "blue.500" : "coolGray.300"}
-              >
-                <Text
-                  color={filterStatus === "all" ? "blue.700" : "coolGray.700"}
-                  fontWeight={filterStatus === "all" ? "bold" : "medium"}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingHorizontal: 2,
+              }}
+            >
+              <HStack space={2} alignItems="center">
+                <Pressable
+                  onPress={() => setFilterStatus("all")}
+                  bg={filterStatus === "all" ? "blue.100" : "coolGray.100"}
+                  px={4}
+                  py={2}
+                  rounded="md"
+                  borderWidth={1}
+                  borderColor={filterStatus === "all" ? "blue.500" : "coolGray.300"}
                 >
-                  All
-                </Text>
-              </Pressable>
-              
-              <Pressable
-                onPress={() => setFilterStatus("occupied")}
-                bg={filterStatus === "occupied" ? "red.100" : "coolGray.100"}
-                px={4}
-                py={2}
-                rounded="md"
-                borderWidth={1}
-                borderColor={filterStatus === "occupied" ? "red.500" : "coolGray.300"}
-              >
-                <Text
-                  color={filterStatus === "occupied" ? "red.700" : "coolGray.700"}
-                  fontWeight={filterStatus === "occupied" ? "bold" : "medium"}
+                  <Text
+                    color={filterStatus === "all" ? "blue.700" : "coolGray.700"}
+                    fontWeight={filterStatus === "all" ? "bold" : "medium"}
+                  >
+                    All
+                  </Text>
+                </Pressable>
+                
+                <Pressable
+                  onPress={() => setFilterStatus("occupied")}
+                  bg={filterStatus === "occupied" ? "red.100" : "coolGray.100"}
+                  px={4}
+                  py={2}
+                  rounded="md"
+                  borderWidth={1}
+                  borderColor={filterStatus === "occupied" ? "red.500" : "coolGray.300"}
                 >
-                  Occupied
-                </Text>
-              </Pressable>
-              
-              <Pressable
-                onPress={() => setFilterStatus("reserved")}
-                bg={filterStatus === "reserved" ? "gray.100" : "coolGray.100"}
-                px={4}
-                py={2}
-                rounded="md"
-                borderWidth={1}
-                borderColor={filterStatus === "reserved" ? "gray.500" : "coolGray.300"}
-              >
-                <Text
-                  color={filterStatus === "reserved" ? "gray.700" : "coolGray.700"}
-                  fontWeight={filterStatus === "reserved" ? "bold" : "medium"}
+                  <Text
+                    color={filterStatus === "occupied" ? "red.700" : "coolGray.700"}
+                    fontWeight={filterStatus === "occupied" ? "bold" : "medium"}
+                  >
+                    Occupied
+                  </Text>
+                </Pressable>
+                
+                <Pressable
+                  onPress={() => setFilterStatus("reserved")}
+                  bg={filterStatus === "reserved" ? "gray.100" : "coolGray.100"}
+                  px={4}
+                  py={2}
+                  rounded="md"
+                  borderWidth={1}
+                  borderColor={filterStatus === "reserved" ? "gray.500" : "coolGray.300"}
                 >
-                  Reserved
-                </Text>
-              </Pressable>
-              
-              <Pressable
-                onPress={() => setFilterStatus("available")}
-                bg={filterStatus === "available" ? "green.100" : "coolGray.100"}
-                px={4}
-                py={2}
-                rounded="md"
-                borderWidth={1}
-                borderColor={filterStatus === "available" ? "green.500" : "coolGray.300"}
-              >
-                <Text
-                  color={filterStatus === "available" ? "green.700" : "coolGray.700"}
-                  fontWeight={filterStatus === "available" ? "bold" : "medium"}
+                  <Text
+                    color={filterStatus === "reserved" ? "gray.700" : "coolGray.700"}
+                    fontWeight={filterStatus === "reserved" ? "bold" : "medium"}
+                  >
+                    Reserved
+                  </Text>
+                </Pressable>
+                
+                <Pressable
+                  onPress={() => setFilterStatus("available")}
+                  bg={filterStatus === "available" ? "green.100" : "coolGray.100"}
+                  px={4}
+                  py={2}
+                  rounded="md"
+                  borderWidth={1}
+                  borderColor={filterStatus === "available" ? "green.500" : "coolGray.300"}
                 >
-                  Available
-                </Text>
-              </Pressable>
-            </HStack>
+                  <Text
+                    color={filterStatus === "available" ? "green.700" : "coolGray.700"}
+                    fontWeight={filterStatus === "available" ? "bold" : "medium"}
+                  >
+                    Available
+                  </Text>
+                </Pressable>
+              </HStack>
+            </ScrollView>
           </Box>
 
           {/* Filter Buttons for order types */}
