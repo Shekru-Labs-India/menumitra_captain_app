@@ -45,6 +45,7 @@ import ViewShot from "react-native-view-shot";
 import { Alert } from "react-native";
 import Image from "react-native/Libraries/Image/Image";
 import { TouchableOpacity, TouchableWithoutFeedback } from "react-native";
+import { useIsFocused } from "@react-navigation/native";
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -123,12 +124,13 @@ export default function TableSectionsScreen() {
   const [activeSection, setActiveSection] = useState(null);
   const [showTableActionModal, setShowTableActionModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showAddTableModal, setShowAddTableModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editSection, setEditSection] = useState(null);
   const [tables, setTables] = useState([]);
-  const [activeFilter, setActiveFilter] = useState("ALL");
+  
+  // Replace activeFilter with filterStatus for consistency with owner app
+  const [filterStatus, setFilterStatus] = useState("all");
+  
   const [showEditIcons, setShowEditIcons] = useState(false);
   const [showCreateTableModal, setShowCreateTableModal] = useState(false);
   const [selectedSection, setSelectedSection] = useState(null);
@@ -141,32 +143,32 @@ export default function TableSectionsScreen() {
   const [isLoadingQr, setIsLoadingQr] = useState(false);
   const [qrData, setQrData] = useState(null);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
-  const [qrRefReady, setQrRefReady] = useState(false);
-  const [qrStableTimeout, setQrStableTimeout] = useState(null);
-  const [qrRenderAttempt, setQrRenderAttempt] = useState(0);
+  
+  // Add missing state variables
+  const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [isPaid, setIsPaid] = useState(true);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  
+  // Keep other existing states
   const appState = useRef(AppState.currentState);
   const [restaurantName, setRestaurantName] = useState("");
   const [editedSectionName, setEditedSectionName] = useState("");
   const [blinkAnimation] = useState(new Animated.Value(1));
   const [qrReady, setQrReady] = useState(false);
-  const [captureAttempts, setCaptureAttempts] = useState(0);
-  const [refExists, setRefExists] = useState(false);
-  const qrContainerRef = useRef(null);
-  const [isQrRefValid, setIsQrRefValid] = useState(false);
-  const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null); // Set to null initially
-  const [isPaid, setIsPaid] = useState(true);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentError, setPaymentError] = useState(null);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-
+  const [printerDevice, setPrinterDevice] = useState(null);
+  const [newTableNumber, setNewTableNumber] = useState("");
+  const [creatingTableSectionId, setCreatingTableSectionId] = useState(null);
+  
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
-      setActiveFilter("AVAILABLE");
+      setFilterStatus("available");
     } else if (value === "occupiedTables") {
-      setActiveFilter("ENGAGED");
+      setFilterStatus("occupied");
     } else {
-      setActiveFilter(""); // Reset the filter when other options are selected
+      setFilterStatus("all"); // Reset the filter when other options are selected
     }
 
     setSortBy(value); // Update the sort criteria
@@ -542,13 +544,22 @@ export default function TableSectionsScreen() {
   const getFilteredTables = (sectionTables) => {
     if (!sectionTables || sectionTables.length === 0) return [];
 
-    switch (activeFilter) {
-      case "AVAILABLE":
-        return sectionTables.filter((table) => table.is_occupied === 0);
-      case "ENGAGED":
-        return sectionTables.filter((table) => table.is_occupied === 1);
+    // Filter by search query first
+    let filteredBySearch = sectionTables;
+    if (searchQuery.trim()) {
+      filteredBySearch = sectionTables.filter(
+        table => table.table_number.toString().includes(searchQuery)
+      );
+    }
+
+    // Then filter by status
+    switch (filterStatus) {
+      case "occupied":
+        return filteredBySearch.filter(table => table.is_occupied === 1);
+      case "available":
+        return filteredBySearch.filter(table => table.is_occupied === 0);
       default:
-        return sectionTables;
+        return filteredBySearch;
     }
   };
 
@@ -735,6 +746,14 @@ export default function TableSectionsScreen() {
     >
       <VStack space={4}>
         {sections.map((section) => {
+          // Filter tables based on current criteria (search and status filter)
+          const filteredTables = getFilteredTables(section.tables);
+          
+          // Skip this section entirely if no tables match the filter criteria
+          if (filteredTables.length === 0 && filterStatus !== "all") {
+            return null;
+          }
+          
           const tablesByRow = getTablesByRow(section.tables);
           const hasNoTables = !section.tables || section.tables.length === 0;
 
@@ -835,11 +854,11 @@ export default function TableSectionsScreen() {
                     {/* Divider */}
                     <Box height={0.5} bg="coolGray.200" />
 
-                    {/* Add this condition for no tables message */}
-                    {section.tables.length === 0 && !showEditIcons ? (
+                    {/* Show tables or no tables message */}
+                    {filteredTables.length === 0 ? (
                       <Center py={4}>
                         <Text color="coolGray.500" fontSize="sm">
-                          No tables available in this section.
+                          No tables match the current filter.
                         </Text>
                       </Center>
                     ) : (
@@ -2452,110 +2471,165 @@ export default function TableSectionsScreen() {
   };
 
   return (
-    <Box flex={1} bg="coolGray.100" safeAreaTop>
-      {/* Header Component */}
-      <Header 
-        title="Tables" 
-        rightComponent={
-          <IconButton
-            icon={
-              <MaterialIcons
-                name="settings"
-                size={24}
-                color={showEditIcons ? "white" : "coolGray.600"}
+    <Box safeArea flex={1} bg="coolGray.100">
+      <ScrollView
+        nestedScrollEnabled
+        contentContainerStyle={{ flexGrow: 1 }}
+        scrollEnabled={false}
+      >
+        <VStack flex={1}>
+          <HStack
+            alignItems="center"
+            justifyContent="space-between"
+            bg="white"
+            px={4}
+            py={2}
+            shadow={1}
+          >
+            <HStack alignItems="center" space={2}>
+              <Text fontSize="lg" fontWeight="bold">
+                Tables
+              </Text>
+            </HStack>
+            <HStack space={2}>
+              <IconButton
+                variant="ghost"
+                colorScheme="coolGray"
+                icon={<Icon as={MaterialIcons} name="settings" />}
+                onPress={() => router.push("/settings")}
               />
-            }
-            onPress={() => setShowEditIcons(!showEditIcons)}
-            bg={showEditIcons ? "primary.500" : "transparent"}
-            _pressed={{
-              bg: showEditIcons ? "primary.600" : "coolGray.100",
-            }}
-            rounded="full"
-          />
-        }
-      />
+            </HStack>
+          </HStack>
 
-      {/* Restaurant Name */}
-      <Box px={4} py={2} bg="white">
-        <HStack alignItems="center" space={2}>
-          <Icon as={MaterialIcons} name="restaurant" size="sm" color="coolGray.600" />
-          <Text fontSize="lg" fontWeight="medium" color="coolGray.800">
-            {restaurantName || "Restaurant"}
-          </Text>
-        </HStack>
-      </Box>
-
-      {/* Search and Filters */}
-      <Box px={4} py={2} bg="white">
-        <Input
-          placeholder="Search section"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          variant="filled"
-          bg="coolGray.100"
-          borderRadius="10"
-          py="2"
-          px="1"
-          fontSize="md"
-          borderWidth={1}
-          borderColor="black"
-          _focus={{
-            borderColor: "primary.500",
-            bg: "coolGray.100",
-          }}
-          InputLeftElement={
-            <Icon
-              as={<MaterialIcons name="search" />}
-              size={5}
-              ml="2"
-              color="coolGray.400"
-            />
-          }
-          InputRightElement={
-            searchQuery ? (
-              <Pressable onPress={() => setSearchQuery("")}>
+          {/* Search and Filters */}
+          <Box px={4} py={2} bg="white">
+            <Input
+              placeholder="Search section"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              variant="filled"
+              bg="coolGray.100"
+              borderRadius="10"
+              py="2"
+              px="1"
+              fontSize="md"
+              borderWidth={1}
+              borderColor="black"
+              _focus={{
+                borderColor: "primary.500",
+                bg: "coolGray.100",
+              }}
+              InputLeftElement={
                 <Icon
-                  as={<MaterialIcons name="close" />}
+                  as={<MaterialIcons name="search" />}
                   size={5}
-                  mr="2"
+                  ml="2"
                   color="coolGray.400"
                 />
-              </Pressable>
-            ) : null
-          }
-        />
-      </Box>
-
-      {/* Filter Buttons */}
-      <FilterButtons />
-
-      {/* Content */}
-      <Box flex={1} bg="coolGray.100">
-        {loading ? (
-          <Box flex={1} justifyContent="center" alignItems="center">
-            <Spinner size="lg" />
-          </Box>
-        ) : (
-          <>
-            {viewType === "grid"
-              ? renderGridView(sortedSections)
-              : renderGridView(sortedSections)}
-
-            {/* FAB */}
-            <Fab
-              renderInPortal={false}
-              shadow={2}
-              size="sm"
-              colorScheme="green"
-              icon={<MaterialIcons name="add" size={24} color="white" />}
-              onPress={() => setShowAddModal(true)}
-              position="absolute"
-              bottom={4}
-              right={4}
+              }
+              InputRightElement={
+                searchQuery ? (
+                  <Pressable onPress={() => setSearchQuery("")}>
+                    <Icon
+                      as={<MaterialIcons name="close" />}
+                      size={5}
+                      mr="2"
+                      color="coolGray.400"
+                    />
+                  </Pressable>
+                ) : null
+              }
             />
-          </>
-        )}
-      </Box>
+          </Box>
+
+          {/* Status Filter Buttons (Similar to owner app) */}
+          <Box px={4} py={2} bg="white" borderBottomWidth={1} borderBottomColor="coolGray.200">
+            <HStack space={2} justifyContent="center">
+              <Pressable
+                onPress={() => setFilterStatus("all")}
+                bg={filterStatus === "all" ? "blue.100" : "coolGray.100"}
+                px={4}
+                py={2}
+                rounded="md"
+                borderWidth={1}
+                borderColor={filterStatus === "all" ? "blue.500" : "coolGray.300"}
+              >
+                <Text
+                  color={filterStatus === "all" ? "blue.700" : "coolGray.700"}
+                  fontWeight={filterStatus === "all" ? "bold" : "medium"}
+                >
+                  All
+                </Text>
+              </Pressable>
+              
+              <Pressable
+                onPress={() => setFilterStatus("occupied")}
+                bg={filterStatus === "occupied" ? "red.100" : "coolGray.100"}
+                px={4}
+                py={2}
+                rounded="md"
+                borderWidth={1}
+                borderColor={filterStatus === "occupied" ? "red.500" : "coolGray.300"}
+              >
+                <Text
+                  color={filterStatus === "occupied" ? "red.700" : "coolGray.700"}
+                  fontWeight={filterStatus === "occupied" ? "bold" : "medium"}
+                >
+                  Occupied
+                </Text>
+              </Pressable>
+              
+              <Pressable
+                onPress={() => setFilterStatus("available")}
+                bg={filterStatus === "available" ? "green.100" : "coolGray.100"}
+                px={4}
+                py={2}
+                rounded="md"
+                borderWidth={1}
+                borderColor={filterStatus === "available" ? "green.500" : "coolGray.300"}
+              >
+                <Text
+                  color={filterStatus === "available" ? "green.700" : "coolGray.700"}
+                  fontWeight={filterStatus === "available" ? "bold" : "medium"}
+                >
+                  Available
+                </Text>
+              </Pressable>
+            </HStack>
+          </Box>
+
+          {/* Filter Buttons for order types */}
+          <FilterButtons />
+
+          {/* Content */}
+          <Box flex={1} bg="coolGray.100">
+            {loading ? (
+              <Box flex={1} justifyContent="center" alignItems="center">
+                <Spinner size="lg" />
+              </Box>
+            ) : (
+              <>
+                {viewType === "grid"
+                  ? renderGridView(sortedSections)
+                  : renderGridView(sortedSections)}
+
+                {/* FAB */}
+                <Fab
+                  renderInPortal={false}
+                  shadow={2}
+                  size="sm"
+                  colorScheme="green"
+                  icon={<MaterialIcons name="add" size={24} color="white" />}
+                  onPress={() => setShowAddModal(true)}
+                  position="absolute"
+                  bottom={4}
+                  right={4}
+                />
+              </>
+            )}
+          </Box>
+        </VStack>
+      </ScrollView>
 
       {/* Add Section Modal */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)}>
