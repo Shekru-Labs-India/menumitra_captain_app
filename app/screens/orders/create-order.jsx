@@ -722,7 +722,7 @@ export default function CreateOrderScreen() {
           gstPercentage,
           tip
         )?.toString(),
-        action: "settle", // IMPORTANT: Use "settle" for KOT - matches owner app (OrderCreate.js)
+        action: "kot", // IMPORTANT: Use "kot" for KOT 
         is_paid: paymentStatus,
         payment_method: effectivePaymentMethod,
         special_discount: specialDiscount?.toString(),
@@ -799,7 +799,14 @@ export default function CreateOrderScreen() {
               text: "Skip Printing",
               style: "cancel",
               onPress: () => {
-                router.replace("/screens/tables");
+                // Navigate back to tables screen with updated path
+                router.replace({
+                  pathname: "/(tabs)/tables/sections",
+                  params: { 
+                    refresh: Date.now().toString(),
+                    status: "completed"
+                  }
+                });
               }
             }
           ]
@@ -856,25 +863,30 @@ export default function CreateOrderScreen() {
           status: "error",
           duration: 3000,
         });
-        // Don't return, allow navigation back to tables screen
+        // Continue with navigation despite print error
       }
       
-      // Success message and navigation
+      // Success message
       toast.show({
         description: "KOT processed successfully",
         status: "success",
         duration: 2000,
       });
 
-      // After successful print, navigate back to tables screen
-      setTimeout(() => {
-        router.replace("/screens/tables");
-      }, 1000);
+      // Important: After successfully printing, navigate back to tables view
+      // with proper params to refresh the table data
+      router.replace({
+        pathname: "/(tabs)/tables/sections",
+        params: { 
+          refresh: Date.now().toString(),
+          status: "completed"
+        }
+      });
       
     } catch (error) {
       console.error("KOT error:", error);
       toast.show({
-        description: "Error printing KOT: " + error.message,
+        description: "Error processing KOT: " + error.message,
         status: "error",
         duration: 3000,
       });
@@ -2944,7 +2956,7 @@ const handleSettleOrder = async () => {
         
         // Navigate back to tables screen with refresh params
         router.replace({
-          pathname: "/screens/tables",
+          pathname: "/(tabs)/tables/sections",
           params: { 
             refresh: Date.now().toString(),
             status: "completed"
@@ -3118,7 +3130,7 @@ const handleSettleOrder = async () => {
       await refreshOrderDetails();
   
       // Navigate back to tables
-      router.replace("/screens/tables");
+      router.replace("/(tabs)/tables/sections");
     } catch (error) {
       console.error("Error settling order:", error);
       toast.show({
@@ -3205,6 +3217,95 @@ const handleSettleOrder = async () => {
     setShowPaymentModal(true);
   };
 
+  // Add handleCancelOrder function after handleKOTAndSave
+  const handleCancelOrder = async () => {
+    // Show confirmation dialog
+    Alert.alert(
+      "Cancel Order",
+      "Are you sure you want to cancel this order?",
+      [
+        {
+          text: "No",
+          style: "cancel"
+        },
+        {
+          text: "Yes",
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              setLoadingMessage("Cancelling order...");
+              
+              // Check if there's a valid order_id to cancel
+              const orderIdToCancel = params?.orderId;
+              
+              if (orderIdToCancel) {
+                const [userId, accessToken] = await Promise.all([
+                  AsyncStorage.getItem("user_id"),
+                  AsyncStorage.getItem("access")
+                ]);
+                
+                // Use force_cancel_order API
+                const response = await fetchWithAuth(
+                  onGetProductionUrl() + "force_cancel_order",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                      order_id: orderIdToCancel.toString(),
+                      user_id: userId.toString()
+                    })
+                  }
+                );
+                
+                if (response.st === 1) {
+                  toast.show({
+                    description: "Order has been cancelled",
+                    status: "success",
+                    duration: 3000
+                  });
+                  
+                  // Navigate to tables screen
+                  router.replace({
+                    pathname: "/(tabs)/tables/sections",
+                    params: { 
+                      refresh: Date.now().toString()
+                    }
+                  });
+                } else {
+                  toast.show({
+                    description: response.msg || "Failed to cancel order",
+                    status: "error",
+                    duration: 3000
+                  });
+                }
+              } else {
+                // If no existing order, just go back
+                toast.show({
+                  description: "No valid order ID found to cancel",
+                  status: "warning",
+                  duration: 3000
+                });
+                router.back();
+              }
+            } catch (error) {
+              console.error("Error cancelling order:", error);
+              toast.show({
+                description: error.response?.data?.msg || error.message || "Failed to cancel the order",
+                status: "error",
+                duration: 3000
+              });
+            } finally {
+              setIsLoading(false);
+              setLoadingMessage("");
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -3233,9 +3334,24 @@ const handleSettleOrder = async () => {
           },
         })}
         rightComponent={
-          <Box position="absolute" right={-5} top={-2}>
-            <OrderBadge />    
-          </Box>
+          <HStack space={2} alignItems="center">
+            {params?.orderId && (
+              <Pressable
+                onPress={handleCancelOrder}
+                style={{
+                  backgroundColor: "#dc3545",
+                  borderRadius: 20,
+                  padding: 8,
+                  marginRight: 8
+                }}
+              >
+                <Icon as={MaterialIcons} name="close" size="sm" color="white" />
+              </Pressable>
+            )}
+            <Box position="relative">
+              <OrderBadge />    
+            </Box>
+          </HStack>
         }
       />
       {/* <PrinterStatusIndicator /> */}
