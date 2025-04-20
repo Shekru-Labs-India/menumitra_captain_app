@@ -1131,28 +1131,33 @@ export default function TableSectionsScreen() {
           paddingHorizontal: 16,
         }}
       >
-        <HStack space={3} alignItems="center">
+        <HStack space={4} alignItems="center">
+          {/* Counter Order Button */}
           <Pressable
             onPress={() =>
-              router.replace({
+              router.push({
                 pathname: "/screens/orders/menu-selection",
                 params: {
                   isSpecialOrder: "true",
                   orderType: "counter",
                   clearPrevious: "true",
+                  outlet_id: outletId?.toString() || "",
                 },
               })
             }
           >
             <Box
               px={4}
-              py={2}
+              py={2.5}
               bg="white"
               borderWidth={1}
               borderColor="#0891b2"
               rounded="lg"
+              shadow={1}
               flexDirection="row"
               alignItems="center"
+              minWidth={100}
+              justifyContent="center"
             >
               <MaterialIcons
                 name="point-of-sale"
@@ -1166,30 +1171,35 @@ export default function TableSectionsScreen() {
             </Box>
           </Pressable>
 
+          {/* Parcel Order Button */}
           <Pressable
             onPress={() =>
-              router.replace({
+              router.push({
                 pathname: "/screens/orders/menu-selection",
                 params: {
                   isSpecialOrder: "true",
                   orderType: "parcel",
                   clearPrevious: "true",
+                  outlet_id: outletId?.toString() || "",
                 },
               })
             }
           >
             <Box
               px={4}
-              py={2}
+              py={2.5}
               bg="white"
               borderWidth={1}
               borderColor="#0891b2"
               rounded="lg"
+              shadow={1}
               flexDirection="row"
               alignItems="center"
+              minWidth={100}
+              justifyContent="center"
             >
               <MaterialIcons
-                name="local-shipping"
+                name="takeout-dining"
                 size={20}
                 color="#0891b2"
                 style={{ marginRight: 8 }}
@@ -1200,27 +1210,32 @@ export default function TableSectionsScreen() {
             </Box>
           </Pressable>
 
+          {/* Delivery Order Button */}
           <Pressable
             onPress={() =>
-              router.replace({
+              router.push({
                 pathname: "/screens/orders/menu-selection",
                 params: {
                   isSpecialOrder: "true",
                   orderType: "delivery",
                   clearPrevious: "true",
+                  outlet_id: outletId?.toString() || "",
                 },
               })
             }
           >
             <Box
               px={4}
-              py={2}
+              py={2.5}
               bg="white"
               borderWidth={1}
               borderColor="#0891b2"
               rounded="lg"
+              shadow={1}
               flexDirection="row"
               alignItems="center"
+              minWidth={100}
+              justifyContent="center"
             >
               <MaterialIcons
                 name="delivery-dining"
@@ -1234,27 +1249,32 @@ export default function TableSectionsScreen() {
             </Box>
           </Pressable>
 
+          {/* Drive Through Order Button */}
           <Pressable
             onPress={() =>
-              router.replace({
+              router.push({
                 pathname: "/screens/orders/menu-selection",
                 params: {
                   isSpecialOrder: "true",
                   orderType: "drive-through",
                   clearPrevious: "true",
+                  outlet_id: outletId?.toString() || "",
                 },
               })
             }
           >
             <Box
               px={4}
-              py={2}
+              py={2.5}
               bg="white"
               borderWidth={1}
               borderColor="#0891b2"
               rounded="lg"
+              shadow={1}
               flexDirection="row"
               alignItems="center"
+              minWidth={100}
+              justifyContent="center"
             >
               <MaterialIcons
                 name="drive-eta"
@@ -2214,14 +2234,17 @@ export default function TableSectionsScreen() {
         throw new Error("User ID not found. Please login again.");
       }
       
+      // Get the order type (defaults to dine-in for table orders)
+      const orderType = selectedTable.order_type || "dine-in";
+      
       // Prepare request payload
       const settleRequestBody = {
         outlet_id: outletId.toString(),
         order_id: selectedTable.order_id.toString(),
-        order_status: "paid", // Changed from "completed" to "paid" to match API requirements
+        order_status: "paid", // "paid" to match API requirements
         user_id: storedUserId.toString(),
-        is_paid: isPaid ? "paid" : "0", // Changed from "1" to "paid" to match RestaurantTables.js
-        order_type: "dine-in",
+        is_paid: isPaid ? "paid" : "0", 
+        order_type: orderType,
         tables: [{ table_no: selectedTable.table_number.toString() }],
         section_id: selectedTable.section_id.toString(),
         payment_method: selectedPaymentMethod.toLowerCase() // Ensure lowercase for API
@@ -2268,6 +2291,14 @@ export default function TableSectionsScreen() {
 
   // Updated PaymentModal to match RestaurantTables.js UI - clean, simple design
   const PaymentModal = () => {
+    // Get order type with proper capitalization
+    const getOrderTypeDisplay = () => {
+      const orderType = selectedTable?.order_type || "dine-in";
+      return orderType.split('-').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join('-');
+    };
+    
     return (
       <Modal 
         isOpen={isPaymentModalVisible} 
@@ -2293,12 +2324,24 @@ export default function TableSectionsScreen() {
 
           {/* Header */}
           <Box mb={5} mt={2}>
-            <Text 
-              fontSize="md" 
-              fontWeight="medium" 
-              color="coolGray.800"
-            >
-              Table {selectedTable?.table_number} | Order No {selectedTable?.order_number} | ₹{selectedTable?.grand_total?.toFixed(2)}
+            <HStack justifyContent="space-between" alignItems="center" mb={1}>
+              <Text 
+                fontSize="md" 
+                fontWeight="medium" 
+                color="coolGray.800"
+              >
+                {selectedTable?.order_type && selectedTable.order_type !== "dine-in" ? (
+                  getOrderTypeDisplay()
+                ) : (
+                  `Table ${selectedTable?.table_number}`
+                )}
+              </Text>
+              <Badge colorScheme="cyan" rounded="md" px={2}>
+                {getOrderTypeDisplay()}
+              </Badge>
+            </HStack>
+            <Text fontSize="sm" color="coolGray.600">
+              Order #{selectedTable?.order_number} | ₹{selectedTable?.grand_total?.toFixed(2)}
             </Text>
           </Box>
 
