@@ -349,13 +349,13 @@ export default function CreateOrderScreen() {
   const {
     isConnected: printerConnected,
     printerDevice: contextPrinterDevice,
-    connectToPrinter: contextConnectToPrinter,
+    connectToPrinter,
     isScanning: printerScanning,
     scanForPrinters: contextScanForPrinters,
     availableDevices: printerDevices,
     sendDataToPrinter,
     reconnectPrinter,
-    disconnectPrinter,
+    disconnectPrinter: contextDisconnectPrinter,
     autoReconnect,
     setAutoReconnect,
     isPrinting
@@ -364,9 +364,8 @@ export default function CreateOrderScreen() {
   // Printer state management
   const [isPrinterModalOpen, setIsPrinterModalOpen] = useState(false);
   const [printerConnectionStatus, setPrinterConnectionStatus] = useState("");
-  
-  // Printer Device Selection Modal state
   const [isDeviceSelectionModalVisible, setIsDeviceSelectionModalVisible] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   
   // Show printer connection status when focused
   useEffect(() => {
@@ -1865,59 +1864,104 @@ const handleSettleOrder = async () => {
   };
 
   // Update the scanForPrinters function to include Expo Go check
-  // const scanForPrinters = async () => {
-  //   try {
-  //     // Check if running in Expo Go or web
-  //     const isExpoGo = Constants.executionEnvironment === "storeClient";
-  //     const isWeb = Platform.OS === "web";
+  const scanForPrinters = async () => {
+    try {
+      // Request permissions first
+      const hasPermissions = await requestPermissions(bleManager);
+      if (!hasPermissions) {
+        Alert.alert(
+          "Permission Required",
+          "Bluetooth permission is needed to connect to printer",
+          [{ text: "OK" }]
+        );
+        return;
+      }
 
-     
+      setPrinterConnectionStatus("Checking Bluetooth...");
+      setIsProcessing(true);
 
-  //     if (!bleManager) {
-  //       Alert.alert(
-  //         "Feature Not Available",
-  //         "Bluetooth printing is only available in development or production builds."
-  //       );
-  //       return;
-  //     }
+      const state = await bleManager.state();
+      if (state !== "PoweredOn") {
+        Alert.alert(
+          "Bluetooth Required",
+          "Please turn on Bluetooth to connect to printer",
+          [
+            {
+              text: "Open Settings",
+              onPress: () => Linking.openSettings(),
+            },
+            { text: "Cancel", style: "cancel" },
+          ]
+        );
+        setIsProcessing(false);
+        setPrinterConnectionStatus("");
+        return;
+      }
 
-  //     const hasPermissions = await requestPermissions(bleManager);
-  //     if (!hasPermissions) {
-  //       Alert.alert("Permission Error", "Bluetooth permissions not granted");
-  //       return;
-  //     }
+      setPrinterScanning(true);
+      setPrinterConnectionStatus("Scanning for printers...");
 
-  //     setIsScanning(true);
-  //     setAvailableDevices([]);
-  //     setIsModalVisible(true);
+      // Only clear devices and show modal on initial scan
+      if (printerDevices.length === 0) {
+        setPrinterDevices([]);
+        setIsDeviceSelectionModalVisible(true);
+      }
 
-  //     bleManager.startDeviceScan(null, null, (error, device) => {
-  //       if (error) {
-  //         console.error("Scan error:", error);
-  //         return;
-  //       }
-  //       if (device) {
-  //         setAvailableDevices((prevDevices) => {
-  //           if (!prevDevices.find((d) => d.id === device.id)) {
-  //             return [...prevDevices, device];
-  //           }
-  //           return prevDevices;
-  //         });
-  //       }
-  //     });
-  //   } catch (error) {
-  //     console.error("Scan error:", error);
-  //     Alert.alert("Error", "Failed to start scanning");
-  //   }
-  // };
+      // Clear any existing scan
+      bleManager.stopDeviceScan();
+
+      // Start scanning for devices
+      bleManager.startDeviceScan(null, null, (error, device) => {
+        if (error) {
+          console.error("Scan error:", error);
+          toast.show({
+            description: "Error scanning for printers: " + error.message,
+            status: "error",
+            duration: 3000,
+          });
+          return;
+        }
+
+        if (device) {
+          // Add device if not already in list using state updater
+          setPrinterDevices((prevDevices) => {
+            const deviceExists = prevDevices.some((d) => d.id === device.id);
+            if (!deviceExists) {
+              return [...prevDevices, device];
+            }
+            return prevDevices;
+          });
+        }
+      });
+
+      // Stop scanning after a timeout
+      setTimeout(() => {
+        bleManager.stopDeviceScan();
+        setPrinterScanning(false);
+        setPrinterConnectionStatus("");
+        setIsProcessing(false);
+      }, 15000); // Scan for 15 seconds
+
+    } catch (error) {
+      console.error("Scan error:", error);
+      toast.show({
+        description: "Failed to scan for printers: " + error.message,
+        status: "error",
+        duration: 3000,
+      });
+      setPrinterScanning(false);
+      setPrinterConnectionStatus("");
+      setIsProcessing(false);
+    }
+  };
 
   // Update handleDeviceSelection to handle both KOT and receipt printing the same way
   const handleDeviceSelection = async (device) => {
     try {
       setPrinterConnectionStatus("Connecting to printer...");
       
-      // Use the context's connectToPrinter function
-      const success = await contextConnectToPrinter(device);
+      // Use the newly implemented localConnectToPrinter function
+      const success = await localConnectToPrinter(device);
       
       if (success) {
         setPrinterConnectionStatus("Connected successfully!");
@@ -2139,7 +2183,7 @@ const handleSettleOrder = async () => {
           {
             text: "Disconnect",
             onPress: async () => {
-              await disconnectPrinter();
+              await contextDisconnectPrinter();
               toast.show({
                 description: "Printer disconnected",
                 status: "info",
@@ -2147,26 +2191,32 @@ const handleSettleOrder = async () => {
                 placement: "top",
               });
             },
-            style: "destructive",
           },
           {
-            text: "Change Printer",
+            text: "Print Test",
             onPress: () => {
-              setIsDeviceSelectionModalVisible(true);
-              contextScanForPrinters();
+              handlePrint();
             },
           },
           {
-            text: "Cancel",
-            style: "cancel",
+            text: "Connect to Another",
+            onPress: () => {
+              contextDisconnectPrinter();
+              setTimeout(() => {
+                setIsDeviceSelectionModalVisible(true);
+                scanForPrinters();
+              }, 500);
+            },
           },
+          { text: "Cancel", style: "cancel" },
         ]
       );
-    } else {
-      // If not connected, open the selection modal and start scanning
-      setIsDeviceSelectionModalVisible(true);
-      contextScanForPrinters();
+      return;
     }
+
+    // If not connected, open the selection modal
+    setIsDeviceSelectionModalVisible(true);
+    scanForPrinters();
   };
 
   // Update the generatePrinterCommands function
@@ -2240,7 +2290,7 @@ const handleSettleOrder = async () => {
         ...textToBytes("\x1B\x61\x00"), // Left align
         ...textToBytes(`Bill Number: ${orderNumber}\n`),
         ...textToBytes(`Table: ${params?.sectionName || "Dining"}${params?.tableNumber ? ` - ${params.tableNumber}` : ''}\n`),
-        ...textToBytes(`DateTime: ${orderData?.datetime ? formatTime(orderData.datetime) : formattedDate}\n`),
+        ...textToBytes(`DateTime: ${orderData?.datetime ? formatTime(orderData.datetime) : getCurrentDateTime()}\n`),
         ...textToBytes("--------------------------------\n"),
         ...textToBytes("Item           Qty  Rate     Amt\n"),
         ...textToBytes("--------------------------------\n")
@@ -2437,8 +2487,8 @@ const handleSettleOrder = async () => {
                 <Text>No printers found.</Text>
                 <Button
                   leftIcon={<Icon as={MaterialIcons} name="refresh" size="sm" />}
-                onPress={() => {
-                    contextScanForPrinters();
+                  onPress={() => {
+                    scanForPrinters();
                   }}
                 >
                   Scan Again
@@ -2476,7 +2526,7 @@ const handleSettleOrder = async () => {
                   leftIcon={<Icon as={MaterialIcons} name="refresh" size="sm" />}
                   variant="outline"
                   onPress={() => {
-                    contextScanForPrinters();
+                    scanForPrinters();
                   }}
                 >
                   Scan Again
@@ -3322,6 +3372,144 @@ const handleSettleOrder = async () => {
         }
       ]
     );
+  };
+
+  // Add after scanForPrinters function
+  const localConnectToPrinter = async (device) => {
+    try {
+      console.log("Attempting to connect to:", device.name || "Unknown device");
+      setPrinterConnectionStatus(`Connecting to ${device.name || "printer"}...`);
+      setIsProcessing(true);
+
+      const connectedDevice = await device.connect({
+        // Add these options to maintain connection
+        requestMTU: 512,
+        autoConnect: true,
+      });
+
+      // Monitor connection state
+      device.onDisconnected((error, disconnectedDevice) => {
+        if (!isDisconnecting) {
+          console.log("Unexpected disconnect, attempting to reconnect...");
+          // Update UI state
+          toast.show({
+            description: "Printer disconnected. Attempting to reconnect...",
+            status: "warning",
+            duration: 3000,
+          });
+          
+          // Attempt to reconnect
+          localConnectToPrinter(device).catch(console.error);
+        }
+      });
+
+      console.log("Connected to device");
+      setPrinterConnectionStatus("Discovering services...");
+      const discoveredDevice =
+        await connectedDevice.discoverAllServicesAndCharacteristics();
+      
+      // Update state with connected device
+      setContextPrinterDevice(discoveredDevice);
+      setPrinterConnected(true);
+      setIsProcessing(false);
+      setPrinterConnectionStatus("Connected");
+      
+      return true;
+    } catch (error) {
+      console.error("Connection error:", error);
+      setIsProcessing(false);
+      setPrinterConnectionStatus("");
+      
+      toast.show({
+        description: `Failed to connect to printer: ${error.message}`,
+        status: "error",
+        duration: 3000,
+      });
+      
+      return false;
+    }
+  };
+
+  const disconnectPrinter = async () => {
+    try {
+      if (!contextPrinterDevice) {
+        return false;
+      }
+      
+      setIsDisconnecting(true);
+      setPrinterConnectionStatus("Disconnecting...");
+      
+      try {
+        await contextPrinterDevice.cancelConnection();
+      } catch (e) {
+        console.log("Error during disconnection:", e);
+        // Continue even with error
+      }
+      
+      // Update state regardless of disconnection success
+      setPrinterConnected(false);
+      setContextPrinterDevice(null);
+      setPrinterConnectionStatus("");
+      
+      toast.show({
+        description: "Printer disconnected",
+        status: "info",
+        duration: 2000,
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Disconnect error:", error);
+      toast.show({
+        description: "Error disconnecting printer",
+        status: "error",
+        duration: 2000,
+      });
+      return false;
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  const localDisconnectPrinter = async () => {
+    try {
+      if (!contextPrinterDevice) {
+        return false;
+      }
+      
+      setIsDisconnecting(true);
+      setPrinterConnectionStatus("Disconnecting...");
+      
+      try {
+        await contextPrinterDevice.cancelConnection();
+      } catch (e) {
+        console.log("Error during disconnection:", e);
+        // Continue even with error
+      }
+      
+      // Update state regardless of disconnection success
+      setPrinterConnected(false);
+      setContextPrinterDevice(null);
+      setPrinterConnectionStatus("");
+      
+      toast.show({
+        description: "Printer disconnected",
+        status: "info",
+        duration: 2000,
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Disconnect error:", error);
+      toast.show({
+        description: "Error disconnecting printer",
+        status: "error",
+        duration: 2000,
+      });
+      return false;
+    } finally {
+      setIsDisconnecting(false);
+    }
   };
 
   return (
