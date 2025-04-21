@@ -19,6 +19,10 @@ import {
   SectionList,
   Button,
   View,
+  Menu,
+  Modal,
+  Spacer,
+  Divider,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -221,7 +225,7 @@ const OrderCard = ({ order, onPress, onTimerEnd }) => {
         rounded="lg"
         m={2}
         p={4}
-        borderLeftWidth={4}
+        borderLeftWidth={5}
         borderLeftColor={
           order.order_status === "cooking"
             ? `${ORDER_STATUS_COLORS.COOKING}.500`
@@ -240,43 +244,37 @@ const OrderCard = ({ order, onPress, onTimerEnd }) => {
           transition: "all 0.2s",
         }}
       >
-        <HStack justifyContent="space-between" alignItems="center" mb={3}>
-          <HStack space={2} alignItems="center">
-            <Text fontSize="md" fontWeight="bold">
-              #{order.order_number}
-            </Text>
-            {order.order_status?.toLowerCase() === "placed" && (
-              <OrderTimer
-                orderTime={order.time}
-                onEnd={onTimerEnd}
-                orderId={order.order_id}
-              />
-            )}
-          </HStack>
+        <HStack justifyContent="space-between" alignItems="center" mb={2}>
+          <Text fontSize="lg" fontWeight="bold">
+            #{order.order_number}
+          </Text>
           <Badge
-            colorScheme={
+            bg={
               order.order_status === "cooking"
-                ? ORDER_STATUS_COLORS.COOKING
+                ? "orange.500"
                 : order.order_status === "paid"
-                ? ORDER_STATUS_COLORS.PAID
+                ? "blue.500"
                 : order.order_status === "served"
-                ? ORDER_STATUS_COLORS.SERVED
+                ? "teal.500"
                 : order.order_status === "placed"
-                ? ORDER_STATUS_COLORS.PLACED
+                ? "purple.500"
                 : order.order_status === "cancelled"
-                ? ORDER_STATUS_COLORS.CANCELLED
-                : ORDER_STATUS_COLORS.DEFAULT
+                ? "red.500"
+                : "gray.500"
             }
             rounded="sm"
-            variant="solid"
+            px={2}
+            py={0.5}
           >
-            {order.order_status?.toUpperCase()}
+            <Text color="white" fontSize="xs" fontWeight="bold">
+              {order.order_status?.toUpperCase()}
+            </Text>
           </Badge>
         </HStack>
 
         {/* Date and Time */}
-        <Text fontSize="sm" color="gray.500" mb={2}>
-          {order.date} • {order.time}
+        <Text fontSize="sm" color="gray.500" mb={3}>
+          {order.date} {order.time}
         </Text>
 
         {/* Order Details */}
@@ -306,70 +304,50 @@ const OrderCard = ({ order, onPress, onTimerEnd }) => {
             </>
           )}
 
-          {/* Order Type and Items Count */}
-          <HStack justifyContent="space-between" alignItems="center">
+          {/* Order Type Badge */}
+          <HStack pt={2}>
             <Badge
-              colorScheme={
-                ORDER_TYPE_COLORS[order.order_type?.toLowerCase()] ||
-                ORDER_TYPE_COLORS.DEFAULT
-              }
-              variant="subtle"
+              bg="coolGray.100"
+              _text={{
+                color: "coolGray.800",
+              }}
               rounded="sm"
+              variant="subtle"
             >
               <HStack space={1} alignItems="center">
                 <Icon
                   as={MaterialIcons}
-                  name={
-                    ORDER_TYPE_ICONS[order.order_type?.toLowerCase()] ||
-                    ORDER_TYPE_ICONS.DEFAULT
-                  }
+                  name={ORDER_TYPE_ICONS[order.order_type?.toLowerCase()] || ORDER_TYPE_ICONS.DEFAULT}
                   size="xs"
+                  color="coolGray.500"
                 />
                 <Text fontSize="xs">{order.order_type}</Text>
               </HStack>
             </Badge>
-
-            <Badge colorScheme="info" rounded="full" variant="subtle">
-              <HStack alignItems="center" space={1}>
-                <Text fontSize="xs">{order.menu_count || 0} Items</Text>
-              </HStack>
+            
+            <Spacer />
+            
+            <Badge
+              colorScheme="coolGray"
+              rounded="sm"
+              variant="subtle"
+            >
+              <Text fontSize="xs">{order.menu_count || 0} Items</Text>
             </Badge>
           </HStack>
         </VStack>
 
         {/* Price Details */}
         <HStack
-          justifyContent="space-between"
-          mt={3}
+          justifyContent="flex-end"
+          mt={4}
           pt={3}
           borderTopWidth={1}
           borderTopColor="gray.200"
         >
-          <VStack>
-            <Text fontSize="md">₹{Number(order.total_bill_amount || 0).toFixed(2)}</Text>
-            <Text fontSize="xs" color="gray.500">
-              Items Total
-            </Text>
-          </VStack>
-          <VStack alignItems="center">
-            <Text fontSize="md" color="green.600">
-              -₹{Number(order.discount_amount || 0).toFixed(2)}
-            </Text>
-            <Text fontSize="xs" color="gray.500">
-              Discount
-            </Text>
-          </VStack>
           <VStack alignItems="flex-end">
             <Text fontSize="md" fontWeight="bold" color="primary.600">
-              ₹{Number(
-                Number(order.total_bill_amount || 0) -
-                Number(order.discount_amount || 0) -
-                Number(order.special_discount || 0) +
-                Number(order.charges || 0) +
-                Number(order.service_charges_amount || 0) +
-                Number(order.gst_amount || 0) +
-                Number(order.tip || 0)
-              ).toFixed(2)}
+              ₹{Number(order.grand_total || 0).toFixed(2)}
             </Text>
             <Text fontSize="xs" color="gray.500">
               Grand Total
@@ -480,6 +458,60 @@ const getDateRange = (filter) => {
   }
 };
 
+// Add this function after the getDateRange function
+const sortOrders = (orders, sortKey, ascending) => {
+  if (!orders || orders.length === 0) return orders;
+
+  // Create a deep copy of the orders to avoid mutating the original
+  const sortedOrders = JSON.parse(JSON.stringify(orders));
+
+  // Sort each date group's data array
+  return sortedOrders.map(dateGroup => {
+    const sortedData = [...dateGroup.data].sort((a, b) => {
+      switch (sortKey) {
+        case 'order_number':
+          // Sort by order number (numeric)
+          return ascending
+            ? parseInt(a.order_number) - parseInt(b.order_number)
+            : parseInt(b.order_number) - parseInt(a.order_number);
+        
+        case 'time':
+          // Sort by time
+          return ascending
+            ? new Date(a.datetime || a.time) - new Date(b.datetime || b.time)
+            : new Date(b.datetime || b.time) - new Date(a.datetime || a.time);
+        
+        case 'amount':
+          // Sort by total amount
+          const aAmount = Number(a.total_bill_amount || 0);
+          const bAmount = Number(b.total_bill_amount || 0);
+          return ascending ? aAmount - bAmount : bAmount - aAmount;
+        
+        case 'status':
+          // Sort by status (alphabetical)
+          const statusOrder = {
+            'placed': 1,
+            'cooking': 2,
+            'served': 3,
+            'paid': 4,
+            'cancelled': 5
+          };
+          const aStatus = statusOrder[a.order_status?.toLowerCase()] || 99;
+          const bStatus = statusOrder[b.order_status?.toLowerCase()] || 99;
+          return ascending ? aStatus - bStatus : bStatus - aStatus;
+          
+        default:
+          // Default sort by order number
+          return ascending
+            ? parseInt(a.order_number) - parseInt(b.order_number)
+            : parseInt(b.order_number) - parseInt(a.order_number);
+      }
+    });
+
+    return { ...dateGroup, data: sortedData };
+  });
+};
+
 const OrdersScreen = () => {
   const router = useRouter();
   const toast = useToast();
@@ -487,7 +519,7 @@ const OrdersScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("date");
+  const [sortBy, setSortBy] = useState("time");
   const [orderStatus, setOrderStatus] = useState("all");
   const [isAscending, setIsAscending] = useState(false);
   const [orderType, setOrderType] = useState("all");
@@ -505,9 +537,14 @@ const OrdersScreen = () => {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
+  const [showOrderTypeModal, setShowOrderTypeModal] = useState(false);
 
-  const onDateChange = (event, selectedDate) => {
-    setShowPicker(false);
+  // Add status filter modal
+  const [showStatusModal, setShowStatusModal] = useState(false);
+
+  const handleDatePickerChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    
     if (selectedDate) {
       const today = new Date();
       today.setHours(23, 59, 59, 999);
@@ -520,56 +557,67 @@ const OrdersScreen = () => {
         });
         return;
       }
-
-      if (dateFilter === 'custom') {
-        if (!dateRange.start) {
-          // Setting start date
-          setStartDate(selectedDate);
-          setDateRange({
-            ...dateRange,
-            start: formatDateString(selectedDate)
-          });
-          setShowEndDatePicker(true);
-        } else {
-          // Setting end date
-          if (selectedDate < new Date(startDate)) {
-            toast.show({
-              description: "End date cannot be before start date",
-              status: "warning",
-              duration: 3000,
-            });
-            return;
-          }
-          setEndDate(selectedDate);
-          setDateRange({
-            ...dateRange,
-            end: formatDateString(selectedDate)
-          });
-          setDate(formatDateString(selectedDate));
-          fetchOrders(true);
-        }
-      } else {
-        setPickerDate(selectedDate);
-        const formattedDate = formatDateString(selectedDate);
-        setDate(formattedDate);
-        fetchOrders(true);
-      }
+      
+      // Set the start date
+      setStartDate(selectedDate);
+      const formattedStartDate = formatDateString(selectedDate);
+      setDateRange({
+        ...dateRange,
+        start: formattedStartDate
+      });
+      
+      // Open the date picker modal again
+      setTimeout(() => {
+        setShowPicker(true);
+      }, 300);
     }
   };
-
-  const handleOpenPicker = () => {
-    try {
-      const [day, month, year] = date.split(" ");
-      const monthIndex = new Date(`${month} 1, 2000`).getMonth();
-      const dateObj = new Date(year, monthIndex, parseInt(day));
-
-      if (!isNaN(dateObj.getTime())) {
-        setPickerDate(dateObj);
+  
+  const handleEndDatePickerChange = (event, selectedDate) => {
+    setShowEndDatePicker(false);
+    
+    if (selectedDate) {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      
+      if (selectedDate > today) {
+        toast.show({
+          description: "Cannot select future dates",
+          status: "warning",
+          duration: 3000,
+        });
+        setTimeout(() => {
+          setShowEndDatePicker(true);
+        }, 500);
+        return;
       }
-    } catch (error) {
-      console.error("Error parsing date:", error);
+      
+      // Ensure end date is not before start date
+      if (selectedDate < startDate) {
+        toast.show({
+          description: "End date cannot be before start date",
+          status: "warning",
+          duration: 3000,
+        });
+        setTimeout(() => {
+          setShowEndDatePicker(true);
+        }, 500);
+        return;
+      }
+      
+      // Set the end date
+      setEndDate(selectedDate);
+      const formattedEndDate = formatDateString(selectedDate);
+      setDateRange({
+        ...dateRange,
+        end: formattedEndDate
+      });
+      
+      // Open the date picker modal again
+      setTimeout(() => {
+        setShowPicker(true);
+      }, 300);
     }
-    setShowPicker(true);
   };
 
   const getStatusColor = (status) => {
@@ -587,8 +635,44 @@ const OrdersScreen = () => {
     }
   };
 
+  // Add isDateInRange function to check if a date is within the selected range
+  const isDateInRange = (dateString, startDateString, endDateString) => {
+    if (!dateString || !startDateString || !endDateString) return false;
+    
+    try {
+      // Parse input dates from format "DD MMM YYYY"
+      const [day, month, year] = dateString.split(" ");
+      const monthIndex = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(month);
+      
+      if (monthIndex === -1) return false;
+      
+      const date = new Date(parseInt(year), monthIndex, parseInt(day));
+      
+      // Parse start date
+      const [startDay, startMonth, startYear] = startDateString.split(" ");
+      const startMonthIndex = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(startMonth);
+      const startDateObj = new Date(parseInt(startYear), startMonthIndex, parseInt(startDay));
+      
+      // Parse end date
+      const [endDay, endMonth, endYear] = endDateString.split(" ");
+      const endMonthIndex = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(endMonth);
+      const endDateObj = new Date(parseInt(endYear), endMonthIndex, parseInt(endDay));
+      
+      // Set times to ensure full day comparison
+      startDateObj.setHours(0, 0, 0, 0);
+      endDateObj.setHours(23, 59, 59, 999);
+      date.setHours(12, 0, 0, 0);
+      
+      return date >= startDateObj && date <= endDateObj;
+    } catch (error) {
+      console.error("Error checking date range:", error);
+      return false;
+    }
+  };
+
+  // Update the fetchOrders function to handle date range filtering
   const fetchOrders = async (isSilentRefresh = false) => {
-    console.log("Fetching orders for date:", date); // Debug log
+    console.log("Fetching orders for date range:", dateRange); // Debug log
     if (!isSilentRefresh) setIsLoading(true);
 
     try {
@@ -603,24 +687,36 @@ const OrdersScreen = () => {
       });
 
       if (data.st === 1 && data.lists) {
-        // Store all orders but filter display based on selected date
+        // Store all orders but filter display based on selected date or date range
         setOrders(data.lists);
 
         // Filter orders for timers based on selected date
-        const currentDateOrders = data.lists.find(
-          (section) => section.date === date
-        );
+        const relevantOrders = dateFilter === 'custom' && dateRange.start && dateRange.end
+          ? data.lists.filter(section => isDateInRange(section.date, dateRange.start, dateRange.end))
+          : data.lists.find(section => section.date === date);
 
         const newTimers = {};
-        if (currentDateOrders) {
-          currentDateOrders.data.forEach((order) => {
+        
+        if (dateFilter === 'custom' && dateRange.start && dateRange.end) {
+          // If custom date range, check all matching sections
+          if (Array.isArray(relevantOrders)) {
+            relevantOrders.forEach(section => {
+              section.data.forEach(order => {
+                if (order.order_status?.toLowerCase() === "placed") {
+                  newTimers[order.order_number] = calculateOrderTimer(order.datetime);
+                }
+              });
+            });
+          }
+        } else if (relevantOrders) {
+          // If single date match
+          relevantOrders.data.forEach(order => {
             if (order.order_status?.toLowerCase() === "placed") {
-              newTimers[order.order_number] = calculateOrderTimer(
-                order.datetime
-              );
+              newTimers[order.order_number] = calculateOrderTimer(order.datetime);
             }
           });
         }
+        
         setOrderTimers(newTimers);
       }
     } catch (error) {
@@ -668,49 +764,82 @@ const OrdersScreen = () => {
     }
   }, []);
 
-  // Update the filtered orders calculation
+  // Add this function to the OrdersScreen component
+  const toggleSortDirection = () => {
+    setIsAscending(!isAscending);
+  };
+  
+  // Update the filtered orders calculation to handle date ranges
   const filteredOrders = useMemo(() => {
     if (!orders || !orders.length) return [];
 
-    // First filter by selected date
-    const dateSection = orders.find((section) => section.date === date);
-    if (!dateSection) return [];
+    let relevantSections = [];
 
-    // Create a section with the selected date
-    return [
-      {
+    if (dateFilter === 'custom' && dateRange.start && dateRange.end) {
+      // For custom date range, filter all sections within the range
+      relevantSections = orders
+        .filter(section => isDateInRange(section.date, dateRange.start, dateRange.end))
+        .map(section => ({
+          ...section,
+          data: section.data
+            .filter(order => {
+              // Apply status filter
+              if (orderStatus !== "all") {
+                return order.order_status?.toLowerCase() === orderStatus.toLowerCase();
+              }
+              return true;
+            })
+            .filter(order => {
+              // Apply order type filter
+              if (orderType !== "all") {
+                return order.order_type?.toLowerCase() === orderType.toLowerCase();
+              }
+              return true;
+            })
+            .filter(order => {
+              // Apply search filter
+              if (searchQuery) {
+                return order.order_number.toLowerCase().includes(searchQuery.toLowerCase());
+              }
+              return true;
+            })
+        }));
+    } else {
+      // For single date, find the matching section
+      const dateSection = orders.find(section => section.date === date);
+      if (!dateSection) return [];
+
+      // Create a section with the selected date and filtered data
+      relevantSections = [{
         date: date,
         data: dateSection.data
-          .filter((order) => {
-            // Then apply status filter
+          .filter(order => {
+            // Apply status filter
             if (orderStatus !== "all") {
-              return (
-                order.order_status?.toLowerCase() === orderStatus.toLowerCase()
-              );
+              return order.order_status?.toLowerCase() === orderStatus.toLowerCase();
             }
             return true;
           })
-          .filter((order) => {
-            // Then apply order type filter
+          .filter(order => {
+            // Apply order type filter
             if (orderType !== "all") {
-              return (
-                order.order_type?.toLowerCase() === orderType.toLowerCase()
-              );
+              return order.order_type?.toLowerCase() === orderType.toLowerCase();
             }
             return true;
           })
-          .filter((order) => {
-            // Then apply search filter
+          .filter(order => {
+            // Apply search filter
             if (searchQuery) {
-              return order.order_number
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase());
+              return order.order_number.toLowerCase().includes(searchQuery.toLowerCase());
             }
             return true;
-          }),
-      },
-    ];
-  }, [orders, date, orderStatus, orderType, searchQuery]);
+          })
+      }];
+    }
+
+    // Apply sorting to all relevant sections
+    return sortOrders(relevantSections, sortBy, isAscending);
+  }, [orders, date, orderStatus, orderType, searchQuery, sortBy, isAscending, dateFilter, dateRange]);
 
   const handleDateChange = (event, date) => {
     if (date) {
@@ -808,6 +937,216 @@ const OrdersScreen = () => {
     }
   }, [dateRange]);
 
+  // Add this to render the modal
+  const renderOrderTypeModal = () => (
+    <Modal 
+      isOpen={showOrderTypeModal} 
+      onClose={() => setShowOrderTypeModal(false)}
+      size="md"
+    >
+      <Modal.Content>
+        <Modal.CloseButton />
+        <Modal.Header>Filter by Order Type</Modal.Header>
+        <Modal.Body p={0}>
+          <VStack divider={<Divider />} width="100%">
+            <Pressable 
+              onPress={() => {
+                setOrderType("all");
+                setShowOrderTypeModal(false);
+              }}
+              py={3}
+              px={4}
+            >
+              <HStack alignItems="center" justifyContent="space-between">
+                <Text>All Types</Text>
+                {orderType === "all" && (
+                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                )}
+              </HStack>
+            </Pressable>
+
+            <Pressable 
+              onPress={() => {
+                setOrderType("dine-in");
+                setShowOrderTypeModal(false);
+              }}
+              py={3}
+              px={4}
+            >
+              <HStack alignItems="center" justifyContent="space-between">
+                <Text>Dine-in</Text>
+                {orderType === "dine-in" && (
+                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                )}
+              </HStack>
+            </Pressable>
+
+            <Pressable 
+              onPress={() => {
+                setOrderType("parcel");
+                setShowOrderTypeModal(false);
+              }}
+              py={3}
+              px={4}
+            >
+              <HStack alignItems="center" justifyContent="space-between">
+                <Text>Parcel</Text>
+                {orderType === "parcel" && (
+                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                )}
+              </HStack>
+            </Pressable>
+
+            <Pressable 
+              onPress={() => {
+                setOrderType("drive-through");
+                setShowOrderTypeModal(false);
+              }}
+              py={3}
+              px={4}
+            >
+              <HStack alignItems="center" justifyContent="space-between">
+                <Text>Drive Through</Text>
+                {orderType === "drive-through" && (
+                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                )}
+              </HStack>
+            </Pressable>
+
+            <Pressable 
+              onPress={() => {
+                setOrderType("counter");
+                setShowOrderTypeModal(false);
+              }}
+              py={3}
+              px={4}
+            >
+              <HStack alignItems="center" justifyContent="space-between">
+                <Text>Counter</Text>
+                {orderType === "counter" && (
+                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                )}
+              </HStack>
+            </Pressable>
+          </VStack>
+        </Modal.Body>
+      </Modal.Content>
+    </Modal>
+  );
+
+  // Add this to render the status filter modal
+  const renderStatusModal = () => (
+    <Modal 
+      isOpen={showStatusModal} 
+      onClose={() => setShowStatusModal(false)}
+      size="md"
+    >
+      <Modal.Content>
+        <Modal.CloseButton />
+        <Modal.Header>Filter by Status</Modal.Header>
+        <Modal.Body p={0}>
+          <VStack divider={<Divider />} width="100%">
+            <Pressable 
+              onPress={() => {
+                setOrderStatus("all");
+                setShowStatusModal(false);
+              }}
+              py={3}
+              px={4}
+            >
+              <HStack alignItems="center" justifyContent="space-between">
+                <Text>All Status</Text>
+                {orderStatus === "all" && (
+                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                )}
+              </HStack>
+            </Pressable>
+            
+            <Pressable 
+              onPress={() => {
+                setOrderStatus("placed");
+                setShowStatusModal(false);
+              }}
+              py={3}
+              px={4}
+            >
+              <HStack alignItems="center" justifyContent="space-between">
+                <Text>Placed</Text>
+                {orderStatus === "placed" && (
+                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                )}
+              </HStack>
+            </Pressable>
+            
+            <Pressable 
+              onPress={() => {
+                setOrderStatus("cooking");
+                setShowStatusModal(false);
+              }}
+              py={3}
+              px={4}
+            >
+              <HStack alignItems="center" justifyContent="space-between">
+                <Text>Cooking</Text>
+                {orderStatus === "cooking" && (
+                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                )}
+              </HStack>
+            </Pressable>
+            
+            <Pressable 
+              onPress={() => {
+                setOrderStatus("served");
+                setShowStatusModal(false);
+              }}
+              py={3}
+              px={4}
+            >
+              <HStack alignItems="center" justifyContent="space-between">
+                <Text>Served</Text>
+                {orderStatus === "served" && (
+                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                )}
+              </HStack>
+            </Pressable>
+            
+            <Pressable 
+              onPress={() => {
+                setOrderStatus("paid");
+                setShowStatusModal(false);
+              }}
+              py={3}
+              px={4}
+            >
+              <HStack alignItems="center" justifyContent="space-between">
+                <Text>Paid</Text>
+                {orderStatus === "paid" && (
+                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                )}
+              </HStack>
+            </Pressable>
+            
+            <Pressable 
+              onPress={() => {
+                setOrderStatus("cancelled");
+                setShowStatusModal(false);
+              }}
+              py={3}
+              px={4}
+            >
+              <HStack alignItems="center" justifyContent="space-between">
+                <Text>Cancelled</Text>
+                {orderStatus === "cancelled" && (
+                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                )}
+              </HStack>
+            </Pressable>
+          </VStack>
+        </Modal.Body>
+      </Modal.Content>
+    </Modal>
+  );
+
   if (isLoading) {
     return (
       <Center flex={1}>
@@ -818,7 +1157,34 @@ const OrdersScreen = () => {
 
   return (
     <Box flex={1} bg="gray.50" safeArea>
-      <Header title="Orders" />
+      <Header title="My Orders" />
+
+      <HStack
+        px={4}
+        py={3}
+        bg="gray.100"
+        borderBottomWidth={1}
+        borderBottomColor="coolGray.200"
+        alignItems="center"
+      >
+        <Pressable 
+          flex={1}
+          onPress={() => {}}
+          flexDirection="row"
+          alignItems="center"
+          mr={2}
+        >
+          <Icon as={MaterialIcons} name="business" size="sm" color="gray.600" mr={1} />
+          <Text fontWeight="semibold" mr={1}>Jagdamb</Text>
+          <Icon as={MaterialIcons} name="keyboard-arrow-down" size="sm" color="gray.600" />
+        </Pressable>
+        
+        <Badge bg="amber.500" rounded="sm" px={2} py={0.5}>
+          <Text color="white" fontSize="xs" fontWeight="bold">
+            TESTING
+          </Text>
+        </Badge>
+      </HStack>
 
       <HStack
         px={4}
@@ -830,9 +1196,8 @@ const OrdersScreen = () => {
       >
         <Input
           flex={1}
-          h="36px"
-          w="80%"
-          placeholder="Search..."
+          h="40px"
+          placeholder="Search"
           value={searchQuery}
           onChangeText={setSearchQuery}
           borderRadius="md"
@@ -844,104 +1209,340 @@ const OrdersScreen = () => {
           }
         />
       </HStack>
-
-      <HStack px={4} py={2} space={3}>
-        <Select
-          flex={1}
-          selectedValue={orderStatus}
-          onValueChange={setOrderStatus}
-          _selectedItem={{
-            bg: "coolGray.100",
-            endIcon: (
-              <MaterialIcons name="check" size={20} color="coolGray.600" />
-            ),
-          }}
-        >
-          <Select.Item label="All Status" value="all" />
-          <Select.Item label="Cooking" value="cooking" />
-          <Select.Item label="Paid" value="paid" />
-          <Select.Item label="Served" value="served" />
-          <Select.Item label="Placed" value="placed" />
-          <Select.Item label="Cancelled" value="cancelled" />
-        </Select>
-
-        <Select
-          flex={1}
-          selectedValue={orderType}
-          onValueChange={setOrderType}
-          _selectedItem={{
-            bg: "coolGray.100",
-            endIcon: (
-              <MaterialIcons name="check" size={20} color="coolGray.600" />
-            ),
-          }}
-        >
-          <Select.Item label="All Types" value="all" />
-          <Select.Item label="Dine-in" value="dine-in" />
-          <Select.Item label="Parcel" value="parcel" />
-          <Select.Item label="Drive Through" value="drive-through" />
-          <Select.Item label="Counter" value="counter" />
-        </Select>
-      </HStack>
-
-      <HStack px={4} py={2} space={3} alignItems="center">
-        <Pressable
-          onPress={() => handleDateFilterChange('today')}
-          bg={dateFilter === 'today' ? "primary.500" : "white"}
+      
+      <HStack px={4} py={3} space={2} alignItems="center">
+        <Pressable 
+          onPress={() => setShowStatusModal(true)}
+          h="40px"
+          px={2}
+          bg="white"
           borderWidth={1}
-          borderColor="primary.500"
-          rounded="md"
-          px={4}
-          py={2}
+          borderColor="coolGray.300"
+          borderRadius="md"
+          justifyContent="center"
+          alignItems="center"
+          w="70px"
         >
-          <HStack space={2} alignItems="center">
-            <MaterialIcons
-              name="today"
-              size={20}
-              color={dateFilter === 'today' ? "white" : "primary.500"}
-            />
-            <Text
-              color={dateFilter === 'today' ? "white" : "primary.500"}
-              fontSize="sm"
-              fontWeight="medium"
-            >
-              Today
+          <HStack alignItems="center" space={1}>
+            <Text fontSize="sm" color="coolGray.700">
+              {orderStatus === "all" ? "All" :
+               orderStatus === "placed" ? "Placed" :
+               orderStatus === "cooking" ? "Cooking" :
+               orderStatus === "served" ? "Served" :
+               orderStatus === "paid" ? "Paid" :
+               orderStatus === "cancelled" ? "Cancelled" : "All"}
             </Text>
+            <Icon as={MaterialIcons} name="arrow-drop-down" size="sm" color="coolGray.600" />
           </HStack>
         </Pressable>
-
-       
-
-        {dateFilter === 'custom' && (
-          <Pressable
-            flex={1}
-            h="36px"
-            borderWidth={1}
-            borderColor="coolGray.300"
-            borderRadius="md"
-            justifyContent="center"
-            onPress={() => setShowPicker(true)}
-          >
-            <HStack px={2} alignItems="center" space={1}>
-              <MaterialIcons
-                name="calendar-today"
-                size={16}
-                color="coolGray.600"
-              />
-              <Text fontSize="sm" color="coolGray.600">
-                {dateRange.start || 'Start Date'} - {dateRange.end || 'End Date'}
-              </Text>
-            </HStack>
-          </Pressable>
-        )}
+        
+        <Pressable 
+          onPress={() => setShowOrderTypeModal(true)}
+          h="40px"
+          px={2}
+          bg="white"
+          borderWidth={1}
+          borderColor="coolGray.300"
+          borderRadius="md"
+          justifyContent="center"
+          alignItems="center"
+          w="70px"
+        >
+          <HStack alignItems="center" space={1}>
+            <Text fontSize="sm" color="coolGray.700">
+              {orderType === "all" ? "All" :
+               orderType === "dine-in" ? "Dine" :
+               orderType === "parcel" ? "Parcel" :
+               orderType === "drive-through" ? "Drive" :
+               orderType === "counter" ? "Counter" : "All"}
+            </Text>
+            <Icon as={MaterialIcons} name="arrow-drop-down" size="sm" color="coolGray.600" />
+          </HStack>
+        </Pressable>
+        
+        <Pressable 
+          onPress={() => handleDateFilterChange('today')}
+          h="40px"
+          px={3}
+          bg="#2196F3"
+          rounded="md"
+          justifyContent="center"
+          alignItems="center"
+        >
+          <Text fontSize="sm" color="white" fontWeight="medium">
+            Today
+          </Text>
+        </Pressable>
+        
+        <Pressable 
+          onPress={() => setShowPicker(true)}
+          h="40px"
+          px={2}
+          bg="white"
+          borderWidth={1}
+          borderColor="coolGray.300"
+          borderRadius="md"
+          justifyContent="center"
+          alignItems="center"
+          flex={1}
+        >
+          <HStack alignItems="center" space={1} justifyContent="space-between" width="100%">
+            <Text fontSize="sm" color="coolGray.700">Date Filter</Text>
+            <Icon as={MaterialIcons} name="arrow-drop-down" size="sm" color="coolGray.600" />
+          </HStack>
+        </Pressable>
       </HStack>
+      
+      <Box px={4} py={2}>
+        <HStack alignItems="center" mb={3}>
+          <Text fontSize="md" fontWeight="semibold" color="coolGray.800">
+            {dateFilter === 'custom' && dateRange.start && dateRange.end
+              ? `${dateRange.start} to ${dateRange.end}`
+              : date}
+          </Text>
+          
+          {dateFilter === 'custom' && dateRange.start && dateRange.end && (
+            <Pressable 
+              ml={2}
+              onPress={() => {
+                setDateFilter('today');
+                const today = new Date();
+                setDate(formatDateString(today));
+                fetchOrders(true);
+              }}
+            >
+              <Icon as={MaterialIcons} name="close" size="sm" color="coolGray.500" />
+            </Pressable>
+          )}
+        </HStack>
+        
+        <HStack space={3} alignItems="center">
+          <Text fontSize="sm" color="coolGray.700">
+            Total: {orders.reduce((total, dateGroup) => total + dateGroup.data.length, 0)}
+          </Text>
+          
+          <HStack alignItems="center" space={1}>
+            <Icon as={MaterialIcons} name="fastfood" size="xs" color="orange.500" />
+            <Text fontSize="sm" color="orange.500">
+              Cooking: {orders.reduce((total, dateGroup) => 
+                total + dateGroup.data.filter(order => 
+                  order.order_status?.toLowerCase() === "cooking"
+                ).length, 0)}
+            </Text>
+          </HStack>
+          
+          <HStack alignItems="center" space={1}>
+            <Icon as={MaterialIcons} name="restaurant" size="xs" color="blue.500" />
+            <Text fontSize="sm" color="blue.500">
+              Dine-in: {orders.reduce((total, dateGroup) => 
+                total + dateGroup.data.filter(order => 
+                  order.order_type?.toLowerCase() === "dine-in"
+                ).length, 0)}
+            </Text>
+          </HStack>
+        </HStack>
+      </Box>
 
+      {/* Date Picker */}
       {showPicker && (
+        <Modal isOpen={showPicker} onClose={() => setShowPicker(false)} size="md">
+          <Modal.Content>
+            <Modal.CloseButton />
+            <Modal.Header>Select Date Range</Modal.Header>
+            <Modal.Body p={0}>
+              <VStack divider={<Divider />} width="100%">
+                <Pressable 
+                  onPress={() => {
+                    handleDateFilterChange('yesterday');
+                    setShowPicker(false);
+                  }}
+                  py={3}
+                  px={4}
+                >
+                  <Text>Yesterday</Text>
+                </Pressable>
+                
+                <Pressable 
+                  onPress={() => {
+                    handleDateFilterChange('this_week');
+                    setShowPicker(false);
+                  }}
+                  py={3}
+                  px={4}
+                >
+                  <Text>This Week</Text>
+                </Pressable>
+                
+                <Pressable 
+                  onPress={() => {
+                    handleDateFilterChange('last_week');
+                    setShowPicker(false);
+                  }}
+                  py={3}
+                  px={4}
+                >
+                  <Text>Last Week</Text>
+                </Pressable>
+
+                <Pressable 
+                  onPress={() => {
+                    handleDateFilterChange('this_month');
+                    setShowPicker(false);
+                  }}
+                  py={3}
+                  px={4}
+                >
+                  <Text>This Month</Text>
+                </Pressable>
+
+                <Pressable 
+                  onPress={() => {
+                    handleDateFilterChange('last_month');
+                    setShowPicker(false);
+                  }}
+                  py={3}
+                  px={4}
+                >
+                  <Text>Last Month</Text>
+                </Pressable>
+              </VStack>
+              
+              <Divider my={2} />
+              
+              {/* Custom Date Range Section */}
+              <VStack p={4} space={3}>
+                <Text fontWeight="medium">Custom Date Range</Text>
+                
+                <Pressable
+                  borderWidth={1}
+                  borderColor="coolGray.300"
+                  p={3}
+                  rounded="md"
+                  onPress={() => {
+                    setShowPicker(false);
+                    setTimeout(() => {
+                      // Set default date to today or existing start date
+                      const defaultDate = dateRange.start ? 
+                        (() => {
+                          try {
+                            const [day, month, year] = dateRange.start.split(" ");
+                            const monthIndex = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(month);
+                            return new Date(parseInt(year), monthIndex, parseInt(day));
+                          } catch (e) {
+                            return new Date();
+                          }
+                        })() : 
+                        new Date();
+                      
+                      setPickerDate(defaultDate);
+                      setShowDatePicker(true);
+                    }, 300);
+                  }}
+                >
+                  <HStack justifyContent="space-between" alignItems="center">
+                    <Text color="coolGray.600">Start Date:</Text>
+                    <Text>{dateRange.start || formatDateString(new Date())}</Text>
+                  </HStack>
+                </Pressable>
+                
+                <Pressable
+                  borderWidth={1}
+                  borderColor="coolGray.300"
+                  p={3}
+                  rounded="md"
+                  onPress={() => {
+                    if (!dateRange.start) {
+                      // If start date is not set, set it first
+                      setDateRange({
+                        ...dateRange,
+                        start: formatDateString(new Date())
+                      });
+                    }
+                    
+                    setShowPicker(false);
+                    setTimeout(() => {
+                      // Set default date to today, existing end date, or day after start date
+                      const defaultDate = dateRange.end ? 
+                        (() => {
+                          try {
+                            const [day, month, year] = dateRange.end.split(" ");
+                            const monthIndex = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(month);
+                            return new Date(parseInt(year), monthIndex, parseInt(day));
+                          } catch (e) {
+                            return new Date();
+                          }
+                        })() : 
+                        dateRange.start ? 
+                          (() => {
+                            try {
+                              const [day, month, year] = dateRange.start.split(" ");
+                              const monthIndex = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(month);
+                              const startDate = new Date(parseInt(year), monthIndex, parseInt(day));
+                              // Set to the same day as start date by default
+                              return startDate;
+                            } catch (e) {
+                              return new Date();
+                            }
+                          })() : 
+                          new Date();
+                      
+                      setEndDate(defaultDate);
+                      setShowEndDatePicker(true);
+                    }, 300);
+                  }}
+                >
+                  <HStack justifyContent="space-between" alignItems="center">
+                    <Text color="coolGray.600">End Date:</Text>
+                    <Text>{dateRange.end || formatDateString(new Date())}</Text>
+                  </HStack>
+                </Pressable>
+                
+                <Button 
+                  colorScheme="blue"
+                  onPress={() => {
+                    setShowPicker(false);
+                    
+                    // If dates aren't set, use today's date
+                    const start = dateRange.start || formatDateString(new Date());
+                    const end = dateRange.end || formatDateString(new Date());
+                    
+                    setDateFilter('custom');
+                    setDateRange({
+                      start,
+                      end,
+                      label: 'Custom Date'
+                    });
+                    
+                    // Show success toast
+                    toast.show({
+                      description: `Showing orders from ${start} to ${end}`,
+                      status: "success",
+                      duration: 3000,
+                    });
+                    
+                    fetchOrders(true);
+                  }}
+                >
+                  Apply Date Range
+                </Button>
+              </VStack>
+            </Modal.Body>
+          </Modal.Content>
+        </Modal>
+      )}
+      
+      {showDatePicker && (
         <DateTimePicker
-          value={dateFilter === 'custom' ? startDate : pickerDate}
+          value={pickerDate}
           mode="date"
           display="default"
-          onChange={onDateChange}
+          onChange={(event, date) => {
+            setShowDatePicker(false);
+            if (date) {
+              setPickerDate(date);
+              handleDatePickerChange(event, date);
+            }
+          }}
           maximumDate={new Date()}
         />
       )}
@@ -951,7 +1552,13 @@ const OrdersScreen = () => {
           value={endDate}
           mode="date"
           display="default"
-          onChange={onDateChange}
+          onChange={(event, date) => {
+            if (date) {
+              handleEndDatePickerChange(event, date);
+            } else {
+              setShowEndDatePicker(false);
+            }
+          }}
           maximumDate={new Date()}
           minimumDate={startDate}
         />
@@ -981,6 +1588,9 @@ const OrdersScreen = () => {
         updateCellsBatchingPeriod={50}
         removeClippedSubviews={true}
       />
+
+      {renderOrderTypeModal()}
+      {renderStatusModal()}
     </Box>
   );
 };
