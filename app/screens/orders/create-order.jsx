@@ -1801,7 +1801,7 @@ const handleSettleOrder = async () => {
               style: "cancel",
               onPress: () => {
                 // Skip printing and just show confirmation
-                toast.show({
+        toast.show({
                   description: "Skipped printing receipt",
                   status: "info",
                   duration: 2000,
@@ -1876,8 +1876,8 @@ const handleSettleOrder = async () => {
         
         // Set to printing state
         setLoadingMessage("Printing receipt...");
-        
-        // Print the receipt
+
+      // Print the receipt
         await printReceipt(apiResponse);
         
         // Success
@@ -2939,7 +2939,7 @@ const handleSettleOrder = async () => {
                   const savedOrder = await createOrder("create_order");
                   
                   if (savedOrder) {
-                    toast.show({
+        toast.show({
                       description: "Order saved successfully",
                       status: "success",
                       duration: 2000,
@@ -2958,9 +2958,9 @@ const handleSettleOrder = async () => {
                   console.error("Save order error:", error);
                   toast.show({
                     description: "Error saving order: " + error.message,
-                    status: "error",
-                    duration: 3000,
-                  });
+          status: "error",
+          duration: 3000,
+        });
                 } finally {
                   setIsProcessing(false);
                   setLoadingMessage("");
@@ -3005,11 +3005,11 @@ const handleSettleOrder = async () => {
                   const savedOrder = await createOrder("create_order");
                   
                   if (savedOrder) {
-                    toast.show({
+          toast.show({
                       description: "Order saved successfully",
                       status: "success",
-                      duration: 2000,
-                    });
+            duration: 2000,
+          });
                     
                     // Navigate back to tables view
                     router.replace({
@@ -3022,11 +3022,11 @@ const handleSettleOrder = async () => {
                   }
                 } catch (error) {
                   console.error("Save order error:", error);
-                  toast.show({
+        toast.show({
                     description: "Error saving order: " + error.message,
                     status: "error",
-                    duration: 3000,
-                  });
+          duration: 3000,
+        });
                 } finally {
                   setIsProcessing(false);
                   setLoadingMessage("");
@@ -3063,7 +3063,7 @@ const handleSettleOrder = async () => {
           setLoadingMessage("Printing KOT...");
           await printKOT(apiResponse);
           
-          toast.show({
+        toast.show({
             description: "Order saved and KOT printed successfully",
             status: "success",
             duration: 2000,
@@ -3074,9 +3074,9 @@ const handleSettleOrder = async () => {
           toast.show({
             description: "Order saved but KOT printing failed: " + printError.message,
             status: "warning",
-            duration: 3000,
-          });
-        }
+          duration: 3000,
+        });
+      }
 
         // Navigate back to tables screen
         router.replace({
