@@ -520,8 +520,8 @@ const OrdersScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("time");
-  const [orderStatus, setOrderStatus] = useState("all");
   const [isAscending, setIsAscending] = useState(false);
+  const [orderStatus, setOrderStatus] = useState("all");
   const [orderType, setOrderType] = useState("all");
   const [orderTimers, setOrderTimers] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -538,9 +538,8 @@ const OrdersScreen = () => {
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [showOrderTypeModal, setShowOrderTypeModal] = useState(false);
-
-  // Add status filter modal
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [isTodayActive, setIsTodayActive] = useState(true);
 
   const handleDatePickerChange = (event, selectedDate) => {
     setShowDatePicker(false);
@@ -619,6 +618,36 @@ const OrdersScreen = () => {
       }, 300);
     }
   };
+
+  // Function to set date filter and update UI state
+  const handleDateFilterChange = (filter) => {
+    setDateFilter(filter);
+    
+    // Set today button state
+    setIsTodayActive(filter === 'today');
+    
+    if (filter === 'custom') {
+      setShowPicker(true);
+    } else {
+      // Get the date range for this filter
+      const newRange = getDateRange(filter);
+      setDateRange(newRange);
+      
+      // For "today" filter, set the current date to today
+      // For other filters, set it to the end date of the range
+      setDate(filter === 'today' ? formatDateString(new Date()) : newRange.end);
+      
+      // Fetch orders with the updated date
+      fetchOrders(true);
+    }
+  };
+
+  // Add useEffect to handle date range changes
+  useEffect(() => {
+    if (dateRange.start && dateRange.end) {
+      fetchOrders(true);
+    }
+  }, [dateRange]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -917,235 +946,237 @@ const OrdersScreen = () => {
     }
   };
 
-  // Update the handleDateFilterChange function
-  const handleDateFilterChange = (value) => {
-    setDateFilter(value);
-    if (value === 'custom') {
-      setShowPicker(true);
-    } else {
-      const newRange = getDateRange(value);
-      setDateRange(newRange);
-      setDate(newRange.end); // Set the current display date to the end date
-      fetchOrders(true);
-    }
+  // Add the missing modal render functions
+  const renderOrderTypeModal = () => {
+    return (
+      <Modal isOpen={showOrderTypeModal} onClose={() => setShowOrderTypeModal(false)}>
+        <Modal.Content>
+          <Modal.CloseButton />
+          <Modal.Header>Select Order Type</Modal.Header>
+          <Modal.Body p={0}>
+            <VStack divider={<Divider />} width="100%">
+              <Pressable 
+                onPress={() => {
+                  setOrderType("all");
+                  setShowOrderTypeModal(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <Text>All Types</Text>
+                  {orderType === "all" && (
+                    <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                  )}
+                </HStack>
+              </Pressable>
+              
+              <Pressable 
+                onPress={() => {
+                  setOrderType("dine-in");
+                  setShowOrderTypeModal(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <HStack alignItems="center" space={2}>
+                    <Icon as={MaterialIcons} name={ORDER_TYPE_ICONS["dine-in"]} size="sm" color="coolGray.600" />
+                    <Text>Dine-in</Text>
+                  </HStack>
+                  {orderType === "dine-in" && (
+                    <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                  )}
+                </HStack>
+              </Pressable>
+              
+              <Pressable 
+                onPress={() => {
+                  setOrderType("parcel");
+                  setShowOrderTypeModal(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <HStack alignItems="center" space={2}>
+                    <Icon as={MaterialIcons} name={ORDER_TYPE_ICONS["parcel"]} size="sm" color="coolGray.600" />
+                    <Text>Parcel</Text>
+                  </HStack>
+                  {orderType === "parcel" && (
+                    <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                  )}
+                </HStack>
+              </Pressable>
+              
+              <Pressable 
+                onPress={() => {
+                  setOrderType("drive-through");
+                  setShowOrderTypeModal(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <HStack alignItems="center" space={2}>
+                    <Icon as={MaterialIcons} name={ORDER_TYPE_ICONS["drive-through"]} size="sm" color="coolGray.600" />
+                    <Text>Drive-through</Text>
+                  </HStack>
+                  {orderType === "drive-through" && (
+                    <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                  )}
+                </HStack>
+              </Pressable>
+              
+              <Pressable 
+                onPress={() => {
+                  setOrderType("counter");
+                  setShowOrderTypeModal(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <HStack alignItems="center" space={2}>
+                    <Icon as={MaterialIcons} name={ORDER_TYPE_ICONS["counter"]} size="sm" color="coolGray.600" />
+                    <Text>Counter</Text>
+                  </HStack>
+                  {orderType === "counter" && (
+                    <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                  )}
+                </HStack>
+              </Pressable>
+            </VStack>
+          </Modal.Body>
+        </Modal.Content>
+      </Modal>
+    );
   };
 
-  // Add useEffect to handle date range changes
-  useEffect(() => {
-    if (dateRange.start && dateRange.end) {
-      fetchOrders(true);
-    }
-  }, [dateRange]);
-
-  // Add this to render the modal
-  const renderOrderTypeModal = () => (
-    <Modal 
-      isOpen={showOrderTypeModal} 
-      onClose={() => setShowOrderTypeModal(false)}
-      size="md"
-    >
-      <Modal.Content>
-        <Modal.CloseButton />
-        <Modal.Header>Filter by Order Type</Modal.Header>
-        <Modal.Body p={0}>
-          <VStack divider={<Divider />} width="100%">
-            <Pressable 
-              onPress={() => {
-                setOrderType("all");
-                setShowOrderTypeModal(false);
-              }}
-              py={3}
-              px={4}
-            >
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text>All Types</Text>
-                {orderType === "all" && (
-                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
-                )}
-              </HStack>
-            </Pressable>
-
-            <Pressable 
-              onPress={() => {
-                setOrderType("dine-in");
-                setShowOrderTypeModal(false);
-              }}
-              py={3}
-              px={4}
-            >
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text>Dine-in</Text>
-                {orderType === "dine-in" && (
-                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
-                )}
-              </HStack>
-            </Pressable>
-
-            <Pressable 
-              onPress={() => {
-                setOrderType("parcel");
-                setShowOrderTypeModal(false);
-              }}
-              py={3}
-              px={4}
-            >
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text>Parcel</Text>
-                {orderType === "parcel" && (
-                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
-                )}
-              </HStack>
-            </Pressable>
-
-            <Pressable 
-              onPress={() => {
-                setOrderType("drive-through");
-                setShowOrderTypeModal(false);
-              }}
-              py={3}
-              px={4}
-            >
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text>Drive Through</Text>
-                {orderType === "drive-through" && (
-                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
-                )}
-              </HStack>
-            </Pressable>
-
-            <Pressable 
-              onPress={() => {
-                setOrderType("counter");
-                setShowOrderTypeModal(false);
-              }}
-              py={3}
-              px={4}
-            >
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text>Counter</Text>
-                {orderType === "counter" && (
-                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
-                )}
-              </HStack>
-            </Pressable>
-          </VStack>
-        </Modal.Body>
-      </Modal.Content>
-    </Modal>
-  );
-
-  // Add this to render the status filter modal
-  const renderStatusModal = () => (
-    <Modal 
-      isOpen={showStatusModal} 
-      onClose={() => setShowStatusModal(false)}
-      size="md"
-    >
-      <Modal.Content>
-        <Modal.CloseButton />
-        <Modal.Header>Filter by Status</Modal.Header>
-        <Modal.Body p={0}>
-          <VStack divider={<Divider />} width="100%">
-            <Pressable 
-              onPress={() => {
-                setOrderStatus("all");
-                setShowStatusModal(false);
-              }}
-              py={3}
-              px={4}
-            >
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text>All Status</Text>
-                {orderStatus === "all" && (
-                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
-                )}
-              </HStack>
-            </Pressable>
-            
-            <Pressable 
-              onPress={() => {
-                setOrderStatus("placed");
-                setShowStatusModal(false);
-              }}
-              py={3}
-              px={4}
-            >
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text>Placed</Text>
-                {orderStatus === "placed" && (
-                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
-                )}
-              </HStack>
-            </Pressable>
-            
-            <Pressable 
-              onPress={() => {
-                setOrderStatus("cooking");
-                setShowStatusModal(false);
-              }}
-              py={3}
-              px={4}
-            >
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text>Cooking</Text>
-                {orderStatus === "cooking" && (
-                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
-                )}
-              </HStack>
-            </Pressable>
-            
-            <Pressable 
-              onPress={() => {
-                setOrderStatus("served");
-                setShowStatusModal(false);
-              }}
-              py={3}
-              px={4}
-            >
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text>Served</Text>
-                {orderStatus === "served" && (
-                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
-                )}
-              </HStack>
-            </Pressable>
-            
-            <Pressable 
-              onPress={() => {
-                setOrderStatus("paid");
-                setShowStatusModal(false);
-              }}
-              py={3}
-              px={4}
-            >
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text>Paid</Text>
-                {orderStatus === "paid" && (
-                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
-                )}
-              </HStack>
-            </Pressable>
-            
-            <Pressable 
-              onPress={() => {
-                setOrderStatus("cancelled");
-                setShowStatusModal(false);
-              }}
-              py={3}
-              px={4}
-            >
-              <HStack alignItems="center" justifyContent="space-between">
-                <Text>Cancelled</Text>
-                {orderStatus === "cancelled" && (
-                  <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
-                )}
-              </HStack>
-            </Pressable>
-          </VStack>
-        </Modal.Body>
-      </Modal.Content>
-    </Modal>
-  );
+  const renderStatusModal = () => {
+    return (
+      <Modal isOpen={showStatusModal} onClose={() => setShowStatusModal(false)}>
+        <Modal.Content>
+          <Modal.CloseButton />
+          <Modal.Header>Select Order Status</Modal.Header>
+          <Modal.Body p={0}>
+            <VStack divider={<Divider />} width="100%">
+              <Pressable 
+                onPress={() => {
+                  setOrderStatus("all");
+                  setShowStatusModal(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <Text>All Statuses</Text>
+                  {orderStatus === "all" && (
+                    <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                  )}
+                </HStack>
+              </Pressable>
+              
+              <Pressable 
+                onPress={() => {
+                  setOrderStatus("placed");
+                  setShowStatusModal(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <HStack alignItems="center" space={2}>
+                    <Badge bg={`${ORDER_STATUS_COLORS.PLACED}.500`} rounded="full" size="xs" />
+                    <Text>Placed</Text>
+                  </HStack>
+                  {orderStatus === "placed" && (
+                    <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                  )}
+                </HStack>
+              </Pressable>
+              
+              <Pressable 
+                onPress={() => {
+                  setOrderStatus("cooking");
+                  setShowStatusModal(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <HStack alignItems="center" space={2}>
+                    <Badge bg={`${ORDER_STATUS_COLORS.COOKING}.500`} rounded="full" size="xs" />
+                    <Text>Cooking</Text>
+                  </HStack>
+                  {orderStatus === "cooking" && (
+                    <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                  )}
+                </HStack>
+              </Pressable>
+              
+              <Pressable 
+                onPress={() => {
+                  setOrderStatus("served");
+                  setShowStatusModal(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <HStack alignItems="center" space={2}>
+                    <Badge bg={`${ORDER_STATUS_COLORS.SERVED}.500`} rounded="full" size="xs" />
+                    <Text>Served</Text>
+                  </HStack>
+                  {orderStatus === "served" && (
+                    <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                  )}
+                </HStack>
+              </Pressable>
+              
+              <Pressable 
+                onPress={() => {
+                  setOrderStatus("paid");
+                  setShowStatusModal(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <HStack alignItems="center" space={2}>
+                    <Badge bg={`${ORDER_STATUS_COLORS.PAID}.500`} rounded="full" size="xs" />
+                    <Text>Paid</Text>
+                  </HStack>
+                  {orderStatus === "paid" && (
+                    <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                  )}
+                </HStack>
+              </Pressable>
+              
+              <Pressable 
+                onPress={() => {
+                  setOrderStatus("cancelled");
+                  setShowStatusModal(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <HStack alignItems="center" space={2}>
+                    <Badge bg={`${ORDER_STATUS_COLORS.CANCELLED}.500`} rounded="full" size="xs" />
+                    <Text>Cancelled</Text>
+                  </HStack>
+                  {orderStatus === "cancelled" && (
+                    <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                  )}
+                </HStack>
+              </Pressable>
+            </VStack>
+          </Modal.Body>
+        </Modal.Content>
+      </Modal>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -1264,12 +1295,14 @@ const OrdersScreen = () => {
           onPress={() => handleDateFilterChange('today')}
           h="40px"
           px={3}
-          bg="#2196F3"
+          bg={isTodayActive ? "#2196F3" : "white"}
+          borderWidth={1}
+          borderColor={isTodayActive ? "#2196F3" : "coolGray.300"}
           rounded="md"
           justifyContent="center"
           alignItems="center"
         >
-          <Text fontSize="sm" color="white" fontWeight="medium">
+          <Text fontSize="sm" color={isTodayActive ? "white" : "coolGray.700"} fontWeight="medium">
             Today
           </Text>
         </Pressable>
@@ -1287,7 +1320,15 @@ const OrdersScreen = () => {
           flex={1}
         >
           <HStack alignItems="center" space={1} justifyContent="space-between" width="100%">
-            <Text fontSize="sm" color="coolGray.700">Date Filter</Text>
+            <Text fontSize="sm" color="coolGray.700">
+              {dateFilter === 'today' ? 'Date Filter' :
+               dateFilter === 'yesterday' ? 'Yesterday' :
+               dateFilter === 'this_week' ? 'This Week' :
+               dateFilter === 'last_week' ? 'Last Week' :
+               dateFilter === 'this_month' ? 'This Month' :
+               dateFilter === 'last_month' ? 'Last Month' :
+               dateFilter === 'custom' ? 'Custom Date' : 'Date Filter'}
+            </Text>
             <Icon as={MaterialIcons} name="arrow-drop-down" size="sm" color="coolGray.600" />
           </HStack>
         </Pressable>
@@ -1359,7 +1400,12 @@ const OrdersScreen = () => {
                   py={3}
                   px={4}
                 >
-                  <Text>Yesterday</Text>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <Text>Yesterday</Text>
+                    {dateFilter === 'yesterday' && (
+                      <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                    )}
+                  </HStack>
                 </Pressable>
                 
                 <Pressable 
@@ -1370,7 +1416,12 @@ const OrdersScreen = () => {
                   py={3}
                   px={4}
                 >
-                  <Text>This Week</Text>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <Text>This Week</Text>
+                    {dateFilter === 'this_week' && (
+                      <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                    )}
+                  </HStack>
                 </Pressable>
                 
                 <Pressable 
@@ -1381,7 +1432,12 @@ const OrdersScreen = () => {
                   py={3}
                   px={4}
                 >
-                  <Text>Last Week</Text>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <Text>Last Week</Text>
+                    {dateFilter === 'last_week' && (
+                      <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                    )}
+                  </HStack>
                 </Pressable>
 
                 <Pressable 
@@ -1392,7 +1448,12 @@ const OrdersScreen = () => {
                   py={3}
                   px={4}
                 >
-                  <Text>This Month</Text>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <Text>This Month</Text>
+                    {dateFilter === 'this_month' && (
+                      <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                    )}
+                  </HStack>
                 </Pressable>
 
                 <Pressable 
@@ -1403,7 +1464,12 @@ const OrdersScreen = () => {
                   py={3}
                   px={4}
                 >
-                  <Text>Last Month</Text>
+                  <HStack alignItems="center" justifyContent="space-between">
+                    <Text>Last Month</Text>
+                    {dateFilter === 'last_month' && (
+                      <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />
+                    )}
+                  </HStack>
                 </Pressable>
               </VStack>
               
