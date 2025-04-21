@@ -704,6 +704,74 @@ export default function CreateOrderScreen() {
   // Update handleKOT function to check for printer connection properly
   const handleKOT = async () => {
     try {
+      // Check if we're connected to a printer
+      if (!printerConnected || !contextPrinterDevice) {
+        Alert.alert(
+          "Printer Not Connected",
+          "Do you want to connect a printer?",
+          [
+            {
+              text: "Yes",
+              onPress: () => setIsDeviceSelectionModalVisible(true)
+            },
+            {
+              text: "Skip Printing",
+              style: "cancel",
+              onPress: () => {
+                // Navigate back to tables screen with updated path
+                router.replace({
+                  pathname: "/(tabs)/tables/sections",
+                  params: { 
+                    refresh: Date.now().toString(),
+                    status: "completed"
+                  }
+                });
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
+      // Verify printer connection is stable before KOT printing
+      try {
+        if (contextPrinterDevice.isConnected) {
+          const isDeviceConnected = await contextPrinterDevice.isConnected();
+          if (!isDeviceConnected) {
+            console.log("Device reports as not connected for KOT despite context state");
+            throw new Error("Printer connection not stable for KOT");
+          }
+          console.log("Printer verified as ready for KOT");
+        }
+      } catch (connectionError) {
+        console.error("KOT printer verification error:", connectionError);
+        Alert.alert(
+          "Printer Connection Error",
+          "Please disconnect and reconnect your printer before printing KOT",
+          [
+            {
+              text: "Reconnect Printer",
+              onPress: () => setIsDeviceSelectionModalVisible(true)
+            },
+            {
+              text: "Skip Printing",
+              style: "cancel",
+              onPress: () => {
+                // Navigate back to tables screen with updated path
+                router.replace({
+                  pathname: "/(tabs)/tables/sections",
+                  params: { 
+                    refresh: Date.now().toString(),
+                    status: "completed"
+                  }
+                });
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
       if (selectedItems.length === 0) {
         toast.show({
           description: "Please add items to the order",
@@ -713,7 +781,7 @@ export default function CreateOrderScreen() {
         return;
       }
 
-      setIsLoading(true); // Use isLoading instead of isSubmitting
+      setIsLoading(true); 
       setLoadingMessage("Processing order...");
 
       // Verify authentication token is present
@@ -768,7 +836,7 @@ export default function CreateOrderScreen() {
           gstPercentage,
           tip
         )?.toString(),
-        action: "kot", // IMPORTANT: Use "kot" for KOT 
+        action: "KOT_and_save", // Changed from "kot" to "KOT_and_save"
         is_paid: paymentStatus,
         payment_method: effectivePaymentMethod,
         special_discount: specialDiscount?.toString(),
@@ -829,52 +897,6 @@ export default function CreateOrderScreen() {
       // Ensure we have order number
       if (!params?.orderId && apiResponse.order_number) {
         apiResponse.order_number = apiResponse.order_number || String(apiResponse.order_id);
-      }
-        
-      // Check if printer is connected using the PrinterContext
-      if (!printerConnected || !contextPrinterDevice) {
-        Alert.alert(
-          "Printer Not Connected",
-          "Do you want to connect a printer?",
-          [
-            {
-              text: "Yes",
-              onPress: () => setIsDeviceSelectionModalVisible(true)
-            },
-            {
-              text: "Skip Printing",
-              style: "cancel",
-              onPress: () => {
-                // Navigate back to tables screen with updated path
-                router.replace({
-                  pathname: "/(tabs)/tables/sections",
-                  params: { 
-                    refresh: Date.now().toString(),
-                    status: "completed"
-                  }
-                });
-              }
-            }
-          ]
-        );
-        setIsLoading(false);
-        setLoadingMessage("");
-        return;
-      }
-      
-      // Verify printer connection is stable before KOT printing
-      try {
-        if (contextPrinterDevice.isConnected) {
-          const isDeviceConnected = await contextPrinterDevice.isConnected();
-          if (!isDeviceConnected) {
-            console.log("Device reports as not connected for KOT despite context state");
-            throw new Error("Printer connection not stable for KOT");
-          }
-          console.log("Printer verified as ready for KOT");
-        }
-      } catch (connectionError) {
-        console.error("KOT printer verification error:", connectionError);
-        throw new Error("Please disconnect and reconnect your printer before printing KOT");
       }
 
       // Generate KOT commands with order data
@@ -1764,15 +1786,67 @@ const handleSettleOrder = async () => {
   // Update handlePrint to use the PrinterContext
   const handlePrint = async () => {
     try {
-      // Check if we're connected to a printer using PrinterContext
+      // Check if we're connected to a printer
       if (!printerConnected || !contextPrinterDevice) {
-        toast.show({
-          description: "No printer connected. Please connect a printer first.",
-          placement: "top",
-          duration: 3000,
-        });
-        // Open the printer connection modal
-        setIsDeviceSelectionModalVisible(true);
+        Alert.alert(
+          "Printer Not Connected",
+          "Do you want to connect a printer?",
+          [
+            {
+              text: "Yes",
+              onPress: () => setIsDeviceSelectionModalVisible(true)
+            },
+            {
+              text: "Skip Printing",
+              style: "cancel",
+              onPress: () => {
+                // Skip printing and just show confirmation
+                toast.show({
+                  description: "Skipped printing receipt",
+                  status: "info",
+                  duration: 2000,
+                });
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      // Verify printer connection is stable before receipt printing
+      try {
+        if (contextPrinterDevice.isConnected) {
+          const isDeviceConnected = await contextPrinterDevice.isConnected();
+          if (!isDeviceConnected) {
+            console.log("Device reports as not connected for receipt despite context state");
+            throw new Error("Printer connection not stable for receipt");
+          }
+          console.log("Printer verified as ready for receipt");
+        }
+      } catch (connectionError) {
+        console.error("Receipt printer verification error:", connectionError);
+        Alert.alert(
+          "Printer Connection Error",
+          "Please disconnect and reconnect your printer before printing receipt",
+          [
+            {
+              text: "Reconnect Printer",
+              onPress: () => setIsDeviceSelectionModalVisible(true)
+            },
+            {
+              text: "Skip Printing",
+              style: "cancel",
+              onPress: () => {
+                // Skip printing and just show confirmation
+                toast.show({
+                  description: "Skipped printing receipt",
+                  status: "info",
+                  duration: 2000,
+                });
+              }
+            }
+          ]
+        );
         return;
       }
 
@@ -1799,67 +1873,39 @@ const handleSettleOrder = async () => {
         }
         
         console.log("Order saved successfully for printing, response:", JSON.stringify(apiResponse));
-      } catch (error) {
-        console.error("Error saving order before print:", error);
         
-        // Check if it's an auth error
-        if (error.message?.includes("401") || error.message?.includes("Unauthorized")) {
-          toast.show({
-            description: "Authentication error. Please log in again.",
-            status: "error",
-            duration: 3000,
-          });
-          
-          setTimeout(() => {
-            router.replace("/login");
-          }, 1500);
-          return;
-        }
+        // Set to printing state
+        setLoadingMessage("Printing receipt...");
         
-        toast.show({
-          description: `Error preparing print: ${error.message}`,
-          status: "error",
-          duration: 3000,
-        });
-        setIsProcessing(false);
-        return;
-      }
-
-      // Print the receipt
-      try {
+        // Print the receipt
         await printReceipt(apiResponse);
         
+        // Success
         toast.show({
           description: "Receipt printed successfully",
           status: "success",
           duration: 2000,
         });
-        
-        // After successful print and save, refresh order details
-        await refreshOrderDetails();
-        
-        // If this is a new order, update the order ID in the URL params
-        if (!params.orderId && apiResponse.lists?.order_details?.order_number) {
-          router.setParams({ orderId: apiResponse.lists.order_details.order_number });
-        }
-        
-      } catch (printError) {
-        console.error("Print error:", printError);
+      } catch (error) {
+        console.error("Print and save error:", error);
         toast.show({
-          description: `Print error: ${printError.message}`,
+          description: `Error: ${error.message}`,
           status: "error",
           duration: 3000,
         });
+      } finally {
+        setIsProcessing(false);
+        setLoadingMessage("");
       }
     } catch (error) {
-      console.error("Print and save error:", error);
+      console.error("Print error:", error);
       toast.show({
         description: `Error: ${error.message}`,
         status: "error",
         duration: 3000,
       });
-    } finally {
       setIsProcessing(false);
+      setLoadingMessage("");
     }
   };
 
@@ -2870,116 +2916,196 @@ const handleSettleOrder = async () => {
   // Add this function after the handleKOT function
   const handleKOTAndSave = async () => {
     try {
-      setIsSubmitting(true);
-      
-      // Verify authentication
-      const token = await AsyncStorage.getItem('access');
-      if (!token) {
-        toast.show({
-          description: "Authentication error. Please log in again.",
-          status: "error",
-          duration: 3000,
-        });
-        
-        setTimeout(() => {
-          router.replace("/login");
-        }, 1500);
+      // Check if we're connected to a printer
+      if (!printerConnected || !contextPrinterDevice) {
+        Alert.alert(
+          "Printer Not Connected",
+          "Do you want to connect a printer?",
+          [
+            {
+              text: "Yes",
+              onPress: () => setIsDeviceSelectionModalVisible(true)
+            },
+            {
+              text: "Skip Printing",
+              style: "cancel",
+              onPress: async () => {
+                // Just save the order without printing
+                try {
+                  setIsProcessing(true);
+                  setLoadingMessage("Saving order...");
+                  
+                  // Save order without printing
+                  const savedOrder = await createOrder("create_order");
+                  
+                  if (savedOrder) {
+                    toast.show({
+                      description: "Order saved successfully",
+                      status: "success",
+                      duration: 2000,
+                    });
+                    
+                    // Navigate back to tables view
+                    router.replace({
+                      pathname: "/(tabs)/tables/sections",
+                      params: { 
+                        refresh: Date.now().toString(),
+                        status: "completed"
+                      }
+                    });
+                  }
+                } catch (error) {
+                  console.error("Save order error:", error);
+                  toast.show({
+                    description: "Error saving order: " + error.message,
+                    status: "error",
+                    duration: 3000,
+                  });
+                } finally {
+                  setIsProcessing(false);
+                  setLoadingMessage("");
+                }
+              }
+            }
+          ]
+        );
         return;
       }
       
-      // First print the KOT
-      if (printerConnected && contextPrinterDevice) {
+      // Verify printer connection is stable before KOT printing
+      try {
+        if (contextPrinterDevice.isConnected) {
+          const isDeviceConnected = await contextPrinterDevice.isConnected();
+          if (!isDeviceConnected) {
+            console.log("Device reports as not connected for KOT despite context state");
+            throw new Error("Printer connection not stable for KOT");
+          }
+          console.log("Printer verified as ready for KOT");
+        }
+      } catch (connectionError) {
+        console.error("KOT printer verification error:", connectionError);
+        Alert.alert(
+          "Printer Connection Error",
+          "Please disconnect and reconnect your printer before printing KOT",
+          [
+            {
+              text: "Reconnect Printer",
+              onPress: () => setIsDeviceSelectionModalVisible(true)
+            },
+            {
+              text: "Skip Printing and Save",
+              style: "cancel",
+              onPress: async () => {
+                // Just save the order without printing
+                try {
+                  setIsProcessing(true);
+                  setLoadingMessage("Saving order...");
+                  
+                  // Save order without printing
+                  const savedOrder = await createOrder("create_order");
+                  
+                  if (savedOrder) {
+                    toast.show({
+                      description: "Order saved successfully",
+                      status: "success",
+                      duration: 2000,
+                    });
+                    
+                    // Navigate back to tables view
+                    router.replace({
+                      pathname: "/(tabs)/tables/sections",
+                      params: { 
+                        refresh: Date.now().toString(),
+                        status: "completed"
+                      }
+                    });
+                  }
+                } catch (error) {
+                  console.error("Save order error:", error);
+                  toast.show({
+                    description: "Error saving order: " + error.message,
+                    status: "error",
+                    duration: 3000,
+                  });
+                } finally {
+                  setIsProcessing(false);
+                  setLoadingMessage("");
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      // Continue with original KOT and Save logic
+      if (selectedItems.length === 0) {
+        toast.show({
+          description: "Please add items to the order",
+          status: "warning",
+          duration: 2000,
+        });
+        return;
+      }
+
+      setIsProcessing(true);
+      setLoadingMessage("Processing KOT and saving order...");
+
+      try {
+        // Create order with "save" status
+        const apiResponse = await createOrder("KOT_and_save", true);
+        if (!apiResponse || apiResponse.st !== 1) {
+          throw new Error(apiResponse?.msg || "Failed to save order");
+        }
+
+        // Print KOT
         try {
-          await printKOT({
-            order_number: params?.orderId || "New",
-            datetime: getCurrentDateTime(),
-            outlet_name: await AsyncStorage.getItem("outlet_name") || "Restaurant",
-            outlet_address: await AsyncStorage.getItem("outlet_address") || "",
-            outlet_mobile: await AsyncStorage.getItem("outlet_mobile") || "",
-            section: params?.sectionName || "",
-            table_number: [params?.tableNumber] || [""],
-          });
+          setLoadingMessage("Printing KOT...");
+          await printKOT(apiResponse);
           
           toast.show({
-            description: "KOT printed successfully",
-            placement: "top",
+            description: "Order saved and KOT printed successfully",
+            status: "success",
             duration: 2000,
           });
-        } catch (error) {
-          console.error("KOT print error:", error);
+        } catch (printError) {
+          console.error("KOT print error:", printError);
+          // Continue even with print error
           toast.show({
-            description: "Error printing KOT: " + error.message,
-            placement: "top",
+            description: "Order saved but KOT printing failed: " + printError.message,
+            status: "warning",
             duration: 3000,
           });
         }
-      } else {
-        toast.show({
-          description: "No printer connected. Connect a printer to print KOT.",
-          placement: "top",
-          duration: 3000,
+
+        // Navigate back to tables screen
+        router.replace({
+          pathname: "/(tabs)/tables/sections",
+          params: { 
+            refresh: Date.now().toString(),
+            status: "completed"
+          }
         });
-      }
-      
-      // Then save the order with the KOT_and_save action type
-      // IMPORTANT: Using "KOT_and_save" action type - matches owner app (OrderCreate.js)
-      const response = await createOrder("KOT_and_save");
-      console.log("KOT_and_save response:", response);
-      
-      if (response && response.st === 1) {
+      } catch (error) {
+        console.error("KOT and Save error:", error);
         toast.show({
-          description: "Order saved successfully",
-          placement: "top",
-          duration: 2000,
-        });
-        
-        // Update order status
-        setOrderStatus("saved");
-        
-        // If this is a new order, update the order ID
-        const orderNumber = 
-          response.lists?.order_details?.order_number || // Old format
-          response.order_details?.order_number || // New format
-          response.order_number; // Direct format
-        
-        if (!params.orderId && orderNumber) {
-          console.log("Updating order ID in params:", orderNumber);
-          router.setParams({ orderId: orderNumber });
-        }
-        
-        // Refresh order details
-        await refreshOrderDetails();
-      } else {
-        toast.show({
-          description: "Failed to save order",
-          placement: "top",
-          duration: 3000,
-        });
-      }
-    } catch (error) {
-      console.error("Error in KOT and Save:", error);
-      
-      // Check if it's an authentication error
-      if (error.message?.includes("401") || error.message?.includes("Unauthorized")) {
-        toast.show({
-          description: "Authentication error. Please log in again.",
+          description: "Error saving order: " + error.message,
           status: "error",
           duration: 3000,
         });
-        
-        setTimeout(() => {
-          router.replace("/login");
-        }, 1500);
-        return;
+      } finally {
+        setIsProcessing(false);
+        setLoadingMessage("");
       }
-      
+    } catch (error) {
+      console.error("KOT and Save error:", error);
       toast.show({
-        description: "Failed to process order: " + error.message,
-        placement: "top",
+        description: "Error: " + error.message,
+        status: "error",
         duration: 3000,
       });
-    } finally {
-      setIsSubmitting(false);
+      setIsProcessing(false);
+      setLoadingMessage("");
     }
   };
 
