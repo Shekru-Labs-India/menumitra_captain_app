@@ -116,13 +116,56 @@ const COMMANDS = {
 
 const getCurrentDate = () => {
   const date = new Date();
-  return date
+  
+  // Get date in DD-MMM-YYYY format
+  const formattedDate = date
     .toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     })
-    .replace(/ /g, " ");
+    .replace(/ /g, "-");
+  
+  // Get time in 12-hour format
+  let hours = date.getHours();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  hours = String(hours).padStart(2, '0');
+  
+  // Get minutes
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  
+  // Return formatted date and time
+  return `${formattedDate} ${hours}:${minutes} ${ampm}`;
+};
+
+// Create a top-level function for consistent datetime formatting
+const getCurrentDateTime = () => {
+  const now = new Date();
+  
+  // Get the day as 2-digit
+  const day = String(now.getDate()).padStart(2, '0');
+  
+  // Get the month name in uppercase
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const month = monthNames[now.getMonth()];
+  
+  // Get the year
+  const year = now.getFullYear();
+  
+  // Get hours and format for 12-hour clock
+  let hours = now.getHours();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  hours = String(hours).padStart(2, '0');
+  
+  // Get minutes
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  
+  // Format the final date string
+  return `${day}-${month}-${year} ${hours}:${minutes} ${ampm}`;
 };
 
 const formatTime = (dateTimeStr) => {
@@ -142,8 +185,12 @@ const formatTime = (dateTimeStr) => {
     const timeParts = time.split(":");
     if (timeParts.length < 2) return dateTimeStr;
 
+    // Get hours and minutes
+    const hours = timeParts[0];
+    const minutes = timeParts[1];
+
     // Return formatted date and time
-    return `${date} ${timeParts[0]}:${timeParts[1]} ${meridiem}`;
+    return `${date} ${hours}:${minutes} ${meridiem}`;
   } catch (error) {
     console.error("Date formatting error:", error);
     return dateTimeStr; // Return original string if formatting fails
@@ -2193,7 +2240,7 @@ const handleSettleOrder = async () => {
         ...textToBytes("\x1B\x61\x00"), // Left align
         ...textToBytes(`Bill Number: ${orderNumber}\n`),
         ...textToBytes(`Table: ${params?.sectionName || "Dining"}${params?.tableNumber ? ` - ${params.tableNumber}` : ''}\n`),
-        ...textToBytes(`DateTime: ${orderData?.datetime || formattedDate}\n`),
+        ...textToBytes(`DateTime: ${orderData?.datetime ? formatTime(orderData.datetime) : formattedDate}\n`),
         ...textToBytes("--------------------------------\n"),
         ...textToBytes("Item           Qty  Rate     Amt\n"),
         ...textToBytes("--------------------------------\n")
@@ -2252,33 +2299,7 @@ const handleSettleOrder = async () => {
         AsyncStorage.getItem("outlet_mobile"),
       ]);
 
-      // Improved date/time formatting to match owner app
-      const getCurrentDateTime = () => {
-        const now = new Date();
-        
-        // Get the day as 2-digit
-        const day = String(now.getDate()).padStart(2, '0');
-        
-        // Get the month name in uppercase
-        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-        const month = monthNames[now.getMonth()];
-        
-        // Get the year
-        const year = now.getFullYear();
-        
-        // Get hours and format for 12-hour clock
-        let hours = now.getHours();
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12; // the hour '0' should be '12'
-        hours = String(hours).padStart(2, '0');
-        
-        // Get minutes
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        
-        // Format the final date string
-        return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
-      };
+      // Use the top-level getCurrentDateTime function
       
       // Get order number with fallbacks
       const orderNumber = 
@@ -2307,7 +2328,7 @@ const handleSettleOrder = async () => {
         ...textToBytes("\x1B\x61\x00"), // Left align
         ...textToBytes(`Bill no: ${orderNumber}\n`),
         ...textToBytes(`Table: ${tableInfo}\n`),
-        ...textToBytes(`DateTime: ${orderData?.datetime || getCurrentDateTime()}\n`), 
+        ...textToBytes(`DateTime: ${orderData?.datetime ? formatTime(orderData.datetime) : getCurrentDateTime()}\n`), 
         
         ...(customerDetails?.customer_name ? [textToBytes(`Name: ${customerDetails.customer_name}\n`)] : []),
         
@@ -2821,7 +2842,7 @@ const handleSettleOrder = async () => {
         try {
           await printKOT({
             order_number: params?.orderId || "New",
-            datetime: new Date().toLocaleString(),
+            datetime: getCurrentDateTime(),
             outlet_name: await AsyncStorage.getItem("outlet_name") || "Restaurant",
             outlet_address: await AsyncStorage.getItem("outlet_address") || "",
             outlet_mobile: await AsyncStorage.getItem("outlet_mobile") || "",
