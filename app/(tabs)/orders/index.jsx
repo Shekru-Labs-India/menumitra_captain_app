@@ -637,14 +637,15 @@ const OrdersScreen = () => {
       // For other filters, set it to the end date of the range
       setDate(filter === 'today' ? formatDateString(new Date()) : newRange.end);
       
-      // Fetch orders with the updated date
+      // Fetch orders with the updated date - use silent refresh to prevent full screen loading
       fetchOrders(true);
     }
   };
 
-  // Add useEffect to handle date range changes
+  // Add useEffect to handle date range changes with silent refresh
   useEffect(() => {
     if (dateRange.start && dateRange.end) {
+      // Use silent refresh when date range changes to improve UI responsiveness
       fetchOrders(true);
     }
   }, [dateRange]);
@@ -750,8 +751,15 @@ const OrdersScreen = () => {
       }
     } catch (error) {
       console.error("Error fetching orders:", error);
+      if (!isSilentRefresh) {
+        toast.show({
+          description: "Failed to fetch orders",
+          status: "error",
+          duration: 3000,
+        });
+      }
     } finally {
-      setIsLoading(false);
+      if (!isSilentRefresh) setIsLoading(false);
       setRefreshing(false);
     }
   };
@@ -767,15 +775,17 @@ const OrdersScreen = () => {
     if (selectedDate.toDateString() === today.toDateString()) {
       const refreshInterval = setInterval(() => {
         console.log("Auto-refreshing orders for date:", date);
-        fetchOrders(true);
+        fetchOrders(true); // Use silent refresh for automatic updates
       }, 60000);
 
       return () => clearInterval(refreshInterval);
     }
   }, [date]); // Keep date in dependencies to re-fetch when date changes
 
+  // Add local state update for timer end to avoid full refresh
   const handleTimerEnd = useCallback(async (orderId) => {
     try {
+      // Update local state first for immediate UI feedback
       setOrders((prevOrders) =>
         prevOrders.map((dateGroup) => ({
           ...dateGroup,
@@ -787,6 +797,7 @@ const OrdersScreen = () => {
         }))
       );
 
+      // Perform a silent refresh to sync with server
       fetchOrders(true);
     } catch (error) {
       console.error("Error handling timer end:", error);
@@ -959,6 +970,8 @@ const OrdersScreen = () => {
                 onPress={() => {
                   setOrderType("all");
                   setShowOrderTypeModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
                 }}
                 py={3}
                 px={4}
@@ -975,6 +988,8 @@ const OrdersScreen = () => {
                 onPress={() => {
                   setOrderType("dine-in");
                   setShowOrderTypeModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
                 }}
                 py={3}
                 px={4}
@@ -994,6 +1009,8 @@ const OrdersScreen = () => {
                 onPress={() => {
                   setOrderType("parcel");
                   setShowOrderTypeModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
                 }}
                 py={3}
                 px={4}
@@ -1013,6 +1030,8 @@ const OrdersScreen = () => {
                 onPress={() => {
                   setOrderType("drive-through");
                   setShowOrderTypeModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
                 }}
                 py={3}
                 px={4}
@@ -1032,6 +1051,8 @@ const OrdersScreen = () => {
                 onPress={() => {
                   setOrderType("counter");
                   setShowOrderTypeModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
                 }}
                 py={3}
                 px={4}
@@ -1065,6 +1086,8 @@ const OrdersScreen = () => {
                 onPress={() => {
                   setOrderStatus("all");
                   setShowStatusModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
                 }}
                 py={3}
                 px={4}
@@ -1081,6 +1104,8 @@ const OrdersScreen = () => {
                 onPress={() => {
                   setOrderStatus("placed");
                   setShowStatusModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
                 }}
                 py={3}
                 px={4}
@@ -1100,6 +1125,8 @@ const OrdersScreen = () => {
                 onPress={() => {
                   setOrderStatus("cooking");
                   setShowStatusModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
                 }}
                 py={3}
                 px={4}
@@ -1119,6 +1146,8 @@ const OrdersScreen = () => {
                 onPress={() => {
                   setOrderStatus("served");
                   setShowStatusModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
                 }}
                 py={3}
                 px={4}
@@ -1138,6 +1167,8 @@ const OrdersScreen = () => {
                 onPress={() => {
                   setOrderStatus("paid");
                   setShowStatusModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
                 }}
                 py={3}
                 px={4}
@@ -1157,6 +1188,8 @@ const OrdersScreen = () => {
                 onPress={() => {
                   setOrderStatus("cancelled");
                   setShowStatusModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
                 }}
                 py={3}
                 px={4}
@@ -1634,7 +1667,10 @@ const OrdersScreen = () => {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={fetchOrders}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchOrders(true);
+            }}
             colors={["#0891b2"]}
             tintColor="#0891b2"
           />
@@ -1652,7 +1688,9 @@ const OrdersScreen = () => {
         windowSize={5}
         maxToRenderPerBatch={10}
         updateCellsBatchingPeriod={50}
-        removeClippedSubviews={true}
+        initialNumToRender={10}
+        removeClippedSubviews={Platform.OS === 'android'}
+        onEndReachedThreshold={0.5}
       />
 
       {renderOrderTypeModal()}
