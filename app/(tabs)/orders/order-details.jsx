@@ -1117,71 +1117,77 @@ export default function OrderDetailsScreen() {
         throw new Error("No printer connected");
       }
 
+      // Find the appropriate service and characteristic
       const services = await printerDevice.services();
-      const service = services.find((s) =>
-        PRINTER_SERVICE_UUIDS.includes(s.uuid.toUpperCase())
+      
+      // Common printer service UUIDs
+      const PRINTER_SERVICE_UUIDS = [
+        "49535343-FE7D-4AE5-8FA9-9FAFD205E455",
+        "E7810A71-73AE-499D-8C15-FAA9AEF0C3F2",
+        "000018F0-0000-1000-8000-00805F9B34FB",
+      ];
+      
+      // Common printer characteristic UUIDs
+      const PRINTER_CHARACTERISTIC_UUIDS = [
+        "49535343-8841-43F4-A8D4-ECBE34729BB3",
+        "BEF8D6C9-9C21-4C9E-B632-BD58C1009F9F",
+      ];
+      
+      // Find a compatible service
+      const service = services.find((svc) =>
+        PRINTER_SERVICE_UUIDS.some((uuid) =>
+          svc.uuid.toLowerCase().includes(uuid.toLowerCase())
+        )
       );
-
+      
       if (!service) {
         throw new Error("Printer service not found");
       }
-
+      
+      // Find a compatible characteristic
       const characteristics = await service.characteristics();
-      const printCharacteristic = characteristics.find((c) =>
-        PRINTER_CHARACTERISTIC_UUIDS.includes(c.uuid.toUpperCase())
+      const writeCharacteristic = characteristics.find((char) =>
+        PRINTER_CHARACTERISTIC_UUIDS.some((uuid) =>
+          char.uuid.toLowerCase().includes(uuid.toLowerCase())
+        )
       );
-
-      if (!printCharacteristic) {
+      
+      if (!writeCharacteristic) {
         throw new Error("Printer characteristic not found");
       }
 
-      // Send data in chunks
-      const CHUNK_SIZE = 20;
+      // Send data in chunks to avoid BLE buffer limitations
+      const CHUNK_SIZE = 100; // Adjust based on your printer's buffer size
+      
       for (let i = 0; i < commands.length; i += CHUNK_SIZE) {
-        const chunk = commands.slice(
-          i,
-          Math.min(i + CHUNK_SIZE, commands.length)
+        const chunk = commands.slice(i, i + CHUNK_SIZE);
+        await writeCharacteristic.writeWithoutResponse(
+          base64.encode(String.fromCharCode(...chunk))
         );
-        const base64Data = base64.encode(String.fromCharCode(...chunk));
-
-        // Add retry logic
-        let retries = 3;
-        while (retries > 0) {
-          try {
-            await printCharacteristic.writeWithoutResponse(base64Data);
-            break;
-          } catch (error) {
-            retries--;
-            if (retries === 0) throw error;
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          }
-        }
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        // Small delay between chunks to avoid buffer overflow
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
+      
       return true;
     } catch (error) {
-      console.error("Send to printer error:", error);
+      console.error("Printer send error:", error);
       throw error;
     }
   };
 
   const requestPermissions = async () => {
     try {
-      const state = await bleManager.state();
-      if (state !== "PoweredOn") {
-        Alert.alert(
-          "Bluetooth Required",
-          "Please enable Bluetooth to connect to printer",
-          [
-            { text: "Open Settings", onPress: () => Linking.openSettings() },
-            { text: "Cancel", style: "cancel" },
-          ]
-        );
+      // Skip permissions check on web or Expo Go
+      if (Platform.OS === "web" || Constants.executionEnvironment === "storeClient") {
         return false;
       }
-
+      
+      // On Android
       if (Platform.OS === "android") {
-        if (Platform.Version >= 31) {
+        const apiLevel = parseInt(Platform.Version, 10);
+        
+        // For Android 12+ (API level 31+)
+        if (apiLevel >= 31) {
           const results = await Promise.all([
             PermissionsAndroid.request(
               PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
@@ -1193,17 +1199,37 @@ export default function OrderDetailsScreen() {
               PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
             ),
           ]);
+          
           return results.every(
             (result) => result === PermissionsAndroid.RESULTS.GRANTED
           );
-        } else {
+        } 
+        // For Android 10+ (API level 29+)
+        else if (apiLevel >= 29) {
           const result = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
           );
+          
+          return result === PermissionsAndroid.RESULTS.GRANTED;
+        } 
+        // For older Android versions
+        else {
+          const result = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION
+          );
+          
           return result === PermissionsAndroid.RESULTS.GRANTED;
         }
       }
-      return true;
+      
+      // On iOS, permissions are handled at the info.plist level
+      // but some runtime requests might still be needed based on usage
+      if (Platform.OS === "ios") {
+        // For future iOS specific permission requests
+        return true;
+      }
+      
+      return false;
     } catch (error) {
       console.error("Permission request error:", error);
       return false;
@@ -1212,101 +1238,170 @@ export default function OrderDetailsScreen() {
 
   const scanForPrinters = async () => {
     try {
-      const isExpoGo = Constants.executionEnvironment === "storeClient";
-      const isWeb = Platform.OS === "web";
-
-      if (isExpoGo || isWeb) {
+      // Check if we're in a web or Expo environment where BLE won't work
+      if (Platform.OS === "web" || Constants.executionEnvironment === "storeClient") {
         Alert.alert(
-          "Feature Not Available",
-          "Bluetooth printing is not available in Expo Go or web. Please use PDF printing instead.",
-          [
-            {
-              text: "Print PDF",
-              onPress: async () => {
-                try {
-                  const html = generateReceiptHTML(orderDetails, menuItems);
-                  await Print.printAsync({
-                    html,
-                    orientation: "portrait",
-                  });
-                } catch (error) {
-                  Alert.alert("Error", "Failed to generate receipt PDF");
-                }
-              },
-            },
-            { text: "Cancel", style: "cancel" },
-          ]
+          "Not Available",
+          "Bluetooth printer functionality is not available in this environment.",
+          [{ text: "OK" }]
         );
-        return;
+        return false;
       }
 
-      if (!bleManager) {
-        Alert.alert(
-          "Feature Not Available",
-          "Bluetooth printing is only available in development or production builds."
-        );
-        return;
-      }
-
+      // Request permissions first
       const hasPermissions = await requestPermissions();
       if (!hasPermissions) {
-        Alert.alert("Permission Error", "Bluetooth permissions not granted");
-        return;
+        Alert.alert(
+          "Permission Required",
+          "Bluetooth permission is needed to connect to the printer",
+          [{ text: "OK" }]
+        );
+        return false;
       }
 
-      setIsScanning(true);
+      setIsLoading(true);
+      setLoadingMessage("Checking Bluetooth...");
+
+      // Check if Bluetooth is enabled
+      const state = await bleManager.state();
+      if (state !== "PoweredOn") {
+        setIsLoading(false);
+        Alert.alert(
+          "Bluetooth Required",
+          "Please turn on Bluetooth to connect to printer",
+          [{ text: "OK" }]
+        );
+        return false;
+      }
+
+      // Start scanning
+      setLoadingMessage("Scanning for printers...");
       setAvailableDevices([]);
+      setIsScanning(true);
       setIsModalVisible(true);
 
+      // Stop any existing scan
+      bleManager.stopDeviceScan();
+      
+      // Start scanning for devices
       bleManager.startDeviceScan(null, null, (error, device) => {
         if (error) {
           console.error("Scan error:", error);
           return;
         }
-        if (device) {
+
+        if (device && device.name) {
+          // Add device if it's not already in the list
           setAvailableDevices((prevDevices) => {
-            if (!prevDevices.find((d) => d.id === device.id)) {
+            const deviceExists = prevDevices.some((d) => d.id === device.id);
+            if (!deviceExists) {
               return [...prevDevices, device];
             }
             return prevDevices;
           });
         }
       });
+
+      // Set timeout to stop scanning after 10 seconds
+      setTimeout(() => {
+        if (isScanning) {
+          bleManager.stopDeviceScan();
+          setIsScanning(false);
+          setLoadingMessage("");
+          setIsLoading(false);
+        }
+      }, 10000);
+
+      return true;
     } catch (error) {
       console.error("Scan error:", error);
-      Alert.alert("Error", "Failed to start scanning");
+      setIsScanning(false);
+      setIsLoading(false);
+      
+      Alert.alert(
+        "Connection Error",
+        "Unable to scan for printers. Please try again.",
+        [{ text: "OK" }]
+      );
+      
+      return false;
     }
   };
 
   const handleDeviceSelection = async (device) => {
     try {
-      setIsModalVisible(false);
-      setIsScanning(false);
-      bleManager.stopDeviceScan();
-
-      setLoadingMessage("Connecting to device...");
       setIsLoading(true);
-
-      const connectedDevice = await device.connect();
-      const discoveredDevice =
-        await connectedDevice.discoverAllServicesAndCharacteristics();
-
-      setPrinterDevice(discoveredDevice);
+      setLoadingMessage("Connecting to printer...");
+      
+      // Stop scanning for devices
+      bleManager.stopDeviceScan();
+      setIsScanning(false);
+      
+      // Disconnect from any existing device
+      if (printerDevice && isConnected) {
+        try {
+          await printerDevice.cancelConnection();
+        } catch (e) {
+          console.log("Error disconnecting from previous device:", e);
+        }
+      }
+      
+      // Connect to the selected device
+      setLoadingMessage(`Connecting to ${device.name || 'printer'}...`);
+      
+      // Connect with retry logic
+      let connectedDevice = null;
+      let retries = 3;
+      
+      while (retries > 0 && !connectedDevice) {
+        try {
+          connectedDevice = await device.connect();
+          break;
+        } catch (error) {
+          retries--;
+          if (retries === 0) throw error;
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      if (!connectedDevice) {
+        throw new Error("Failed to connect to printer");
+      }
+      
+      // Discover services and characteristics
+      setLoadingMessage("Discovering services...");
+      await connectedDevice.discoverAllServicesAndCharacteristics();
+      
+      // Store the connected device and update state
+      setPrinterDevice(connectedDevice);
       setIsConnected(true);
-
-      device.onDisconnected((error, disconnectedDevice) => {
-        setIsConnected(false);
-        setPrinterDevice(null);
-        Alert.alert("Disconnected", "Printer connection was lost");
+      setIsModalVisible(false);
+      
+      // Show success message
+      toast.show({
+        description: `Connected to ${device.name || 'printer'} successfully`,
+        status: "success",
+        duration: 3000,
+        placement: "bottom",
+        isClosable: true,
       });
-
-      Alert.alert("Success", `Connected to ${device.name || "printer"}`);
+      
+      return true;
     } catch (error) {
       console.error("Connection error:", error);
-      Alert.alert(
-        "Connection Failed",
-        "Could not connect to the selected device"
-      );
+      setIsConnected(false);
+      setPrinterDevice(null);
+      
+      // Show error message
+      toast.show({
+        description: `Failed to connect: ${error.message}`,
+        status: "error",
+        duration: 3000,
+        placement: "bottom",
+        isClosable: true,
+      });
+      
+      return false;
     } finally {
       setIsLoading(false);
       setLoadingMessage("");
@@ -1316,60 +1411,30 @@ export default function OrderDetailsScreen() {
   const handlePrint = async (type) => {
     try {
       setIsLoading(true);
+      setLoadingMessage(`Preparing to print ${type}...`);
+
+      // Check if we have bluetooth permissions
+      const hasPermissions = await requestPermissions();
+      if (!hasPermissions) {
+        throw new Error("Bluetooth permission is required to print");
+      }
+
+      // Check if printer is connected
+      if (!printerDevice || !isConnected) {
+        setLoadingMessage("No printer connected. Scanning for printers...");
+        await scanForPrinters();
+        if (!printerDevice || !isConnected) {
+          throw new Error("No printer connected");
+        }
+      }
+
       setLoadingMessage(`Printing ${type}...`);
 
-      // Check if running in Expo Go or web
-      const isExpoGo = Constants.executionEnvironment === "storeClient";
-      const isWeb = Platform.OS === "web";
-
-      if (isExpoGo || isWeb) {
-        // Use PDF printing in Expo Go or web
-        const html = type === "KOT" ? generateKOTHTML(orderDetails, menuItems) : generateReceiptHTML(orderDetails, menuItems);
-        await Print.printAsync({
-          html,
-          orientation: "portrait",
-        });
-      } else {
-        // Use thermal printing in development or production builds
-        if (printerDevice && isConnected) {
-          if (type === "KOT") {
-            await printKOT();
-          } else {
-            await printReceipt();
-          }
-        } else {
-          // Add an option to skip printer connection
-          Alert.alert(
-            "Printer Not Connected",
-            "Would you like to connect a printer or skip printing?",
-            [
-              {
-                text: "Connect Printer",
-                onPress: () => {
-                  setIsModalVisible(true);
-                  scanForPrinters();
-                }
-              },
-              {
-                text: "Skip Printing",
-                onPress: () => {
-                  toast.show({
-                    description: `Operation completed without printing`,
-                    status: "info",
-                    duration: 3000,
-                    placement: "bottom",
-                    isClosable: true,
-                  });
-                }
-              },
-              {
-                text: "Cancel",
-                style: "cancel"
-              }
-            ]
-          );
-          return;
-        }
+      // Print based on type
+      if (type === "Receipt") {
+        await printReceipt();
+      } else if (type === "KOT") {
+        await printKOT();
       }
 
       toast.show({
@@ -1379,15 +1444,46 @@ export default function OrderDetailsScreen() {
         placement: "bottom",
         isClosable: true,
       });
+      
+      return true;
     } catch (error) {
-      console.error("Print error:", error);
-      toast.show({
-        description: `Failed to print ${type}`,
-        status: "error",
-        duration: 3000,
-        placement: "bottom",
-        isClosable: true,
-      });
+      console.error(`${type} printing error:`, error);
+      
+      // Handle the error with appropriate messaging
+      if (error.message.includes("Bluetooth permission")) {
+        toast.show({
+          description: "Bluetooth permission is required to print",
+          status: "error",
+          duration: 3000,
+          placement: "bottom",
+          isClosable: true,
+        });
+      } else if (error.message.includes("No printer connected")) {
+        Alert.alert(
+          "Printer Not Connected",
+          "Please connect a printer to print",
+          [
+            { 
+              text: "Connect Printer", 
+              onPress: () => {
+                setIsModalVisible(true);
+                scanForPrinters();
+              } 
+            },
+            { text: "Cancel", style: "cancel" }
+          ]
+        );
+      } else {
+        toast.show({
+          description: `Failed to print ${type}: ${error.message}`,
+          status: "error",
+          duration: 3000,
+          placement: "bottom",
+          isClosable: true,
+        });
+      }
+      
+      return false;
     } finally {
       setIsLoading(false);
       setLoadingMessage("");
@@ -1400,92 +1496,65 @@ export default function OrderDetailsScreen() {
         throw new Error("No printer connected");
       }
 
+      const isCancelled = orderDetails.order_status?.toLowerCase() === "cancelled";
+      const total = menuItems.reduce((acc, item) => acc + parseFloat(item.price) * item.quantity, 0);
+      
       // Generate and send commands for thermal printer
       const commands = [
         ...textToBytes("\x1B\x40"), // Initialize printer
         ...textToBytes("\x1B\x61\x01"), // Center alignment
-        ...textToBytes(`${orderDetails.outlet_name}\n`),
-        ...textToBytes(`${orderDetails.outlet_address}\n\n`),
+        
+        // If cancelled, show CANCELLED at the top
+        ...(isCancelled ? [
+          ...textToBytes("\x1B\x45\x01"), // Bold ON
+          ...textToBytes("*** CANCELLED ***\n"),
+          ...textToBytes("\x1B\x45\x00"), // Bold OFF
+        ] : []),
+        
+        ...textToBytes("\x1B\x45\x01"), // Bold ON
+        ...textToBytes("RECEIPT\n"),
+        ...textToBytes("\x1B\x45\x00"), // Bold OFF
+        ...textToBytes(`${orderDetails.outlet_name}\n\n`),
         ...textToBytes("\x1B\x61\x00"), // Left alignment
-        ...textToBytes(`Bill Number: ${orderDetails.order_number}\n`),
-        ...textToBytes(
-          `Table: ${orderDetails.section} - ${orderDetails.table_number[0]}\n`
-        ),
-        ...textToBytes(`Date: ${orderDetails.datetime}\n\n`),
+        ...textToBytes(`Order: #${orderDetails.order_number}\n`),
+        ...textToBytes(`Table: ${orderDetails.section} - ${orderDetails.table_number[0]}\n`),
+        ...textToBytes(`Time: ${orderDetails.datetime}\n`),
+        ...textToBytes(`Status: ${orderDetails.order_status.toUpperCase()}\n\n`),
         ...textToBytes("----------------------------------------\n"),
-        ...textToBytes("Item                  Qty    Rate    Amt\n"),
+        ...textToBytes("Item                  Qty     Price\n"),
         ...textToBytes("----------------------------------------\n"),
 
         // Print items
         ...menuItems.flatMap((item) => {
-          const itemName = item.menu_name.padEnd(20).substring(0, 20);
-          return textToBytes(
-            `${itemName} ${String(item.quantity).padStart(3)}  ${String(
-              item.price
-            ).padStart(6)} ${String(item.menu_sub_total).padStart(7)}\n`
-          );
+          const itemName = `${item.menu_name}${item.half_or_full ? ` (${item.half_or_full})` : ''}`.padEnd(20).substring(0, 20);
+          const price = (parseFloat(item.price) * item.quantity).toFixed(2);
+          const line = `${itemName} ${String(item.quantity).padStart(3)}  Rs.${price.padStart(7)}\n`;
+          return textToBytes(line);
         }),
 
         ...textToBytes("----------------------------------------\n"),
-        
-        // 1. Show total first
-        ...textToBytes(
-          `Total:${String(orderDetails.total_bill_amount).padStart(33)}\n`
-        ),
-        
-        // 2. Show discount if any
-        ...(orderDetails.discount_amount > 0 ? textToBytes(
-          `Discount (${orderDetails.discount_percent}%):${String(
-            -orderDetails.discount_amount
-          ).padStart(20)}\n`
-        ) : []),
-        
-        // 3. Show extra charges if any (if your system has this)
-        ...(orderDetails.extra_charges > 0 ? textToBytes(
-          `Extra Charges:${String(orderDetails.extra_charges).padStart(27)}\n`
-        ) : []),
-        
-        // 4. Show subtotal after discount and extra charges
-        ...textToBytes(
-          `Subtotal:${String(orderDetails.total_bill_amount - (orderDetails.discount_amount || 0) + (orderDetails.extra_charges || 0)).padStart(29)}\n`
-        ),
-        
-        // 5. Show service charges
-        ...textToBytes(
-          `Service Charge (${orderDetails.service_charges_percent}%):${String(
-            orderDetails.service_charges_amount
-          ).padStart(17)}\n`
-        ),
-        
-        // 6. Show GST
-        ...textToBytes(
-          `GST (${orderDetails.gst_percent}%):${String(
-            orderDetails.gst_amount
-          ).padStart(28)}\n`
-        ),
-        
-        // 7. Show tip if any (if your system has this)
-        ...(orderDetails.tip_amount > 0 ? textToBytes(
-          `Tip:${String(orderDetails.tip_amount).padStart(35)}\n`
-        ) : []),
-        
+        ...textToBytes(`TOTAL:                     Rs.${total.toFixed(2).padStart(7)}\n`),
         ...textToBytes("----------------------------------------\n"),
-        
-        // 8. Show grand total
-        ...textToBytes(
-          `GRAND TOTAL:${String(orderDetails.grand_total).padStart(27)}\n\n`
-        ),
-
         ...textToBytes("\x1B\x61\x01"), // Center alignment
-        ...textToBytes("Thank you for dining with us!\n"),
-        ...textToBytes("Visit us again\n\n"),
+        
+        // If cancelled, show cancellation message
+        ...(isCancelled ? [
+          ...textToBytes("\x1B\x45\x01"), // Bold ON
+          ...textToBytes("*** ORDER CANCELLED ***\n"),
+          ...textToBytes("\x1B\x45\x00"), // Bold OFF
+          ...(orderDetails.cancellation_reason ? textToBytes(`Reason: ${orderDetails.cancellation_reason}\n`) : []),
+        ] : []),
+        
+        ...textToBytes("\nThank You!\n\n"),
         ...textToBytes("\x1D\x56\x41\x10"), // Cut paper
       ];
 
-      // Send commands to printer
+      // Send commands to printer using the sendToDevice function
       await sendToDevice(commands);
+      
+      return true;
     } catch (error) {
-      console.error("Thermal print error:", error);
+      console.error("Receipt printing error:", error);
       throw error;
     }
   };
@@ -1614,10 +1683,20 @@ export default function OrderDetailsScreen() {
         throw new Error("No printer connected");
       }
 
+      const isCancelled = orderDetails.order_status?.toLowerCase() === "cancelled";
+      
       // Generate and send commands for thermal printer
       const commands = [
         ...textToBytes("\x1B\x40"), // Initialize printer
         ...textToBytes("\x1B\x61\x01"), // Center alignment
+        
+        // If cancelled, show CANCELLED at the top
+        ...(isCancelled ? [
+          ...textToBytes("\x1B\x45\x01"), // Bold ON
+          ...textToBytes("*** CANCELLED ***\n"),
+          ...textToBytes("\x1B\x45\x00"), // Bold OFF
+        ] : []),
+        
         ...textToBytes("\x1B\x45\x01"), // Bold ON
         ...textToBytes("KOT\n"),
         ...textToBytes("\x1B\x45\x00"), // Bold OFF
@@ -1626,7 +1705,8 @@ export default function OrderDetailsScreen() {
         ...textToBytes(`Order: #${orderDetails.order_number}\n`),
         ...textToBytes(`Table: ${orderDetails.section} - ${orderDetails.table_number[0]}\n`),
         ...textToBytes(`Time: ${orderDetails.datetime}\n`),
-        ...textToBytes(`Items: ${menuItems.length}\n\n`),
+        ...textToBytes(`Items: ${menuItems.length}\n`),
+        ...textToBytes(`Status: ${orderDetails.order_status.toUpperCase()}\n\n`),
         ...textToBytes("----------------------------------------\n"),
         ...textToBytes("Item                  Qty    Notes\n"),
         ...textToBytes("----------------------------------------\n"),
@@ -1642,14 +1722,24 @@ export default function OrderDetailsScreen() {
 
         ...textToBytes("----------------------------------------\n"),
         ...textToBytes("\x1B\x61\x01"), // Center alignment
+        
+        // If cancelled, show cancellation message
+        ...(isCancelled ? [
+          ...textToBytes("\x1B\x45\x01"), // Bold ON
+          ...textToBytes("*** ORDER CANCELLED ***\n"),
+          ...textToBytes("\x1B\x45\x00"), // Bold OFF
+        ] : []),
+        
         ...textToBytes("\n"),
         ...textToBytes("\x1D\x56\x41\x10"), // Cut paper
       ];
 
-      // Send commands to printer
+      // Send commands to printer using the sendToDevice function
       await sendToDevice(commands);
+      
+      return true;
     } catch (error) {
-      console.error("Thermal print KOT error:", error);
+      console.error("KOT printing error:", error);
       throw error;
     }
   };
