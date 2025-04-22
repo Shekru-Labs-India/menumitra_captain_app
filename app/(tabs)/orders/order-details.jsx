@@ -1156,17 +1156,32 @@ export default function OrderDetailsScreen() {
         throw new Error("Printer characteristic not found");
       }
 
-      // Send data in chunks to avoid BLE buffer limitations
-      const CHUNK_SIZE = 100; // Adjust based on your printer's buffer size
+      // Use smaller chunks for better compatibility with basic thermal printers
+      // Many basic thermal printers have limited buffer sizes (around 20-50 bytes)
+      const CHUNK_SIZE = 20; // Smaller chunks
+      
+      console.log(`Sending ${commands.length} bytes to printer in chunks of ${CHUNK_SIZE}`);
       
       for (let i = 0; i < commands.length; i += CHUNK_SIZE) {
         const chunk = commands.slice(i, i + CHUNK_SIZE);
-        await writeCharacteristic.writeWithoutResponse(
-          base64.encode(String.fromCharCode(...chunk))
-        );
-        // Small delay between chunks to avoid buffer overflow
-        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Try with writeWithResponse for more reliable delivery
+        if (writeCharacteristic.isWritableWithResponse) {
+          await writeCharacteristic.writeWithResponse(
+            base64.encode(String.fromCharCode(...chunk))
+          );
+        } else {
+          await writeCharacteristic.writeWithoutResponse(
+            base64.encode(String.fromCharCode(...chunk))
+          );
+        }
+        
+        // Longer delay between chunks for slower printers
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
+      
+      // Add a final delay to ensure all data is processed
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       return true;
     } catch (error) {
@@ -1496,62 +1511,95 @@ export default function OrderDetailsScreen() {
         throw new Error("No printer connected");
       }
 
-      const isCancelled = orderDetails.order_status?.toLowerCase() === "cancelled";
-      const total = menuItems.reduce((acc, item) => acc + parseFloat(item.price) * item.quantity, 0);
+      // Get data formatting helpers
+      const isPaid = orderDetails.is_paid || orderDetails.payment_status === "paid";
+      const getCurrentDateTime = () => {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const month = monthNames[now.getMonth()];
+        const year = now.getFullYear();
+        const hours = String(now.getHours() % 12 || 12).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+        return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+      };
       
-      // Generate and send commands for thermal printer
+      // Create commands for the receipt exactly matching the sample image
       const commands = [
         ...textToBytes("\x1B\x40"), // Initialize printer
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         
-        // If cancelled, show CANCELLED at the top
-        ...(isCancelled ? [
+        // If paid, show PAID at the top
+        ...(isPaid ? [
           ...textToBytes("\x1B\x45\x01"), // Bold ON
-          ...textToBytes("*** CANCELLED ***\n"),
+          ...textToBytes("PAID\n"),
           ...textToBytes("\x1B\x45\x00"), // Bold OFF
         ] : []),
         
+        // Hotel/Restaurant name in larger text
         ...textToBytes("\x1B\x45\x01"), // Bold ON
-        ...textToBytes("RECEIPT\n"),
+        ...textToBytes("\x1D\x21\x11"), // Double height and width
+        ...textToBytes(`${orderDetails.outlet_name}\n`),
+        ...textToBytes("\x1D\x21\x00"), // Normal size
         ...textToBytes("\x1B\x45\x00"), // Bold OFF
-        ...textToBytes(`${orderDetails.outlet_name}\n\n`),
+        
+        // Address and contact
+        ...textToBytes(`${orderDetails.outlet_address || ""}\n`),
+        ...textToBytes(`${orderDetails.outlet_mobile || ""}\n`),
+        
+        // Bill details - left aligned
         ...textToBytes("\x1B\x61\x00"), // Left alignment
-        ...textToBytes(`Order: #${orderDetails.order_number}\n`),
+        ...textToBytes(`Bill Number: ${orderDetails.order_number}\n`),
         ...textToBytes(`Table: ${orderDetails.section} - ${orderDetails.table_number[0]}\n`),
-        ...textToBytes(`Time: ${orderDetails.datetime}\n`),
-        ...textToBytes(`Status: ${orderDetails.order_status.toUpperCase()}\n\n`),
-        ...textToBytes("----------------------------------------\n"),
-        ...textToBytes("Item                  Qty     Price\n"),
-        ...textToBytes("----------------------------------------\n"),
-
-        // Print items
+        ...textToBytes(`DateTime: ${getCurrentDateTime()}\n`),
+        ...textToBytes(`Payment: ${orderDetails.payment_method || "CASH"}\n`),
+        
+        // Divider line
+        ...textToBytes("--------------------------------\n"),
+        
+        // Header for items
+        ...textToBytes("Item           Qty  Rate    Amt\n"),
+        ...textToBytes("--------------------------------\n"),
+        
+        // Menu items with proper formatting
         ...menuItems.flatMap((item) => {
-          const itemName = `${item.menu_name}${item.half_or_full ? ` (${item.half_or_full})` : ''}`.padEnd(20).substring(0, 20);
-          const price = (parseFloat(item.price) * item.quantity).toFixed(2);
-          const line = `${itemName} ${String(item.quantity).padStart(3)}  Rs.${price.padStart(7)}\n`;
-          return textToBytes(line);
+          const name = item.menu_name.padEnd(15).substring(0, 15);
+          const qty = String(item.quantity).padStart(2);
+          const rate = String(Math.round(parseFloat(item.price))).padStart(6);
+          const amt = String((parseFloat(item.price) * item.quantity).toFixed(2)).padStart(8);
+          return textToBytes(`${name} ${qty} ${rate} ${amt}\n`);
         }),
-
-        ...textToBytes("----------------------------------------\n"),
-        ...textToBytes(`TOTAL:                     Rs.${total.toFixed(2).padStart(7)}\n`),
-        ...textToBytes("----------------------------------------\n"),
+        
+        // Divider line
+        ...textToBytes("--------------------------------\n"),
+        
+        // Total amount
+        ...textToBytes(`Total                    ${menuItems.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0).toFixed(2).padStart(8)}\n`),
+        ...textToBytes(`Subtotal                 ${menuItems.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0).toFixed(2).padStart(8)}\n`),
+        ...textToBytes("--------------------------------\n"),
+        ...textToBytes(`Total                    ${menuItems.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0).toFixed(2).padStart(8)}\n\n`),
+        
+        // Payment options - centered
         ...textToBytes("\x1B\x61\x01"), // Center alignment
+        ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
+        ...textToBytes("--------------------------------\n\n"),
         
-        // If cancelled, show cancellation message
-        ...(isCancelled ? [
-          ...textToBytes("\x1B\x45\x01"), // Bold ON
-          ...textToBytes("*** ORDER CANCELLED ***\n"),
-          ...textToBytes("\x1B\x45\x00"), // Bold OFF
-          ...(orderDetails.cancellation_reason ? textToBytes(`Reason: ${orderDetails.cancellation_reason}\n`) : []),
-        ] : []),
+        // TODO: Add QR code generation if needed
+        // For now, we'll just leave space for it
+        ...textToBytes("\n\n\n\n\n"),
         
-        ...textToBytes("\nThank You!\n\n"),
+        // Scan to pay
+        ...textToBytes(`Scan to Pay ${menuItems.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0).toFixed(2)}\n\n`),
+        
+        // Thank you message
+        ...textToBytes("-----Thank You Visit Again!-----\n"),
+        ...textToBytes("https://menumitra.com/\n\n"),
+        
         ...textToBytes("\x1D\x56\x41\x10"), // Cut paper
       ];
 
-      // Send commands to printer using the sendToDevice function
       await sendToDevice(commands);
-      
       return true;
     } catch (error) {
       console.error("Receipt printing error:", error);
@@ -1683,60 +1731,65 @@ export default function OrderDetailsScreen() {
         throw new Error("No printer connected");
       }
 
-      const isCancelled = orderDetails.order_status?.toLowerCase() === "cancelled";
+      // Get data formatting helpers
+      const getCurrentDateTime = () => {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const month = monthNames[now.getMonth()];
+        const year = now.getFullYear();
+        const hours = String(now.getHours() % 12 || 12).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+        return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+      };
       
-      // Generate and send commands for thermal printer
+      // Create commands for the KOT exactly matching the sample image
       const commands = [
         ...textToBytes("\x1B\x40"), // Initialize printer
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         
-        // If cancelled, show CANCELLED at the top
-        ...(isCancelled ? [
-          ...textToBytes("\x1B\x45\x01"), // Bold ON
-          ...textToBytes("*** CANCELLED ***\n"),
-          ...textToBytes("\x1B\x45\x00"), // Bold OFF
-        ] : []),
-        
+        // Hotel/Restaurant name in larger text
         ...textToBytes("\x1B\x45\x01"), // Bold ON
-        ...textToBytes("KOT\n"),
+        ...textToBytes("\x1D\x21\x11"), // Double height and width
+        ...textToBytes(`${orderDetails.outlet_name}\n`),
+        ...textToBytes("\x1D\x21\x00"), // Normal size
         ...textToBytes("\x1B\x45\x00"), // Bold OFF
-        ...textToBytes(`${orderDetails.outlet_name}\n\n`),
+        
+        // Address and contact
+        ...textToBytes(`${orderDetails.outlet_address || ""}\n`),
+        ...textToBytes(`${orderDetails.outlet_mobile || ""}\n`),
+        
+        // Bill details - left aligned
         ...textToBytes("\x1B\x61\x00"), // Left alignment
-        ...textToBytes(`Order: #${orderDetails.order_number}\n`),
+        ...textToBytes(`Bill Number: ${orderDetails.order_number}\n`),
         ...textToBytes(`Table: ${orderDetails.section} - ${orderDetails.table_number[0]}\n`),
-        ...textToBytes(`Time: ${orderDetails.datetime}\n`),
-        ...textToBytes(`Items: ${menuItems.length}\n`),
-        ...textToBytes(`Status: ${orderDetails.order_status.toUpperCase()}\n\n`),
-        ...textToBytes("----------------------------------------\n"),
-        ...textToBytes("Item                  Qty    Notes\n"),
-        ...textToBytes("----------------------------------------\n"),
-
-        // Print items
+        ...textToBytes(`DateTime: ${getCurrentDateTime()}\n`),
+        
+        // Divider line
+        ...textToBytes("--------------------------------\n"),
+        
+        // Header for items
+        ...textToBytes("Item                      Qty\n"),
+        ...textToBytes("--------------------------------\n"),
+        
+        // Menu items - simple format with just name and quantity
         ...menuItems.flatMap((item) => {
-          const itemName = `${item.menu_name}${item.half_or_full ? ` (${item.half_or_full})` : ''}`.padEnd(20).substring(0, 20);
-          const notes = item.comment ? `\n  Note: ${item.comment}` : '';
-          return textToBytes(
-            `${itemName} ${String(item.quantity).padStart(3)}${notes}\n`
-          );
+          const name = item.menu_name.padEnd(24).substring(0, 24);
+          const qty = String(item.quantity).padStart(1);
+          return textToBytes(`${name} ${qty}\n`);
         }),
-
-        ...textToBytes("----------------------------------------\n"),
-        ...textToBytes("\x1B\x61\x01"), // Center alignment
         
-        // If cancelled, show cancellation message
-        ...(isCancelled ? [
-          ...textToBytes("\x1B\x45\x01"), // Bold ON
-          ...textToBytes("*** ORDER CANCELLED ***\n"),
-          ...textToBytes("\x1B\x45\x00"), // Bold OFF
-        ] : []),
+        // Divider line
+        ...textToBytes("--------------------------------\n"),
         
-        ...textToBytes("\n"),
+        // Total items count
+        ...textToBytes(`Total Items: ${menuItems.reduce((acc, item) => acc + item.quantity, 0)}\n\n`),
+        
         ...textToBytes("\x1D\x56\x41\x10"), // Cut paper
       ];
 
-      // Send commands to printer using the sendToDevice function
       await sendToDevice(commands);
-      
       return true;
     } catch (error) {
       console.error("KOT printing error:", error);
