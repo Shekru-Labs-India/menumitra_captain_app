@@ -1,3 +1,22 @@
+/*
+ * Enhanced Order Details Screen
+ * 
+ * This file integrates all order status screens from owner app:
+ * 1. PlacedOrderDetails - Handling newly placed orders
+ * 2. OnGoingOrderDetails - For orders in cooking/preparation
+ * 3. ServedOrderDetails - For served orders awaiting payment
+ * 4. CompletedOrderDetails - For paid/completed orders
+ * 5. CancelledOrderDetails - For cancelled orders
+ * 
+ * Key enhancements:
+ * - Status-specific UI elements and actions
+ * - Color-coded status badges matching owner app
+ * - Timeline visualization with status-specific colors
+ * - Receipt/KOT printing with status-specific formatting
+ * - Cancellation flow with reason input
+ * - Payment method selection for completing orders
+ * - Special UI treatment for cancelled orders (strikethrough)
+ */
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -19,6 +38,8 @@ import {
   Divider,
   Modal,
   Alert,
+  Input,
+  FormControl,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Linking, Platform } from "react-native";
@@ -35,6 +56,16 @@ import { fetchWithAuth } from "../../../utils/apiInterceptor";
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Asset } from 'expo-asset';
+
+// Add order status colors from owner app
+const ORDER_STATUS_COLORS = {
+  PLACED: "#4B89DC",    // Blue for Placed
+  COOKING: "#FF9800",   // Orange for Cooking
+  SERVED: "#0C8B51",    // Green for Served
+  PAID: "#673AB7",      // Purple for Paid
+  CANCELLED: "#F44336", // Red for Cancelled
+  DEFAULT: "#9E9E9E",   // Gray for Default
+};
 
 const formatTime = (dateTimeString) => {
   if (!dateTimeString) return "";
@@ -87,14 +118,16 @@ const PRINTER_CHARACTERISTIC_UUIDS = [
 // Add the generateReceiptHTML function
 const generateReceiptHTML = (orderDetails, menuItems) => {
   try {
+    const isCancelled = orderDetails.order_status?.toLowerCase() === "cancelled";
+    
     const items = menuItems
       .map(
         (item) => `
     <tr>
-      <td style="text-align: left;">${item.menu_name}</td>
-      <td style="text-align: center;">${item.quantity}</td>
-      <td style="text-align: right;">₹${item.price}</td>
-      <td style="text-align: right;">₹${item.menu_sub_total}</td>
+      <td style="text-align: left; ${isCancelled ? 'text-decoration: line-through;' : ''}">${item.menu_name}</td>
+      <td style="text-align: center; ${isCancelled ? 'text-decoration: line-through;' : ''}">${item.quantity}</td>
+      <td style="text-align: right; ${isCancelled ? 'text-decoration: line-through;' : ''}">₹${item.price}</td>
+      <td style="text-align: right; ${isCancelled ? 'text-decoration: line-through;' : ''}">₹${item.menu_sub_total}</td>
     </tr>
   `
       )
@@ -113,6 +146,7 @@ const generateReceiptHTML = (orderDetails, menuItems) => {
           padding: 10px;
           width: 80mm;
           margin: 0 auto;
+          position: relative;
         }
         .header {
           text-align: center;
@@ -157,9 +191,22 @@ const generateReceiptHTML = (orderDetails, menuItems) => {
           font-size: 12px;
           margin-top: 10px;
         }
+        .cancelled-watermark {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%) rotate(-45deg);
+          font-size: 40px;
+          font-weight: bold;
+          color: rgba(255, 0, 0, 0.2);
+          z-index: 1000;
+          text-transform: uppercase;
+        }
       </style>
     </head>
     <body>
+      ${isCancelled ? '<div class="cancelled-watermark">CANCELLED</div>' : ''}
+      
       <div class="header">
         <div class="restaurant-name">${orderDetails.outlet_name}</div>
         <div class="restaurant-address">${orderDetails.outlet_address}</div>
@@ -172,6 +219,7 @@ const generateReceiptHTML = (orderDetails, menuItems) => {
 
       <div class="order-info">
         Order: #${orderDetails.order_number}<br>
+        ${orderDetails.order_status ? `Status: ${orderDetails.order_status.toUpperCase()}<br>` : ''}
         Table: ${orderDetails.section} - ${orderDetails.table_number[0]}<br>
         DateTime: ${orderDetails.datetime}
         ${
@@ -224,6 +272,8 @@ const generateReceiptHTML = (orderDetails, menuItems) => {
         <span>Total:</span>
         <span>₹${Number(orderDetails.grand_total).toFixed(2)}</span>
       </div>
+      
+      ${isCancelled ? '<div style="text-align: center; margin-top: 15px; font-weight: bold; color: red;">*** ORDER CANCELLED ***</div>' : ''}
     </body>
   </html>
   `;
@@ -628,6 +678,8 @@ export default function OrderDetailsScreen() {
   });
   const [timelineData, setTimelineData] = useState([]);
   const [isTimelineModalVisible, setIsTimelineModalVisible] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   // Update the handleDownloadInvoice function with better error handling
   const handleDownloadInvoice = async () => {
@@ -824,21 +876,24 @@ export default function OrderDetailsScreen() {
     fetchOrderDetails();
   }, [id]);
 
-  const handleStatusUpdate = async (newStatus) => {
+  const handleStatusUpdate = async (newStatus, additionalParams = {}) => {
     try {
       setIsLoading(true);
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       const storedUserId = await AsyncStorage.getItem("user_id");
 
+      const requestBody = {
+        outlet_id: storedOutletId,
+        order_id: orderDetails.order_id.toString(),
+        order_status: newStatus,
+        user_id: storedUserId,
+        ...additionalParams
+      };
+
       const data = await fetchWithAuth(`${getBaseUrl()}/update_order_status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          outlet_id: storedOutletId,
-          order_id: orderDetails.order_id.toString(),
-          order_status: newStatus,
-          user_id: storedUserId,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (data.st === 1) {
@@ -877,6 +932,26 @@ export default function OrderDetailsScreen() {
     }
   };
 
+  // Add a cancel order modal function
+  const showCancelOrderModal = () => {
+    setShowCancelModal(true);
+  };
+
+  const handleCancelOrder = () => {
+    if (!cancelReason.trim()) {
+      toast.show({
+        description: "Please provide a reason for cancellation",
+        status: "warning",
+        duration: 3000,
+        placement: "bottom",
+      });
+      return;
+    }
+    
+    handleStatusUpdate("cancelled", { cancel_reason: cancelReason });
+    setShowCancelModal(false);
+  };
+
   const StatusActionButton = () => {
     if (!orderDetails) return null;
 
@@ -886,8 +961,9 @@ export default function OrderDetailsScreen() {
           <Button
             colorScheme="red"
             leftIcon={<Icon as={MaterialIcons} name="cancel" size="sm" />}
-            onPress={() => handleStatusUpdate("cancelled")}
+            onPress={showCancelOrderModal}
             isLoading={isLoading}
+            width="100%"
           >
             Cancel Order
           </Button>
@@ -899,6 +975,7 @@ export default function OrderDetailsScreen() {
             leftIcon={<Icon as={MaterialIcons} name="room-service" size="sm" />}
             onPress={() => handleStatusUpdate("served")}
             isLoading={isLoading}
+            width="100%"
           >
             Mark as Served
           </Button>
@@ -908,8 +985,30 @@ export default function OrderDetailsScreen() {
           <Button
             colorScheme="green"
             leftIcon={<Icon as={MaterialIcons} name="payment" size="sm" />}
-            onPress={() => handleStatusUpdate("paid")}
+            onPress={() => {
+              // Show payment method selection
+              Alert.alert(
+                "Mark as Paid",
+                "Select payment method",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { 
+                    text: "Cash", 
+                    onPress: () => handleStatusUpdate("paid", { payment_method: "cash" })
+                  },
+                  { 
+                    text: "Card", 
+                    onPress: () => handleStatusUpdate("paid", { payment_method: "card" })
+                  },
+                  { 
+                    text: "UPI", 
+                    onPress: () => handleStatusUpdate("paid", { payment_method: "upi" })
+                  }
+                ]
+              );
+            }}
             isLoading={isLoading}
+            width="100%"
           >
             Mark as Paid
           </Button>
@@ -1393,13 +1492,15 @@ export default function OrderDetailsScreen() {
 
   const generateKOTHTML = (orderDetails, menuItems) => {
     try {
+      const isCancelled = orderDetails.order_status?.toLowerCase() === "cancelled";
+      
       const items = menuItems
         .map(
           (item) => `
       <tr>
-        <td style="text-align: left;">${item.menu_name}${item.half_or_full ? ` (${item.half_or_full})` : ''}</td>
-        <td style="text-align: center;">${item.quantity}</td>
-        ${item.comment ? `<td style="text-align: left; font-style: italic; color: #666;">Note: ${item.comment}</td>` : '<td></td>'}
+        <td style="text-align: left; ${isCancelled ? 'text-decoration: line-through;' : ''}">${item.menu_name}${item.half_or_full ? ` (${item.half_or_full})` : ''}</td>
+        <td style="text-align: center; ${isCancelled ? 'text-decoration: line-through;' : ''}">${item.quantity}</td>
+        ${item.comment ? `<td style="text-align: left; font-style: italic; color: #666; ${isCancelled ? 'text-decoration: line-through;' : ''}">Note: ${item.comment}</td>` : '<td></td>'}
       </tr>
     `
         )
@@ -1418,6 +1519,7 @@ export default function OrderDetailsScreen() {
             padding: 10px;
             width: 80mm;
             margin: 0 auto;
+            position: relative;
           }
           .header {
             text-align: center;
@@ -1453,9 +1555,22 @@ export default function OrderDetailsScreen() {
             border-top: 1px dotted black;
             margin: 5px 0;
           }
+          .cancelled-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 40px;
+            font-weight: bold;
+            color: rgba(255, 0, 0, 0.2);
+            z-index: 1000;
+            text-transform: uppercase;
+          }
         </style>
       </head>
       <body>
+        ${isCancelled ? '<div class="cancelled-watermark">CANCELLED</div>' : ''}
+        
         <div class="kot-title">KOT</div>
         
         <div class="header">
@@ -1467,6 +1582,7 @@ export default function OrderDetailsScreen() {
           <strong>Table:</strong> ${orderDetails.section} - ${orderDetails.table_number[0]}<br>
           <strong>Time:</strong> ${orderDetails.datetime}<br>
           <strong>Items:</strong> ${menuItems.length}
+          ${orderDetails.order_status ? `<br><strong>Status:</strong> ${orderDetails.order_status.toUpperCase()}` : ''}
         </div>
 
         <div class="dotted-line"></div>
@@ -1481,6 +1597,8 @@ export default function OrderDetailsScreen() {
         </table>
 
         <div class="dotted-line"></div>
+        
+        ${isCancelled ? '<div style="text-align: center; margin-top: 15px; font-weight: bold; color: red;">*** ORDER CANCELLED ***</div>' : ''}
       </body>
     </html>
     `;
@@ -1638,7 +1756,19 @@ export default function OrderDetailsScreen() {
                     w="12px"
                     h="12px"
                     rounded="full"
-                    bg="green.500"
+                    bg={
+                      item.order_status?.toLowerCase() === "cooking"
+                        ? ORDER_STATUS_COLORS.COOKING
+                        : item.order_status?.toLowerCase() === "served"
+                        ? ORDER_STATUS_COLORS.SERVED
+                        : item.order_status?.toLowerCase() === "paid"
+                        ? ORDER_STATUS_COLORS.PAID
+                        : item.order_status?.toLowerCase() === "placed"
+                        ? ORDER_STATUS_COLORS.PLACED
+                        : item.order_status?.toLowerCase() === "cancelled"
+                        ? ORDER_STATUS_COLORS.CANCELLED
+                        : ORDER_STATUS_COLORS.DEFAULT
+                    }
                   />
                   {index !== data.length - 1 && (
                     <Box
@@ -1655,8 +1785,31 @@ export default function OrderDetailsScreen() {
                     </Text>
                   </HStack>
                   <Text color="gray.600">
-                    Status: <Text color="green.600" fontWeight="semibold" textTransform="capitalize">{item.order_status}</Text>
+                    Status: <Text 
+                      fontWeight="semibold" 
+                      textTransform="capitalize"
+                      color={
+                        item.order_status?.toLowerCase() === "cooking"
+                          ? "orange.600"
+                          : item.order_status?.toLowerCase() === "served"
+                          ? "green.600"
+                          : item.order_status?.toLowerCase() === "paid"
+                          ? "purple.600" 
+                          : item.order_status?.toLowerCase() === "placed"
+                          ? "blue.600"
+                          : item.order_status?.toLowerCase() === "cancelled"
+                          ? "red.600"
+                          : "gray.600"
+                      }
+                    >
+                      {item.order_status}
+                    </Text>
                   </Text>
+                  {item.reason && (
+                    <Text color="gray.600">
+                      Reason: <Text fontStyle="italic">{item.reason}</Text>
+                    </Text>
+                  )}
                   <Text fontSize="sm" color="gray.500">
                     {item.created_on}
                   </Text>
@@ -1671,9 +1824,6 @@ export default function OrderDetailsScreen() {
       </Modal.Content>
     </Modal>
   );
-
-
-  
 
   // Add useEffect to fetch timeline when order_id changes
   useEffect(() => {
@@ -1785,31 +1935,48 @@ export default function OrderDetailsScreen() {
                   px={3}
                   py={1}
                   rounded="full"
-                  colorScheme={
-                    orderDetails.order_status === "cooking"
-                      ? "orange"
-                      : orderDetails.order_status === "paid"
-                      ? "green"
-                      : orderDetails.order_status === "placed"
-                      ? "purple"
-                      : "red"
+                  bg={
+                    orderDetails.order_status?.toLowerCase() === "cooking"
+                      ? ORDER_STATUS_COLORS.COOKING
+                      : orderDetails.order_status?.toLowerCase() === "served"
+                      ? ORDER_STATUS_COLORS.SERVED
+                      : orderDetails.order_status?.toLowerCase() === "paid"
+                      ? ORDER_STATUS_COLORS.PAID
+                      : orderDetails.order_status?.toLowerCase() === "placed"
+                      ? ORDER_STATUS_COLORS.PLACED
+                      : orderDetails.order_status?.toLowerCase() === "cancelled"
+                      ? ORDER_STATUS_COLORS.CANCELLED
+                      : ORDER_STATUS_COLORS.DEFAULT
                   }
+                  _text={{
+                    color: "white",
+                    fontWeight: "bold"
+                  }}
                 >
                   {orderDetails.order_status?.toUpperCase()}
                 </Badge>
                 <Button
                   size="sm"
-                  variant="outline"
-                  px={1}
-                  py={1}
-                  borderRadius={10}
-                  leftIcon={<Icon as={MaterialIcons} name="schedule" size="sm" />}
+                  variant="subtle"
+                  leftIcon={<Icon as={MaterialIcons} name="timeline" size="sm" />}
                   onPress={() => setIsTimelineModalVisible(true)}
                 >
-                  Timeline
+                  View Timeline
                 </Button>
               </VStack>
             </HStack>
+            
+            {/* Display cancellation reason if order is cancelled */}
+            {orderDetails.order_status?.toLowerCase() === "cancelled" && orderDetails.cancel_reason && (
+              <Box bg="red.50" p={2} rounded="md" mt={2}>
+                <HStack space={2} alignItems="center">
+                  <Icon as={MaterialIcons} name="info" color="red.500" size="sm" />
+                  <Text color="red.600" fontWeight="medium">
+                    Reason: {orderDetails.cancel_reason}
+                  </Text>
+                </HStack>
+              </Box>
+            )}
             
             <HStack space={4} alignItems="center">
               <HStack space={2} alignItems="center">
@@ -1849,23 +2016,41 @@ export default function OrderDetailsScreen() {
                 borderBottomWidth={index !== menuItems.length - 1 ? 1 : 0}
                 borderColor="coolGray.200"
                 pb={index !== menuItems.length - 1 ? 4 : 0}
+                opacity={orderDetails.order_status?.toLowerCase() === "cancelled" ? 0.6 : 1}
               >
                 <HStack justifyContent="space-between" alignItems="flex-start">
                   <VStack flex={1} space={1}>
-                    <Text fontSize="md" fontWeight="bold">
+                    <Text 
+                      fontSize="md" 
+                      fontWeight="bold"
+                      textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                    >
                       {item.menu_name}{" "}
-                      <Text fontSize="sm" color="coolGray.600">
+                      <Text 
+                        fontSize="sm" 
+                        color="coolGray.600"
+                        textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                      >
                         ({item.quantity})
                       </Text>
                       {item.half_or_full && (
-                        <Text fontSize="sm" color="coolGray.600">
+                        <Text 
+                          fontSize="sm" 
+                          color="coolGray.600"
+                          textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                        >
                           {" "}
                           - {item.half_or_full}
                         </Text>
                       )}
                     </Text>
                     {item.comment && (
-                      <Text fontSize="sm" color="coolGray.600" italic>
+                      <Text 
+                        fontSize="sm" 
+                        color="coolGray.600" 
+                        italic
+                        textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                      >
                         Note: {item.comment}
                       </Text>
                     )}
@@ -2068,6 +2253,40 @@ export default function OrderDetailsScreen() {
           bleManager?.stopDeviceScan();
         }}
       />
+
+      {/* Cancel Order Modal */}
+      <Modal isOpen={showCancelModal} onClose={() => setShowCancelModal(false)}>
+        <Modal.Content maxWidth="90%" maxHeight="80%">
+          <Modal.Header>Cancel Order</Modal.Header>
+          <Modal.Body>
+            <FormControl>
+              <FormControl.Label>Reason for Cancellation</FormControl.Label>
+              <Input
+                value={cancelReason}
+                onChangeText={setCancelReason}
+                placeholder="Enter reason for cancellation"
+              />
+            </FormControl>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button.Group space={2}>
+              <Button
+                variant="ghost"
+                colorScheme="blueGray"
+                onPress={() => setShowCancelModal(false)}
+              >
+                Back
+              </Button>
+              <Button 
+                colorScheme="red"
+                onPress={handleCancelOrder}
+              >
+                Cancel Order
+              </Button>
+            </Button.Group>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
     </Box>
   );
 }
