@@ -26,6 +26,7 @@ import {
   Fab,
   Center,
   Icon,
+  Switch,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar, ScrollView, RefreshControl, AppState, Animated } from "react-native";
@@ -164,6 +165,7 @@ export default function TableSectionsScreen() {
   const [printerDevice, setPrinterDevice] = useState(null);
   const [newTableNumber, setNewTableNumber] = useState("");
   const [creatingTableSectionId, setCreatingTableSectionId] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -797,6 +799,21 @@ export default function TableSectionsScreen() {
                       
                       {showEditIcons && (
                         <HStack space={2} alignItems="center">
+                          <Switch
+                            size="md"
+                            onToggle={() => {
+                              handleToggleStatus(section.id, section.is_active);
+                            }}
+                            isChecked={section.is_active}
+                            isDisabled={updatingStatus}
+                            colorScheme="primary"
+                            _light={{
+                              onTrackColor: "primary.500",
+                              onThumbColor: "white",
+                              offTrackColor: "coolGray.200",
+                              offThumbColor: "coolGray.400",
+                            }}
+                          />
                           <IconButton
                             size="sm"
                             variant="ghost"
@@ -829,6 +846,9 @@ export default function TableSectionsScreen() {
                           Total: {section.totalTables}
                         </Text>
                       </HStack>
+
+                      //add here active inactive toggleSidebar
+                      
                       <HStack space={1} alignItems="center">
                         <Box w={3} h={3} bg="red.400" rounded="full" />
                         <Text fontSize="xs" color="coolGray.600">
@@ -2518,6 +2538,123 @@ export default function TableSectionsScreen() {
       </Modal>
     );
   };
+
+  const handleToggleStatus = async (sectionId, currentStatus) => {
+    try {
+      setUpdatingStatus(true);
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+
+      const response = await fetchWithAuth(`${getBaseUrl()}/update_active_status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: storedOutletId,
+          type: "section",
+          id: sectionId.toString(),
+          is_active: !currentStatus
+        }),
+      });
+
+      if (response.st === 1) {
+        // Update the local state
+        setSections(prevSections => 
+          prevSections.map(section => 
+            section.section_id === sectionId 
+              ? { ...section, is_active: !currentStatus }
+              : section
+          )
+        );
+        
+        toast.show({
+          description: `Section ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
+          status: "success",
+        });
+      } else {
+        throw new Error(response.msg || "Failed to update status");
+      }
+    } catch (error) {
+      console.error("Update Status Error:", error);
+      toast.show({
+        description: "Failed to update section status",
+        status: "error",
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const renderListView = (sections) => (
+    <ScrollView
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      <VStack space={3} p={4}>
+        {sections.map((section) => (
+          <Pressable
+            key={section.section_id}
+            onPress={() => handleSectionPress(section)}
+          >
+            <Box
+              bg="white"
+              p={4}
+              rounded="lg"
+              shadow={2}
+              borderWidth={1}
+              borderColor={
+                activeSection?.section_id === section.section_id
+                  ? "primary.500"
+                  : "coolGray.200"
+              }
+            >
+              <HStack justifyContent="space-between" alignItems="center">
+                <VStack space={1} flex={1}>
+                  <HStack space={2} alignItems="center">
+                    <Text fontSize="lg" fontWeight="bold">
+                      {section.section_name}
+                    </Text>
+                    <Badge
+                      colorScheme={section.is_active ? "success" : "danger"}
+                      variant="subtle"
+                      rounded="full"
+                    >
+                      {section.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </HStack>
+                  <Text color="coolGray.600">
+                    {section.tables?.length || 0} Tables
+                  </Text>
+                </VStack>
+                <HStack space={2} alignItems="center">
+                  <Switch
+                    size="md"
+                    onToggle={() => {
+                      handleToggleStatus(section.section_id, section.is_active);
+                    }}
+                    isChecked={section.is_active}
+                    isDisabled={updatingStatus}
+                    colorScheme="primary"
+                    _light={{
+                      onTrackColor: "primary.500",
+                      onThumbColor: "white",
+                      offTrackColor: "coolGray.200",
+                      offThumbColor: "coolGray.400",
+                    }}
+                  />
+                  <Icon
+                    as={MaterialIcons}
+                    name="chevron-right"
+                    size={6}
+                    color="coolGray.400"
+                  />
+                </HStack>
+              </HStack>
+            </Box>
+          </Pressable>
+        ))}
+      </VStack>
+    </ScrollView>
+  );
 
   return (
     <Box safeArea flex={1} bg="coolGray.100">
