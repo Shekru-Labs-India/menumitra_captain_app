@@ -14,6 +14,7 @@ import {
   Select,
   useToast,
   Spinner,
+  Switch,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar, Linking } from "react-native";
@@ -41,6 +42,7 @@ export default function SuppliersScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [outletId, setOutletId] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -135,6 +137,50 @@ export default function SuppliersScreen() {
     Linking.openURL(`tel:${phoneNumber}`);
   };
 
+  const handleToggleStatus = async (supplierId, currentStatus) => {
+    try {
+      setUpdatingStatus(true);
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+
+      const response = await fetchWithAuth(`${getBaseUrl()}/update_active_status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: storedOutletId,
+          type: "supplier",
+          id: supplierId.toString(),
+          is_active: !currentStatus
+        }),
+      });
+
+      if (response.st === 1) {
+        // Update the local state
+        setSuppliers(prevSuppliers => 
+          prevSuppliers.map(supplier => 
+            supplier.supplier_id === supplierId 
+              ? { ...supplier, status: !currentStatus ? "active" : "inactive" }
+              : supplier
+          )
+        );
+        
+        toast.show({
+          description: `Supplier ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
+          status: "success",
+        });
+      } else {
+        throw new Error(response.msg || "Failed to update status");
+      }
+    } catch (error) {
+      console.error("Update Status Error:", error);
+      toast.show({
+        description: "Failed to update supplier status",
+        status: "error",
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const renderListItem = ({ item }) => (
     <Pressable
       onPress={() => {
@@ -181,10 +227,20 @@ export default function SuppliersScreen() {
               size="md"
               p={2}
             />
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color="coolGray.400"
+            <Switch
+              size="md"
+              onToggle={() => {
+                handleToggleStatus(item.supplier_id, item.status === "active");
+              }}
+              isChecked={item.status === "active"}
+              isDisabled={updatingStatus}
+              colorScheme="primary"
+              _light={{
+                onTrackColor: "primary.500",
+                onThumbColor: "white",
+                offTrackColor: "coolGray.200",
+                offThumbColor: "coolGray.400",
+              }}
             />
           </HStack>
         </HStack>
