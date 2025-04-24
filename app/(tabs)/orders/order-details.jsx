@@ -883,10 +883,10 @@ export default function OrderDetailsScreen() {
       const storedUserId = await AsyncStorage.getItem("user_id");
 
       const requestBody = {
-        outlet_id: storedOutletId,
-        order_id: orderDetails.order_id.toString(),
-        order_status: newStatus,
-        user_id: storedUserId,
+          outlet_id: storedOutletId,
+          order_id: orderDetails.order_id.toString(),
+          order_status: newStatus,
+          user_id: storedUserId,
         ...additionalParams
       };
 
@@ -1156,32 +1156,40 @@ export default function OrderDetailsScreen() {
         throw new Error("Printer characteristic not found");
       }
 
-      // Use smaller chunks for better compatibility with basic thermal printers
-      // Many basic thermal printers have limited buffer sizes (around 20-50 bytes)
-      const CHUNK_SIZE = 20; // Smaller chunks
+      // Use very small chunks for better reliability
+      const CHUNK_SIZE = 16; // Even smaller chunks
       
       console.log(`Sending ${commands.length} bytes to printer in chunks of ${CHUNK_SIZE}`);
       
+      // Try different writing methods based on what's available
+      const writeMethod = writeCharacteristic.isWritableWithResponse ? 
+                        'writeWithResponse' : 'writeWithoutResponse';
+      
       for (let i = 0; i < commands.length; i += CHUNK_SIZE) {
         const chunk = commands.slice(i, i + CHUNK_SIZE);
+        const encodedData = base64.encode(String.fromCharCode(...chunk));
         
-        // Try with writeWithResponse for more reliable delivery
-        if (writeCharacteristic.isWritableWithResponse) {
-          await writeCharacteristic.writeWithResponse(
-            base64.encode(String.fromCharCode(...chunk))
-          );
-        } else {
-          await writeCharacteristic.writeWithoutResponse(
-            base64.encode(String.fromCharCode(...chunk))
-          );
+        try {
+          await writeCharacteristic[writeMethod](encodedData);
+          // Increase delay between chunks
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (err) {
+          console.log(`Error sending chunk ${i}:`, err);
+          // Try alternative method if available
+          if (writeMethod === 'writeWithResponse' && writeCharacteristic.isWritableWithoutResponse) {
+            await writeCharacteristic.writeWithoutResponse(encodedData);
+          } else if (writeMethod === 'writeWithoutResponse' && writeCharacteristic.isWritableWithResponse) {
+            await writeCharacteristic.writeWithResponse(encodedData);
+          } else {
+            throw err;
+          }
+          // Longer delay after error
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
-        
-        // Longer delay between chunks for slower printers
-        await new Promise(resolve => setTimeout(resolve, 200));
       }
       
-      // Add a final delay to ensure all data is processed
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Longer final delay to ensure all data is processed
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       return true;
     } catch (error) {
@@ -1196,7 +1204,7 @@ export default function OrderDetailsScreen() {
       if (Platform.OS === "web" || Constants.executionEnvironment === "storeClient") {
         return false;
       }
-      
+
       // On Android
       if (Platform.OS === "android") {
         const apiLevel = parseInt(Platform.Version, 10);
@@ -1226,7 +1234,7 @@ export default function OrderDetailsScreen() {
           );
           
           return result === PermissionsAndroid.RESULTS.GRANTED;
-        } 
+        }
         // For older Android versions
         else {
           const result = await PermissionsAndroid.request(
@@ -1241,7 +1249,7 @@ export default function OrderDetailsScreen() {
       // but some runtime requests might still be needed based on usage
       if (Platform.OS === "ios") {
         // For future iOS specific permission requests
-        return true;
+      return true;
       }
       
       return false;
@@ -1385,8 +1393,8 @@ export default function OrderDetailsScreen() {
       
       // Discover services and characteristics
       setLoadingMessage("Discovering services...");
-      await connectedDevice.discoverAllServicesAndCharacteristics();
-      
+        await connectedDevice.discoverAllServicesAndCharacteristics();
+
       // Store the connected device and update state
       setPrinterDevice(connectedDevice);
       setIsConnected(true);
@@ -1445,10 +1453,11 @@ export default function OrderDetailsScreen() {
 
       setLoadingMessage(`Printing ${type}...`);
 
-      // Print based on type
-      if (type === "Receipt") {
+      // Print based on type - handle case insensitively
+      const printType = type.toLowerCase();
+      if (printType === "receipt") {
         await printReceipt();
-      } else if (type === "KOT") {
+      } else if (printType === "kot") {
         await printKOT();
       }
 
@@ -1511,94 +1520,128 @@ export default function OrderDetailsScreen() {
         throw new Error("No printer connected");
       }
 
-      // Get data formatting helpers
-      const isPaid = orderDetails.is_paid || orderDetails.payment_status === "paid";
-      const getCurrentDateTime = () => {
-        const now = new Date();
-        const day = String(now.getDate()).padStart(2, '0');
-        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-        const month = monthNames[now.getMonth()];
-        const year = now.getFullYear();
-        const hours = String(now.getHours() % 12 || 12).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
-        return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+      // Helper functions from create-order.jsx
+      const getDottedLine = () => "-------------------------------\n";
+      
+      const formatAmountLine = (label, amount, symbol = "") => {
+        const amountStr = Math.abs(parseFloat(amount)).toFixed(2);
+        const totalWidth = 32; // Total width of the receipt
+        const amountWidth = 10; // Width allocated for the amount display
+        
+        // Calculate padding needed between label and amount
+        const padding = Math.max(2, totalWidth - label.length - amountWidth);
+        return `${label}${" ".repeat(padding)}${symbol}${amountStr}\n`;
       };
       
-      // Create commands for the receipt exactly matching the sample image
+      // Determine payment status
+      const isPaid = orderDetails.is_paid || orderDetails.payment_status === "paid";
+      
+      // Format current date time in standard format
+      const now = new Date();
+      const dateTimeStr = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+      
+      // Calculate totals
+      const subtotal = menuItems.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0);
+      
+      // Build printer commands
       const commands = [
         ...textToBytes("\x1B\x40"), // Initialize printer
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         
-        // If paid, show PAID at the top
+        // Receipt header
         ...(isPaid ? [
           ...textToBytes("\x1B\x45\x01"), // Bold ON
           ...textToBytes("PAID\n"),
           ...textToBytes("\x1B\x45\x00"), // Bold OFF
         ] : []),
         
-        // Hotel/Restaurant name in larger text
         ...textToBytes("\x1B\x45\x01"), // Bold ON
         ...textToBytes("\x1D\x21\x11"), // Double height and width
-        ...textToBytes(`${orderDetails.outlet_name}\n`),
+        ...textToBytes(`${orderDetails.outlet_name || "Restaurant"}\n`),
         ...textToBytes("\x1D\x21\x00"), // Normal size
         ...textToBytes("\x1B\x45\x00"), // Bold OFF
         
-        // Address and contact
         ...textToBytes(`${orderDetails.outlet_address || ""}\n`),
-        ...textToBytes(`${orderDetails.outlet_mobile || ""}\n`),
+        ...textToBytes(`${orderDetails.outlet_contact || orderDetails.outlet_mobile || ""}\n\n`),
         
-        // Bill details - left aligned
+        // Order details - left aligned
         ...textToBytes("\x1B\x61\x00"), // Left alignment
         ...textToBytes(`Bill Number: ${orderDetails.order_number}\n`),
-        ...textToBytes(`Table: ${orderDetails.section} - ${orderDetails.table_number[0]}\n`),
-        ...textToBytes(`DateTime: ${getCurrentDateTime()}\n`),
+        
+        // Show table or order type based on context
+        ...(orderDetails.order_type === "dine-in" ? 
+          [textToBytes(`Table: ${orderDetails.section || ""} - ${orderDetails.table_number ? orderDetails.table_number[0] : ""}\n`)] :
+          [textToBytes(`Order Type: ${orderDetails.order_type || "Takeaway"}\n`)]),
+        
+        // Date and payment method
+        ...textToBytes(`DateTime: ${dateTimeStr}\n`),
         ...textToBytes(`Payment: ${orderDetails.payment_method || "CASH"}\n`),
         
-        // Divider line
-        ...textToBytes("--------------------------------\n"),
+        // Item section header
+        ...textToBytes(getDottedLine()),
+        ...textToBytes("Item            Qty  Rate    Amount\n"),
+        ...textToBytes(getDottedLine()),
         
-        // Header for items
-        ...textToBytes("Item           Qty  Rate    Amt\n"),
-        ...textToBytes("--------------------------------\n"),
-        
-        // Menu items with proper formatting
+        // Menu items with formatting
         ...menuItems.flatMap((item) => {
-          const name = item.menu_name.padEnd(15).substring(0, 15);
+          // Format item name - truncate if too long
+          let itemName = item.menu_name;
+          if (itemName.length > 14) {
+            itemName = itemName.substring(0, 13) + '.';
+          }
+          itemName = itemName.padEnd(15);
+          
+          // Format quantities and prices
           const qty = String(item.quantity).padStart(2);
-          const rate = String(Math.round(parseFloat(item.price))).padStart(6);
-          const amt = String((parseFloat(item.price) * item.quantity).toFixed(2)).padStart(8);
-          return textToBytes(`${name} ${qty} ${rate} ${amt}\n`);
+          const rate = String(Math.round(parseFloat(item.price))).padStart(5);
+          const amount = String((parseFloat(item.price) * item.quantity).toFixed(2)).padStart(8);
+          
+          return textToBytes(`${itemName}${qty} ${rate} ${amount}\n`);
         }),
         
-        // Divider line
-        ...textToBytes("--------------------------------\n"),
+        // Totals section
+        ...textToBytes(getDottedLine()),
+        ...textToBytes(formatAmountLine("Total", subtotal)),
         
-        // Total amount
-        ...textToBytes(`Total                    ${menuItems.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0).toFixed(2).padStart(8)}\n`),
-        ...textToBytes(`Subtotal                 ${menuItems.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0).toFixed(2).padStart(8)}\n`),
-        ...textToBytes("--------------------------------\n"),
-        ...textToBytes(`Total                    ${menuItems.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0).toFixed(2).padStart(8)}\n\n`),
+        // Show discount if applicable
+        ...(orderDetails.discount_amount && parseFloat(orderDetails.discount_amount) > 0 ? 
+          [textToBytes(formatAmountLine(`Discount (${orderDetails.discount_percent || 0}%)`, orderDetails.discount_amount, "-"))] : 
+          []),
+          
+        // Show extra charges if applicable  
+        ...(orderDetails.extra_charges && parseFloat(orderDetails.extra_charges) > 0 ? 
+          [textToBytes(formatAmountLine("Extra Charges", orderDetails.extra_charges, "+"))] : 
+          []),
         
-        // Payment options - centered
+        // Subtotal after discount and charges
+        ...textToBytes(formatAmountLine("Subtotal", orderDetails.total_bill_with_discount || subtotal)),
+        
+        // Service charges and GST
+        ...(orderDetails.service_charges_amount && parseFloat(orderDetails.service_charges_amount) > 0 ? 
+          [textToBytes(formatAmountLine(`Service Ch (${orderDetails.service_charges_percent || 0}%)`, orderDetails.service_charges_amount, "+"))] : 
+          []),
+          
+        ...(orderDetails.gst_amount && parseFloat(orderDetails.gst_amount) > 0 ? 
+          [textToBytes(formatAmountLine(`GST (${orderDetails.gst_percent || 0}%)`, orderDetails.gst_amount, "+"))] : 
+          []),
+        
+        // Final total
+        ...textToBytes(getDottedLine()),
+        ...textToBytes(formatAmountLine("GRAND TOTAL", orderDetails.grand_total || subtotal)),
+        ...textToBytes("\n"),
+        
+        // Footer - centered
         ...textToBytes("\x1B\x61\x01"), // Center alignment
-        ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
-        ...textToBytes("--------------------------------\n\n"),
+        ...textToBytes("Thank You for your business!\n"),
+        ...textToBytes("Visit us again\n\n"),
+        ...textToBytes("Powered by MenuMitra\n"),
+        ...textToBytes("https://menumitra.com\n\n"),
         
-        // TODO: Add QR code generation if needed
-        // For now, we'll just leave space for it
-        ...textToBytes("\n\n\n\n\n"),
-        
-        // Scan to pay
-        ...textToBytes(`Scan to Pay ${menuItems.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0).toFixed(2)}\n\n`),
-        
-        // Thank you message
-        ...textToBytes("-----Thank You Visit Again!-----\n"),
-        ...textToBytes("https://menumitra.com/\n\n"),
-        
-        ...textToBytes("\x1D\x56\x41\x10"), // Cut paper
+        // Cut paper
+        ...textToBytes("\x1D\x56\x00"),
       ];
 
+      console.log("Sending receipt commands:", commands.length, "bytes");
       await sendToDevice(commands);
       return true;
     } catch (error) {
@@ -1946,7 +1989,7 @@ export default function OrderDetailsScreen() {
                       }
                     >
                       {item.order_status}
-                    </Text>
+                  </Text>
                   </Text>
                   {item.reason && (
                     <Text color="gray.600">

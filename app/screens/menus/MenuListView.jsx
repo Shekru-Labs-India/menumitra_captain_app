@@ -14,6 +14,7 @@ import {
   Input,
   IconButton,
   Fab,
+  Switch,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -28,6 +29,7 @@ export default function MenuListView() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredMenus, setFilteredMenus] = useState([]);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const router = useRouter();
   const toast = useToast();
   const params = useLocalSearchParams();
@@ -135,6 +137,50 @@ export default function MenuListView() {
     }
   };
 
+  const handleToggleStatus = async (menuId, currentStatus) => {
+    try {
+      setUpdatingStatus(true);
+      const outletId = await AsyncStorage.getItem("outlet_id");
+
+      const response = await fetchWithAuth(`${getBaseUrl()}/update_active_status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: outletId,
+          type: "menu",
+          id: menuId.toString(),
+          is_active: !currentStatus
+        }),
+      });
+
+      if (response.st === 1) {
+        // Update the local state
+        setMenus(prevMenus => 
+          prevMenus.map(menu => 
+            menu.menu_id === menuId 
+              ? { ...menu, is_active: !currentStatus }
+              : menu
+          )
+        );
+        
+        toast.show({
+          description: `Menu ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
+          status: "success",
+        });
+      } else {
+        throw new Error(response.msg || "Failed to update status");
+      }
+    } catch (error) {
+      console.error("Update Status Error:", error);
+      toast.show({
+        description: "Failed to update menu status",
+        status: "error",
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const renderSpicyLevel = (level) => {
     const spicyLevel = parseInt(level);
     return (
@@ -219,6 +265,22 @@ export default function MenuListView() {
               </Text>
             </HStack>
           </VStack>
+
+          <Switch
+            size="md"
+            onToggle={() => {
+              handleToggleStatus(item.menu_id, item.is_active);
+            }}
+            isChecked={item.is_active}
+            isDisabled={updatingStatus}
+            colorScheme="primary"
+            _light={{
+              onTrackColor: "primary.500",
+              onThumbColor: "white",
+              offTrackColor: "coolGray.200",
+              offThumbColor: "coolGray.400",
+            }}
+          />
         </HStack>
       </Box>
     </Pressable>
