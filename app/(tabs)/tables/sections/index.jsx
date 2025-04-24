@@ -115,7 +115,7 @@ export default function TableSectionsScreen() {
   const toast = useToast();
   const [viewType, setViewType] = useState("list");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("name");
+  const [sortBy, setSortBy] = useState("default");
   const [isAscending, setIsAscending] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newSectionName, setNewSectionName] = useState("");
@@ -170,13 +170,16 @@ export default function TableSectionsScreen() {
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
       setFilterStatus("available");
+      setSortBy(value); // Update the sort criteria
     } else if (value === "occupiedTables") {
       setFilterStatus("occupied");
+      setSortBy(value); // Update the sort criteria
+    } else if (value === "name" || value === "totalTables" || value === "engagedTables") {
+      setSortBy(value); // Update the sort criteria
     } else {
       setFilterStatus("all"); // Reset the filter when other options are selected
+      setSortBy("default"); // Reset to default order (original API response)
     }
-
-    setSortBy(value); // Update the sort criteria
   };
 
   useEffect(() => {
@@ -349,22 +352,24 @@ export default function TableSectionsScreen() {
       });
     }
 
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let comparison = 0;
-      switch (sortBy) {
-        case "name":
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case "totalTables":
-          comparison = a.totalTables - b.totalTables;
-          break;
-        case "engagedTables":
-          comparison = a.engagedTables - b.engagedTables;
-          break;
-      }
-      return isAscending ? comparison : -comparison;
-    });
+    // Only apply sorting if a sort option is explicitly selected
+    if (sortBy && sortBy !== "default") {
+      filtered.sort((a, b) => {
+        let comparison = 0;
+        switch (sortBy) {
+          case "name":
+            comparison = a.name.localeCompare(b.name);
+            break;
+          case "totalTables":
+            comparison = a.totalTables - b.totalTables;
+            break;
+          case "engagedTables":
+            comparison = a.engagedTables - b.engagedTables;
+            break;
+        }
+        return isAscending ? comparison : -comparison;
+      });
+    }
 
     return filtered;
   }, [sections, searchQuery, sortBy, isAscending]);
