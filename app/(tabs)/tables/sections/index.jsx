@@ -2782,7 +2782,7 @@ export default function TableSectionsScreen() {
                   </Text>
                 </Pressable>
                 
-                <Pressable
+                {/* <Pressable
                   onPress={() => setFilterStatus("reserved")}
                   bg={filterStatus === "reserved" ? "gray.100" : "coolGray.100"}
                   px={4}
@@ -2797,7 +2797,7 @@ export default function TableSectionsScreen() {
                   >
                     Reserved
                   </Text>
-                </Pressable>
+                </Pressable> */}
                 
                 <Pressable
                   onPress={() => setFilterStatus("available")}
