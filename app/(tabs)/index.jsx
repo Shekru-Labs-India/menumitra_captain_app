@@ -19,6 +19,8 @@ import {
   StatusBar as NativeBaseStatusBar,
   useToast,
   Button,
+  Modal,
+  Center,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -39,6 +41,7 @@ import { getBaseUrl } from "../../config/api.config";
 import * as Updates from "expo-updates";
 import Constants from 'expo-constants';
 import { fetchWithAuth } from "../../utils/apiInterceptor";
+import { useVersion } from "../../context/VersionContext";
 
 // Memoize static components
 const MemoizedStatusBar = memo(() => (
@@ -104,6 +107,10 @@ export default function HomeScreen() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [staffCount, setStaffCount] = useState(0);
   const [tableCount, setTableCount] = useState(0);
+  const [apiVersion, setApiVersion] = useState("");
+  const [needsUpdate, setNeedsUpdate] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const { version: appVersion } = useVersion();
   const [todaysSales, setTodaysSales] = useState({
     sales: 0,
     revenue: 0,
@@ -605,8 +612,73 @@ export default function HomeScreen() {
     }
   };
 
+  // Update version check function
+  const checkVersion = useCallback(async () => {
+    try {
+      const response = await fetchWithAuth('https://men4u.xyz/common_api/check_version', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_type: 'captain_app' })
+      });
+      
+      if (response.st === 1) {
+        setApiVersion(response.version || '');
+        // Compare versions
+        const apiVer = response.version ? response.version.split('.').map(Number) : [0, 0, 0];
+        const appVer = appVersion.split('.').map(Number);
+        
+        // Compare version numbers
+        for (let i = 0; i < 3; i++) {
+          if (apiVer[i] > appVer[i]) {
+            setNeedsUpdate(true);
+            setShowUpdateModal(true);
+            break;
+          } else if (apiVer[i] < appVer[i]) {
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking version:', error);
+    }
+  }, [appVersion]);
+
+  // Add version check to initialization
+  useEffect(() => {
+    checkVersion();
+  }, [checkVersion]);
+
+  const handleUpdatePress = () => {
+    // You can add logic here to direct users to the app store or download page
+    Linking.openURL('https://play.google.com/store/apps/details?id=com.menumitra.captain');
+  };
+
   return (
     <Box flex={1} bg="white" safeArea>
+      <Modal isOpen={showUpdateModal} closeOnOverlayClick={false} size="lg">
+        <Modal.Content>
+          <Modal.Header>Update Required</Modal.Header>
+          <Modal.Body>
+            <VStack space={3}>
+              <Text>
+                A new version of MenuMitra Captain (v{apiVersion}) is available. Your current version is v{appVersion}.
+              </Text>
+              <Text fontWeight="bold" color="orange.500">
+                Please update the app to continue using all features.
+              </Text>
+            </VStack>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button.Group space={2}>
+             
+              <Button colorScheme="orange" onPress={handleUpdatePress}>
+                Update Now
+              </Button>
+            </Button.Group>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
+
       <MemoizedStatusBar />
       <HStack
         px={4}
@@ -616,9 +688,21 @@ export default function HomeScreen() {
         borderBottomWidth={1}
         borderBottomColor="coolGray.200"
       >
-        <Text fontSize="xl" fontWeight="bold">
-          Home
-        </Text>
+        <HStack alignItems="center" space={2}>
+          <Text fontSize="xl" fontWeight="bold">
+            Home
+          </Text>
+          {/* <VStack>
+            <Text fontSize="sm" color="coolGray.500">
+              v{appVersion}
+            </Text>
+            {needsUpdate && (
+              <Text fontSize="xs" color="orange.500" fontWeight="medium">
+                Update Available
+              </Text>
+            )}
+          </VStack> */}
+        </HStack>
         <Pressable
           onPress={() => setIsSidebarOpen(true)}
           p={2}
