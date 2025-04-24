@@ -432,7 +432,7 @@ export default function PersonalInfoScreen() {
                         )}
                       </HStack>
                       <HStack space={1} alignItems="center">
-                        <Text fontSize="xs" color="coolGray.500">Last Login - </Text>
+                        <Text fontSize="xs" color="coolGray.500">Last Activity - </Text>
                         <Text fontSize="xs" fontWeight="medium" color="coolGray.700">{device.lastLogin}</Text>
                       </HStack>
                     </VStack>
