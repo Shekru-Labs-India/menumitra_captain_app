@@ -272,7 +272,8 @@ export default function OtpScreen() {
           ["outlet_name", data.outlet_name || ""],
           ["outlet_address", data.address || ""],
           ["outlet_mobile", data.mobile || ""],
-          ["upi_id", data.upi_id || ""]
+          ["upi_id", data.upi_id || ""],
+          ["role", data.role || "-"]
         ];
 
         await AsyncStorage.multiSet(dataToStore);

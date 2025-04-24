@@ -36,8 +36,8 @@ export default function ProfileScreen() {
   const { logout } = useAuth();
   const [profileImage, setProfileImage] = useState(null); // State to hold the profile image
   const [userData, setUserData] = useState({
-    captainName: "Cafe HashTag",
-    role: "Cafe Hashtag Owner",
+    captainName: "",
+    role: "",
     outletId: "",
     captainId: "",
   });
@@ -62,6 +62,7 @@ export default function ProfileScreen() {
           [, captainId],
           [, outletId],
           [, access],
+          [, role],
         ] = await AsyncStorage.multiGet([
           "captain_name",
           "user_id",
@@ -69,11 +70,12 @@ export default function ProfileScreen() {
           "captain_id",
           "outlet_id",
           "access",
+          "role",
         ]);
 
         setUserData({
-          captainName: captainName || "Cafe HashTag",
-          role: "Cafe Hashtag Owner",
+          captainName: captainName || "",
+          role: role || "",
           mobile: mobile || "",
           captainId: captainId || "",
           outletId: outletId || "",
