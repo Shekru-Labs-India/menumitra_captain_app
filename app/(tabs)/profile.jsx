@@ -27,13 +27,14 @@ import { useAuth } from "../../context/AuthContext";
 import * as ImagePicker from "expo-image-picker";
 import { useState, useEffect } from "react";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { version } from "../../context/VersionContext";
+import { useVersion } from "../../context/VersionContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBaseUrl } from "../../config/api.config";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { logout } = useAuth();
+  const { version } = useVersion();
   const [profileImage, setProfileImage] = useState(null); // State to hold the profile image
   const [userData, setUserData] = useState({
     captainName: "",
@@ -417,7 +418,7 @@ export default function ProfileScreen() {
                 // }}
               >
                 <Text fontSize="2xs" color="black.500" mt={1} textAlign="center">
-                  (version {version || "1.0.0"})
+                  (version {version})
                 </Text>
               </Pressable>
             </VStack>
