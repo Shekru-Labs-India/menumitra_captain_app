@@ -847,8 +847,6 @@ export default function TableSectionsScreen() {
                         </Text>
                       </HStack>
 
-                      //add here active inactive toggleSidebar
-                      
                       <HStack space={1} alignItems="center">
                         <Box w={3} h={3} bg="red.400" rounded="full" />
                         <Text fontSize="xs" color="coolGray.600">
