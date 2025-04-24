@@ -11,6 +11,7 @@ import {
   Spinner,
   KeyboardAvoidingView,
   Modal,
+  Center,
 } from "native-base";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useVersion } from "../context/VersionContext";
@@ -28,17 +29,14 @@ export default function LoginScreen() {
   const { version: appVersion } = useVersion();
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [apiVersion, setApiVersion] = useState("");
+  const [isInitializing, setIsInitializing] = useState(true);
   const mobileInputRef = useRef(null);
 
   useEffect(() => {
-    checkExistingSession();
-    checkVersion();
-    if (mobileInputRef.current) {
-      mobileInputRef.current.focus();
-    }
+    initializeApp();
   }, []);
 
-  const checkExistingSession = async () => {
+  const initializeApp = async () => {
     try {
       const [sessionData, userSession] = await AsyncStorage.multiGet([
         "userSession",
@@ -48,11 +46,9 @@ export default function LoginScreen() {
       if (sessionData[1] && userSession[1]) {
         const session = JSON.parse(sessionData[1]);
         if (new Date(session.expiryDate) > new Date()) {
-          setTimeout(() => {
-            router.replace("/(tabs)");
-          }, 100);
+          router.replace("/(tabs)");
+          return;
         } else {
-          // Clear expired session data
           await AsyncStorage.multiRemove([
             "userSession",
             "access",
@@ -68,14 +64,18 @@ export default function LoginScreen() {
           ]);
         }
       }
+
+      await checkVersion();
     } catch (error) {
-      console.error("Error checking session:", error);
+      console.error("Error during initialization:", error);
+    } finally {
+      setIsInitializing(false);
     }
   };
 
   const checkVersion = async () => {
     try {
-      const response = await fetch('https://men4u.xyz/common_api/check_version', {
+      const response = await fetch(`${getBaseUrl()}/check_version`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ app_type: 'captain_app' })
@@ -84,11 +84,9 @@ export default function LoginScreen() {
       const data = await response.json();
       if (data.st === 1) {
         setApiVersion(data.version || '');
-        // Compare versions
         const apiVer = data.version ? data.version.split('.').map(Number) : [0, 0, 0];
         const appVer = appVersion.split('.').map(Number);
         
-        // Compare version numbers
         for (let i = 0; i < 3; i++) {
           if (apiVer[i] > appVer[i]) {
             setShowUpdateModal(true);
@@ -113,35 +111,31 @@ export default function LoginScreen() {
   };
 
   const handleMobileNumberChange = (text) => {
-    const numbersOnly = text.replace(/[^0-9]/g, ""); // Allow only numeric input
+    const numbersOnly = text.replace(/[^0-9]/g, "");
 
-    // Reject input if the first digit is between 0 and 5
     if (
       numbersOnly.length === 1 &&
       !["6", "7", "8", "9"].includes(numbersOnly)
     ) {
       setErrorMessage("Mobile number should start with 6, 7, 8 or 9");
-      return; // Do not update the input field
+      return;
     }
 
-    // Clear error messages when input is empty
     if (numbersOnly.length === 0) {
-      setMobileNumber(""); // Clear the input field
+      setMobileNumber("");
       setErrorMessage("");
       setApiError("");
       return;
     }
 
-    setMobileNumber(numbersOnly); // Update the state
+    setMobileNumber(numbersOnly);
 
-    // Validate length
     if (numbersOnly.length > 0 && numbersOnly.length < 10) {
       setErrorMessage("Please enter a valid 10-digit mobile number");
     } else {
       setErrorMessage("");
     }
 
-    // Automatically dismiss the keyboard when the number reaches 10 digits
     if (numbersOnly.length === 10) {
       Keyboard.dismiss();
     }
@@ -170,7 +164,6 @@ export default function LoginScreen() {
       const data = await response.json();
 
       if (data && data.st === 1) {
-        // Check if the user has captain role
         if (data.role && data.role.toLowerCase() === "captain") {
           await AsyncStorage.setItem("tempMobile", mobileNumber);
           console.log("data", data);
@@ -196,6 +189,25 @@ export default function LoginScreen() {
       setIsLoading(false);
     }
   };
+
+  if (isInitializing) {
+    return (
+      <Box flex={1} bg="white" safeArea>
+        <Center flex={1}>
+          <VStack space={3} alignItems="center">
+            <Image
+              source={require("../assets/images/mm-logo-bg-fill-hat.png")}
+              alt="MenuMitra Logo"
+              size="lg"
+              resizeMode="contain"
+            />
+            <Spinner size="lg" color="blue.500" />
+            <Text color="coolGray.500">Loading...</Text>
+          </VStack>
+        </Center>
+      </Box>
+    );
+  }
 
   return (
     <Box flex={1} bg="white" safeArea>
