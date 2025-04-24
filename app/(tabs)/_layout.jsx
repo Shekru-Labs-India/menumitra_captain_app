@@ -44,21 +44,21 @@ export default function TabLayout() {
           ),
         }}
       />
+           <Tabs.Screen
+        name="tables"
+        options={{
+          title: "Tables",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="table-restaurant" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="orders"
         options={{
           title: "Orders",
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="receipt" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="tables"
-        options={{
-          title: "Tables",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="table-restaurant" size={size} color={color} />
           ),
         }}
       />
