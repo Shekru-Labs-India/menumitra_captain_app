@@ -2664,30 +2664,39 @@ export default function TableSectionsScreen() {
         <VStack flex={1}>
           <HStack
             alignItems="center"
-            justifyContent="space-between"
             bg="white"
             px={4}
             py={2}
             shadow={1}
+            safeAreaTop
           >
-            <HStack alignItems="center" space={2}>
-              <Text fontSize="lg" fontWeight="bold">
-                Tables
-              </Text>
-            </HStack>
-            <HStack space={2}>
-              <IconButton
-                variant="ghost"
-                colorScheme="coolGray"
-                icon={<Icon as={MaterialIcons} name="settings" />}
-                onPress={() => setShowEditIcons(!showEditIcons)}
-                bg={showEditIcons ? "primary.500" : "transparent"}
-                _pressed={{
-                  bg: showEditIcons ? "primary.600" : "coolGray.100",
-                }}
-                rounded="full"
-              />
-            </HStack>
+            <Pressable
+              onPress={() => router.back()}
+              p={2}
+              rounded="full"
+              _pressed={{ bg: "coolGray.100" }}
+            >
+              <Icon as={MaterialIcons} name="arrow-back" size={5} color="gray.800" />
+            </Pressable>
+            
+            <Text fontSize="xl" fontWeight="bold" flex={1} textAlign="center" mr={12}>
+              Tables
+            </Text>
+
+            <IconButton
+              variant="ghost"
+              colorScheme="coolGray"
+              icon={<Icon as={MaterialIcons} name="settings" size={5} />}
+              onPress={() => setShowEditIcons(!showEditIcons)}
+              bg={showEditIcons ? "primary.500" : "transparent"}
+              _pressed={{
+                bg: showEditIcons ? "primary.600" : "coolGray.100",
+              }}
+              rounded="full"
+              position="absolute"
+              right={4}
+              size="sm"
+            />
           </HStack>
 
           {/* Search and Filters */}
