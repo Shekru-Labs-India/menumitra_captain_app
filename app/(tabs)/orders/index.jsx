@@ -526,6 +526,7 @@ const OrdersScreen = () => {
   const [orderTimers, setOrderTimers] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState(new Date());
+  const [outletName, setOutletName] = useState("");
   const [date, setDate] = useState(() => {
     const today = new Date();
     return formatDateString(today);
@@ -764,7 +765,20 @@ const OrdersScreen = () => {
     }
   };
 
+  // Add this new function to get outlet name
+  const getOutletName = async () => {
+    try {
+      const name = await AsyncStorage.getItem("outlet_name");
+      setOutletName(name || "");
+    } catch (error) {
+      console.error("Error getting outlet name:", error);
+      setOutletName("");
+    }
+  };
+
+  // Update useEffect to include outlet name fetch
   useEffect(() => {
+    getOutletName();
     fetchOrders();
 
     // Only set up auto-refresh if the selected date is today
@@ -1239,7 +1253,7 @@ const OrdersScreen = () => {
           mr={2}
         >
           <Icon as={MaterialIcons} name="business" size="sm" color="gray.600" mr={1} />
-          <Text fontWeight="semibold" mr={1}>Jagdamb</Text>
+          <Text fontWeight="semibold" mr={1}>{outletName}</Text>
           <Icon as={MaterialIcons} name="keyboard-arrow-down" size="sm" color="gray.600" />
         </Pressable>
         
