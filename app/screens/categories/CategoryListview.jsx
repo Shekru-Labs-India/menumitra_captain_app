@@ -14,6 +14,7 @@ import {
   Input,
   IconButton,
   Fab,
+  Switch,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -27,6 +28,7 @@ export default function CategoryListView() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredCategories, setFilteredCategories] = useState([]);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams();
   const toast = useToast();
@@ -99,6 +101,50 @@ export default function CategoryListView() {
     });
   };
 
+  const handleToggleStatus = async (categoryId, currentStatus) => {
+    try {
+      setUpdatingStatus(true);
+      const outletId = await AsyncStorage.getItem("outlet_id");
+
+      const response = await fetchWithAuth(`${getBaseUrl()}/update_active_status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: outletId,
+          type: "menu_category",
+          id: categoryId.toString(),
+          is_active: !currentStatus
+        }),
+      });
+
+      if (response.st === 1) {
+        // Update the local state
+        setCategories(prevCategories => 
+          prevCategories.map(category => 
+            category.menu_cat_id === categoryId 
+              ? { ...category, is_active: !currentStatus }
+              : category
+          )
+        );
+        
+        toast.show({
+          description: `Category ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
+          status: "success",
+        });
+      } else {
+        throw new Error(response.msg || "Failed to update status");
+      }
+    } catch (error) {
+      console.error("Update Status Error:", error);
+      toast.show({
+        description: "Failed to update category status",
+        status: "error",
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const renderCategoryItem = ({ item }) => (
     <Pressable onPress={() => handleCategoryPress(item.menu_cat_id)} mb={3}>
       <Box bg="white" rounded="lg" shadow={1} overflow="hidden">
@@ -169,11 +215,20 @@ export default function CategoryListView() {
             </HStack>
           </VStack>
 
-          <Icon
-            as={MaterialIcons}
-            name="chevron-right"
-            size={6}
-            color="gray.400"
+          <Switch
+            size="md"
+            onToggle={() => {
+              handleToggleStatus(item.menu_cat_id, item.is_active);
+            }}
+            isChecked={item.is_active}
+            isDisabled={updatingStatus}
+            colorScheme="primary"
+            _light={{
+              onTrackColor: "primary.500",
+              onThumbColor: "white",
+              offTrackColor: "coolGray.200",
+              offThumbColor: "coolGray.400",
+            }}
           />
         </HStack>
       </Box>
