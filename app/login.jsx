@@ -46,7 +46,7 @@ export default function LoginScreen() {
       if (sessionData[1] && userSession[1]) {
         const session = JSON.parse(sessionData[1]);
         if (new Date(session.expiryDate) > new Date()) {
-          router.replace("/(tabs)");
+          router.replace("/(tabs)/tables");
           return;
         } else {
           await AsyncStorage.multiRemove([
