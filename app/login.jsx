@@ -10,6 +10,7 @@ import {
   Icon,
   Spinner,
   KeyboardAvoidingView,
+  Modal,
 } from "native-base";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useVersion } from "../context/VersionContext";
@@ -24,11 +25,14 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState("");
-  const { version } = useVersion();
+  const { version: appVersion } = useVersion();
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [apiVersion, setApiVersion] = useState("");
   const mobileInputRef = useRef(null);
 
   useEffect(() => {
     checkExistingSession();
+    checkVersion();
     if (mobileInputRef.current) {
       mobileInputRef.current.focus();
     }
@@ -67,6 +71,40 @@ export default function LoginScreen() {
     } catch (error) {
       console.error("Error checking session:", error);
     }
+  };
+
+  const checkVersion = async () => {
+    try {
+      const response = await fetch('https://men4u.xyz/common_api/check_version', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_type: 'captain_app' })
+      });
+      
+      const data = await response.json();
+      if (data.st === 1) {
+        setApiVersion(data.version || '');
+        // Compare versions
+        const apiVer = data.version ? data.version.split('.').map(Number) : [0, 0, 0];
+        const appVer = appVersion.split('.').map(Number);
+        
+        // Compare version numbers
+        for (let i = 0; i < 3; i++) {
+          if (apiVer[i] > appVer[i]) {
+            setShowUpdateModal(true);
+            break;
+          } else if (apiVer[i] < appVer[i]) {
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking version:', error);
+    }
+  };
+
+  const handleUpdatePress = () => {
+    Linking.openURL('https://play.google.com/store/apps/details?id=com.menumitra.captain');
   };
 
   const validateMobileNumber = (number) => {
@@ -161,7 +199,30 @@ export default function LoginScreen() {
 
   return (
     <Box flex={1} bg="white" safeArea>
-      <Box flex={1} px={6} justifyContent="center">
+      <Modal isOpen={showUpdateModal} closeOnOverlayClick={false} size="lg">
+        <Modal.Content>
+          <Modal.Header>Update Required</Modal.Header>
+          <Modal.Body>
+            <VStack space={3}>
+              <Text>
+                A new version of MenuMitra Captain (v{apiVersion}) is available. Your current version is v{appVersion}.
+              </Text>
+              <Text fontWeight="bold" color="orange.500">
+                Please update the app to continue using all features.
+              </Text>
+            </VStack>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button.Group space={2}>
+              <Button colorScheme="orange" onPress={handleUpdatePress}>
+                Update Now
+              </Button>
+            </Button.Group>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
+
+      <Box flex={1} px={6} justifyContent="center" opacity={showUpdateModal ? 0.5 : 1} pointerEvents={showUpdateModal ? "none" : "auto"}>
         <VStack space={6} alignItems="center" w="100%">
           <Image
             source={require("../assets/images/mm-logo-bg-fill-hat.png")}
@@ -359,7 +420,7 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
             <Text fontSize="2xs" color="gray.500" mt={1} textAlign="center">
-              version {version || "1.0.0"}
+              version {appVersion || "1.0.0"}
             </Text>
           </VStack>
         </VStack>
