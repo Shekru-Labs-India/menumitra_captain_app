@@ -38,6 +38,9 @@ export default function EditMenuView() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  // Add settings state for POS_show_menu_image
+  const [settings, setSettings] = useState({ POS_show_menu_image: true });
+
   // States for modals
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [foodTypeModalVisible, setFoodTypeModalVisible] = useState(false);
@@ -79,6 +82,25 @@ export default function EditMenuView() {
 
   // Add a state to track removed image IDs
   const [removedImageIds, setRemovedImageIds] = useState([]);
+
+  // Add useEffect to load settings
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  // Add function to load settings from AsyncStorage
+  const loadSettings = async () => {
+    try {
+      const storedSettings = await AsyncStorage.getItem("app_settings");
+      if (storedSettings) {
+        const parsedSettings = JSON.parse(storedSettings);
+        console.log("Loaded settings in EditMenuView:", parsedSettings);
+        setSettings(parsedSettings);
+      }
+    } catch (error) {
+      console.error("Error loading settings:", error);
+    }
+  };
 
   // Define fetchInitialData function with improved image handling
   const fetchInitialData = async () => {
@@ -763,87 +785,89 @@ export default function EditMenuView() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <VStack space={4} p={4}>
-          {/* Image Gallery with improved handling */}
-          <Box>
-            <HStack justifyContent="space-between" alignItems="center" mb={2}>
-              <Text fontSize="md">Menu Images ({menuDetails.images.length}/5)</Text>
-              {menuDetails.images.length === 0 && (
-                <Badge colorScheme="warning" rounded="md" variant="subtle">
-                  <Text fontSize="xs">No images</Text>
-                </Badge>
-              )}
-            </HStack>
-            
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <HStack space={2}>
-                {menuDetails.images.map((image, index) => (
-                  <Box key={index} position="relative">
-                    <Image
-                      source={{ uri: image.url }}
-                      alt={`Menu Image ${index + 1}`}
-                      size="xl"
-                      rounded="lg"
-                      fallbackElement={
-                        <Box size="xl" bg="gray.200" rounded="lg" justifyContent="center" alignItems="center">
-                          <Icon
-                            as={MaterialIcons}
-                            name="image-not-supported"
-                            size={8}
-                            color="gray.400"
-                          />
-                          <Text fontSize="xs" color="gray.500" mt={1} textAlign="center">
-                            Image load failed
-                          </Text>
-                        </Box>
-                      }
-                    />
-                    <IconButton
-                      position="absolute"
-                      top={1}
-                      right={1}
-                      size="sm"
-                      rounded="full"
-                      bg="red.500"
-                      icon={
-                        <Icon
-                          as={MaterialIcons}
-                          name="close"
-                          color="white"
-                          size="sm"
-                        />
-                      }
-                      onPress={() => removeImage(index)}
-                    />
-                  </Box>
-                ))}
-                {menuDetails.images.length < 5 && (
-                  <Pressable onPress={pickImage}>
-                    <Box
-                      w="32"
-                      h="32"
-                      bg="gray.100"
-                      rounded="lg"
-                      justifyContent="center"
-                      alignItems="center"
-                      borderWidth={1}
-                      borderStyle="dashed"
-                      borderColor="gray.300"
-                    >
-                      <Icon
-                        as={MaterialIcons}
-                        name="add-photo-alternate"
-                        size={8}
-                        color="gray.400"
-                      />
-                      <Text color="gray.400" mt={2}>
-                        Add Photo
-                      </Text>
-                    </Box>
-                  </Pressable>
+          {/* Image Gallery with respect to POS_show_menu_image setting */}
+          {settings.POS_show_menu_image && (
+            <Box>
+              <HStack justifyContent="space-between" alignItems="center" mb={2}>
+                <Text fontSize="md">Menu Images ({menuDetails.images.length}/5)</Text>
+                {menuDetails.images.length === 0 && (
+                  <Badge colorScheme="warning" rounded="md" variant="subtle">
+                    <Text fontSize="xs">No images</Text>
+                  </Badge>
                 )}
               </HStack>
-            </ScrollView>
-          </Box>
+              
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <HStack space={2}>
+                  {menuDetails.images.map((image, index) => (
+                    <Box key={index} position="relative">
+                      <Image
+                        source={{ uri: image.url }}
+                        alt={`Menu Image ${index + 1}`}
+                        size="xl"
+                        rounded="lg"
+                        fallbackElement={
+                          <Box size="xl" bg="gray.200" rounded="lg" justifyContent="center" alignItems="center">
+                            <Icon
+                              as={MaterialIcons}
+                              name="image-not-supported"
+                              size={8}
+                              color="gray.400"
+                            />
+                            <Text fontSize="xs" color="gray.500" mt={1} textAlign="center">
+                              Image load failed
+                            </Text>
+                          </Box>
+                        }
+                      />
+                      <IconButton
+                        position="absolute"
+                        top={1}
+                        right={1}
+                        size="sm"
+                        rounded="full"
+                        bg="red.500"
+                        icon={
+                          <Icon
+                            as={MaterialIcons}
+                            name="close"
+                            color="white"
+                            size="sm"
+                          />
+                        }
+                        onPress={() => removeImage(index)}
+                      />
+                    </Box>
+                  ))}
+                  {menuDetails.images.length < 5 && (
+                    <Pressable onPress={pickImage}>
+                      <Box
+                        w="32"
+                        h="32"
+                        bg="gray.100"
+                        rounded="lg"
+                        justifyContent="center"
+                        alignItems="center"
+                        borderWidth={1}
+                        borderStyle="dashed"
+                        borderColor="gray.300"
+                      >
+                        <Icon
+                          as={MaterialIcons}
+                          name="add-photo-alternate"
+                          size={8}
+                          color="gray.400"
+                        />
+                        <Text color="gray.400" mt={2}>
+                          Add Photo
+                        </Text>
+                      </Box>
+                    </Pressable>
+                  )}
+                </HStack>
+              </ScrollView>
+            </Box>
+          )}
 
           {/* Basic Information */}
           <Box bg="white" rounded="lg" shadow={1} p={4}>
