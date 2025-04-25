@@ -1146,16 +1146,18 @@ export default function TableSectionsScreen() {
   );
 
   const FilterButtons = () => {
+    const [loading, setLoading] = useState(true);
     const [orderTypeSettings, setOrderTypeSettings] = useState({
-      counter: true,
-      parcel: true,
-      delivery: true,
-      driveThrough: true
+      counter: false,
+      parcel: false,
+      delivery: false,
+      driveThrough: false
     });
 
     useEffect(() => {
       const getOrderTypeSettings = async () => {
         try {
+          setLoading(true);
           const storedSettings = await AsyncStorage.getItem("app_settings");
           if (storedSettings) {
             const parsedSettings = JSON.parse(storedSettings);
@@ -1168,6 +1170,8 @@ export default function TableSectionsScreen() {
           }
         } catch (error) {
           console.error("Error loading order type settings:", error);
+        } finally {
+          setLoading(false);
         }
       };
 
@@ -1232,6 +1236,10 @@ export default function TableSectionsScreen() {
         }
       }
     ].filter(button => button.active);
+
+    if (loading) {
+      return null; // Don't render anything while loading
+    }
 
     return (
       <Box bg="white" py={2} borderBottomWidth={1} borderBottomColor="coolGray.200">
