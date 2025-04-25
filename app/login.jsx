@@ -211,30 +211,32 @@ export default function LoginScreen() {
 
   return (
     <Box flex={1} bg="white" safeArea>
-      <Modal isOpen={showUpdateModal} closeOnOverlayClick={false} size="lg">
-        <Modal.Content>
-          <Modal.Header>Update Required</Modal.Header>
-          <Modal.Body>
-            <VStack space={3}>
-              <Text>
-                A new version of MenuMitra Captain (v{apiVersion}) is available. Your current version is v{appVersion}.
-              </Text>
-              <Text fontWeight="bold" color="orange.500">
-                Please update the app to continue using all features.
-              </Text>
-            </VStack>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button.Group space={2}>
-              <Button colorScheme="orange" onPress={handleUpdatePress}>
-                Update Now
-              </Button>
-            </Button.Group>
-          </Modal.Footer>
-        </Modal.Content>
-      </Modal>
+      {showUpdateModal && (
+        <Modal isOpen={true} closeOnOverlayClick={false} size="lg">
+          <Modal.Content>
+            <Modal.Header>Update Required</Modal.Header>
+            <Modal.Body>
+              <VStack space={3}>
+                <Text>
+                  A new version of MenuMitra Captain (v{apiVersion}) is available. Your current version is v{appVersion}.
+                </Text>
+                <Text fontWeight="bold" color="orange.500">
+                  Please update the app to continue using all features.
+                </Text>
+              </VStack>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button.Group space={2}>
+                <Button colorScheme="orange" onPress={handleUpdatePress}>
+                  Update Now
+                </Button>
+              </Button.Group>
+            </Modal.Footer>
+          </Modal.Content>
+        </Modal>
+      )}
 
-      <Box flex={1} px={6} justifyContent="center" opacity={showUpdateModal ? 0.5 : 1} pointerEvents={showUpdateModal ? "none" : "auto"}>
+      <Box flex={1} px={6} justifyContent="center">
         <VStack space={6} alignItems="center" w="100%">
           <Image
             source={require("../assets/images/mm-logo-bg-fill-hat.png")}
