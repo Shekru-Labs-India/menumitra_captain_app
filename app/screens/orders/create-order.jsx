@@ -516,6 +516,9 @@ export default function CreateOrderScreen() {
     return true;
   };
 
+  // Add validationErrors state
+  const [validationErrors, setValidationErrors] = useState({});
+
   // Update the validateName function
   const validateName = (name) => {
     // Allow letters, spaces, and dots (for names like "Dr. John Smith")
@@ -3746,13 +3749,32 @@ const handleSettleOrder = async () => {
                 flex={1}
                 placeholder="Mobile Number"
                 value={customerDetails.customer_mobile}
-                onChangeText={(text) => handleCustomerDetailsChange("customer_mobile", text)}
+                onChangeText={(text) => {
+                  // Check if first digit is between 0-5
+                  if (text.length > 0 && /^[0-5]/.test(text)) {
+                    // Clear the entire input if it starts with 0-5
+                    text = "";
+                    // Set validation error message
+                    setValidationErrors(prev => ({
+                      ...prev,
+                      invalidMobileStart: true
+                    }));
+                  } else if (text.length > 0) {
+                    // Clear the validation error when valid digit entered
+                    setValidationErrors(prev => ({
+                      ...prev,
+                      invalidMobileStart: false
+                    }));
+                  }
+                  handleCustomerDetailsChange("customer_mobile", text);
+                }}
                 keyboardType="numeric"
                 maxLength={10}
                 borderColor={
                   customerDetails.customer_mobile && (
                     !validateMobileNumber(customerDetails.customer_mobile) || 
-                    customerDetails.customer_mobile.length !== 10
+                    customerDetails.customer_mobile.length !== 10 ||
+                    validationErrors?.invalidMobileStart
                   )
                     ? "red.500"
                     : "gray.300"
@@ -3773,6 +3795,11 @@ const handleSettleOrder = async () => {
                 width={12}
               />
             </HStack>
+            {validationErrors?.invalidMobileStart && (
+              <Text color="red.500" fontSize="xs" mt={-1} mb={2}>
+                Mobile number cannot start with digits 0-5
+              </Text>
+            )}
 
             <Box flex={1}>
               <ScrollView
