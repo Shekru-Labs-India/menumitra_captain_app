@@ -31,6 +31,7 @@ const screenWidth = Dimensions.get("window").width;
 export default function MenuDetailsView() {
   const [menuDetails, setMenuDetails] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState({ POS_show_menu_image: true });
   const toast = useToast();
   const { menuId } = useLocalSearchParams();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -39,6 +40,7 @@ export default function MenuDetailsView() {
 
   useEffect(() => {
     fetchMenuDetails();
+    loadSettings();
   }, [menuId]);
 
   const fetchMenuDetails = async () => {
@@ -81,6 +83,17 @@ export default function MenuDetailsView() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSettings = async () => {
+    try {
+      const storedSettings = await AsyncStorage.getItem("app_settings");
+      if (storedSettings) {
+        setSettings(JSON.parse(storedSettings));
+      }
+    } catch (error) {
+      console.error("Error loading settings:", error);
     }
   };
 
@@ -228,9 +241,9 @@ export default function MenuDetailsView() {
       <CustomHeader />
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Image Gallery */}
-        <Box bg="white" w="full" h="200px">
-          {menuDetails?.images && Array.isArray(menuDetails.images) && menuDetails.images.length > 0 ? (
+        {/* Only render images if POS_show_menu_image is true */}
+        {settings.POS_show_menu_image && menuDetails?.images && Array.isArray(menuDetails.images) && menuDetails.images.length > 0 ? (
+          <Box bg="white" w="full" h="200px">
             <VStack>
               {/* Main Image Scroll */}
               <ScrollView
@@ -326,17 +339,17 @@ export default function MenuDetailsView() {
                 ).length}`}
               </Badge>
             </VStack>
-          ) : (
-            <Center flex={1} bg="coolGray.100">
-              <Icon
-                as={MaterialIcons}
-                name="restaurant"
-                size={16}
-                color="coolGray.300"
-              />
+          </Box>
+        ) : (
+          <Box bg="coolGray.100" w="full" h="120px">
+            <Center flex={1}>
+              <Icon as={MaterialIcons} name="restaurant" size={16} color="coolGray.300" />
+              <Text color="coolGray.500" mt={2}>
+                {settings.POS_show_menu_image ? "No images available" : "Images hidden by settings"}
+              </Text>
             </Center>
-          )}
-        </Box>
+          </Box>
+        )}
 
         {/* Menu Details Card */}
         <Box bg="white" mt={4} mx={4} rounded="xl" shadow={2} overflow="hidden">
