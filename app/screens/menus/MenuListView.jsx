@@ -30,6 +30,7 @@ export default function MenuListView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredMenus, setFilteredMenus] = useState([]);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [settings, setSettings] = useState({ POS_show_menu_image: true });
   const router = useRouter();
   const toast = useToast();
   const params = useLocalSearchParams();
@@ -49,6 +50,23 @@ export default function MenuListView() {
       fetchMenus();
     }
   }, [params.refresh]);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const storedSettings = await AsyncStorage.getItem("app_settings");
+      if (storedSettings) {
+        const parsedSettings = JSON.parse(storedSettings);
+        console.log("Loaded settings in MenuListView:", parsedSettings);
+        setSettings(parsedSettings);
+      }
+    } catch (error) {
+      console.error("Error loading settings:", error);
+    }
+  };
 
   const fetchMenus = async () => {
     try {
@@ -217,7 +235,7 @@ export default function MenuListView() {
       <Box bg="white" rounded="lg" shadow={1} overflow="hidden">
         <HStack space={3} p={3} alignItems="center">
           <Box>
-            {item.image ? (
+            {settings.POS_show_menu_image && item.image ? (
               <Image
                 source={{ uri: item.image }}
                 alt={item.name}
@@ -241,6 +259,11 @@ export default function MenuListView() {
                   size={5}
                   color="coolGray.400"
                 />
+                {!settings.POS_show_menu_image && item.image && (
+                  <Text fontSize="2xs" color="coolGray.500" textAlign="center" mt={1}>
+                    Hidden
+                  </Text>
+                )}
               </Box>
             )}
           </Box>
