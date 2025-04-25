@@ -1174,33 +1174,82 @@ export default function TableSectionsScreen() {
       getOrderTypeSettings();
     }, []);
 
+    // Calculate active buttons count
+    const activeButtonCount = Object.values(orderTypeSettings).filter(Boolean).length;
+    
+    // Calculate width percentage based on active button count
+    // Subtract small gap amount (2%) between buttons from total width
+    const buttonWidthPercent = activeButtonCount > 0 ? (100 - (activeButtonCount - 1) * 2) / activeButtonCount : 100;
+    
+    // Create array of visible buttons
+    const buttons = [
+      {
+        type: "counter",
+        active: orderTypeSettings.counter,
+        icon: "point-of-sale",
+        label: "Counter",
+        params: {
+          isSpecialOrder: "true",
+          orderType: "counter",
+          clearPrevious: "true",
+          outlet_id: outletId?.toString() || "",
+        }
+      },
+      {
+        type: "parcel",
+        active: orderTypeSettings.parcel,
+        icon: "takeout-dining",
+        label: "Parcel",
+        params: {
+          isSpecialOrder: "true",
+          orderType: "parcel",
+          clearPrevious: "true", 
+          outlet_id: outletId?.toString() || "",
+        }
+      },
+      {
+        type: "delivery",
+        active: orderTypeSettings.delivery,
+        icon: "delivery-dining",
+        label: "Delivery",
+        params: {
+          isSpecialOrder: "true",
+          orderType: "delivery",
+          clearPrevious: "true",
+          outlet_id: outletId?.toString() || "",
+        }
+      },
+      {
+        type: "drive-through",
+        active: orderTypeSettings.driveThrough,
+        icon: "drive-eta",
+        label: "Drive",
+        params: {
+          isSpecialOrder: "true",
+          orderType: "drive-through",
+          clearPrevious: "true",
+          outlet_id: outletId?.toString() || "",
+        }
+      }
+    ].filter(button => button.active);
+
     return (
       <Box bg="white" py={2} borderBottomWidth={1} borderBottomColor="coolGray.200">
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-          }}
-        >
-          <HStack space={4} alignItems="center">
-            {/* Counter Order Button */}
-            {orderTypeSettings.counter && (
+        <Box px={4} width="100%">
+          <HStack space={2} justifyContent={activeButtonCount === 0 ? "center" : "space-between"}>
+            {buttons.map((button, index) => (
               <Pressable
+                key={button.type}
+                flex={1}
+                maxWidth={`${buttonWidthPercent}%`}
                 onPress={() =>
                   router.push({
                     pathname: "/screens/orders/menu-selection",
-                    params: {
-                      isSpecialOrder: "true",
-                      orderType: "counter",
-                      clearPrevious: "true",
-                      outlet_id: outletId?.toString() || "",
-                    },
+                    params: button.params,
                   })
                 }
               >
                 <Box
-                  px={4}
                   py={2.5}
                   bg="white"
                   borderWidth={1}
@@ -1209,146 +1258,23 @@ export default function TableSectionsScreen() {
                   shadow={1}
                   flexDirection="row"
                   alignItems="center"
-                  minWidth={100}
                   justifyContent="center"
+                  width="100%"
                 >
                   <MaterialIcons
-                    name="point-of-sale"
+                    name={button.icon}
                     size={20}
                     color="#0891b2"
                     style={{ marginRight: 8 }}
                   />
                   <Text color="#0891b2" fontSize="sm" fontWeight="medium">
-                    Counter
+                    {button.label}
                   </Text>
                 </Box>
               </Pressable>
-            )}
-
-            {/* Parcel Order Button */}
-            {orderTypeSettings.parcel && (
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/screens/orders/menu-selection",
-                    params: {
-                      isSpecialOrder: "true",
-                      orderType: "parcel",
-                      clearPrevious: "true",
-                      outlet_id: outletId?.toString() || "",
-                    },
-                  })
-                }
-              >
-                <Box
-                  px={4}
-                  py={2.5}
-                  bg="white"
-                  borderWidth={1}
-                  borderColor="#0891b2"
-                  rounded="lg"
-                  shadow={1}
-                  flexDirection="row"
-                  alignItems="center"
-                  minWidth={100}
-                  justifyContent="center"
-                >
-                  <MaterialIcons
-                    name="takeout-dining"
-                    size={20}
-                    color="#0891b2"
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text color="#0891b2" fontSize="sm" fontWeight="medium">
-                    Parcel
-                  </Text>
-                </Box>
-              </Pressable>
-            )}
-
-            {/* Delivery Order Button */}
-            {orderTypeSettings.delivery && (
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/screens/orders/menu-selection",
-                    params: {
-                      isSpecialOrder: "true",
-                      orderType: "delivery",
-                      clearPrevious: "true",
-                      outlet_id: outletId?.toString() || "",
-                    },
-                  })
-                }
-              >
-                <Box
-                  px={4}
-                  py={2.5}
-                  bg="white"
-                  borderWidth={1}
-                  borderColor="#0891b2"
-                  rounded="lg"
-                  shadow={1}
-                  flexDirection="row"
-                  alignItems="center"
-                  minWidth={100}
-                  justifyContent="center"
-                >
-                  <MaterialIcons
-                    name="delivery-dining"
-                    size={20}
-                    color="#0891b2"
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text color="#0891b2" fontSize="sm" fontWeight="medium">
-                    Delivery
-                  </Text>
-                </Box>
-              </Pressable>
-            )}
-
-            {/* Drive Through Order Button */}
-            {orderTypeSettings.driveThrough && (
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/screens/orders/menu-selection",
-                    params: {
-                      isSpecialOrder: "true",
-                      orderType: "drive-through",
-                      clearPrevious: "true",
-                      outlet_id: outletId?.toString() || "",
-                    },
-                  })
-                }
-              >
-                <Box
-                  px={4}
-                  py={2.5}
-                  bg="white"
-                  borderWidth={1}
-                  borderColor="#0891b2"
-                  rounded="lg"
-                  shadow={1}
-                  flexDirection="row"
-                  alignItems="center"
-                  minWidth={100}
-                  justifyContent="center"
-                >
-                  <MaterialIcons
-                    name="drive-eta"
-                    size={20}
-                    color="#0891b2"
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text color="#0891b2" fontSize="sm" fontWeight="medium">
-                    Drive
-                  </Text>
-                </Box>
-              </Pressable>
-            )}
+            ))}
           </HStack>
-        </ScrollView>
+        </Box>
       </Box>
     );
   };
