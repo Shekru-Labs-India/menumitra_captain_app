@@ -501,7 +501,7 @@ export default function EditSupplierScreen() {
                   {errors.name}
                 </FormControl.ErrorMessage>
               </FormControl>
-
+{/* 
               <FormControl>
                 <FormControl.Label>Status</FormControl.Label>
                 <Pressable
@@ -533,7 +533,7 @@ export default function EditSupplierScreen() {
                     <Select.Item label="Inactive" value="inactive" />
                   </Select>
                 </Pressable>
-              </FormControl>
+              </FormControl> */}
             </VStack>
           </Box>
 

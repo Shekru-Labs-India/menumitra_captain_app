@@ -392,7 +392,7 @@ export default function EditCategoryView() {
               </FormControl>
 
               {/* Active/Inactive Toggle */}
-              <FormControl>
+              {/* <FormControl>
                 <FormControl.Label>Category Status</FormControl.Label>
                 <HStack alignItems="center" space={2}>
                   <Switch
@@ -416,7 +416,7 @@ export default function EditCategoryView() {
                     ? "Active categories will be visible to customers"
                     : "Inactive categories will be hidden from customers"}
                 </FormControl.HelperText>
-              </FormControl>
+              </FormControl> */}
             </VStack>
           </Box>
 

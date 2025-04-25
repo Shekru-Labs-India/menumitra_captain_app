@@ -962,7 +962,7 @@ export default function EditMenuView() {
               </HStack>
 
               {/* Active/Inactive Toggle - Add this below Special Toggle */}
-              <HStack
+              {/* <HStack
                 alignItems="center"
                 justifyContent="space-between"
                 py={2}
@@ -982,7 +982,7 @@ export default function EditMenuView() {
                   trackColor={{ false: "red.200", true: "green.200" }}
                   thumbColor={menuDetails.is_active ? "green.500" : "red.500"}
                 />
-              </HStack>
+              </HStack> */}
             </VStack>
           </Box>
         </VStack>
