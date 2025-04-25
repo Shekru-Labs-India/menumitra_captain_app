@@ -20,6 +20,8 @@ import {
   Modal,
   FlatList,
   IconButton,
+  Badge,
+  Center,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -75,7 +77,10 @@ export default function EditMenuView() {
   // Add this state variable with the other state variables
   const [isActiveLoading, setIsActiveLoading] = useState(false);
 
-  // Define fetchInitialData function
+  // Add a state to track removed image IDs
+  const [removedImageIds, setRemovedImageIds] = useState([]);
+
+  // Define fetchInitialData function with improved image handling
   const fetchInitialData = async () => {
     if (!menuId) {
       toast.show({
@@ -110,22 +115,71 @@ export default function EditMenuView() {
       if (data.st === 1 && data.data) {
         const menuData = data.data;
         
-        // Process images array to ensure valid URIs
+        // Enhanced image processing logic to handle all formats and preserve IDs
         let processedImages = [];
-        if (Array.isArray(menuData.images)) {
-          processedImages = menuData.images
-            .filter(img => img) // Remove null/undefined values
-            .map(img => {
-              if (typeof img === 'string') return img;
-              if (img?.uri) return img.uri;
-              if (img?.url) return img.url;
-              return null;
-            })
-            .filter(img => img); // Remove null values after processing
+        
+        if (menuData.images) {
+          // Handle array of images
+          if (Array.isArray(menuData.images)) {
+            processedImages = menuData.images
+              .filter(img => img) // Remove null/undefined values
+              .map(img => {
+                // Convert to a standardized image object with ID
+                if (typeof img === 'string') {
+                  return { url: img, isExisting: true };
+                }
+                
+                // Handle object with image property (most common from API)
+                if (img?.image) {
+                  return { 
+                    url: img.image, 
+                    id: img.image_id ? Number(img.image_id) : null,
+                    isExisting: true
+                  };
+                }
+                
+                // Handle object with url property
+                if (img?.url) {
+                  return { 
+                    url: img.url, 
+                    id: img.id ? Number(img.id) : null,
+                    isExisting: true
+                  };
+                }
+                
+                // Handle object with uri property
+                if (img?.uri) {
+                  return { url: img.uri, isExisting: true };
+                }
+                
+                return null;
+              })
+              .filter(img => img && img.url); // Remove null values and ensure URL exists
+          } 
+          // Handle single object
+          else if (typeof menuData.images === 'object') {
+            if (menuData.images.image) {
+              processedImages.push({
+                url: menuData.images.image,
+                id: menuData.images.image_id ? Number(menuData.images.image_id) : null,
+                isExisting: true
+              });
+            }
+          }
+          // Handle single string
+          else if (typeof menuData.images === 'string') {
+            processedImages.push({
+              url: menuData.images,
+              isExisting: true
+            });
+          }
         }
 
         console.log("Original images:", menuData.images);
         console.log("Processed images:", processedImages);
+
+        // Initialize removedImageIds as empty
+        setRemovedImageIds([]);
 
         setMenuDetails({
           ...menuDetails,
@@ -306,33 +360,30 @@ export default function EditMenuView() {
         formData.append("device_token", deviceToken);
       }
 
-      // Handle images
-      if (menuDetails.images && menuDetails.images.length > 0) {
-        menuDetails.images.forEach((imageUri, index) => {
-          // Skip invalid URIs
-          if (!imageUri || typeof imageUri !== 'string') return;
-
-          // Check if it's a new image (starts with 'file://' or similar)
-          if (imageUri.startsWith('file://') || imageUri.startsWith('content://')) {
-            const filename = imageUri.split('/').pop();
-            const match = /\.(\w+)$/.exec(filename);
-            const type = match ? `image/${match[1]}` : 'image/jpeg';
-
-            formData.append('images', {
-              uri: imageUri,
-              type: type,
-              name: filename
-            });
-          } else {
-            // Existing image from server
-            formData.append('existing_images', imageUri);
-          }
+      // Handle new images - add them with the "images" key
+      const newImages = menuDetails.images.filter(img => img.isNew && img.file);
+      if (newImages.length > 0) {
+        newImages.forEach(image => {
+          formData.append("images", image.file);
         });
+        console.log(`Adding ${newImages.length} new images to formData`);
+      }
+      
+      // Handle removed images - tell API which images to remove
+      if (removedImageIds.length > 0) {
+        formData.append("existing_image_ids", JSON.stringify(removedImageIds));
+        console.log("IDs of images to remove:", JSON.stringify(removedImageIds));
       }
 
-      console.log("Sending update request with FormData:", {
-        ...Object.fromEntries(formData),
-        images: menuDetails.images
+      console.log("Sending update request with FormData contents:", {
+        menu_id: menuId,
+        outlet_id: outletId,
+        user_id: userId,
+        name: menuDetails.name,
+        full_price: menuDetails.full_price,
+        food_type: menuDetails.food_type,
+        newImagesCount: newImages.length,
+        removedImageIds: removedImageIds
       });
 
       const data = await fetchWithAuth(`${getBaseUrl()}/menu_update`, {
@@ -549,34 +600,55 @@ export default function EditMenuView() {
     }));
   };
 
-  // Update the pickImage function to properly set imageSelected
+  // Update the pickImage function to format new images consistently
   const pickImage = async () => {
     try {
+      // Check maximum image limit
+      if (menuDetails.images.length >= 5) {
+        toast.show({
+          description: "Maximum 5 images allowed",
+          status: "warning",
+          duration: 2000,
+        });
+        return;
+      }
+      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 1,
+        quality: 0.8,
       });
 
-      if (!result.canceled) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const imageUri = result.assets[0].uri;
+        
         // Check file size
-        const response = await fetch(result.assets[0].uri);
+        const response = await fetch(imageUri);
         const blob = await response.blob();
         const fileSizeInMB = blob.size / (1024 * 1024);
 
         if (fileSizeInMB > 3) {
-          setErrors((prev) => ({
-            ...prev,
-            image: "Image size should not exceed 3MB",
-          }));
+          toast.show({
+            description: "Image size should not exceed 3MB",
+            status: "error",
+            duration: 3000,
+          });
           return;
         }
 
-        // Add the new image to the images array
+        // Add the new image with isNew flag to indicate it's a new upload
         setMenuDetails((prev) => ({
           ...prev,
-          images: [...prev.images, result.assets[0].uri],
+          images: [...prev.images, {
+            url: imageUri,
+            isNew: true,
+            file: {
+              uri: imageUri,
+              type: 'image/jpeg',
+              name: imageUri.split('/').pop(),
+            }
+          }],
         }));
         
         // Set imageSelected to true
@@ -597,12 +669,23 @@ export default function EditMenuView() {
     }
   };
 
-  // Add remove image function
+  // Update the removeImage function to track removed image IDs
   const removeImage = (index) => {
+    const imageToRemove = menuDetails.images[index];
+    
+    // If removing an existing image with ID, add it to removedImageIds
+    if (imageToRemove.isExisting && imageToRemove.id) {
+      setRemovedImageIds(prev => [...prev, imageToRemove.id]);
+    }
+    
+    // Remove from images array
     setMenuDetails((prev) => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index),
     }));
+
+    console.log(`Removed image at index ${index}`, imageToRemove);
+    console.log("Updated removedImageIds:", [...removedImageIds, imageToRemove.id].filter(Boolean));
   };
 
   // Update the input handlers
@@ -680,55 +763,59 @@ export default function EditMenuView() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <VStack space={4} p={4}>
-          {/* Image Gallery */}
+          {/* Image Gallery with improved handling */}
           <Box>
-            <Text fontSize="md" mb={2}>
-              Menu Images ({menuDetails.images.length}/5)
-            </Text>
+            <HStack justifyContent="space-between" alignItems="center" mb={2}>
+              <Text fontSize="md">Menu Images ({menuDetails.images.length}/5)</Text>
+              {menuDetails.images.length === 0 && (
+                <Badge colorScheme="warning" rounded="md" variant="subtle">
+                  <Text fontSize="xs">No images</Text>
+                </Badge>
+              )}
+            </HStack>
+            
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <HStack space={2}>
-                {menuDetails.images.map((uri, index) => {
-                  // Skip invalid URIs
-                  if (!uri || typeof uri !== 'string') return null;
-
-                  return (
-                    <Box key={index} position="relative">
-                      <Image
-                        source={{ uri }}
-                        alt={`Menu Image ${index + 1}`}
-                        size="xl"
-                        rounded="lg"
-                        fallbackElement={
-                          <Box size="xl" bg="gray.200" rounded="lg" justifyContent="center" alignItems="center">
-                            <Icon
-                              as={MaterialIcons}
-                              name="image-not-supported"
-                              size={8}
-                              color="gray.400"
-                            />
-                          </Box>
-                        }
-                      />
-                      <IconButton
-                        position="absolute"
-                        top={1}
-                        right={1}
-                        size="sm"
-                        rounded="full"
-                        bg="red.500"
-                        icon={
+                {menuDetails.images.map((image, index) => (
+                  <Box key={index} position="relative">
+                    <Image
+                      source={{ uri: image.url }}
+                      alt={`Menu Image ${index + 1}`}
+                      size="xl"
+                      rounded="lg"
+                      fallbackElement={
+                        <Box size="xl" bg="gray.200" rounded="lg" justifyContent="center" alignItems="center">
                           <Icon
                             as={MaterialIcons}
-                            name="close"
-                            color="white"
-                            size="sm"
+                            name="image-not-supported"
+                            size={8}
+                            color="gray.400"
                           />
-                        }
-                        onPress={() => removeImage(index)}
-                      />
-                    </Box>
-                  );
-                })}
+                          <Text fontSize="xs" color="gray.500" mt={1} textAlign="center">
+                            Image load failed
+                          </Text>
+                        </Box>
+                      }
+                    />
+                    <IconButton
+                      position="absolute"
+                      top={1}
+                      right={1}
+                      size="sm"
+                      rounded="full"
+                      bg="red.500"
+                      icon={
+                        <Icon
+                          as={MaterialIcons}
+                          name="close"
+                          color="white"
+                          size="sm"
+                        />
+                      }
+                      onPress={() => removeImage(index)}
+                    />
+                  </Box>
+                ))}
                 {menuDetails.images.length < 5 && (
                   <Pressable onPress={pickImage}>
                     <Box
