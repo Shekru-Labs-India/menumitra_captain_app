@@ -1145,175 +1145,213 @@ export default function TableSectionsScreen() {
     </VStack>
   );
 
-  const FilterButtons = () => (
-    <Box bg="white" py={2} borderBottomWidth={1} borderBottomColor="coolGray.200">
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-        }}
-      >
-        <HStack space={4} alignItems="center">
-          {/* Counter Order Button */}
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: "/screens/orders/menu-selection",
-                params: {
-                  isSpecialOrder: "true",
-                  orderType: "counter",
-                  clearPrevious: "true",
-                  outlet_id: outletId?.toString() || "",
-                },
-              })
-            }
-          >
-            <Box
-              px={4}
-              py={2.5}
-              bg="white"
-              borderWidth={1}
-              borderColor="#0891b2"
-              rounded="lg"
-              shadow={1}
-              flexDirection="row"
-              alignItems="center"
-              minWidth={100}
-              justifyContent="center"
-            >
-              <MaterialIcons
-                name="point-of-sale"
-                size={20}
-                color="#0891b2"
-                style={{ marginRight: 8 }}
-              />
-              <Text color="#0891b2" fontSize="sm" fontWeight="medium">
-                Counter
-              </Text>
-            </Box>
-          </Pressable>
+  const FilterButtons = () => {
+    const [orderTypeSettings, setOrderTypeSettings] = useState({
+      counter: true,
+      parcel: true,
+      delivery: true,
+      driveThrough: true
+    });
 
-          {/* Parcel Order Button */}
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: "/screens/orders/menu-selection",
-                params: {
-                  isSpecialOrder: "true",
-                  orderType: "parcel",
-                  clearPrevious: "true",
-                  outlet_id: outletId?.toString() || "",
-                },
-              })
-            }
-          >
-            <Box
-              px={4}
-              py={2.5}
-              bg="white"
-              borderWidth={1}
-              borderColor="#0891b2"
-              rounded="lg"
-              shadow={1}
-              flexDirection="row"
-              alignItems="center"
-              minWidth={100}
-              justifyContent="center"
-            >
-              <MaterialIcons
-                name="takeout-dining"
-                size={20}
-                color="#0891b2"
-                style={{ marginRight: 8 }}
-              />
-              <Text color="#0891b2" fontSize="sm" fontWeight="medium">
-                Parcel
-              </Text>
-            </Box>
-          </Pressable>
+    useEffect(() => {
+      const getOrderTypeSettings = async () => {
+        try {
+          const storedSettings = await AsyncStorage.getItem("app_settings");
+          if (storedSettings) {
+            const parsedSettings = JSON.parse(storedSettings);
+            setOrderTypeSettings({
+              counter: parsedSettings.has_counter,
+              parcel: parsedSettings.has_parcel,
+              delivery: parsedSettings.has_delivery,
+              driveThrough: parsedSettings.has_drive_through
+            });
+          }
+        } catch (error) {
+          console.error("Error loading order type settings:", error);
+        }
+      };
 
-          {/* Delivery Order Button */}
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: "/screens/orders/menu-selection",
-                params: {
-                  isSpecialOrder: "true",
-                  orderType: "delivery",
-                  clearPrevious: "true",
-                  outlet_id: outletId?.toString() || "",
-                },
-              })
-            }
-          >
-            <Box
-              px={4}
-              py={2.5}
-              bg="white"
-              borderWidth={1}
-              borderColor="#0891b2"
-              rounded="lg"
-              shadow={1}
-              flexDirection="row"
-              alignItems="center"
-              minWidth={100}
-              justifyContent="center"
-            >
-              <MaterialIcons
-                name="delivery-dining"
-                size={20}
-                color="#0891b2"
-                style={{ marginRight: 8 }}
-              />
-              <Text color="#0891b2" fontSize="sm" fontWeight="medium">
-                Delivery
-              </Text>
-            </Box>
-          </Pressable>
+      getOrderTypeSettings();
+    }, []);
 
-          {/* Drive Through Order Button */}
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: "/screens/orders/menu-selection",
-                params: {
-                  isSpecialOrder: "true",
-                  orderType: "drive-through",
-                  clearPrevious: "true",
-                  outlet_id: outletId?.toString() || "",
-                },
-              })
-            }
-          >
-            <Box
-              px={4}
-              py={2.5}
-              bg="white"
-              borderWidth={1}
-              borderColor="#0891b2"
-              rounded="lg"
-              shadow={1}
-              flexDirection="row"
-              alignItems="center"
-              minWidth={100}
-              justifyContent="center"
-            >
-              <MaterialIcons
-                name="drive-eta"
-                size={20}
-                color="#0891b2"
-                style={{ marginRight: 8 }}
-              />
-              <Text color="#0891b2" fontSize="sm" fontWeight="medium">
-                Drive
-              </Text>
-            </Box>
-          </Pressable>
-        </HStack>
-      </ScrollView>
-    </Box>
-  );
+    return (
+      <Box bg="white" py={2} borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+          }}
+        >
+          <HStack space={4} alignItems="center">
+            {/* Counter Order Button */}
+            {orderTypeSettings.counter && (
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/screens/orders/menu-selection",
+                    params: {
+                      isSpecialOrder: "true",
+                      orderType: "counter",
+                      clearPrevious: "true",
+                      outlet_id: outletId?.toString() || "",
+                    },
+                  })
+                }
+              >
+                <Box
+                  px={4}
+                  py={2.5}
+                  bg="white"
+                  borderWidth={1}
+                  borderColor="#0891b2"
+                  rounded="lg"
+                  shadow={1}
+                  flexDirection="row"
+                  alignItems="center"
+                  minWidth={100}
+                  justifyContent="center"
+                >
+                  <MaterialIcons
+                    name="point-of-sale"
+                    size={20}
+                    color="#0891b2"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text color="#0891b2" fontSize="sm" fontWeight="medium">
+                    Counter
+                  </Text>
+                </Box>
+              </Pressable>
+            )}
+
+            {/* Parcel Order Button */}
+            {orderTypeSettings.parcel && (
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/screens/orders/menu-selection",
+                    params: {
+                      isSpecialOrder: "true",
+                      orderType: "parcel",
+                      clearPrevious: "true",
+                      outlet_id: outletId?.toString() || "",
+                    },
+                  })
+                }
+              >
+                <Box
+                  px={4}
+                  py={2.5}
+                  bg="white"
+                  borderWidth={1}
+                  borderColor="#0891b2"
+                  rounded="lg"
+                  shadow={1}
+                  flexDirection="row"
+                  alignItems="center"
+                  minWidth={100}
+                  justifyContent="center"
+                >
+                  <MaterialIcons
+                    name="takeout-dining"
+                    size={20}
+                    color="#0891b2"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text color="#0891b2" fontSize="sm" fontWeight="medium">
+                    Parcel
+                  </Text>
+                </Box>
+              </Pressable>
+            )}
+
+            {/* Delivery Order Button */}
+            {orderTypeSettings.delivery && (
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/screens/orders/menu-selection",
+                    params: {
+                      isSpecialOrder: "true",
+                      orderType: "delivery",
+                      clearPrevious: "true",
+                      outlet_id: outletId?.toString() || "",
+                    },
+                  })
+                }
+              >
+                <Box
+                  px={4}
+                  py={2.5}
+                  bg="white"
+                  borderWidth={1}
+                  borderColor="#0891b2"
+                  rounded="lg"
+                  shadow={1}
+                  flexDirection="row"
+                  alignItems="center"
+                  minWidth={100}
+                  justifyContent="center"
+                >
+                  <MaterialIcons
+                    name="delivery-dining"
+                    size={20}
+                    color="#0891b2"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text color="#0891b2" fontSize="sm" fontWeight="medium">
+                    Delivery
+                  </Text>
+                </Box>
+              </Pressable>
+            )}
+
+            {/* Drive Through Order Button */}
+            {orderTypeSettings.driveThrough && (
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/screens/orders/menu-selection",
+                    params: {
+                      isSpecialOrder: "true",
+                      orderType: "drive-through",
+                      clearPrevious: "true",
+                      outlet_id: outletId?.toString() || "",
+                    },
+                  })
+                }
+              >
+                <Box
+                  px={4}
+                  py={2.5}
+                  bg="white"
+                  borderWidth={1}
+                  borderColor="#0891b2"
+                  rounded="lg"
+                  shadow={1}
+                  flexDirection="row"
+                  alignItems="center"
+                  minWidth={100}
+                  justifyContent="center"
+                >
+                  <MaterialIcons
+                    name="drive-eta"
+                    size={20}
+                    color="#0891b2"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text color="#0891b2" fontSize="sm" fontWeight="medium">
+                    Drive
+                  </Text>
+                </Box>
+              </Pressable>
+            )}
+          </HStack>
+        </ScrollView>
+      </Box>
+    );
+  };
 
   // Add DeleteConfirmationModal component
   const DeleteConfirmationModal = () => {
