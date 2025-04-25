@@ -340,10 +340,21 @@ const calculateItemTotal = (price, quantity, offer = 0) => {
 };
 
 export default function CreateOrderScreen() {
-  const params = useLocalSearchParams();
-  const router = useRouter();
   const toast = useToast();
+  const router = useRouter();
+  const params = useLocalSearchParams();
   const isFocused = useIsFocused();
+  
+  // Settings state to control button visibility
+  const [settings, setSettings] = useState({
+    orderManagement: {
+      print_and_save: true,
+      KOT_and_save: true,
+      settle: true,
+      reserve_table: true,
+      cancel: true,
+    }
+  });
   
   // Use PrinterContext for improved printer management
   const {
@@ -3641,6 +3652,31 @@ const handleSettleOrder = async () => {
     }
   };
 
+  // Add useEffect to load settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const storedSettings = await AsyncStorage.getItem("app_settings");
+        if (storedSettings) {
+          const parsedSettings = JSON.parse(storedSettings);
+          setSettings({
+            orderManagement: {
+              print_and_save: parsedSettings.print_and_save,
+              KOT_and_save: parsedSettings.KOT_and_save,
+              settle: parsedSettings.settle,
+              reserve_table: parsedSettings.reserve_table,
+              cancel: parsedSettings.cancel,
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error loading settings:", error);
+      }
+    };
+    
+    loadSettings();
+  }, []);
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -4078,18 +4114,20 @@ const handleSettleOrder = async () => {
                   <VStack space={1} p={2} pt={0}>
                     {/* Top row - 3 buttons, matching screenshot */}
                     <HStack space={1}>
-                      <Button
-                        flex={1}
-                        h={10}
-                        bg="#FF9800"
-                        _pressed={{ bg: "#F57C00" }}
-                        borderRadius="md"
-                        leftIcon={<Icon as={MaterialIcons} name="print" size="sm" color="white" />}
-                        onPress={handlePrint}
-                        py={0}
-                      >
-                        <Text color="white" fontSize="xs">Print & Save</Text>
-                      </Button>
+                      {settings.orderManagement.print_and_save && (
+                        <Button
+                          flex={1}
+                          h={10}
+                          bg="#FF9800"
+                          _pressed={{ bg: "#F57C00" }}
+                          borderRadius="md"
+                          leftIcon={<Icon as={MaterialIcons} name="print" size="sm" color="white" />}
+                          onPress={handlePrint}
+                          py={0}
+                        >
+                          <Text color="white" fontSize="xs">Print & Save</Text>
+                        </Button>
+                      )}
                       
                       <Button
                         flex={1}
@@ -4104,50 +4142,56 @@ const handleSettleOrder = async () => {
                         <Text color="white" fontSize="xs">KOT</Text>
                       </Button>
                       
-                      <Button
-                        flex={1}
-                        h={10}
-                        bg="#00B0F0"
-                        _pressed={{ bg: "#0099CC" }}
-                        borderRadius="md"
-                        onPress={handleSettleOrder}
-                        py={0}
-                      >
-                        <Text color="white" fontSize="xs">Settle</Text>
-                      </Button>
+                      {settings.orderManagement.settle && (
+                        <Button
+                          flex={1}
+                          h={10}
+                          bg="#00B0F0"
+                          _pressed={{ bg: "#0099CC" }}
+                          borderRadius="md"
+                          onPress={handleSettleOrder}
+                          py={0}
+                        >
+                          <Text color="white" fontSize="xs">Settle</Text>
+                        </Button>
+                      )}
                     </HStack>
                     
                     {/* Middle row - Lock icon and KOT & Save */}
                     <HStack space={1}>
-                      <Button
-                        w="36px"
-                        h={10}
-                        bg="#242424"
-                        _pressed={{ bg: "#333" }}
-                        borderRadius="md"
-                        py={0}
-                        onPress={handleTableReservation}
-                        alignItems="center"
-                        justifyContent="center"
-                      >
-                        <Icon as={MaterialIcons} name="lock" size="sm" color="white" />
-                      </Button>
+                      {settings.orderManagement.reserve_table && (
+                        <Button
+                          w="36px"
+                          h={10}
+                          bg="#242424"
+                          _pressed={{ bg: "#333" }}
+                          borderRadius="md"
+                          py={0}
+                          onPress={handleTableReservation}
+                          alignItems="center"
+                          justifyContent="center"
+                        >
+                          <Icon as={MaterialIcons} name="lock" size="sm" color="white" />
+                        </Button>
+                      )}
                       
-                      <Button
-                        flex={1}
-                        h={10}
-                        bg="black"
-                        _pressed={{ bg: "#333" }}
-                        borderRadius="md"
-                        leftIcon={<Icon as={MaterialIcons} name="receipt" size="sm" color="white" />}
-                        onPress={handleKOTAndSave}
-                        py={0}
-                      >
-                        <Text color="white" fontSize="xs">KOT & Save</Text>
-                      </Button>
+                      {settings.orderManagement.KOT_and_save && (
+                        <Button
+                          flex={1}
+                          h={10}
+                          bg="black"
+                          _pressed={{ bg: "#333" }}
+                          borderRadius="md"
+                          leftIcon={<Icon as={MaterialIcons} name="receipt" size="sm" color="white" />}
+                          onPress={handleKOTAndSave}
+                          py={0}
+                        >
+                          <Text color="white" fontSize="xs">KOT & Save</Text>
+                        </Button>
+                      )}
                       
                       {/* Add Cancel Order button for existing orders */}
-                      {params?.orderId && (
+                      {params?.orderId && settings.orderManagement.cancel && (
                         <Button
                           w="36px"
                           h={10}
