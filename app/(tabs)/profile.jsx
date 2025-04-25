@@ -6,6 +6,7 @@ import {
   StatusBar,
   Linking,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -50,75 +51,96 @@ export default function ProfileScreen() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      // Fetch all relevant data stored during OTP verification
+      const [
+        [, captainName],
+        [, userId],
+        [, mobile],
+        [, captainId],
+        [, outletId],
+        [, access],
+        [, role],
+      ] = await AsyncStorage.multiGet([
+        "captain_name",
+        "user_id",
+        "mobile",
+        "captain_id",
+        "outlet_id",
+        "access",
+        "role",
+      ]);
+
+      setUserData({
+        captainName: captainName || "",
+        role: role || "",
+        mobile: mobile || "",
+        captainId: captainId || "",
+        outletId: outletId || "",
+        userId: userId || "",
+      });
+
+      // Fetch sales data if stored
+      const salesDataString = await AsyncStorage.getItem("salesData");
+      if (salesDataString) {
+        const salesData = JSON.parse(salesDataString);
+        setStats({
+          todayOrders: salesData.todayTotalSales || 0,
+          liveSales: salesData.liveSales || 0,
+          monthsActive: 0, // You can calculate this if you have a joining date
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchData();
+    } catch (error) {
+      console.error("Error refreshing profile:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        // Fetch all relevant data stored during OTP verification
-        const [
-          [, captainName],
-          [, userId],
-          [, mobile],
-          [, captainId],
-          [, outletId],
-          [, access],
-          [, role],
-        ] = await AsyncStorage.multiGet([
-          "captain_name",
-          "user_id",
-          "mobile",
-          "captain_id",
-          "outlet_id",
-          "access",
-          "role",
-        ]);
-
-        setUserData({
-          captainName: captainName || "",
-          role: role || "",
-          mobile: mobile || "",
-          captainId: captainId || "",
-          outletId: outletId || "",
-          userId: userId || "",
-        });
-
-        // Fetch sales data if stored
-        const salesDataString = await AsyncStorage.getItem("salesData");
-        if (salesDataString) {
-          const salesData = JSON.parse(salesDataString);
-          setStats({
-            todayOrders: salesData.todayTotalSales || 0,
-            liveSales: salesData.liveSales || 0,
-            monthsActive: 0, // You can calculate this if you have a joining date
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching profile data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
 
   const profileMenuItems = [
     {
-      icon: "settings",
-      title: "Settings",
-      route: "/profile/settings",
+      icon: "storefront",
+      title: "Restaurant Profile", 
+      route: "/profile/restaurant-profile",
     },
     {
       icon: "person-outline",
       title: "My Profile", 
       route: "/profile/personal-info",
     },
-    
     {
-      icon:"history",
-      title:"My Activity",
-      route:"/profile/activity-log",
+      icon: "settings",
+      title: "Settings",
+      route: "/profile/settings",
+    },
+    {
+      icon: "support-agent",
+      title: "Support",
+      route: "/profile/support",
+    },
+    {
+      icon: "history",
+      title: "Activity Log",
+      route: "/profile/activity-log",
     },
     {
       icon: "lock-outline",
@@ -126,7 +148,13 @@ export default function ProfileScreen() {
       route: null,
       onPress: () => Linking.openURL("https://menumitra.com/privacy"),
     },
-   
+    {
+      icon: "logout",
+      title: "Logout",
+      route: null,
+      onPress: handleLogout,
+      color: "red.500",
+    },
   ];
 
   const MenuItem = ({ item }) => (
@@ -256,7 +284,7 @@ export default function ProfileScreen() {
 
   return (
     <Box flex={1} bg="coolGray.100" safeArea>
-      {/* Restored Header with title and logout button */}
+      {/* Header with title and edit button */}
       <HStack
         px={4}
         py={3}
@@ -283,39 +311,49 @@ export default function ProfileScreen() {
         <Heading size="md" flex={1} textAlign="center">
           Profile
         </Heading>
-        <IconButton
-          icon={<MaterialIcons name="logout" size={24} color="red" />}
-          onPress={handleLogout}
+        {/* <IconButton
+          icon={<MaterialIcons name="edit" size={24} color="#007BFF" />}
+          onPress={() => router.push("/profile/personal-info")}
           variant="ghost"
           _pressed={{
             bg: "coolGray.100",
           }}
           borderRadius="full"
-        />
+        /> */}
       </HStack>
 
-      {/* Header Card */}
-      <Box bg="white" p={4} rounded="lg" shadow={1} mx={4} mt={4} mb={4}>
-        <VStack>
-          <Text fontSize="xl" fontWeight="bold" color="coolGray.800">
-            {userData.captainName}
-          </Text>
-          <Text fontSize="sm" color="coolGray.500">
-            {userData.role}
-          </Text>
-        </VStack>
-      </Box>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#007BFF"]}
+            tintColor="#007BFF"
+          />
+        }
+      >
+        {/* Profile Card */}
+        <Box bg="white" p={4} rounded="lg" shadow={1} mx={4} mt={4} mb={4}>
+          <VStack>
+            <Text fontSize="xl" fontWeight="bold" color="coolGray.800">
+              {userData.captainName}
+            </Text>
+            <Text fontSize="sm" color="coolGray.500">
+              {userData.role}
+            </Text>
+          </VStack>
+        </Box>
 
-      {/* Menu Items */}
-      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Menu Items */}
         <VStack space={0} py={2}>
           {profileMenuItems.map((item, index) => (
             <MenuItem key={index} item={item} />
           ))}
         </VStack>
 
-        {/* Footer Section - keeping the existing footer */}
-        <Box p={4} mt={4}>
+        {/* Footer Section */}
+        <Box p={4} mt={4} bg="coolGray.100" borderTopWidth={1} borderTopColor="coolGray.200">
           <VStack space={3} alignItems="center">
             <HStack space={2} alignItems="center">
               <Image
@@ -407,16 +445,7 @@ export default function ProfileScreen() {
                   Shekru Labs India Pvt. Ltd.
                 </Text>
               </Pressable>
-              <Pressable
-                // onPress={async () => {
-                //   try {
-                //     await AsyncStorage.clear();
-                //     router.replace('/login');
-                //   } catch (error) {
-                //     console.error('Error clearing storage:', error);
-                //   }
-                // }}
-              >
+              <Pressable>
                 <Text fontSize="2xs" color="black.500" mt={1} textAlign="center">
                   (version {version})
                 </Text>
