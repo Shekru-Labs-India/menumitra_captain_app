@@ -1623,20 +1623,13 @@ const handleSettleOrder = async () => {
   const removeFromCart = (menuId, portionSize) => {
     console.log("Removing item from cart:", menuId, portionSize);
     console.log("Current items count:", selectedItems.length);
-    console.log("Item to remove isNewlyAdded check:", 
-      selectedItems.find(item => item.menu_id === menuId && item.portionSize === portionSize)?.isNewlyAdded);
 
     setSelectedItems((prevItems) => {
       const filteredItems = prevItems.filter((item) => {
-        // Keep the item if:
-        // 1. It's not the item we want to remove (different menu_id or portionSize)
-        // 2. OR it's an existing item (not newly added)
-        const shouldKeep = !(
-          item.menu_id === menuId &&
-          item.portionSize === portionSize &&
-          item.isNewlyAdded
-        );
-        return shouldKeep;
+        // Remove the item completely if it matches the menu_id and portionSize
+        // Regardless of whether it's newly added or not
+        return !(item.menu_id === menuId && 
+                (item.portionSize === portionSize || item.portion_size === portionSize));
       });
       console.log("Items remaining after removal:", filteredItems.length);
       return filteredItems;
@@ -3301,19 +3294,25 @@ const handleSettleOrder = async () => {
 
   // Add the missing quantity functions if they don't exist
   const decreaseQuantity = (item) => {
-    if (item.quantity > 1) {
-      const updatedItems = selectedItems.map(i => {
-        if (i.menu_id === item.menu_id && i.portion_size === item.portion_size) {
+    const updatedItems = selectedItems.map(i => {
+      if (i.menu_id === item.menu_id && (i.portionSize === item.portionSize || i.portion_size === item.portion_size)) {
+        if (i.quantity > 1) {
           return {
             ...i,
             quantity: i.quantity - 1,
             total_price: calculateItemTotal(i.price, i.quantity - 1, i.offer)
           };
+        } else {
+          // Return null when quantity is 1 to remove the item
+          return null;
         }
-        return i;
-      });
-      setSelectedItems(updatedItems);
-    }
+      }
+      return i;
+    });
+    
+    // Filter out null values (removed items)
+    const filteredItems = updatedItems.filter(item => item !== null);
+    setSelectedItems(filteredItems);
   };
   
   const increaseQuantity = (item) => {
@@ -4027,6 +4026,9 @@ const handleSettleOrder = async () => {
                                 onPress={() => {
                                   if (item.quantity > 1) {
                                     decreaseQuantity(item);
+                                  } else {
+                                    // When quantity is 1, remove the item completely
+                                    removeFromCart(item.menu_id, item.portionSize || item.portion_size);
                                   }
                                 }}
                               />
