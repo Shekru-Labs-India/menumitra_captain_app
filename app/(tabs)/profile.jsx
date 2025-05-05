@@ -65,6 +65,7 @@ export default function ProfileScreen() {
         [, outletId],
         [, access],
         [, role],
+        [, outlet_name],
       ] = await AsyncStorage.multiGet([
         "captain_name",
         "user_id",
@@ -73,6 +74,7 @@ export default function ProfileScreen() {
         "outlet_id",
         "access",
         "role",
+        "outlet_name",
       ]);
 
       setUserData({
@@ -83,6 +85,9 @@ export default function ProfileScreen() {
         outletId: outletId || "",
         userId: userId || "",
       });
+      
+      // Set outlet name from AsyncStorage
+      setOutletName(outlet_name || "Restaurant");
 
       // Fetch sales data if stored
       const salesDataString = await AsyncStorage.getItem("salesData");
@@ -282,6 +287,8 @@ export default function ProfileScreen() {
     );
   };
 
+  const [outletName, setOutletName] = useState("");
+
   return (
     <Box flex={1} bg="coolGray.100" safeArea>
       {/* Header with title and edit button */}
@@ -337,7 +344,7 @@ export default function ProfileScreen() {
         <Box bg="white" p={4} rounded="lg" shadow={1} mx={4} mt={4} mb={4}>
           <VStack>
             <Text fontSize="xl" fontWeight="bold" color="coolGray.800">
-              {userData.captainName}
+              {outletName}
             </Text>
             <Text fontSize="sm" color="coolGray.500">
               {userData.role}
