@@ -1839,10 +1839,14 @@ const handleSettleOrder = async () => {
                     duration: 2000,
                   });
                   
-                  // Navigate back to tables screen if needed
-                  if (params?.tableNumber) {
-                    navigateToTables();
-                  }
+                  // Navigate back to tables screen using the standard pattern
+                  router.replace({
+                    pathname: "/(tabs)/tables/sections",
+                    params: { 
+                      refresh: Date.now().toString(),
+                      status: "completed"
+                    }
+                  });
                 } catch (error) {
                   console.error("Order placement error:", error);
                   toast.show({
@@ -1910,10 +1914,14 @@ const handleSettleOrder = async () => {
                     duration: 2000,
                   });
                   
-                  // Navigate back to tables screen if needed
-                  if (params?.tableNumber) {
-                    navigateToTables();
-                  }
+                  // Navigate back to tables screen using the standard pattern
+                  router.replace({
+                    pathname: "/(tabs)/tables/sections",
+                    params: { 
+                      refresh: Date.now().toString(),
+                      status: "completed"
+                    }
+                  });
                 } catch (error) {
                   console.error("Order placement error:", error);
                   toast.show({
@@ -1969,10 +1977,14 @@ const handleSettleOrder = async () => {
           duration: 2000,
         });
         
-        // Navigate back to tables screen if needed
-        if (params?.tableNumber) {
-          navigateToTables();
-        }
+        // Navigate back to tables screen using the standard pattern
+        router.replace({
+          pathname: "/(tabs)/tables/sections",
+          params: { 
+            refresh: Date.now().toString(),
+            status: "completed"
+          }
+        });
       } catch (error) {
         console.error("Print and save error:", error);
         toast.show({
