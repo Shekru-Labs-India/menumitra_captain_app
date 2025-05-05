@@ -716,6 +716,8 @@ export default function CreateOrderScreen() {
   const [isPaidChecked, setIsPaidChecked] = useState(false);
 
   // Update handleKOT function to check for printer connection properly
+
+
   const handleKOT = async () => {
     try {
       // Check if we're connected to a printer
@@ -731,15 +733,42 @@ export default function CreateOrderScreen() {
             {
               text: "Skip Printing",
               style: "cancel",
-              onPress: () => {
-                // Navigate back to tables screen with updated path
-                router.replace({
-                  pathname: "/(tabs)/tables/sections",
-                  params: { 
-                    refresh: Date.now().toString(),
-                    status: "completed"
+              onPress: async () => {
+                // Just save the order without printing
+                try {
+                  setIsProcessing(true);
+                  setLoadingMessage("Saving order...");
+                  
+                  // Save order without printing
+                  const savedOrder = await createOrder("settle");
+                  
+                  if (savedOrder) {
+        toast.show({
+                      description: "Order saved successfully",
+                      status: "success",
+                      duration: 2000,
+                    });
+                    
+                    // Navigate back to tables view
+                    router.replace({
+                      pathname: "/(tabs)/tables/sections",
+                      params: { 
+                        refresh: Date.now().toString(),
+                        status: "completed"
+                      }
+                    });
                   }
-                });
+                } catch (error) {
+                  console.error("Save order error:", error);
+                  toast.show({
+                    description: "Error saving order: " + error.message,
+          status: "error",
+          duration: 3000,
+        });
+                } finally {
+                  setIsProcessing(false);
+                  setLoadingMessage("");
+                }
               }
             }
           ]
@@ -768,24 +797,52 @@ export default function CreateOrderScreen() {
               onPress: () => setIsDeviceSelectionModalVisible(true)
             },
             {
-              text: "Skip Printing",
+              text: "Skip Printing and Save",
               style: "cancel",
-              onPress: () => {
-                // Navigate back to tables screen with updated path
-                router.replace({
-                  pathname: "/(tabs)/tables/sections",
-                  params: { 
-                    refresh: Date.now().toString(),
-                    status: "completed"
+              onPress: async () => {
+                // Just save the order without printing
+                try {
+                  setIsProcessing(true);
+                  setLoadingMessage("Saving order...");
+                  
+                  // Save order without printing
+                  const savedOrder = await createOrder("create_order");
+                  
+                  if (savedOrder) {
+          toast.show({
+                      description: "Order saved successfully",
+                      status: "success",
+            duration: 2000,
+          });
+                    
+                    // Navigate back to tables view
+                    router.replace({
+                      pathname: "/(tabs)/tables/sections",
+                      params: { 
+                        refresh: Date.now().toString(),
+                        status: "completed"
+                      }
+                    });
                   }
-                });
+                } catch (error) {
+                  console.error("Save order error:", error);
+        toast.show({
+                    description: "Error saving order: " + error.message,
+                    status: "error",
+          duration: 3000,
+        });
+                } finally {
+                  setIsProcessing(false);
+                  setLoadingMessage("");
+                }
               }
             }
           ]
         );
         return;
       }
-      
+
+      // Continue with original KOT and Save logic
       if (selectedItems.length === 0) {
         toast.show({
           description: "Please add items to the order",
@@ -795,185 +852,63 @@ export default function CreateOrderScreen() {
         return;
       }
 
-      setIsLoading(true); 
-      setLoadingMessage("Processing order...");
+      setIsProcessing(true);
+      setLoadingMessage("Processing KOT and saving order...");
 
-      // Verify authentication token is present
-      const token = await AsyncStorage.getItem('access');
-      if (!token) {
+      try {
+        // Create order with "save" status
+        const apiResponse = await createOrder("KOT_and_save", true);
+        if (!apiResponse || apiResponse.st !== 1) {
+          throw new Error(apiResponse?.msg || "Failed to save order");
+        }
+
+        // Print KOT
+        try {
+          setLoadingMessage("Printing KOT...");
+          await printKOT(apiResponse);
+          
         toast.show({
-          description: "Authentication error. Please log in again.",
+            description: "Order saved and KOT printed successfully",
+            status: "success",
+            duration: 2000,
+          });
+        } catch (printError) {
+          console.error("KOT print error:", printError);
+          // Continue even with print error
+          toast.show({
+            description: "Order saved but KOT printing failed: " + printError.message,
+            status: "warning",
+          duration: 3000,
+        });
+      }
+
+        // Navigate back to tables screen
+        router.replace({
+          pathname: "/(tabs)/tables/sections",
+          params: { 
+            refresh: Date.now().toString(),
+            status: "completed"
+          }
+        });
+      } catch (error) {
+        console.error("KOT and Save error:", error);
+        toast.show({
+          description: "Error saving order: " + error.message,
           status: "error",
           duration: 3000,
         });
-        
-        setTimeout(() => {
-          router.replace("/login");
-        }, 1500);
-        return;
-      }
-
-      // First save the order to get the order data
-      const [storedUserId, storedOutletId] = await Promise.all([
-        AsyncStorage.getItem("user_id"),
-        AsyncStorage.getItem("outlet_id"),
-      ]);
-
-      if (!storedUserId || !storedOutletId) {
-        throw new Error("Missing required information");
-      }
-
-      const orderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id?.toString(),
-        quantity: parseInt(item.quantity) || 1,
-        comment: item.specialInstructions || "",
-        half_or_full: (item.portionSize || "full").toLowerCase(),
-        price: parseFloat(item.price) || 0,
-        total_price: parseFloat(item.total_price) || 0,
-      }));
-
-      // Determine payment status
-      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
-      const effectivePaymentMethod = isPaid ? selectedPaymentMethod.toLowerCase() : "";
-
-      // Create order data object
-      const orderData = {
-        user_id: storedUserId?.toString(),
-        outlet_id: storedOutletId?.toString(),
-        order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
-        order_items: orderItems,
-        grand_total: calculateGrandTotal(
-          selectedItems,
-          specialDiscount,
-          extraCharges,
-          serviceChargePercentage,
-          gstPercentage,
-          tip
-        )?.toString(),
-        action: "KOT_and_save", // Changed from "kot" to "KOT_and_save"
-        is_paid: paymentStatus,
-        payment_method: effectivePaymentMethod,
-        special_discount: specialDiscount?.toString(),
-        charges: extraCharges?.toString(),
-        tip: tip?.toString(),
-        customer_name: customerDetails.customer_name || "",
-        customer_mobile: customerDetails.customer_mobile || "",
-        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
-        customer_address: customerDetails.customer_address || "",
-        customer_landmark: customerDetails.customer_landmark || "",
-      };
-
-      if (!params?.isSpecialOrder) {
-        if (!params.tableNumber || !params.sectionId) {
-          throw new Error("Missing table or section information for dine-in order");
-        }
-        orderData.tables = [params.tableNumber?.toString()];
-        orderData.section_id = params.sectionId?.toString();
-      }
-
-      if (params?.orderId) {
-        orderData.order_id = params.orderId?.toString();
-      }
-
-      // Make API request
-      const endpoint = params?.orderId ? 
-        onGetProductionUrl() + "update_order" : 
-        onGetProductionUrl() + "create_order";
-
-      console.log(`Making KOT request to ${endpoint}`);
-      
-      // Use fetchWithAuth for better authentication handling
-      let apiResponse;
-      try {
-        apiResponse = await fetchWithAuth(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderData)
-        });
-        
-        if (apiResponse.st !== 1) {
-          throw new Error(apiResponse.msg || "Failed to process order");
-        }
-      } catch (apiError) {
-        console.error("API error during KOT:", apiError);
-        toast.show({
-          description: apiError.message || "Failed to connect to server",
-          status: "error",
-          duration: 3000
-        });
-        setIsLoading(false);
+      } finally {
+        setIsProcessing(false);
         setLoadingMessage("");
-        return;
       }
-
-      setLoadingMessage("Preparing KOT...");
-
-      // Ensure we have order number
-      if (!params?.orderId && apiResponse.order_number) {
-        apiResponse.order_number = apiResponse.order_number || String(apiResponse.order_id);
-      }
-
-      // Generate KOT commands with order data
-      let kotCommands;
-      try {
-        setLoadingMessage("Generating KOT...");
-        kotCommands = await generateKOTCommands(apiResponse);
-        if (!kotCommands || !Array.isArray(kotCommands)) {
-          throw new Error("Failed to generate valid KOT data");
-        }
-      } catch (kotError) {
-        console.error("KOT generation error:", kotError);
-        toast.show({
-          description: "Error preparing KOT: " + kotError.message,
-          status: "error",
-          duration: 3000,
-        });
-        setIsLoading(false);
-        setLoadingMessage("");
-        return;
-      }
-      
-      // Send commands to printer
-      try {
-        setLoadingMessage("Printing KOT...");
-        await sendDataToPrinter(kotCommands);
-        console.log("KOT data sent to printer successfully");
-      } catch (printError) {
-        console.error("KOT printing error:", printError);
-        toast.show({
-          description: "Error printing KOT: " + printError.message,
-          status: "error",
-          duration: 3000,
-        });
-        // Continue with navigation despite print error
-      }
-      
-      // Success message
-      toast.show({
-        description: "KOT processed successfully",
-        status: "success",
-        duration: 2000,
-      });
-
-      // Important: After successfully printing, navigate back to tables view
-      // with proper params to refresh the table data
-      router.replace({
-        pathname: "/(tabs)/tables/sections",
-        params: { 
-          refresh: Date.now().toString(),
-          status: "completed"
-        }
-      });
-      
     } catch (error) {
-      console.error("KOT error:", error);
+      console.error("KOT and Save error:", error);
       toast.show({
-        description: "Error processing KOT: " + error.message,
+        description: "Error: " + error.message,
         status: "error",
         duration: 3000,
       });
-    } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
       setLoadingMessage("");
     }
   };
