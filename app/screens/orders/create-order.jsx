@@ -1701,15 +1701,19 @@ const handleSettleOrder = async () => {
       position="absolute"
       right={4}
       marginLeft={10}
-      top= {1}
+      top={1}
       borderWidth={1}
       borderStyle="dashed"
       borderColor={
-        params?.isSpecialOrder
+        params?.isSpecialOrder || (params?.orderType && params?.orderType !== "dine-in")
           ? params.orderType === "parcel"
             ? "amber.500"
             : params.orderType === "drive-through"
             ? "purple.500"
+            : params.orderType === "delivery"
+            ? "teal.500"
+            : params.orderType === "counter"
+            ? "blue.500"
             : "indigo.500"
           : params?.isOccupied === "1"
           ? "red.500"
@@ -1720,11 +1724,15 @@ const handleSettleOrder = async () => {
     >
       <Badge
         bg={
-          params?.isSpecialOrder
+          params?.isSpecialOrder || (params?.orderType && params?.orderType !== "dine-in")
             ? params.orderType === "parcel"
               ? "amber.100"
               : params.orderType === "drive-through"
               ? "purple.100"
+              : params.orderType === "delivery"
+              ? "teal.100"
+              : params.orderType === "counter"
+              ? "blue.100"
               : "indigo.100"
             : params?.isOccupied === "1"
             ? "red.100"
@@ -1735,13 +1743,17 @@ const handleSettleOrder = async () => {
         py={0.1}
       >
         <VStack alignItems="center">
-          {params?.isSpecialOrder ? (
+          {params?.isSpecialOrder || (params?.orderType && params?.orderType !== "dine-in") ? (
             <Text
               color={
                 params.orderType === "parcel"
                   ? "amber.800"
                   : params.orderType === "drive-through"
                   ? "purple.800"
+                  : params.orderType === "delivery"
+                  ? "teal.800"
+                  : params.orderType === "counter"
+                  ? "blue.800"
                   : "indigo.800"
               }
               fontSize="xs"
@@ -1750,6 +1762,12 @@ const handleSettleOrder = async () => {
             >
               {params.orderType === "drive-through"
                 ? "Drive Through"
+                : params.orderType === "counter"
+                ? "Counter"
+                : params.orderType === "delivery"
+                ? "Delivery"
+                : params.orderType === "parcel"
+                ? "Parcel"
                 : params.orderType.charAt(0).toUpperCase() +
                   params.orderType.slice(1)}
             </Text>
