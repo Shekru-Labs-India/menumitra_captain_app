@@ -1237,7 +1237,7 @@ const OrdersScreen = () => {
     <Box flex={1} bg="gray.50" safeArea>
       <Header title="My Orders" />
 
-      <HStack
+      {/* <HStack
         px={4}
         py={3}
         bg="gray.100"
@@ -1256,13 +1256,7 @@ const OrdersScreen = () => {
           <Text fontWeight="semibold" mr={1}>{outletName}</Text>
           <Icon as={MaterialIcons} name="keyboard-arrow-down" size="sm" color="gray.600" />
         </Pressable>
-        
-        <Badge bg="amber.500" rounded="sm" px={2} py={0.5}>
-          <Text color="white" fontSize="xs" fontWeight="bold">
-            TESTING
-          </Text>
-        </Badge>
-      </HStack>
+      </HStack> */}
 
       <HStack
         px={4}
