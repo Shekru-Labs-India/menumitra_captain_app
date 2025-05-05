@@ -248,28 +248,45 @@ const OrderCard = ({ order, onPress, onTimerEnd }) => {
           <Text fontSize="lg" fontWeight="bold">
             #{order.order_number}
           </Text>
-          <Badge
-            bg={
-              order.order_status === "cooking"
-                ? "orange.500"
-                : order.order_status === "paid"
-                ? "blue.500"
-                : order.order_status === "served"
-                ? "teal.500"
-                : order.order_status === "placed"
-                ? "purple.500"
-                : order.order_status === "cancelled"
-                ? "red.500"
-                : "gray.500"
-            }
-            rounded="sm"
-            px={2}
-            py={0.5}
-          >
-            <Text color="white" fontSize="xs" fontWeight="bold">
-              {order.order_status?.toUpperCase()}
-            </Text>
-          </Badge>
+
+          <HStack space={1} alignItems="center">
+            {order.order_status === "paid" && order.payment_method && (
+              <HStack space={1} alignItems="center" mr={1}>
+                <Icon
+                  as={MaterialIcons}
+                  name={PAYMENT_METHOD_ICONS[order.payment_method?.toLowerCase()] || PAYMENT_METHOD_ICONS.DEFAULT}
+                  size="sm"
+                  color="coolGray.600"
+                />
+                <Text fontSize="xs" textTransform="uppercase" color="coolGray.600" fontWeight="medium">
+                  {order.payment_method}
+                </Text>
+              </HStack>
+            )}
+            
+            <Badge
+              bg={
+                order.order_status === "cooking"
+                  ? "orange.500"
+                  : order.order_status === "paid"
+                  ? "blue.500"
+                  : order.order_status === "served"
+                  ? "teal.500"
+                  : order.order_status === "placed"
+                  ? "purple.500"
+                  : order.order_status === "cancelled"
+                  ? "red.500"
+                  : "gray.500"
+              }
+              rounded="sm"
+              px={2}
+              py={0.5}
+            >
+              <Text color="white" fontSize="xs" fontWeight="bold">
+                {order.order_status?.toUpperCase()}
+              </Text>
+            </Badge>
+          </HStack>
         </HStack>
 
         {/* Date and Time */}
