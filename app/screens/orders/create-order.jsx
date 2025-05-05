@@ -1813,13 +1813,47 @@ const handleSettleOrder = async () => {
             {
               text: "Skip Printing",
               style: "cancel",
-              onPress: () => {
-                // Skip printing and just show confirmation
-        toast.show({
-                  description: "Skipped printing receipt",
-                  status: "info",
-                  duration: 2000,
-                });
+              onPress: async () => {
+                // Still place the order even when skipping printing
+                try {
+                  setIsProcessing(true);
+                  setLoadingMessage("Placing order...");
+
+                  // Verify authentication token is present
+                  const token = await AsyncStorage.getItem('access');
+                  if (!token) {
+                    throw new Error("Authentication token missing. Please log in again.");
+                  }
+                  
+                  // Create order without printing
+                  const apiResponse = await createOrder("print_and_save", true);
+                  
+                  if (!apiResponse || apiResponse.st !== 1) {
+                    throw new Error(apiResponse?.msg || "Failed to place order");
+                  }
+                  
+                  // Show success message
+                  toast.show({
+                    description: "Order placed successfully (printing skipped)",
+                    status: "success",
+                    duration: 2000,
+                  });
+                  
+                  // Navigate back to tables screen if needed
+                  if (params?.tableNumber) {
+                    navigateToTables();
+                  }
+                } catch (error) {
+                  console.error("Order placement error:", error);
+                  toast.show({
+                    description: `Error: ${error.message}`,
+                    status: "error",
+                    duration: 3000,
+                  });
+                } finally {
+                  setIsProcessing(false);
+                  setLoadingMessage("");
+                }
               }
             }
           ]
@@ -1850,13 +1884,47 @@ const handleSettleOrder = async () => {
             {
               text: "Skip Printing",
               style: "cancel",
-              onPress: () => {
-                // Skip printing and just show confirmation
-                toast.show({
-                  description: "Skipped printing receipt",
-                  status: "info",
-                  duration: 2000,
-                });
+              onPress: async () => {
+                // Still place the order even when skipping printing due to connection issues
+                try {
+                  setIsProcessing(true);
+                  setLoadingMessage("Placing order...");
+
+                  // Verify authentication token is present
+                  const token = await AsyncStorage.getItem('access');
+                  if (!token) {
+                    throw new Error("Authentication token missing. Please log in again.");
+                  }
+                  
+                  // Create order without printing
+                  const apiResponse = await createOrder("print_and_save", true);
+                  
+                  if (!apiResponse || apiResponse.st !== 1) {
+                    throw new Error(apiResponse?.msg || "Failed to place order");
+                  }
+                  
+                  // Show success message
+                  toast.show({
+                    description: "Order placed successfully (printing skipped)",
+                    status: "success",
+                    duration: 2000,
+                  });
+                  
+                  // Navigate back to tables screen if needed
+                  if (params?.tableNumber) {
+                    navigateToTables();
+                  }
+                } catch (error) {
+                  console.error("Order placement error:", error);
+                  toast.show({
+                    description: `Error: ${error.message}`,
+                    status: "error",
+                    duration: 3000,
+                  });
+                } finally {
+                  setIsProcessing(false);
+                  setLoadingMessage("");
+                }
               }
             }
           ]
@@ -1900,6 +1968,11 @@ const handleSettleOrder = async () => {
           status: "success",
           duration: 2000,
         });
+        
+        // Navigate back to tables screen if needed
+        if (params?.tableNumber) {
+          navigateToTables();
+        }
       } catch (error) {
         console.error("Print and save error:", error);
         toast.show({
