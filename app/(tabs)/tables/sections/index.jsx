@@ -110,6 +110,59 @@ const calculateTimeDifference = (occupiedTime) => {
   }
 };
 
+// Add a new helper function to check if table should display in alarm state (45+ minutes)
+const isTableInAlarmState = (occupiedTime) => {
+  try {
+    if (!occupiedTime) return false;
+
+    // Parse the occupied time string (format: "30 Jan 2025 12:23:55 PM")
+    const [day, month, year, time, period] = occupiedTime.split(" ");
+    const [hours, minutes, seconds] = time.split(":");
+
+    // Convert month abbreviation to month number (0-11)
+    const months = {
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
+    };
+
+    // Create date object for the occupied time
+    const occupiedDate = new Date(
+      parseInt(year),
+      months[month],
+      parseInt(day),
+      period === "PM" && hours !== "12"
+        ? parseInt(hours) + 12
+        : period === "AM" && hours === "12"
+        ? 0
+        : parseInt(hours),
+      parseInt(minutes),
+      parseInt(seconds)
+    );
+
+    // Get current time
+    const now = new Date();
+
+    // Calculate difference in minutes
+    const diffInMinutes = Math.floor((now - occupiedDate) / (1000 * 60));
+
+    // Return true if occupied for 45 minutes or more
+    return diffInMinutes >= 45;
+  } catch (error) {
+    console.error("Alarm state check error:", error);
+    return false;
+  }
+};
+
 export default function TableSectionsScreen() {
   const router = useRouter();
   const toast = useToast();
@@ -289,6 +342,7 @@ export default function TableSectionsScreen() {
     }
   };
 
+  // Update the fetchSections function to add the alarm state flag to each table
   const fetchSections = async (outletId) => {
     try {
       setLoading(true);
@@ -310,6 +364,7 @@ export default function TableSectionsScreen() {
           tables: section.tables.map((table) => ({
             ...table,
             timeSinceOccupied: calculateTimeDifference(table.occupied_time),
+            isInAlarmState: isTableInAlarmState(table.occupied_time)
           })),
           totalTables: section.tables.length,
           engagedTables: section.tables.filter(
@@ -973,14 +1028,18 @@ export default function TableSectionsScreen() {
                                           height={20}
                                           bg={
                                             isOccupied
-                                              ? table.order_id ? "orange.100" : "red.100"
+                                              ? table.isInAlarmState
+                                                ? "red.200" // Change to stronger red for 45+ min occupied tables
+                                                : table.order_id ? "orange.100" : "red.100"
                                               : table.is_reserved ? "gray.100" : "green.100"
                                           }
                                           borderWidth={1}
                                           borderStyle="dashed"
                                           borderColor={
                                             isOccupied
-                                              ? table.order_id ? "orange.600" : "red.600"
+                                              ? table.isInAlarmState
+                                                ? "red.700" // Darker red border for 45+ min occupied tables
+                                                : table.order_id ? "orange.600" : "red.600"
                                               : table.is_reserved ? "gray.600" : "green.600"
                                           }
                                           position="relative"
@@ -992,7 +1051,7 @@ export default function TableSectionsScreen() {
                                               top={-10}
                                               left={-2}
                                               right={-2}
-                                              bg={table.order_id ? "orange.500" : "red.500"}
+                                              bg={table.isInAlarmState ? "red.600" : (table.order_id ? "orange.500" : "red.500")}
                                               py={0.5}
                                               rounded="md"
                                               shadow={1}
@@ -1123,7 +1182,9 @@ export default function TableSectionsScreen() {
                                               textAlign="center"
                                               color={
                                                 isOccupied
-                                                  ? table.order_id ? "orange.500" : "red.500"
+                                                  ? table.isInAlarmState
+                                                    ? "red.500" // Change to stronger red for 45+ min occupied tables
+                                                    : table.order_id ? "orange.500" : "red.500"
                                                   : table.is_reserved ? "gray.500" : "green.500"
                                               }
                                             >
