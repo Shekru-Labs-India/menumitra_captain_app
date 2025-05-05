@@ -2736,8 +2736,11 @@ const handleSettleOrder = async () => {
         throw new Error("Missing required information");
       }
 
-      // If this is a new order for a table, check if the table is already occupied
-      if (!params?.orderId && params?.tableNumber && params?.isOccupied !== "1") {
+      // Get the order type - this is the critical change
+      const orderType = params?.orderType || "dine-in";
+      
+      // Only check table availability for dine-in orders
+      if (orderType === "dine-in" && !params?.orderId && params?.tableNumber && params?.isOccupied !== "1") {
         try {
           // Use fetchWithAuth instead of axiosInstance
           const tableCheckResponse = await fetchWithAuth(
@@ -2787,7 +2790,7 @@ const handleSettleOrder = async () => {
       const orderData = {
         user_id: storedUserId?.toString(),
         outlet_id: storedOutletId?.toString(),
-        order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
+        order_type: orderType, // Use the orderType we extracted above
         order_items: orderItems,
         grand_total: calculateGrandTotal(
           selectedItems,
@@ -2810,7 +2813,8 @@ const handleSettleOrder = async () => {
         customer_landmark: customerDetails.customer_landmark || "",
       };
 
-      if (!params?.isSpecialOrder) {
+      // Only add table information for dine-in orders
+      if (orderType === "dine-in") {
         if (!params.tableNumber || !params.sectionId) {
           throw new Error("Missing table or section information for dine-in order");
         }
