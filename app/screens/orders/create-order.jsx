@@ -1629,7 +1629,7 @@ const handleSettleOrder = async () => {
       position="absolute"
       right={4}
       marginLeft={10}
-      top={1}
+      top={-20}
       borderWidth={1}
       borderStyle="dashed"
       borderColor={
