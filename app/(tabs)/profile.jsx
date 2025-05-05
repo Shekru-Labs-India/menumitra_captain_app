@@ -157,7 +157,10 @@ export default function ProfileScreen() {
       icon: "logout",
       title: "Logout",
       route: null,
-      onPress: handleLogout,
+      onPress: () => {
+        console.log("Logout button pressed");
+        handleLogout();
+      },
       color: "red.500",
     },
   ];
@@ -165,9 +168,11 @@ export default function ProfileScreen() {
   const MenuItem = ({ item }) => (
     <Pressable
       onPress={() => {
+        console.log("Menu item pressed:", item.title);
         if (item.route) {
           router.push(item.route);
         } else if (item.onPress) {
+          console.log("Calling onPress function for:", item.title);
           item.onPress();
         }
       }}
@@ -228,6 +233,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
+    console.log("handleLogout function called");
     Alert.alert(
       "Logout",
       "Are you sure you want to logout?",
@@ -235,16 +241,20 @@ export default function ProfileScreen() {
         {
           text: "Cancel",
           style: "cancel",
+          onPress: () => console.log("Cancel Pressed"),
         },
         {
           text: "Logout",
           style: "destructive",
           onPress: async () => {
+            console.log("Logout confirmed");
             try {
               // Get device token from AsyncStorage
               const deviceToken = await AsyncStorage.getItem("device_token");
+              console.log("Device token:", deviceToken);
               
               // Call logout API
+              console.log("Calling logout API with user ID:", userData.captainId);
               const response = await fetch(`${getBaseUrl()}/logout`, {
                 method: "POST",
                 headers: {
@@ -259,26 +269,26 @@ export default function ProfileScreen() {
               });
 
               const data = await response.json();
+              console.log("Logout API response:", data);
 
               if (data.st == 1) {
+                console.log("Logout successful, clearing AsyncStorage");
                 // Clear all AsyncStorage data
                 await AsyncStorage.clear();
 
                 // Call the logout function from AuthContext
+                console.log("Calling logout from AuthContext");
                 await logout();
 
                 // Navigate to login screen
+                console.log("Navigating to login screen");
                 router.replace("/login");
               } else {
                 throw new Error(data.msg || "Logout failed");
               }
             } catch (error) {
               console.error("Logout Error:", error);
-              toast.show({
-                description: "Failed to logout. Please try again.",
-                status: "error",
-                duration: 3000,
-              });
+              Alert.alert("Logout Failed", "Failed to logout. Please try again.");
             }
           },
         },
