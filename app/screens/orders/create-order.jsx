@@ -3050,7 +3050,7 @@ const handleSettleOrder = async () => {
                   setLoadingMessage("Saving order...");
                   
                   // Save order without printing
-                  const savedOrder = await createOrder("create_order");
+                  const savedOrder = await createOrder("KOT_and_save");
                   
                   if (savedOrder) {
         toast.show({
