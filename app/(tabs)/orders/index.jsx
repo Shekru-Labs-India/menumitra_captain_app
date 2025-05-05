@@ -339,12 +339,19 @@ const OrderCard = ({ order, onPress, onTimerEnd }) => {
 
         {/* Price Details */}
         <HStack
-          justifyContent="flex-end"
+          justifyContent="space-between"
           mt={4}
           pt={3}
           borderTopWidth={1}
           borderTopColor="gray.200"
         >
+          {order.is_paid === "complementary" && (
+            <Box bg="#f3e8ff" px={2} py={1} rounded="md">
+              <Text color="#8b5cf6" fontSize="sm" fontWeight="medium">
+                Complementary
+              </Text>
+            </Box>
+          )}
           <VStack alignItems="flex-end">
             <Text fontSize="md" fontWeight="bold" color="primary.600">
               ₹{Number(order.grand_total || 0).toFixed(2)}
