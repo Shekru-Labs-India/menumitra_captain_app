@@ -697,9 +697,21 @@ export default function OrderDetailsScreen() {
         throw new Error('Menu items not available');
       }
 
-      // Generate the invoice HTML with safe access
+      // Format current date and time in the required format: DD-MMM-YYYY hh:mm:ss AM/PM
+      const now = new Date();
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = months[now.getMonth()];
+      const year = now.getFullYear();
+      const hours = now.getHours() % 12 || 12; // Convert to 12-hour format
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const period = now.getHours() >= 12 ? 'PM' : 'AM';
+      const currentDateTime = `${day}-${month}-${year} ${hours}:${minutes}:${seconds} ${period}`;
+
+      // Generate the invoice HTML with safe access and current time
       const invoiceHTML = await generateInvoiceHTML({
-        datetime: orderDetails.datetime || '',
+        datetime: currentDateTime, // Use current time instead of orderDetails.datetime
         order_number: orderDetails.order_number || '',
         customer_name: orderDetails.customer_name || '',
         total_bill_amount: orderDetails.total_bill_amount || 0,
