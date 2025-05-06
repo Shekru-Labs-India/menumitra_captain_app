@@ -766,22 +766,20 @@ const RestaurantProfile = () => {
       <TouchableOpacity
         style={[
           styles.editFAB,
-          restaurantData?.has_counter ? { bottom: 90 } : { bottom: 20 }
+          { bottom: 90 } // Always position FAB higher to accommodate QR button
         ]}
         onPress={() => router.push('/profile/edit-restaurant-profile')}
       >
         <MaterialIcons name="edit" size={24} color="#fff" />
       </TouchableOpacity>
 
-      {/* Floating QR Button - conditional based on settings */}
-      {restaurantData?.has_counter && (
-        <TouchableOpacity
-          style={styles.floatingButton}
-          onPress={fetchRestaurantQRCode}
-        >
-          <MaterialIcons name="qr-code" size={24} color="#fff" />
-        </TouchableOpacity>
-      )}
+      {/* Floating QR Button - always visible */}
+      <TouchableOpacity
+        style={styles.floatingButton}
+        onPress={fetchRestaurantQRCode}
+      >
+        <MaterialIcons name="qr-code" size={24} color="#fff" />
+      </TouchableOpacity>
 
       {/* QR Code Modal */}
       <QRCodeModal />
