@@ -309,14 +309,43 @@ const getMenuMitraLogo = async () => {
 // Modify the generateInvoiceHTML function to be async
 const generateInvoiceHTML = async (orderDetails, menuItems) => {
   try {
-    // Safely handle date and time formatting
-    const dateTime = (orderDetails?.datetime || '').split(' ');
-    const date = dateTime[0] || '';
-    const time = dateTime.length > 2 ? `${dateTime[1]} ${dateTime[2]}` : '';
+    // Get the current date and time formatted to match owner app exactly
+    const getCurrentDateTime = () => {
+      const now = new Date();
+      
+      // Get the day as 2-digit
+      const day = String(now.getDate()).padStart(2, '0');
+      
+      // Get the month name in uppercase
+      const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      const month = monthNames[now.getMonth()];
+      
+      // Get the year
+      const year = now.getFullYear();
+      
+      // Get hours and format for 12-hour clock
+      let hours = now.getHours();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12; // the hour '0' should be '12'
+      hours = String(hours).padStart(2, '0');
+      
+      // Get minutes
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      
+      // Format the final date string
+      return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+    };
+
+    // Use the current date/time instead of the order's original datetime
+    const currentDateTime = getCurrentDateTime();
 
     // Get the logo as base64
     const menuMitraLogo = await getMenuMitraLogo();
     const logoPlaceholder = menuMitraLogo || ''; // Use empty string if logo loading fails
+
+    // Helper function to check if a number is zero - matching owner app
+    const isZero = (num) => Number(num || 0) === 0;
 
     return `
       <!DOCTYPE html>
@@ -348,11 +377,12 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
           .logo-section {
             display: flex;
             align-items: center;
+            gap: 5px;
           }
           .logo-text {
-            margin-left: 10px;
             font-size: 24px;
             font-weight: bold;
+            margin-left: 0;
           }
           .invoice-label {
             color: #dc3545;
@@ -373,9 +403,13 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
             font-size: 15px;
             line-height: 1.6;
           }
+          .bill-info strong {
+            font-weight: 700;
+          }
           .greeting {
             margin: 0;
             font-size: 15px;
+            font-weight: 600;
           }
           .items-section {
             margin: 25px 0;
@@ -385,12 +419,16 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
             grid-template-columns: 1fr 100px 120px;
             padding: 10px 4px;
             color: #444;
-            font-weight: bold;
+            font-weight: 700;
             font-size: 15px;
             border-bottom: 2px solid #dee2e6;
           }
-          .items-header span:nth-child(2) { text-align: center; }
-          .items-header span:nth-child(3) { text-align: right; }
+          .items-header span:nth-child(2) {
+            text-align: center;
+          }
+          .items-header span:nth-child(3) {
+            text-align: right;
+          }
           .menu-items {
             margin: 15px 0;
           }
@@ -401,8 +439,12 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
             color: #444;
             font-size: 14px;
           }
-          .menu-item span:nth-child(2) { text-align: center; }
-          .menu-item span:nth-child(3) { text-align: right; }
+          .menu-item span:nth-child(2) {
+            text-align: center;
+          }
+          .menu-item span:nth-child(3) {
+            text-align: right;
+          }
           .amount-details {
             width: 100%;
             margin-top: 15px;
@@ -414,19 +456,45 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
             justify-content: flex-end;
             margin: 3px 0;
             font-size: 14px;
+            align-items: center;
           }
           .amount-label {
-            margin-right: 10px;
+            margin-right: 8px;
             color: #444;
-            font-weight: 500;
+            font-weight: 700;
+            min-width: 160px;
           }
           .amount-value {
-            width: 100px;
+            width: 90px;
             text-align: right;
+            font-weight: 500;
+          }
+          .discount-value {
+            color: #dc3545 !important;
+            font-weight: 600;
+          }
+          .charges-value {
+            color: #28a745 !important;
+            font-weight: 600;
+          }
+          .subtotal {
+            margin: 8px 0;
+            padding-top: 8px;
+            border-top: 1px dashed #dee2e6;
+          }
+          .subtotal .amount-label {
+            font-weight: 700;
+          }
+          .grand-total {
+            font-size: 16px;
+          }
+          .grand-total .amount-label,
+          .grand-total .amount-value {
+            font-weight: 800;
           }
           .divider {
-            border-top: 1px solid #dee2e6;
-            margin: 8px 0;
+            border-top: 2px solid #dee2e6;
+            margin: 10px 0;
           }
           .billing-info {
             margin-top: 25px;
@@ -437,46 +505,47 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
             display: flex;
             justify-content: flex-end;
             margin: 15px 0 25px 0;
-            gap: 40px;
+            gap: 8px;
             font-size: 14px;
             border-top: none;
             padding-top: 0;
           }
           .payment-label {
-            font-weight: 500;
+            font-weight: 700;
           }
           .footer {
-            margin-top: 30px;
+            margin-top: 35px;
             text-align: center;
+            font-style: italic;
             color: #666;
-            font-size: 14px;
+            font-size: 13px;
+            line-height: 1.6;
           }
-          .menu-item-name {
-            color: #dc3545;
+          .menu-item span:first-child {
+            color: #dc3545; /* Red color for menu names */
             font-weight: 500;
           }
-          
           .logo-img {
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             object-fit: contain;
           }
-          
           .footer-logo-section {
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 10px 0;
+            gap: 5px;
+            margin-top: 15px;
           }
-          
-          .footer-logo {
-            width: 30px;
-            height: 30px;
-            margin-right: 10px;
+          .footer-logo-image {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
           }
-          
-          .bill-label {
+          .footer-logo-text {
+            font-size: 20px;
             font-weight: bold;
+            font-style: normal;
           }
         </style>
       </head>
@@ -484,7 +553,7 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
         <div class="header">
           <div class="logo-section">
             ${logoPlaceholder ? `<img src="${logoPlaceholder}" alt="MenuMitra Logo" class="logo-img"/>` : ''}
-            <div class="logo-text">MenuMitra</div>
+            <span class="logo-text">MenuMitra</span>
           </div>
           <div>
             <div class="invoice-label">INVOICE</div>
@@ -499,9 +568,8 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
             </div>
           </div>
           <div class="bill-info">
-            <span class="bill-label">Bill no:</span> ${orderDetails.order_number || ''}<br>
-            ${date}<br>
-            ${time}
+            <strong>Bill No:</strong> ${orderDetails.order_number || ''}<br>
+            <strong>Date:</strong> ${currentDateTime}
           </div>
         </div>
 
@@ -514,7 +582,7 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
           <div class="menu-items">
             ${(Array.isArray(menuItems) ? menuItems : []).map(item => `
               <div class="menu-item">
-                <span class="menu-item-name">${item.menu_name || ''}${item.half_or_full ? ` (${item.half_or_full})` : ''}</span>
+                <span>${item.menu_name || ''}${item.half_or_full ? ` (${item.half_or_full})` : ''}</span>
                 <span>${item.quantity || 0}</span>
                 <span>₹ ${Number(item.price || 0).toFixed(2)}</span>
               </div>
@@ -524,68 +592,67 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
 
         <div class="amount-details">
           <div class="amount-row">
-            <span class="amount-label" style="font-weight: 600;">Total:</span>
+            <span class="amount-label">Total:</span>
             <span class="amount-value">₹${Number(orderDetails.total_bill_amount || 0).toFixed(2)}</span>
           </div>
 
-          ${orderDetails.discount_amount > 0 ? `
+          ${!isZero(orderDetails.discount_amount) ? `
             <div class="amount-row">
-              <span class="amount-label" style="font-weight: 600;">Discount (${orderDetails.discount_percent || 0}%):</span>
-              <span class="amount-value" style="color: #dc3545">-₹${Number(orderDetails.discount_amount || 0).toFixed(2)}</span>
+              <span class="amount-label">Discount (${orderDetails.discount_percent || 0}%):</span>
+              <span class="amount-value discount-value">-₹${Number(orderDetails.discount_amount || 0).toFixed(2)}</span>
             </div>
           ` : ''}
 
-          ${orderDetails.special_discount > 0 ? `
+          ${!isZero(orderDetails.special_discount) ? `
             <div class="amount-row">
-              <span class="amount-label" style="font-weight: 600;">Special Discount:</span>
-              <span class="amount-value" style="color: #dc3545">-₹${Number(orderDetails.special_discount || 0).toFixed(2)}</span>
+              <span class="amount-label">Special Discount:</span>
+              <span class="amount-value discount-value">-₹${Number(orderDetails.special_discount || 0).toFixed(2)}</span>
             </div>
           ` : ''}
 
-          ${orderDetails.charges > 0 ? `
+          ${!isZero(orderDetails.charges) ? `
             <div class="amount-row">
-              <span class="amount-label" style="font-weight: 600;">Extra Charges:</span>
-              <span class="amount-value" style="color: #28a745">+₹${Number(orderDetails.charges || 0).toFixed(2)}</span>
+              <span class="amount-label">Extra Charges:</span>
+              <span class="amount-value charges-value">+₹${Number(orderDetails.charges || 0).toFixed(2)}</span>
             </div>
           ` : ''}
 
-          <div class="amount-row">
-            <span class="amount-label" style="font-weight: 600;">Subtotal:</span>
-            <span class="amount-value">₹${(
-              Number(orderDetails.total_bill_amount) - 
-              Number(orderDetails.discount_amount || 0) - 
-              Number(orderDetails.special_discount || 0) +
-              Number(orderDetails.charges || 0)
-            ).toFixed(2)}</span>
+          <div class="amount-row subtotal">
+            <span class="amount-label">Subtotal:</span>
+            <span class="amount-value">₹${Number(orderDetails.total_bill_with_discount || 0).toFixed(2)}</span>
           </div>
 
-          <div class="amount-row">
-            <span class="amount-label" style="font-weight: 600;">Service Charges (${orderDetails.service_charges_percent}%):</span>
-            <span class="amount-value" style="color: #28a745">+₹${Number(orderDetails.service_charges_amount).toFixed(2)}</span>
-          </div>
-
-          <div class="amount-row">
-            <span class="amount-label" style="font-weight: 600;">GST (${orderDetails.gst_percent}%):</span>
-            <span class="amount-value" style="color: #28a745">+₹${Number(orderDetails.gst_amount).toFixed(2)}</span>
-          </div>
-
-          ${orderDetails.tip > 0 ? `
+          ${!isZero(orderDetails.service_charges_percent) ? `
             <div class="amount-row">
-              <span class="amount-label" style="font-weight: 600;">Tip:</span>
-              <span class="amount-value" style="color: #28a745">+₹${Number(orderDetails.tip).toFixed(2)}</span>
+              <span class="amount-label">Service Charges (${orderDetails.service_charges_percent}%):</span>
+              <span class="amount-value charges-value">+₹${Number(orderDetails.service_charges_amount || 0).toFixed(2)}</span>
+            </div>
+          ` : ''}
+
+          ${!isZero(orderDetails.gst_percent) ? `
+            <div class="amount-row">
+              <span class="amount-label">GST (${orderDetails.gst_percent}%):</span>
+              <span class="amount-value charges-value">+₹${Number(orderDetails.gst_amount || 0).toFixed(2)}</span>
+            </div>
+          ` : ''}
+
+          ${!isZero(orderDetails.tip) ? `
+            <div class="amount-row">
+              <span class="amount-label">Tip:</span>
+              <span class="amount-value charges-value">+₹${Number(orderDetails.tip || 0).toFixed(2)}</span>
             </div>
           ` : ''}
 
           <div class="divider"></div>
           
-          <div class="amount-row" style="font-weight: bold; font-size: 16px;">
+          <div class="amount-row grand-total">
             <span class="amount-label">Grand Total:</span>
-            <span class="amount-value">₹${Number(orderDetails.grand_total).toFixed(2)}</span>
+            <span class="amount-value">₹${Number(orderDetails.final_grand_total || orderDetails.grand_total || 0).toFixed(2)}</span>
           </div>
         </div>
 
         <div class="payment-section">
-          <span class="payment-label"><strong>Payment Method:</strong></span>
+          <span class="payment-label">Payment Method:</span>
           <span>${getPaymentMethod(orderDetails)}</span>
         </div>
 
@@ -600,12 +667,13 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
           Have a nice day.<br>
           <div class="footer-logo-section">
             ${logoPlaceholder ? `
-              <img src="${logoPlaceholder}" alt="MenuMitra Logo" class="footer-logo"/>
-              <span class="logo-text">MenuMitra</span>
+              <img src="${logoPlaceholder}" alt="MenuMitra Logo" class="footer-logo-image"/>
+              <span class="footer-logo-text">MenuMitra</span>
             ` : ''}
           </div>
           info@menumitra.com<br>
-          +91 9172530151
+          +91 9172530151<br>
+          www.menumitra.com
         </div>
       </body>
       </html>
@@ -709,7 +777,7 @@ export default function OrderDetailsScreen() {
       const period = now.getHours() >= 12 ? 'PM' : 'AM';
       const currentDateTime = `${day}-${month}-${year} ${hours}:${minutes}:${seconds} ${period}`;
 
-      // Generate the invoice HTML with safe access and current time
+      // Generate the invoice HTML with all required fields to match owner app
       const invoiceHTML = await generateInvoiceHTML({
         datetime: currentDateTime, // Use current time instead of orderDetails.datetime
         order_number: orderDetails.order_number || '',
@@ -724,9 +792,18 @@ export default function OrderDetailsScreen() {
         gst_amount: orderDetails.gst_amount || 0,
         gst_percent: orderDetails.gst_percent || 0,
         grand_total: orderDetails.grand_total || 0,
+        final_grand_total: orderDetails.final_grand_total || orderDetails.grand_total || 0,
+        total_bill_with_discount: orderDetails.total_bill_with_discount || 0,
+        tip: orderDetails.tip || 0,
+        payment_method: orderDetails.payment_method || 'CASH',
         outlet_name: orderDetails.outlet_name || '',
         outlet_address: orderDetails.outlet_address || '',
-        outlet_mobile: orderDetails.outlet_mobile || ''
+        outlet_mobile: orderDetails.outlet_mobile || '',
+        section: orderDetails.section || '',
+        section_id: orderDetails.section_id || '',
+        table_number: orderDetails.table_number || [],
+        order_type: orderDetails.order_type || 'dine-in',
+        order_status: orderDetails.order_status || '',
       }, menuItems);
 
       // Generate PDF file
