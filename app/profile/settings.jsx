@@ -17,18 +17,26 @@ import {
   useToast,
   Spinner,
   Center,
+  useColorModeValue,
 } from "native-base";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColorMode } from "native-base";
 import { getBaseUrl } from "../../config/api.config";
 import { fetchWithAuth } from "../../utils/apiInterceptor";
 import { usePrinter } from "../../context/PrinterContext";
+import { RefreshControl, Animated, Platform } from "react-native";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const toast = useToast();
   const { colorMode, toggleColorMode } = useColorMode();
   const [isLoading, setIsLoading] = useState(true);
+  // Add refreshing state for pull-to-refresh
+  const [refreshing, setRefreshing] = useState(false);
+  // Add granular loading states for individual settings
+  const [loadingSettings, setLoadingSettings] = useState({});
+  // Animation for potential custom toast
+  const fadeAnim = useState(new Animated.Value(0))[0];
   
   // Replace local printer states with context values
   const { 
@@ -36,6 +44,7 @@ export default function SettingsScreen() {
     isConnected: isPrinterConnected 
   } = usePrinter();
   
+  // Use explicitly boolean values for all toggles
   const [settings, setSettings] = useState({
     theme: "system",
     style: "blue",
@@ -56,65 +65,77 @@ export default function SettingsScreen() {
     }
   });
 
+  // Get colors for style previews
+  const bgColor = useColorModeValue("white", "coolGray.800");
+  const cardBg = useColorModeValue("coolGray.50", "coolGray.700");
+  const textColor = useColorModeValue("coolGray.800", "white");
+  const mutedTextColor = useColorModeValue("coolGray.500", "coolGray.400");
+
   const fetchDefaultSettings = async (showToast = false) => {
     try {
-      setIsLoading(true);
+      if (!refreshing) {
+        setIsLoading(true);
+      }
       const outlet_id = await AsyncStorage.getItem("outlet_id");
       const storedSettings = await AsyncStorage.getItem("app_settings");
 
-      // If this is just a regular component load (not a reset), and we have stored settings
+      // If this is just a regular component load (not a reset or refresh), and we have stored settings
       // then use the stored settings and don't fetch from server
-      if (!showToast && storedSettings) {
+      if (!showToast && !refreshing && storedSettings) {
         const parsedSettings = JSON.parse(storedSettings);
+        
+        // Ensure all toggle values are explicitly boolean
         setSettings({
-          theme: parsedSettings.theme ,
-          style: parsedSettings.style ,
-          showMenuImages: parsedSettings.POS_show_menu_image,
+          theme: parsedSettings.theme,
+          style: parsedSettings.style,
+          showMenuImages: Boolean(parsedSettings.POS_show_menu_image),
           orderTypes: {
-            dine_in: parsedSettings.has_dine_in,
-            parcel: parsedSettings.has_parcel,
-            counter: parsedSettings.has_counter,
-            delivery: parsedSettings.has_delivery,
-            driveThrough: parsedSettings.has_drive_through,
+            dine_in: Boolean(parsedSettings.has_dine_in),
+            parcel: Boolean(parsedSettings.has_parcel),
+            counter: Boolean(parsedSettings.has_counter),
+            delivery: Boolean(parsedSettings.has_delivery),
+            driveThrough: Boolean(parsedSettings.has_drive_through),
           },
           orderManagement: {
-            print_and_save: parsedSettings.print_and_save,
-            KOT_and_save: parsedSettings.KOT_and_save,
-            settle: parsedSettings.settle,
-            reserve_table: parsedSettings.reserve_table,
-            cancel: parsedSettings.cancel,
+            print_and_save: Boolean(parsedSettings.print_and_save),
+            KOT_and_save: Boolean(parsedSettings.KOT_and_save),
+            settle: Boolean(parsedSettings.settle),
+            reserve_table: Boolean(parsedSettings.reserve_table),
+            cancel: Boolean(parsedSettings.cancel),
           }
         });
         setIsLoading(false);
         return;
       }
 
-      // Only fetch from server if we're resetting settings or don't have stored settings
+      // Only fetch from server if we're resetting settings, refreshing, or don't have stored settings
       const response = await fetchWithAuth(`${getBaseUrl()}/default_settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outlet_id: outlet_id  })
+        body: JSON.stringify({ outlet_id: outlet_id })
       });
 
       if (response.st === 1 && response.data) {
         const data = response.data;
+        
+        // Ensure all toggle values are explicitly boolean
         const newSettings = {
           theme: data.theme,
           style: data.style,
-          showMenuImages: data.POS_show_menu_image,
+          showMenuImages: Boolean(data.POS_show_menu_image),
           orderTypes: {
-            dine_in: data.has_dine_in,
-            parcel: data.has_parcel,
-            counter: data.has_counter,
-            delivery: data.has_delivery,
-            driveThrough: data.has_drive_through,
+            dine_in: Boolean(data.has_dine_in),
+            parcel: Boolean(data.has_parcel),
+            counter: Boolean(data.has_counter),
+            delivery: Boolean(data.has_delivery),
+            driveThrough: Boolean(data.has_drive_through),
           },
           orderManagement: {
-            print_and_save: data.print_and_save,
-            KOT_and_save: data.KOT_and_save,
-            settle: data.settle,
-            reserve_table: data.reserve_table,
-            cancel: data.cancel,
+            print_and_save: Boolean(data.print_and_save),
+            KOT_and_save: Boolean(data.KOT_and_save),
+            settle: Boolean(data.settle),
+            reserve_table: Boolean(data.reserve_table),
+            cancel: Boolean(data.cancel),
           }
         };
 
@@ -147,6 +168,7 @@ export default function SettingsScreen() {
       });
     } finally {
       setIsLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -154,16 +176,116 @@ export default function SettingsScreen() {
     fetchDefaultSettings(false);
   }, []);
 
+  // Add a specific refresh function for pull-to-refresh
+  const refreshSettings = async () => {
+    setRefreshing(true);
+    try {
+      const outlet_id = await AsyncStorage.getItem("outlet_id");
+      
+      // Use the outlet_settings_view endpoint to match owner app
+      const response = await fetchWithAuth(`${getBaseUrl()}/outlet_settings_view`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outlet_id: outlet_id })
+      });
+
+      if (response.st === 1 && response.data) {
+        const data = response.data;
+        
+        // Format the API response to match our settings structure
+        // Ensure all toggle values are explicitly boolean
+        const newSettings = {
+          theme: data.theme,
+          style: data.style,
+          showMenuImages: Boolean(data.POS_show_menu_image),
+          orderTypes: {
+            dine_in: Boolean(data.has_dine_in),
+            parcel: Boolean(data.has_parcel),
+            counter: Boolean(data.has_counter),
+            delivery: Boolean(data.has_delivery),
+            driveThrough: Boolean(data.has_drive_through),
+          },
+          orderManagement: {
+            print_and_save: Boolean(data.print_and_save),
+            KOT_and_save: Boolean(data.KOT_and_save),
+            settle: Boolean(data.settle),
+            reserve_table: Boolean(data.reserve_table),
+            cancel: Boolean(data.cancel),
+          }
+        };
+
+        setSettings(newSettings);
+        
+        // Save to AsyncStorage
+        await AsyncStorage.setItem("app_settings", JSON.stringify(data));
+        
+        toast.show({
+          description: "Settings refreshed successfully",
+          status: "success",
+          placement: "bottom",
+          duration: 2000
+        });
+      } else {
+        toast.show({
+          description: "Failed to refresh settings",
+          status: "error",
+          placement: "bottom",
+          duration: 2000
+        });
+      }
+    } catch (error) {
+      toast.show({
+        description: "Error refreshing settings",
+        status: "error", 
+        placement: "bottom",
+        duration: 2000
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const updateSetting = async (type, value) => {
+    // Set loading state for just this specific setting
+    setLoadingSettings(prev => ({ ...prev, [type]: true }));
+    
     try {
       const outlet_id = await AsyncStorage.getItem("outlet_id");
       const user_id = await AsyncStorage.getItem("captain_id");
+      
+      // First update local state for immediate UI feedback
+      const updatedSettings = { ...settings };
+      
+      // Handle nested settings - ensure all values are explicitly boolean
+      if (type === 'has_dine_in') {
+        updatedSettings.orderTypes.dine_in = Boolean(value);
+      } else if (type === 'has_parcel') {
+        updatedSettings.orderTypes.parcel = Boolean(value);
+      } else if (type === 'has_counter') {
+        updatedSettings.orderTypes.counter = Boolean(value);
+      } else if (type === 'has_delivery') {
+        updatedSettings.orderTypes.delivery = Boolean(value);
+      } else if (type === 'has_drive_through') {
+        updatedSettings.orderTypes.driveThrough = Boolean(value);
+      } else if (type === 'POS_show_menu_image') {
+        updatedSettings.showMenuImages = Boolean(value);
+      } else if (type === 'print_and_save' || type === 'KOT_and_save' || type === 'settle' || 
+                type === 'reserve_table' || type === 'cancel') {
+        updatedSettings.orderManagement[type] = Boolean(value);
+      } else if (type === 'theme') {
+        updatedSettings.theme = value;
+      } else if (type === 'style') {
+        updatedSettings.style = value;
+      }
+      
+      // Update state right away for better UX
+      setSettings(updatedSettings);
       
       const response = await fetchWithAuth(`${getBaseUrl()}/change_settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          outlet_id: outlet_id || "13",
+          outlet_id: outlet_id,
           type: type,
           value: value,
           user_id: user_id
@@ -172,27 +294,6 @@ export default function SettingsScreen() {
 
       if (response.st === 1) {
         const data = response.data;
-        // Update local state
-        setSettings({
-          theme: data.theme,
-          style: data.style,
-          showMenuImages: data.POS_show_menu_image,
-          orderTypes: {
-            dine_in: data.has_dine_in,
-            parcel: data.has_parcel,
-            counter: data.has_counter,
-            delivery: data.has_delivery,
-            driveThrough: data.has_drive_through,
-          },
-          orderManagement: {
-            print_and_save: data.print_and_save,
-            KOT_and_save: data.KOT_and_save,
-            settle: data.settle,
-            reserve_table: data.reserve_table,
-            cancel: data.cancel,
-          }
-        });
-
         // Update stored settings
         await AsyncStorage.setItem("app_settings", JSON.stringify(data));
 
@@ -203,6 +304,9 @@ export default function SettingsScreen() {
           duration: 2000
         });
       } else {
+        // Revert state change if the API call failed
+        fetchDefaultSettings(false);
+        
         toast.show({
           description: response.msg || "Failed to update setting",
           status: "error",
@@ -211,12 +315,18 @@ export default function SettingsScreen() {
         });
       }
     } catch (error) {
+      // Revert state change on error
+      fetchDefaultSettings(false);
+      
       toast.show({
         description: "Error updating setting",
         status: "error",
         placement: "bottom",
         duration: 2000
       });
+    } finally {
+      // Clear loading state for this specific setting
+      setLoadingSettings(prev => ({ ...prev, [type]: false }));
     }
   };
 
@@ -247,11 +357,24 @@ export default function SettingsScreen() {
     router.push("/profile/PrinterManagement");
   };
 
+  // Helper to get color for style options (matches owner app)
+  const getStyleColor = (style) => {
+    const colors = {
+      orange: '#FF9800',
+      blue: '#2196F3',
+      green: '#4CAF50',
+      purple: '#9C27B0',
+      red: '#F44336',
+      gold: '#FFD700',
+    };
+    return colors[style.toLowerCase()] || '#2196F3';
+  };
+
   // Settings section component with icon
   const SettingsSection = ({ title, description, icon, iconColor = "blue.400", children }) => (
-    <Box bg="white" rounded="xl" shadow={1} mx={4} mb={4} overflow="hidden">
+    <Box bg={bgColor} rounded="xl" shadow={1} mx={4} mb={4} overflow="hidden">
       <VStack>
-        <HStack space={3} p={4} alignItems="center" bg="coolGray.50">
+        <HStack space={3} p={4} alignItems="center" bg={cardBg}>
           <Box bg={iconColor} p={2} rounded="lg" opacity={0.2}>
             <Icon 
               as={MaterialIcons} 
@@ -261,9 +384,9 @@ export default function SettingsScreen() {
             />
           </Box>
           <VStack>
-            <Heading size="sm">{title}</Heading>
+            <Heading size="sm" color={textColor}>{title}</Heading>
             {description && (
-              <Text fontSize="xs" color="coolGray.500" mt={0.5}>
+              <Text fontSize="xs" color={mutedTextColor} mt={0.5}>
                 {description}
               </Text>
             )}
@@ -286,78 +409,111 @@ export default function SettingsScreen() {
     isLast = false,
     isDropdown = false,
     options = [],
-    onSelect
-  }) => (
-    <Pressable onPress={onPress}>
-      <HStack 
-        py={3.5} 
-        px={1}
-        justifyContent="space-between" 
-        alignItems="center"
-        borderBottomWidth={isLast ? 0 : 1}
-        borderBottomColor="coolGray.100"
+    onSelect,
+    type
+  }) => {
+    // Force value to be boolean for toggle switches
+    const isToggleValue = typeof value === "boolean" || value === 0 || value === 1;
+    const boolValue = isToggleValue ? Boolean(value) : false;
+    
+    return (
+      <Pressable
+        onPress={onPress}
+        android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
+        _pressed={{ bg: "coolGray.100" }}
       >
-        <HStack space={3} alignItems="center" flex={1}>
-          <Icon as={MaterialIcons} name={icon} size={5} color="coolGray.500" />
-          <Text fontSize="sm" color="coolGray.600">
-            {title}
-          </Text>
+        <HStack 
+          py={3.5} 
+          px={1}
+          justifyContent="space-between" 
+          alignItems="center"
+          borderBottomWidth={isLast ? 0 : 1}
+          borderBottomColor="coolGray.100"
+        >
+          <HStack space={3} alignItems="center" flex={1}>
+            <Icon as={MaterialIcons} name={icon} size={5} color="coolGray.500" />
+            <Text fontSize="sm" color={textColor}>
+              {title}
+            </Text>
+          </HStack>
+          <HStack space={2} alignItems="center">
+            {loadingSettings[type] ? (
+              <Spinner size="sm" color="blue.500" />
+            ) : isDropdown ? (
+              <Select
+                selectedValue={value}
+                minWidth="120"
+                accessibilityLabel={title}
+                placeholder={title}
+                onValueChange={onSelect}
+                _selectedItem={{
+                  bg: "coolGray.100",
+                  endIcon: <CheckIcon size={4} />
+                }}
+                dropdownIcon={
+                  <Icon
+                    as={MaterialIcons}
+                    name="arrow-drop-down"
+                    size="6"
+                    color="coolGray.500"
+                  />
+                }
+              >
+                {options.map((option) => (
+                  <Select.Item 
+                    key={option.value} 
+                    label={option.label} 
+                    value={option.value}
+                    leftIcon={
+                      type === "style" ? (
+                        <Box 
+                          w="3" 
+                          h="3" 
+                          mr="2" 
+                          rounded="full" 
+                          bg={getStyleColor(option.value)} 
+                        />
+                      ) : null
+                    }
+                  />
+                ))}
+              </Select>
+            ) : (
+              <>
+                {typeof value === "string" && !isDropdown && (
+                  <Text fontSize="sm" color={mutedTextColor}>
+                    {value}
+                  </Text>
+                )}
+                {isToggleValue && (
+                  <Switch
+                    size="md"
+                    isChecked={boolValue}
+                    onToggle={onPress}
+                    colorScheme="blue"
+                    _track={{
+                      bg: boolValue ? "blue.400" : "coolGray.200",
+                    }}
+                    isDisabled={loadingSettings[type]}
+                  />
+                )}
+                {showChevron && !isDropdown && (
+                  <Icon 
+                    as={MaterialIcons} 
+                    name="chevron-right" 
+                    size={6} 
+                    color="coolGray.400" 
+                  />
+                )}
+              </>
+            )}
+          </HStack>
         </HStack>
-        <HStack space={2} alignItems="center">
-          {isDropdown ? (
-            <Select
-              selectedValue={value}
-              minWidth="120"
-              accessibilityLabel={title}
-              placeholder={title}
-              onValueChange={onSelect}
-              _selectedItem={{
-                bg: "coolGray.100",
-                endIcon: <CheckIcon size={4} />
-              }}
-            >
-              {options.map((option) => (
-                <Select.Item 
-                  key={option.value} 
-                  label={option.label} 
-                  value={option.value} 
-                />
-              ))}
-            </Select>
-          ) : (
-            <>
-              {typeof value === "string" && !isDropdown && (
-                <Text fontSize="sm" color="coolGray.400">
-                  {value}
-                </Text>
-              )}
-              {typeof value === "boolean" && (
-                <Switch
-                  size="md"
-                  isChecked={value}
-                  onToggle={onPress}
-                  colorScheme="blue"
-                  _track={{
-                    bg: value ? "blue.400" : "coolGray.200",
-                  }}
-                />
-              )}
-              {showChevron && !isDropdown && (
-                <Icon 
-                  as={MaterialIcons} 
-                  name="chevron-right" 
-                  size={6} 
-                  color="coolGray.400" 
-                />
-              )}
-            </>
-          )}
-        </HStack>
-      </HStack>
-    </Pressable>
-  );
+      </Pressable>
+    );
+  };
 
-  if (isLoading) {
+  if (isLoading && !refreshing) {
     return (
       <Center flex={1} bg="coolGray.50">
         <Spinner size="lg" color="blue.500" />
@@ -373,7 +529,7 @@ export default function SettingsScreen() {
         py={3}
         justifyContent="space-between"
         alignItems="center"
-        bg="white"
+        bg={bgColor}
         shadow={1}
       >
         <IconButton
@@ -383,62 +539,68 @@ export default function SettingsScreen() {
           _pressed={{ bg: "coolGray.100" }}
           borderRadius="full"
         />
-        <Heading size="md" flex={1} textAlign="center">
+        <Heading size="md" flex={1} textAlign="center" color={textColor}>
           Settings
         </Heading>
         <Pressable 
           onPress={() => fetchDefaultSettings(true)}
-          flexDirection="row"
-          alignItems="center"
+          bg="blue.500"
           px={3}
-          py={2}
+          py={1.5}
           rounded="full"
-          _pressed={{ bg: "coolGray.100" }}
+          _pressed={{ bg: "blue.600" }}
         >
-          <Text color="blue.500" mr={1} fontWeight="medium">
-            Reset
-          </Text>
-          <Icon 
-            as={MaterialIcons} 
-            name="refresh" 
-            size={6} 
-            color="blue.500" 
-            mr={1}
-          />
+          <HStack alignItems="center" space={1}>
+            <Text color="white" fontWeight="medium" fontSize="sm">
+              Reset
+            </Text>
+            <Icon 
+              as={MaterialIcons} 
+              name="refresh" 
+              size={4} 
+              color="white"
+            />
+          </HStack>
         </Pressable>
       </HStack>
 
-      <ScrollView showsVerticalScrollIndicator={false} _contentContainerStyle={{ py: 4 }}>
-        {/* Printer Section */}
-        <Pressable onPress={handlePrinterPress}>
-          <Box bg="white" rounded="xl" shadow={1} mx={4} mb={4} overflow="hidden">
-            <HStack space={3} p={4} alignItems="center">
-              <Box position="relative">
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        _contentContainerStyle={{ py: 4 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshSettings}
+            colors={["#2196F3"]}
+            tintColor="#2196F3"
+          />
+        }
+      >
+        {/* Printer Section - Enhanced to match owner app */}
+        <Pressable 
+          onPress={handlePrinterPress}
+          android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
+          _pressed={{ opacity: 0.8 }}
+        >
+          <Box bg={bgColor} rounded="xl" shadow={1} mx={4} mb={4} overflow="hidden">
+            <HStack space={4} p={4} alignItems="center">
+              <Box 
+                p={3} 
+                bg={isPrinterConnected ? "green.100" : "coolGray.100"} 
+                rounded="full"
+              >
                 <Icon
                   as={MaterialIcons}
                   name="print"
-                  size={7}
+                  size={6}
                   color={isPrinterConnected ? "green.600" : "coolGray.500"}
                 />
-                {isPrinterConnected && (
-                  <Box
-                    position="absolute"
-                    bottom={0}
-                    right={0}
-                    w={2}
-                    h={2}
-                    bg="green.500"
-                    rounded="full"
-                    borderWidth={2}
-                    borderColor="white"
-                  />
-                )}
               </Box>
               <VStack flex={1}>
-                <Text fontSize="sm" fontWeight="medium" color="coolGray.800">
+                <Text fontSize="md" fontWeight="semibold" color={isPrinterConnected ? "green.600" : textColor}>
                   {isPrinterConnected ? "Printer Connected" : "Printer Not Connected"}
                 </Text>
-                <Text fontSize="xs" color="coolGray.500">
+                <Text fontSize="sm" color={mutedTextColor} mt={0.5}>
                   {isPrinterConnected
                     ? `Connected to: ${printerDevice?.name || "Unknown Device"}`
                     : "Tap to connect a printer"}
@@ -466,6 +628,7 @@ export default function SettingsScreen() {
             title="Theme"
             value={settings.theme}
             isDropdown={true}
+            type="theme"
             options={[
               { label: "System", value: "system" },
               { label: "Light", value: "light" },
@@ -478,13 +641,13 @@ export default function SettingsScreen() {
             title="Style"
             value={settings.style}
             isDropdown={true}
+            type="style"
             options={[
               { label: "Blue", value: "blue" },
               { label: "Green", value: "green" },
               { label: "Red", value: "red" },
               { label: "Orange", value: "orange" },
-              { label: "Gold", value: "gold" }
-
+              { label: "Purple", value: "purple" }
             ]}
             onSelect={handleStyleChange}
             isLast
@@ -499,8 +662,17 @@ export default function SettingsScreen() {
           iconColor="purple.400"
         >
           <SettingItem
+            icon="restaurant"
+            title="Dine In"
+            type="has_dine_in"
+            value={settings.orderTypes.dine_in}
+            onPress={() => handleOrderTypeToggle('dine_in')}
+            showChevron={false}
+          />
+          <SettingItem
             icon="local-shipping"
             title="Parcel"
+            type="has_parcel"
             value={settings.orderTypes.parcel}
             onPress={() => handleOrderTypeToggle('parcel')}
             showChevron={false}
@@ -508,6 +680,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="point-of-sale"
             title="Counter"
+            type="has_counter"
             value={settings.orderTypes.counter}
             onPress={() => handleOrderTypeToggle('counter')}
             showChevron={false}
@@ -515,6 +688,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="delivery-dining"
             title="Delivery"
+            type="has_delivery"
             value={settings.orderTypes.delivery}
             onPress={() => handleOrderTypeToggle('delivery')}
             showChevron={false}
@@ -522,6 +696,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="drive-eta"
             title="Drive Through"
+            type="has_drive_through"
             value={settings.orderTypes.driveThrough}
             onPress={() => handleOrderTypeToggle('driveThrough')}
             showChevron={false}
@@ -539,6 +714,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="image"
             title="Show Menu Images"
+            type="POS_show_menu_image"
             value={settings.showMenuImages}
             onPress={() => {
               const newValue = !settings.showMenuImages;
@@ -559,6 +735,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="print"
             title="Print & Save"
+            type="print_and_save"
             value={settings.orderManagement.print_and_save}
             onPress={() => handleOrderManagementToggle('print_and_save')}
             showChevron={false}
@@ -566,6 +743,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="receipt-long"
             title="KOT & Save"
+            type="KOT_and_save"
             value={settings.orderManagement.KOT_and_save}
             onPress={() => handleOrderManagementToggle('KOT_and_save')}
             showChevron={false}
@@ -573,6 +751,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="check-circle"
             title="Settle"
+            type="settle"
             value={settings.orderManagement.settle}
             onPress={() => handleOrderManagementToggle('settle')}
             showChevron={false}
@@ -580,6 +759,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="event-seat"
             title="Reserve Table"
+            type="reserve_table"
             value={settings.orderManagement.reserve_table}
             onPress={() => handleOrderManagementToggle('reserve_table')}
             showChevron={false}
@@ -587,6 +767,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="cancel"
             title="Cancel Order"
+            type="cancel"
             value={settings.orderManagement.cancel}
             onPress={() => handleOrderManagementToggle('cancel')}
             showChevron={false}
