@@ -79,12 +79,21 @@ export default function EditProfileScreen() {
   const validateForm = () => {
     const newErrors = {};
 
+    // Name is required
     if (!formData.name) {
       newErrors.name = "Name is required";
     }
 
+    // Email is optional but must be valid if provided
     if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Invalid email format";
+    }
+
+    // DOB is optional, no validation needed
+    
+    // Aadhar number is optional, but if provided should be 12 digits
+    if (formData.aadhar_number && formData.aadhar_number.length !== 12) {
+      newErrors.aadhar_number = "Aadhar number must be 12 digits";
     }
 
     setErrors(newErrors);
@@ -193,32 +202,40 @@ export default function EditProfileScreen() {
             </FormControl>
 
             <FormControl isInvalid={"email" in errors}>
-              <FormControl.Label>Email</FormControl.Label>
+              <FormControl.Label>Email (Optional)</FormControl.Label>
               <Input
                 value={formData.email}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, email: value }))}
                 placeholder="Enter your email"
                 keyboardType="email-address"
               />
+              {/* <FormControl.HelperText>
+                You can leave this field empty if you don't want to provide an email
+              </FormControl.HelperText> */}
               <FormControl.ErrorMessage>{errors.email}</FormControl.ErrorMessage>
             </FormControl>
 
-            <FormControl>
-              <FormControl.Label>Aadhar Number</FormControl.Label>
+            <FormControl isInvalid={"aadhar_number" in errors}>
+              <FormControl.Label>Aadhar Number (Optional)</FormControl.Label>
               <Input
                 value={formData.aadhar_number}
-                onChangeText={(value) => setFormData(prev => ({ ...prev, aadhar_number: value }))}
+                onChangeText={(value) => {
+                  // Only allow digits
+                  const numericValue = value.replace(/[^0-9]/g, "");
+                  setFormData(prev => ({ ...prev, aadhar_number: numericValue }))
+                }}
                 placeholder="Enter your Aadhar Number"
                 keyboardType="numeric"
                 maxLength={12}
               />
-              <FormControl.HelperText>
-                Enter your 12-digit Aadhar number
-              </FormControl.HelperText>
+              {/* <FormControl.HelperText>
+                Enter your 12-digit Aadhar number if you wish to provide it
+              </FormControl.HelperText> */}
+              <FormControl.ErrorMessage>{errors.aadhar_number}</FormControl.ErrorMessage>
             </FormControl>
 
             <FormControl isInvalid={"dob" in errors}>
-              <FormControl.Label>Date of Birth</FormControl.Label>
+              <FormControl.Label>Date of Birth (Optional)</FormControl.Label>
               <Pressable onPress={() => setShowDatePicker(true)}>
                 <Input
                   value={formData.dob}
@@ -232,6 +249,9 @@ export default function EditProfileScreen() {
                   }
                 />
               </Pressable>
+              {/* <FormControl.HelperText>
+                This field is optional and can be left empty
+              </FormControl.HelperText> */}
               <FormControl.ErrorMessage>{errors.dob}</FormControl.ErrorMessage>
             </FormControl>
 
