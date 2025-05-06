@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   FlatList,
@@ -30,10 +30,28 @@ export default function InventoryItemsScreen() {
   const [loading, setLoading] = useState(true);
   const [outletId, setOutletId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [restaurantName, setRestaurantName] = useState("");
 
   useEffect(() => {
     getStoredData();
   }, [refresh]);
+
+  // Get restaurant name from AsyncStorage
+  const getRestaurantName = useCallback(async () => {
+    try {
+      const name = await AsyncStorage.getItem("outlet_name");
+      if (name) {
+        setRestaurantName(name);
+      }
+    } catch (error) {
+      console.error("Error getting restaurant name:", error);
+    }
+  }, []);
+
+  // Call getRestaurantName when component mounts
+  useEffect(() => {
+    getRestaurantName();
+  }, [getRestaurantName]);
 
   // Add search filter effect
   useEffect(() => {
@@ -164,6 +182,24 @@ export default function InventoryItemsScreen() {
   return (
     <Box flex={1} bg="white" safeArea>
       <Header title="Inventory Items" />
+
+      {/* Restaurant Name Display */}
+      <Box bg="white" borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <Pressable>
+          <HStack 
+            alignItems="center" 
+            justifyContent="space-between" 
+            bg="white"
+            rounded="md" 
+            p={2}
+          >
+            <HStack alignItems="center" space={2}>
+              <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
+              <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
+            </HStack>
+          </HStack>
+        </Pressable>
+      </Box>
 
       {/* Add Search Bar */}
       <Box px={4} py={2}>

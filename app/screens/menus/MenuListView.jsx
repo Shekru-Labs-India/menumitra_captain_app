@@ -36,6 +36,7 @@ export default function MenuListView() {
   const [filteredMenus, setFilteredMenus] = useState([]);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [settings, setSettings] = useState({ POS_show_menu_image: true });
+  const [restaurantName, setRestaurantName] = useState("");
   
   // Add new states for category functionality
   const [categories, setCategories] = useState([]);
@@ -50,6 +51,23 @@ export default function MenuListView() {
   const router = useRouter();
   const toast = useToast();
   const params = useLocalSearchParams();
+
+  // Get restaurant name from AsyncStorage
+  const getRestaurantName = useCallback(async () => {
+    try {
+      const name = await AsyncStorage.getItem("outlet_name");
+      if (name) {
+        setRestaurantName(name);
+      }
+    } catch (error) {
+      console.error("Error getting restaurant name:", error);
+    }
+  }, []);
+
+  // Call getRestaurantName when component mounts
+  useEffect(() => {
+    getRestaurantName();
+  }, [getRestaurantName]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -502,6 +520,24 @@ export default function MenuListView() {
   return (
     <Box flex={1} bg="coolGray.100" safeArea>
       <Header title="Menu List" showBackButton />
+
+      {/* Restaurant Name Display */}
+      <Box bg="white" borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <Pressable>
+          <HStack 
+            alignItems="center" 
+            justifyContent="space-between" 
+            bg="white"
+            rounded="md" 
+            p={2}
+          >
+            <HStack alignItems="center" space={2}>
+              <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
+              <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
+            </HStack>
+          </HStack>
+        </Pressable>
+      </Box>
 
       {/* Search Bar */}
       <Box px={4} py={2} bg="white" shadow={1}>

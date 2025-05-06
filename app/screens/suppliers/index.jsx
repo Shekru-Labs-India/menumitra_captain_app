@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Heading,
@@ -15,6 +15,7 @@ import {
   useToast,
   Spinner,
   Switch,
+  Icon,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar, Linking } from "react-native";
@@ -43,6 +44,24 @@ export default function SuppliersScreen() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [outletId, setOutletId] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [restaurantName, setRestaurantName] = useState("");
+
+  // Get restaurant name from AsyncStorage
+  const getRestaurantName = useCallback(async () => {
+    try {
+      const name = await AsyncStorage.getItem("outlet_name");
+      if (name) {
+        setRestaurantName(name);
+      }
+    } catch (error) {
+      console.error("Error getting restaurant name:", error);
+    }
+  }, []);
+
+  // Call getRestaurantName when component mounts
+  useEffect(() => {
+    getRestaurantName();
+  }, [getRestaurantName]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -253,6 +272,24 @@ export default function SuppliersScreen() {
       {/* Header */}
       <Box flex={1} bg="white" safeArea>
         <Header title="Suppliers" />
+
+        {/* Restaurant Name Display */}
+        <Box bg="white" borderBottomWidth={1} borderBottomColor="coolGray.200">
+          <Pressable>
+            <HStack 
+              alignItems="center" 
+              justifyContent="space-between" 
+              bg="white"
+              rounded="md" 
+              p={2}
+            >
+              <HStack alignItems="center" space={2}>
+                <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
+                <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
+              </HStack>
+            </HStack>
+          </Pressable>
+        </Box>
 
         {/* Search and Filter Bar */}
         <Box bg="white" px={4} py={2} shadow={1}>

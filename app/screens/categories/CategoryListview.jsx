@@ -30,6 +30,7 @@ export default function CategoryListView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredCategories, setFilteredCategories] = useState([]);
   const [pendingUpdates, setPendingUpdates] = useState({});
+  const [restaurantName, setRestaurantName] = useState("");
   const router = useRouter();
   const params = useLocalSearchParams();
   const toast = useToast();
@@ -43,6 +44,23 @@ export default function CategoryListView() {
     };
     loadOutletId();
   }, []);
+
+  // Get restaurant name from AsyncStorage
+  const getRestaurantName = useCallback(async () => {
+    try {
+      const name = await AsyncStorage.getItem("outlet_name");
+      if (name) {
+        setRestaurantName(name);
+      }
+    } catch (error) {
+      console.error("Error getting restaurant name:", error);
+    }
+  }, []);
+
+  // Call getRestaurantName when component mounts
+  useEffect(() => {
+    getRestaurantName();
+  }, [getRestaurantName]);
 
   useFocusEffect(
     useCallback(() => {
@@ -324,6 +342,24 @@ export default function CategoryListView() {
   return (
     <Box flex={1} bg="coolGray.100" safeArea>
       <Header title="Categories" showBackButton />
+
+      {/* Restaurant Name Display */}
+      <Box bg="white" borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <Pressable>
+          <HStack 
+            alignItems="center" 
+            justifyContent="space-between" 
+            bg="white"
+            rounded="md" 
+            p={2}
+          >
+            <HStack alignItems="center" space={2}>
+              <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
+              <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
+            </HStack>
+          </HStack>
+        </Pressable>
+      </Box>
 
       {/* Search Bar */}
       <Box px={4} py={2} bg="white" shadow={1}>
