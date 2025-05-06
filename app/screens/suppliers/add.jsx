@@ -109,6 +109,7 @@ export default function AddSupplierScreen() {
       const data = await fetchWithAuth(`${getBaseUrl()}/supplier_status_choices`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}) // Empty body to ensure device_token is added
       });
       console.log("Status Choices:", data);
 
@@ -367,6 +368,7 @@ export default function AddSupplierScreen() {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       const storedUserId = await AsyncStorage.getItem("user_id");
+      const deviceToken = await AsyncStorage.getItem("device_token");
 
       if (!storedOutletId || !storedUserId) {
         toast.show({
@@ -390,6 +392,7 @@ export default function AddSupplierScreen() {
         mobile_number1: formData.mobileNumber1?.trim() || "",
         mobille_number2: formData.mobilleNumber2?.trim() || "", // Send empty string if no value
         address: formData.address?.trim() || "",
+        device_token: deviceToken || ""
       };
 
       console.log("Request Body:", requestBody);
