@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  StyleSheet,
-  Image,
-  TouchableOpacity,
   Platform,
   RefreshControl,
 } from "react-native";
@@ -27,7 +24,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  View,
+  Image,
   KeyboardAvoidingView,
   FlatList
 } from "native-base";
@@ -491,7 +488,7 @@ const EditRestaurantProfile = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Box flex={1} bg="coolGray.50" safeArea>
       {/* Header */}
       <HStack
         px={4}
@@ -516,7 +513,7 @@ const EditRestaurantProfile = () => {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        flex={1}
       >
         <ScrollView
           flex={1}
@@ -534,24 +531,49 @@ const EditRestaurantProfile = () => {
         >
           {/* Image Upload */}
           <Center mb={6}>
-            <TouchableOpacity
+            <Pressable
               onPress={pickImage}
-              style={styles.imageWrapper}
+              position="relative"
+              width="120px"
+              height="120px"
+              borderRadius="full"
+              overflow="hidden"
+              my={2}
             >
               {image || restaurantData?.image ? (
                 <Image
                   source={{ uri: image || restaurantData?.image }}
-                  style={styles.profileImage}
+                  alt="Restaurant Image"
+                  width="100%"
+                  height="100%"
                 />
               ) : (
-                <View style={[styles.profileImage, styles.placeholderContainer]}>
+                <Box 
+                  width="100%" 
+                  height="100%" 
+                  bg="coolGray.200" 
+                  justifyContent="center" 
+                  alignItems="center"
+                >
                   <Icon as={MaterialIcons} name="store" size={12} color="gray.400" />
-                </View>
+                </Box>
               )}
-              <View style={styles.editIconContainer}>
+              <Box
+                position="absolute"
+                right={0}
+                bottom={0}
+                bg="white"
+                borderRadius="full"
+                width="30px"
+                height="30px"
+                justifyContent="center"
+                alignItems="center"
+                borderWidth={1}
+                borderColor="coolGray.200"
+              >
                 <Icon as={MaterialIcons} name="edit" size={5} color="gray.500" />
-              </View>
-            </TouchableOpacity>
+              </Box>
+            </Pressable>
           </Center>
 
           {/* Form Fields */}
@@ -910,47 +932,8 @@ const EditRestaurantProfile = () => {
           onChange={handleClosingTimeChange}
         />
       )}
-    </SafeAreaView>
+    </Box>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  imageWrapper: {
-    position: "relative",
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    overflow: "hidden",
-    marginVertical: 10,
-  },
-  profileImage: {
-    width: "100%",
-    height: "100%",
-  },
-  placeholderContainer: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#e0e0e0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  editIconContainer: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    backgroundColor: "white",
-    borderRadius: 15,
-    width: 30,
-    height: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  }
-});
 
 export default EditRestaurantProfile;
