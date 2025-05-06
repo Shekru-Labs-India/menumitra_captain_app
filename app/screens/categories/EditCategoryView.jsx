@@ -31,6 +31,7 @@ export default function EditCategoryView() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [imageSelected, setImageSelected] = useState(false);
+  const [isImageRemoved, setIsImageRemoved] = useState(false);
 
   const [categoryDetails, setCategoryDetails] = useState({
     category_name: "",
@@ -65,6 +66,7 @@ export default function EditCategoryView() {
           existing_image: data.data.image,
           is_active: data.data.is_active === "1" || data.data.is_active === 1,
         });
+        setIsImageRemoved(false);
       } else {
         throw new Error(data.msg || "Failed to fetch category details");
       }
@@ -107,6 +109,7 @@ export default function EditCategoryView() {
           image: result.assets[0].uri,
         }));
         setImageSelected(true);
+        setIsImageRemoved(false);
         // Clear image error if exists
         setErrors((prev) => {
           const { image, ...rest } = prev;
@@ -132,6 +135,7 @@ export default function EditCategoryView() {
       existing_image: null, // Also clear existing image to indicate removal
     }));
     setImageSelected(false);
+    setIsImageRemoved(true);
     setErrors((prev) => {
       const { image, ...rest } = prev;
       return rest;
@@ -201,6 +205,7 @@ export default function EditCategoryView() {
       if (deviceToken) {
         formData.append("device_token", deviceToken);
       }
+      
       // Handle image cases
       if (categoryDetails.image) {
         // New image selected
@@ -214,21 +219,23 @@ export default function EditCategoryView() {
           name: filename,
           type,
         });
-      } else if (categoryDetails.existing_image === null) {
-        // Image was explicitly removed (existing_image is null)
-        formData.append("remove_image", "1");
       }
-      // If neither condition is met, keep existing image
 
       console.log("Form data for update:", {
         category_name: categoryDetails.category_name,
         has_new_image: !!categoryDetails.image,
         existing_image: categoryDetails.existing_image,
-        remove_image: categoryDetails.existing_image === null ? "1" : undefined,
+        is_image_removed: isImageRemoved,
         is_active: categoryDetails.is_active ? "1" : "0",
       });
 
-      const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_update`, {
+      // Construct the URL with query parameter for image removal to match owner app
+      let apiEndpoint = `${getBaseUrl()}/menu_category_update`;
+      if (isImageRemoved) {
+        apiEndpoint += "?remove_image_flag=True";
+      }
+
+      const data = await fetchWithAuth(apiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "multipart/form-data" },
         body: formData,
