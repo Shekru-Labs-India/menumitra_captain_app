@@ -49,7 +49,30 @@ const RestaurantProfile = () => {
   const [selectedQRData, setSelectedQRData] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasCounter, setHasCounter] = useState(false);
   const qrViewRef = useRef();
+
+  // Load the counter setting from AsyncStorage
+  const loadCounterSetting = async () => {
+    try {
+      const appSettingsStr = await AsyncStorage.getItem("app_settings");
+      if (appSettingsStr) {
+        const appSettings = JSON.parse(appSettingsStr);
+        
+        // Check both possible structures for the counter setting
+        if (appSettings.orderTypes && typeof appSettings.orderTypes.counter !== 'undefined') {
+          // Parsed settings object format from settings.jsx
+          setHasCounter(Boolean(appSettings.orderTypes.counter));
+        } else if (typeof appSettings.has_counter !== 'undefined') {
+          // Direct API response format
+          setHasCounter(Boolean(appSettings.has_counter));
+        }
+      }
+    } catch (error) {
+      console.error("Error loading counter setting:", error);
+    }
+  };
 
   const fetchRestaurantInfo = async () => {
     try {
@@ -60,6 +83,9 @@ const RestaurantProfile = () => {
       if (!outlet_id || !captain_id) {
         throw new Error("Required data missing");
       }
+
+      // Load counter setting from AsyncStorage
+      await loadCounterSetting();
 
       const response = await fetchWithAuth(`${getBaseUrl()}/view_outlet`, {
         method: "POST",
@@ -245,6 +271,193 @@ const RestaurantProfile = () => {
     }
   };
 
+  // Add PDF download option
+  const downloadAsPDF = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Request permissions
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'App needs permission to save files');
+        setIsLoading(false);
+        return;
+      }
+
+      // Get restaurant name for filename
+      const restaurantName = await AsyncStorage.getItem("outlet_name") || "Restaurant";
+      const cleanRestaurantName = restaurantName.replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `${cleanRestaurantName}_QR.pdf`;
+      
+      // Generate HTML content for PDF
+      const htmlContent = `
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+              body, html {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                background-color: white;
+                font-family: Arial, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+              }
+              .container {
+                width: 100%;
+                max-width: 400px;
+                padding: 20px;
+                text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+              }
+              .subtitle {
+                font-size: 16px;
+                color: #666;
+                margin-bottom: 20px;
+                width: 100%;
+                text-align: center;
+              }
+              .qr-wrapper {
+                position: relative;
+                width: 250px;
+                height: 250px;
+                padding: 15px;
+                background-color: white;
+                border-radius: 12px;
+                border: 3px solid #FF7043;
+                margin: 0 auto;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+              }
+              .qr-image {
+                width: 100%;
+                height: 100%;
+                border-radius: 8px;
+                object-fit: contain;
+              }
+              .footer {
+                margin-top: 20px;
+                font-size: 14px;
+                color: #666;
+                width: 100%;
+                text-align: center;
+              }
+              .footer p {
+                margin: 5px 0;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="subtitle">COUNTER QR Code</div>
+              
+              <div class="qr-wrapper">
+                <img class="qr-image" src="${selectedQRData.qrCodeUrl}" />
+              </div>
+              
+              <div class="footer">
+                <p>Scan this QR code with your smartphone to place your order</p>
+                <p>Powered by MenuMitra</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+      
+      // Generate PDF file
+      const { uri } = await Print.printToFileAsync({
+        html: htmlContent,
+        base64: false,
+        width: 400,
+        height: 400
+      });
+      
+      // For Android
+      if (Platform.OS === 'android') {
+        try {
+          const asset = await MediaLibrary.createAssetAsync(uri);
+          const album = await MediaLibrary.getAlbumAsync('MenuMitra');
+          
+          if (album === null) {
+            await MediaLibrary.createAlbumAsync('MenuMitra', asset, false);
+          } else {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+          }
+          
+          toast.show({
+            description: "QR Code PDF saved to your gallery in MenuMitra folder!",
+            status: "success",
+            placement: "bottom",
+            duration: 3000,
+          });
+        } catch (error) {
+          console.error('Save to gallery failed:', error);
+          // Fallback to sharing
+          await Sharing.shareAsync(uri, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Save your QR code',
+            UTI: 'com.adobe.pdf'
+          });
+        }
+      } else if (Platform.OS === 'ios') {
+        // iOS doesn't save PDFs to photo library, use sharing instead
+        await Sharing.shareAsync(uri, {
+          UTI: 'com.adobe.pdf',
+          mimeType: 'application/pdf',
+          dialogTitle: 'Save PDF',
+        });
+        toast.show({
+          description: "Please select 'Save to Files' to save your PDF",
+          status: "success",
+          placement: "bottom",
+          duration: 3000,
+        });
+      }
+      
+      setIsQRModalVisible(false);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.show({
+        description: "Could not create PDF: " + error.message,
+        status: "error",
+        placement: "bottom",
+        duration: 3000,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Download QR options function
+  const downloadQR = () => {
+    Alert.alert(
+      "Download QR Code",
+      "Choose download format",
+      [
+        {
+          text: "Download as PNG",
+          onPress: () => downloadAsPNG(),
+        },
+        {
+          text: "Download as PDF",
+          onPress: () => downloadAsPDF(),
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   // Share QR code
   const shareQR = async () => {
     try {
@@ -418,17 +631,17 @@ const RestaurantProfile = () => {
                 </Text>
                 
                 <HStack space={3} mt={4}>
-                  {/* Download Button */}
+                  {/* Download Button with options */}
                   <Pressable
                     style={[
                       styles.qrButton,
                       styles.downloadButton,
-                      (isDownloading || isSharing) && styles.disabledButton,
+                      (isDownloading || isSharing || isLoading) && styles.disabledButton,
                     ]}
-                    onPress={downloadAsPNG}
-                    disabled={isDownloading || isSharing}
+                    onPress={downloadQR}
+                    disabled={isDownloading || isSharing || isLoading}
                   >
-                    {isDownloading ? (
+                    {isDownloading || isLoading ? (
                       <Spinner size="sm" color="white" />
                     ) : (
                       <HStack space={2} alignItems="center">
@@ -443,10 +656,10 @@ const RestaurantProfile = () => {
                     style={[
                       styles.qrButton,
                       styles.shareButton,
-                      (isDownloading || isSharing) && styles.disabledButton,
+                      (isDownloading || isSharing || isLoading) && styles.disabledButton,
                     ]}
                     onPress={shareQR}
-                    disabled={isDownloading || isSharing}
+                    disabled={isDownloading || isSharing || isLoading}
                   >
                     {isSharing ? (
                       <Spinner size="sm" color="white" />
@@ -471,6 +684,10 @@ const RestaurantProfile = () => {
   useFocusEffect(
     useCallback(() => {
       fetchRestaurantInfo();
+      
+      // Add a separate effect to refresh the counter setting 
+      // whenever the screen comes into focus
+      loadCounterSetting();
     }, [])
   );
 
@@ -766,20 +983,25 @@ const RestaurantProfile = () => {
       <TouchableOpacity
         style={[
           styles.editFAB,
-          { bottom: 90 } // Always position FAB higher to accommodate QR button
+          hasCounter ? { bottom: 90 } : { bottom: 20 }
         ]}
         onPress={() => router.push('/profile/edit-restaurant-profile')}
       >
         <MaterialIcons name="edit" size={24} color="#fff" />
       </TouchableOpacity>
 
-      {/* Floating QR Button - always visible */}
-      <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={fetchRestaurantQRCode}
-      >
-        <MaterialIcons name="qr-code" size={24} color="#fff" />
-      </TouchableOpacity>
+      {/* Counter QR Button FAB - conditional based on settings */}
+      {hasCounter && (
+        <TouchableOpacity
+          style={styles.floatingButton}
+          onPress={fetchRestaurantQRCode}
+        >
+          <HStack space={1} alignItems="center">
+            <MaterialIcons name="qr-code" size={24} color="#fff" />
+            <Text style={styles.fabButtonText}>Counter QR</Text>
+          </HStack>
+        </TouchableOpacity>
+      )}
 
       {/* QR Code Modal */}
       <QRCodeModal />
@@ -892,18 +1114,24 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 20,
     bottom: 20,
-    width: 56,
+    minWidth: 120,
     height: 56,
     borderRadius: 28,
     backgroundColor: "#0dcaf0",
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 16,
     elevation: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     zIndex: 10,
+  },
+  fabButtonText: {
+    color: "#fff",
+    fontWeight: "500",
+    fontSize: 14,
   },
   qrImage: {
     width: "100%",
