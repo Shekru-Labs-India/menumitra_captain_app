@@ -28,7 +28,7 @@ export default function CategoryListView() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredCategories, setFilteredCategories] = useState([]);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [updatingCategories, setUpdatingCategories] = useState({});
   const router = useRouter();
   const params = useLocalSearchParams();
   const toast = useToast();
@@ -103,7 +103,11 @@ export default function CategoryListView() {
 
   const handleToggleStatus = async (categoryId, currentStatus) => {
     try {
-      setUpdatingStatus(true);
+      setUpdatingCategories(prev => ({
+        ...prev,
+        [categoryId]: true
+      }));
+      
       const outletId = await AsyncStorage.getItem("outlet_id");
 
       const response = await fetchWithAuth(`${getBaseUrl()}/update_active_status`, {
@@ -118,7 +122,6 @@ export default function CategoryListView() {
       });
 
       if (response.st === 1) {
-        // Update the local state
         setCategories(prevCategories => 
           prevCategories.map(category => 
             category.menu_cat_id === categoryId 
@@ -141,7 +144,10 @@ export default function CategoryListView() {
         status: "error",
       });
     } finally {
-      setUpdatingStatus(false);
+      setUpdatingCategories(prev => ({
+        ...prev,
+        [categoryId]: false
+      }));
     }
   };
 
@@ -221,7 +227,7 @@ export default function CategoryListView() {
               handleToggleStatus(item.menu_cat_id, item.is_active);
             }}
             isChecked={item.is_active}
-            isDisabled={updatingStatus}
+            isDisabled={!!updatingCategories[item.menu_cat_id]}
             colorScheme="primary"
             _light={{
               onTrackColor: "primary.500",
