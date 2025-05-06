@@ -680,7 +680,7 @@ export default function OrderDetailsScreen() {
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
 
   // Update the handleDownloadInvoice function with better error handling
   const handleDownloadInvoice = async () => {
@@ -2544,6 +2544,8 @@ export default function OrderDetailsScreen() {
               leftIcon={<Icon as={MaterialIcons} name="check" size="sm" color="gray.700" />}
               _pressed={{ bg: "gray.300" }}
               borderRadius="md"
+              isDisabled={!selectedPaymentMethod}
+              opacity={selectedPaymentMethod ? 1 : 0.6}
             >
               Settle Order
             </Button>
