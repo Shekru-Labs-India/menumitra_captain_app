@@ -2238,26 +2238,21 @@ export default function TableSectionsScreen() {
   }, [isQRModalOpen]);
 
   // Update the getRestaurantName function to use AsyncStorage
-  const getRestaurantName = async () => {
+  const getRestaurantName = useCallback(async () => {
     try {
-      const outletName = await AsyncStorage.getItem("outlet_name");
-      if (outletName) {
-        setRestaurantName(outletName);
+      const name = await AsyncStorage.getItem("outlet_name");
+      if (name) {
+        setRestaurantName(name);
       }
     } catch (error) {
-      console.error("Error getting outlet name:", error);
-      toast.show({
-        description: "Failed to get outlet name",
-        status: "error",
-        duration: 3000
-      });
+      console.error("Error getting restaurant name:", error);
     }
-  };
+  }, []);
 
   // Call getRestaurantName when component mounts
   useEffect(() => {
     getRestaurantName();
-  }, []);
+  }, [getRestaurantName]);
 
   useEffect(() => {
     const startBlinking = () => {
@@ -2782,6 +2777,24 @@ export default function TableSectionsScreen() {
               size="sm"
             />
           </HStack>
+
+          {/* Add Restaurant Name Box */}
+          <Box>
+            <Pressable>
+              <HStack 
+                alignItems="center" 
+                justifyContent="space-between" 
+                bg="white"
+                rounded="md" 
+                p={2}
+              >
+                <HStack alignItems="center" space={2}>
+                  <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
+                  <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
+                </HStack>
+              </HStack>
+            </Pressable>
+          </Box>
 
           {/* Search and Filters */}
           <Box px={4} py={2} bg="white">
