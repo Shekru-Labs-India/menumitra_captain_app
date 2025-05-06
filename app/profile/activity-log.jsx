@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -14,25 +14,40 @@ import {
   Badge,
   Spinner,
   Center,
+  Pressable,
+  useToast,
 } from "native-base";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getBaseUrl } from "../../config/api.config";
 import { fetchWithAuth } from "../../utils/apiInterceptor";
+import { RefreshControl } from "react-native";
 
 export default function ActivityLogScreen() {
   
   const router = useRouter();
+  const toast = useToast();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   
+  // Add pagination state to match owner app
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalRecords: 0,
+    recordsPerPage: 25,
+  });
+  
   useEffect(() => {
-    fetchActivityLogs();
+    fetchActivityLogs(1);
   }, []);
   
-  const fetchActivityLogs = async () => {
+  const fetchActivityLogs = async (page = 1) => {
     try {
-      setLoading(true);
+      if (page === 1) {
+        setLoading(true);
+      }
       setError(null);
       
       const userId = await AsyncStorage.getItem("user_id");
@@ -41,13 +56,15 @@ export default function ActivityLogScreen() {
         throw new Error("User ID not found");
       }
       
-      console.log("Fetching activity logs for user:", userId);
+      console.log("Fetching activity logs for user:", userId, "page:", page);
       
       const data = await fetchWithAuth(`${getBaseUrl()}/activity_log`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userId,
+          page: page,
+          records_per_page: 25
         }),
       });
       
@@ -56,40 +73,83 @@ export default function ActivityLogScreen() {
       if (data && data.st === 1 && data.activity_logs) {
         // Transform API data to match the UI expected format
         const formattedLogs = data.activity_logs.map((log, index) => {
-          console.log(`Processing log: ${JSON.stringify(log)}`);
-          
-          // Determine category and icon based on module
+          // Determine category and icon based on module - match the owner app's classification
           let category = log.module || "Activity";
           let icon = "history";
           let iconBg = "lightBlue.100";
           let iconColor = "lightBlue.500";
           
-          if (category.toLowerCase().includes("otp") || 
-              category.toLowerCase().includes("login") ||
-              category.toLowerCase().includes("verification")) {
-            icon = "person";
-            iconBg = "lightBlue.100";
-            iconColor = "lightBlue.500";
-          } else if (category.toLowerCase().includes("order")) {
-            icon = "receipt";
-            iconBg = "amber.100";
-            iconColor = "amber.500";
-          } else if (category.toLowerCase().includes("profile")) {
-            icon = "person";
-            iconBg = "lightBlue.100";
-            iconColor = "lightBlue.500";
-          } else if (category.toLowerCase().includes("menu")) {
-            icon = "restaurant";
-            iconBg = "orange.100";
-            iconColor = "orange.500";
-          } else if (category.toLowerCase().includes("setting")) {
-            icon = "settings";
-            iconBg = "coolGray.100";
-            iconColor = "coolGray.500";
-          } else if (category.toLowerCase().includes("inventory")) {
-            icon = "inventory";
-            iconBg = "green.100";
-            iconColor = "green.500";
+          // Match owner app's module classification
+          switch (category) {
+            case "Update Profile":
+              icon = "person";
+              iconBg = "green.100";
+              iconColor = "green.500";
+              break;
+            case "Table Management":
+              icon = "table-bar";
+              iconBg = "blue.100";
+              iconColor = "blue.500";
+              break;
+            case "Section Management":
+              icon = "dashboard";
+              iconBg = "purple.100";
+              iconColor = "purple.500";
+              break;
+            case "Order Management":
+              icon = "receipt";
+              iconBg = "amber.100";
+              iconColor = "amber.500";
+              break;
+            case "Captain Management":
+              icon = "person-pin";
+              iconBg = "pink.100";
+              iconColor = "pink.500";
+              break;
+            case "Menu Management":
+              icon = "restaurant";
+              iconBg = "indigo.100";
+              iconColor = "indigo.500";
+              break;
+            case "Outlet Management":
+              icon = "store";
+              iconBg = "teal.100";
+              iconColor = "teal.500";
+              break;
+            case "Staff Management":
+              icon = "groups";
+              iconBg = "brown.100";
+              iconColor = "brown.500";
+              break;
+            case "User Management":
+              icon = "manage-accounts";
+              iconBg = "cyan.100";
+              iconColor = "cyan.500";
+              break;
+            case "Login":
+              icon = "login";
+              iconBg = "cyan.100";
+              iconColor = "cyan.500";
+              break;
+            case "Settings Management":
+              icon = "settings";
+              iconBg = "blueGray.100";
+              iconColor = "blueGray.500";
+              break;
+            case "Inventory Management":
+              icon = "inventory";
+              iconBg = "yellow.100";
+              iconColor = "yellow.500";
+              break;
+            case "Ticket Management":
+              icon = "support-agent";
+              iconBg = "red.100";
+              iconColor = "red.500";
+              break;
+            default:
+              icon = "info";
+              iconBg = "blueGray.100";
+              iconColor = "blueGray.500";
           }
           
           return {
@@ -105,6 +165,16 @@ export default function ActivityLogScreen() {
         });
         
         setActivities(formattedLogs);
+        
+        // Set pagination data to match owner app
+        if (data.pagination) {
+          setPagination({
+            currentPage: data.pagination.current_page,
+            totalPages: data.pagination.total_pages,
+            totalRecords: data.pagination.total_records,
+            recordsPerPage: data.pagination.records_per_page,
+          });
+        }
       } else {
         throw new Error(data?.msg || "Failed to fetch activity logs");
       }
@@ -113,8 +183,77 @@ export default function ActivityLogScreen() {
       setError(error.message || "Failed to load activity logs");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      fetchActivityLogs(newPage);
+    }
+  };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchActivityLogs(1);
+  }, []);
+
+  // Pagination controls component (matching owner app)
+  const PaginationControls = () => (
+    <HStack space={2} alignItems="center" justifyContent="center">
+      <Pressable 
+        p={2}
+        bg="coolGray.100"
+        rounded="full"
+        opacity={pagination.currentPage === 1 ? 0.5 : 1}
+        onPress={() => handlePageChange(1)}
+        disabled={pagination.currentPage === 1}
+      >
+        <Icon 
+          as={MaterialIcons} 
+          name="first-page" 
+          size={5} 
+          color={pagination.currentPage === 1 ? "coolGray.400" : "blue.500"} 
+        />
+      </Pressable>
+
+      <Pressable 
+        p={2}
+        bg="coolGray.100"
+        rounded="full"
+        opacity={pagination.currentPage === 1 ? 0.5 : 1}
+        onPress={() => handlePageChange(pagination.currentPage - 1)}
+        disabled={pagination.currentPage === 1}
+      >
+        <Icon 
+          as={MaterialIcons} 
+          name="chevron-left" 
+          size={5} 
+          color={pagination.currentPage === 1 ? "coolGray.400" : "blue.500"} 
+        />
+      </Pressable>
+
+      <Text color="coolGray.600" fontWeight="medium">
+        {pagination.currentPage}/{pagination.totalPages}
+      </Text>
+
+      <Pressable 
+        p={2}
+        bg="coolGray.100"
+        rounded="full"
+        opacity={pagination.currentPage === pagination.totalPages ? 0.5 : 1}
+        onPress={() => handlePageChange(pagination.currentPage + 1)}
+        disabled={pagination.currentPage === pagination.totalPages}
+      >
+        <Icon 
+          as={MaterialIcons} 
+          name="chevron-right" 
+          size={5} 
+          color={pagination.currentPage === pagination.totalPages ? "coolGray.400" : "blue.500"} 
+        />
+      </Pressable>
+    </HStack>
+  );
 
   const renderActivityItem = ({ item }) => (
     <Box my={2} mx={4} bg="white" rounded="lg" shadow={1} overflow="hidden">
@@ -140,7 +279,7 @@ export default function ActivityLogScreen() {
   );
 
   // Loading state
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <Box flex={1} bg="white" safeArea>
         <HStack
@@ -196,7 +335,7 @@ export default function ActivityLogScreen() {
           </Heading>
           <IconButton
             icon={<MaterialIcons name="refresh" size={24} color="gray" />}
-            onPress={fetchActivityLogs}
+            onPress={() => fetchActivityLogs(1)}
             variant="ghost"
             _pressed={{ bg: "coolGray.100" }}
             borderRadius="full"
@@ -217,7 +356,7 @@ export default function ActivityLogScreen() {
           <IconButton
             mt={4}
             icon={<Icon as={MaterialIcons} name="refresh" size={5} color="white" />}
-            onPress={fetchActivityLogs}
+            onPress={() => fetchActivityLogs(1)}
             bg="blue.500"
             _pressed={{ bg: "blue.600" }}
             rounded="full"
@@ -250,20 +389,35 @@ export default function ActivityLogScreen() {
         </Heading>
         <IconButton
           icon={<MaterialIcons name="refresh" size={24} color="gray" />}
-          onPress={fetchActivityLogs}
+          onPress={() => fetchActivityLogs(1)}
           variant="ghost"
           _pressed={{ bg: "coolGray.100" }}
           borderRadius="full"
         />
       </HStack>
 
+      {/* Pagination info - to match owner app */}
+      <Box bg="white" px={4} py={2} borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <HStack justifyContent="space-between" alignItems="center">
+          <Text fontSize="sm" color="coolGray.600">
+            {((pagination.currentPage - 1) * pagination.recordsPerPage) + 1}-
+            {Math.min(pagination.currentPage * pagination.recordsPerPage, pagination.totalRecords)}{' '}
+            of {pagination.totalRecords} records
+          </Text>
+          <PaginationControls />
+        </HStack>
+      </Box>
+
       {/* Activity List */}
       <FlatList
         data={activities}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderActivityItem}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#0066FF"]} />
+        }
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: 12 }}
+        contentContainerStyle={{ paddingVertical: 12, paddingBottom: 80 }} // Add padding for floating controls
         ItemSeparatorComponent={() => <Box h={0} />}
         ListHeaderComponent={null}
         ListEmptyComponent={
@@ -281,6 +435,21 @@ export default function ActivityLogScreen() {
           </Box>
         }
       />
+
+      {/* Floating pagination controls - to match owner app */}
+      <Box 
+        position="absolute" 
+        bottom={0} 
+        left={0} 
+        right={0} 
+        bg="white" 
+        py={2} 
+        shadow={6}
+        borderTopWidth={1} 
+        borderTopColor="coolGray.200"
+      >
+        <PaginationControls />
+      </Box>
     </Box>
   );
 } 
