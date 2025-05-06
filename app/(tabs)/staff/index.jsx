@@ -21,6 +21,7 @@ import {
   Spinner,
   SimpleGrid,
   ScrollView,
+  Icon,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Platform, StatusBar, Linking } from "react-native";
@@ -128,6 +129,7 @@ export default function StaffScreen() {
   const [outletId, setOutletId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [roleFilter, setRoleFilter] = useState("all");
+  const [restaurantName, setRestaurantName] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -140,6 +142,23 @@ export default function StaffScreen() {
     address: "",
     notes: "",
   });
+
+  // Get restaurant name from AsyncStorage
+  const getRestaurantName = useCallback(async () => {
+    try {
+      const name = await AsyncStorage.getItem("outlet_name");
+      if (name) {
+        setRestaurantName(name);
+      }
+    } catch (error) {
+      console.error("Error getting restaurant name:", error);
+    }
+  }, []);
+
+  // Call getRestaurantName when component mounts
+  useEffect(() => {
+    getRestaurantName();
+  }, [getRestaurantName]);
 
   // Memoized handlers
   const handlePhonePress = useCallback((phoneNumber) => {
@@ -286,6 +305,24 @@ export default function StaffScreen() {
   return (
     <Box flex={1} bg="white" safeArea>
       <MemoizedHeader title="Staff" />
+
+      {/* Restaurant Name Display */}
+      <Box bg="white" borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <Pressable>
+          <HStack 
+            alignItems="center" 
+            justifyContent="space-between" 
+            bg="white"
+            rounded="md" 
+            p={2}
+          >
+            <HStack alignItems="center" space={2}>
+              <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
+              <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
+            </HStack>
+          </HStack>
+        </Pressable>
+      </Box>
 
       <VStack flex={1}>
         <HStack
