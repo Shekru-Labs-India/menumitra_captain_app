@@ -372,7 +372,7 @@ export default function HomeScreen() {
       }
 
       const { sound: newSound } = await Audio.Sound.createAsync(
-        require("../../assets/sounds/simple-notification.mp3"),
+        require("../../assets/sounds/notification.mp3"),
         { shouldPlay: true }
       );
 
