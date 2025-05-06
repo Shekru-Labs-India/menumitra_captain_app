@@ -21,6 +21,8 @@ import {
   Button,
   Modal,
   Center,
+  Heading,
+  IconButton,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -121,11 +123,24 @@ export default function HomeScreen() {
     liveSales: 0,
     todayTotalSales: 0,
   });
+  const [restaurantName, setRestaurantName] = useState("");
   const router = useRouter();
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const isExpoGo = Constants.executionEnvironment === "storeClient";
+
+  // Get restaurant name from AsyncStorage
+  const getRestaurantName = useCallback(async () => {
+    try {
+      const name = await AsyncStorage.getItem("outlet_name");
+      if (name) {
+        setRestaurantName(name);
+      }
+    } catch (error) {
+      console.error("Error getting restaurant name:", error);
+    }
+  }, []);
 
   // Update the management cards array to match the reference
   const managementCards = [
@@ -218,6 +233,8 @@ export default function HomeScreen() {
 
       }
 
+      await getRestaurantName();
+
       const [staffData, tableData] = await Promise.all([
         fetchWithAuth(`${getBaseUrl()}/get_staff_list_with_role`, {
           method: "POST",
@@ -252,7 +269,7 @@ export default function HomeScreen() {
         duration: 3000,
       });
     }
-  }, [toast, fetchLatestSales]);
+  }, [toast, fetchLatestSales, getRestaurantName]);
 
   // Optimize refresh control
   const onRefresh = useCallback(async () => {
@@ -682,36 +699,46 @@ export default function HomeScreen() {
       <MemoizedStatusBar />
       <HStack
         px={4}
-        py={2}
-        alignItems="center"
+        py={3}
         justifyContent="space-between"
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
+        alignItems="center"
+        bg="white"
       >
-        <HStack alignItems="center" space={2}>
-          <Text fontSize="xl" fontWeight="bold">
-            Home
-          </Text>
-          {/* <VStack>
-            <Text fontSize="sm" color="coolGray.500">
-              v{appVersion}
-            </Text>
-            {needsUpdate && (
-              <Text fontSize="xs" color="orange.500" fontWeight="medium">
-                Update Available
-              </Text>
-            )}
-          </VStack> */}
-        </HStack>
-        <Pressable
-          onPress={() => setIsSidebarOpen(true)}
-          p={2}
-          rounded="full"
+        <IconButton
+          icon={<Icon as={MaterialIcons} name="arrow-back" size={6} color="gray.500" />}
+          onPress={() => router.back()}
+          variant="ghost"
           _pressed={{ bg: "coolGray.100" }}
-        >
-          <Icon as={MaterialIcons} name="menu" size={6} color="gray.600" />
-        </Pressable>
+          borderRadius="full"
+        />
+        <Heading size="md" flex={1} textAlign="center">
+          Home
+        </Heading>
+        <Box width={10} />
       </HStack>
+
+      <Box px={4} pb={3}>
+        <Pressable>
+          <HStack 
+            alignItems="center" 
+            justifyContent="space-between" 
+            bg="white" 
+            borderWidth={1} 
+            borderColor="red.500" 
+            rounded="md" 
+            p={2}
+          >
+            <HStack alignItems="center" space={2}>
+              <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
+              <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
+              <Icon as={MaterialIcons} name="keyboard-arrow-down" size={5} color="gray.600" />
+            </HStack>
+            <Box bg="orange.400" px={2} py={0.5} rounded="md">
+              <Text color="white" fontSize="xs" fontWeight="bold">TESTING</Text>
+            </Box>
+          </HStack>
+        </Pressable>
+      </Box>
 
       <NativeBaseScrollView
         flex={1}
