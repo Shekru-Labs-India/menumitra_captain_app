@@ -18,7 +18,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { RemixIcon } from "react-native-remix-icon";
 import {
   Box,
   HStack,
@@ -68,7 +67,7 @@ const RestaurantProfile = () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>COUNTER QR Code</Text>
               <TouchableOpacity onPress={() => setIsQRModalVisible(false)}>
-                <RemixIcon name="close-line" size={24} color="#333" />
+                <MaterialIcons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
             
