@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   Box,
@@ -15,6 +15,7 @@ import {
   IconButton,
   Fab,
   Switch,
+  Flex,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -28,19 +29,31 @@ export default function CategoryListView() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredCategories, setFilteredCategories] = useState([]);
-  const [updatingCategories, setUpdatingCategories] = useState({});
+  const [pendingUpdates, setPendingUpdates] = useState({});
   const router = useRouter();
   const params = useLocalSearchParams();
   const toast = useToast();
+  const outletIdRef = useRef(null);
+  
+  // Load outlet ID once when component mounts
+  useEffect(() => {
+    const loadOutletId = async () => {
+      const id = await AsyncStorage.getItem("outlet_id");
+      outletIdRef.current = id;
+    };
+    loadOutletId();
+  }, []);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       fetchCategories();
     }, [])
   );
 
   useEffect(() => {
-    fetchCategories();
+    if (params.refresh) {
+      fetchCategories();
+    }
   }, [params.refresh]);
 
   useEffect(() => {
@@ -50,13 +63,17 @@ export default function CategoryListView() {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const outletId = await AsyncStorage.getItem("outlet_id");
+      
+      // Use stored outletId if available
+      if (!outletIdRef.current) {
+        outletIdRef.current = await AsyncStorage.getItem("outlet_id");
+      }
 
       const data = await fetchWithAuth(`${getBaseUrl()}/menu_category_listview`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          outlet_id: outletId,
+          outlet_id: outletIdRef.current,
         }),
       });
 
@@ -66,7 +83,6 @@ export default function CategoryListView() {
             cat && cat.menu_cat_id !== null && cat.category_name !== "all"
         );
         setCategories(validCategories);
-        setFilteredCategories(validCategories);
       } else {
         throw new Error(data.msg || "Failed to fetch categories");
       }
@@ -75,171 +91,235 @@ export default function CategoryListView() {
       toast.show({
         description: "Failed to load categories",
         status: "error",
+        duration: 3000,
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const filterCategories = () => {
+  const filterCategories = useCallback(() => {
+    if (!categories || categories.length === 0) {
+      setFilteredCategories([]);
+      return;
+    }
+    
     const filtered = categories.filter((category) =>
       category.category_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredCategories(filtered);
-  };
+  }, [categories, searchQuery]);
 
-  const handleCategoryPress = (categoryId) => {
+  const handleCategoryPress = useCallback((categoryId) => {
     router.push({
       pathname: "/screens/categories/CategoryDetailsView",
-      params: { categoryId: categoryId },
+      params: { categoryId },
     });
-  };
+  }, [router]);
 
-  const handleAddCategory = () => {
+  const handleAddCategory = useCallback(() => {
     router.push({
       pathname: "/screens/categories/CreateCategoryView",
     });
-  };
+  }, [router]);
 
-  const handleToggleStatus = async (categoryId, currentStatus) => {
+  // Update the server with the status change
+  const updateCategoryStatus = useCallback(async (categoryId, newStatus) => {
     try {
-      setUpdatingCategories(prev => ({
-        ...prev,
-        [categoryId]: true
-      }));
-      
-      const outletId = await AsyncStorage.getItem("outlet_id");
+      // Use stored outletId if available
+      if (!outletIdRef.current) {
+        outletIdRef.current = await AsyncStorage.getItem("outlet_id");
+      }
 
       const response = await fetchWithAuth(`${getBaseUrl()}/update_active_status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          outlet_id: outletId,
+          outlet_id: outletIdRef.current,
           type: "menu_category",
           id: categoryId.toString(),
-          is_active: !currentStatus
+          is_active: newStatus
         }),
       });
 
+      return response;
+    } catch (error) {
+      console.error("API Error:", error);
+      throw error;
+    }
+  }, []);
+
+  const handleToggleStatus = useCallback(async (categoryId, currentStatus) => {
+    // Don't allow toggle if an update is already pending for this category
+    if (pendingUpdates[categoryId]) return;
+    
+    // Calculate the target status (opposite of current status)
+    const targetStatus = !currentStatus;
+    
+    // Mark this category as having a pending update
+    setPendingUpdates(prev => ({
+      ...prev,
+      [categoryId]: true
+    }));
+    
+    // Optimistically update the UI
+    setCategories(prev => 
+      prev.map(category => 
+        category.menu_cat_id === categoryId 
+          ? { ...category, is_active: targetStatus }
+          : category
+      )
+    );
+    
+    try {
+      // Make the API call
+      const response = await updateCategoryStatus(categoryId, targetStatus);
+      
       if (response.st === 1) {
-        setCategories(prevCategories => 
-          prevCategories.map(category => 
+        // On success, just show a toast
+        toast.show({
+          description: `Category ${targetStatus ? 'activated' : 'deactivated'}`,
+          status: "success",
+          duration: 2000,
+        });
+      } else {
+        // On API error, revert the UI change
+        setCategories(prev => 
+          prev.map(category => 
             category.menu_cat_id === categoryId 
-              ? { ...category, is_active: !currentStatus }
+              ? { ...category, is_active: currentStatus }
               : category
           )
         );
-        
-        toast.show({
-          description: `Category ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
-          status: "success",
-        });
-      } else {
-        throw new Error(response.msg || "Failed to update status");
+        throw new Error(response.msg || "Server error");
       }
     } catch (error) {
-      console.error("Update Status Error:", error);
+      // On exception, revert the UI change and show an error
+      setCategories(prev => 
+        prev.map(category => 
+          category.menu_cat_id === categoryId 
+            ? { ...category, is_active: currentStatus }
+            : category
+        )
+      );
+      
       toast.show({
-        description: "Failed to update category status",
+        description: "Failed to update status",
         status: "error",
+        duration: 3000,
       });
     } finally {
-      setUpdatingCategories(prev => ({
-        ...prev,
-        [categoryId]: false
-      }));
+      // Clear the pending status with a small delay
+      setTimeout(() => {
+        setPendingUpdates(prev => ({
+          ...prev,
+          [categoryId]: false
+        }));
+      }, 300);
     }
-  };
+  }, [pendingUpdates, toast, updateCategoryStatus]);
 
-  const renderCategoryItem = ({ item }) => (
-    <Pressable onPress={() => handleCategoryPress(item.menu_cat_id)} mb={3}>
-      <Box bg="white" rounded="lg" shadow={1} overflow="hidden">
-        <HStack space={3} p={3} alignItems="center">
-          <Box>
-            {item.image ? (
-              <Image
-                source={{
-                  uri: item.image,
-                }}
-                alt={item.category_name}
-                size="sm"
-                w="70px"
-                h="70px"
-                rounded="md"
-                resizeMode="cover"
-                fallbackElement={
-                  <Box
-                    w="70px"
-                    h="70px"
-                    bg="gray.200"
-                    rounded="md"
-                    justifyContent="center"
-                    alignItems="center"
-                  >
-                    <Icon
-                      as={MaterialIcons}
-                      name="category"
-                      size={6}
-                      color="gray.400"
-                    />
-                  </Box>
-                }
-              />
-            ) : (
-              <Box
-                w="70px"
-                h="70px"
-                rounded="md"
-                bg="gray.200"
-                justifyContent="center"
-                alignItems="center"
-              >
+  const renderCategoryItem = useCallback(({ item }) => {
+    const isUpdating = !!pendingUpdates[item.menu_cat_id];
+    
+    return (
+      <Pressable 
+        onPress={() => handleCategoryPress(item.menu_cat_id)} 
+        mb={3}
+        disabled={isUpdating}
+      >
+        <Box bg="white" rounded="lg" shadow={1} overflow="hidden">
+          <HStack space={3} p={3} alignItems="center">
+            <Box>
+              {item.image ? (
+                <Image
+                  source={{
+                    uri: item.image,
+                  }}
+                  alt={item.category_name}
+                  size="sm"
+                  w="70px"
+                  h="70px"
+                  rounded="md"
+                  resizeMode="cover"
+                  fallbackElement={
+                    <Box
+                      w="70px"
+                      h="70px"
+                      bg="gray.200"
+                      rounded="md"
+                      justifyContent="center"
+                      alignItems="center"
+                    >
+                      <Icon
+                        as={MaterialIcons}
+                        name="category"
+                        size={6}
+                        color="gray.400"
+                      />
+                    </Box>
+                  }
+                />
+              ) : (
+                <Box
+                  w="70px"
+                  h="70px"
+                  rounded="md"
+                  bg="gray.200"
+                  justifyContent="center"
+                  alignItems="center"
+                >
+                  <Icon
+                    as={MaterialIcons}
+                    name="category"
+                    size={6}
+                    color="gray.400"
+                  />
+                </Box>
+              )}
+            </Box>
+
+            <VStack flex={1} space={1}>
+              <Text fontSize="md" fontWeight="bold">
+                {item.category_name}
+              </Text>
+              <HStack space={2} alignItems="center">
                 <Icon
                   as={MaterialIcons}
-                  name="category"
-                  size={6}
-                  color="gray.400"
+                  name="restaurant-menu"
+                  size={4}
+                  color="gray.500"
                 />
-              </Box>
-            )}
-          </Box>
+                <Text fontSize="sm" color="gray.500">
+                  {item.menu_count} {item.menu_count === 1 ? "Menu" : "Menus"}
+                </Text>
+              </HStack>
+            </VStack>
 
-          <VStack flex={1} space={1}>
-            <Text fontSize="md" fontWeight="bold">
-              {item.category_name}
-            </Text>
-            <HStack space={2} alignItems="center">
-              <Icon
-                as={MaterialIcons}
-                name="restaurant-menu"
-                size={4}
-                color="gray.500"
+            <Flex direction="row" alignItems="center">
+              {isUpdating && (
+                <Spinner size="sm" color="primary.500" mr={2} />
+              )}
+              <Switch
+                size="md"
+                // NativeBase Switch doesn't pass an event object, so don't use it
+                onToggle={() => handleToggleStatus(item.menu_cat_id, item.is_active)}
+                isChecked={item.is_active}
+                isDisabled={isUpdating}
+                colorScheme="primary"
+                _light={{
+                  onTrackColor: "primary.500",
+                  onThumbColor: "white",
+                  offTrackColor: "coolGray.200",
+                  offThumbColor: "coolGray.400",
+                }}
               />
-              <Text fontSize="sm" color="gray.500">
-                {item.menu_count} {item.menu_count === 1 ? "Menu" : "Menus"}
-              </Text>
-            </HStack>
-          </VStack>
-
-          <Switch
-            size="md"
-            onToggle={() => {
-              handleToggleStatus(item.menu_cat_id, item.is_active);
-            }}
-            isChecked={item.is_active}
-            isDisabled={!!updatingCategories[item.menu_cat_id]}
-            colorScheme="primary"
-            _light={{
-              onTrackColor: "primary.500",
-              onThumbColor: "white",
-              offTrackColor: "coolGray.200",
-              offThumbColor: "coolGray.400",
-            }}
-          />
-        </HStack>
-      </Box>
-    </Pressable>
-  );
+            </Flex>
+          </HStack>
+        </Box>
+      </Pressable>
+    );
+  }, [handleCategoryPress, handleToggleStatus, pendingUpdates]);
 
   return (
     <Box flex={1} bg="coolGray.100" safeArea>
@@ -294,6 +374,8 @@ export default function CategoryListView() {
           keyExtractor={(item) => item.menu_cat_id.toString()}
           contentContainerStyle={{ padding: 16 }}
           showsVerticalScrollIndicator={false}
+          maxToRenderPerBatch={10}
+          windowSize={5}
           ListEmptyComponent={
             <Box flex={1} justifyContent="center" alignItems="center" mt={10}>
               <Text color="coolGray.400">No categories found</Text>
