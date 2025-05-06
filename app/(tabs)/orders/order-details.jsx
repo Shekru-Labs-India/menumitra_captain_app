@@ -496,11 +496,6 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
             border-top: 2px solid #dee2e6;
             margin: 10px 0;
           }
-          .billing-info {
-            margin-top: 25px;
-            font-size: 14px;
-            line-height: 1.6;
-          }
           .payment-section {
             display: flex;
             justify-content: flex-end;
@@ -654,13 +649,6 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
         <div class="payment-section">
           <span class="payment-label">Payment Method:</span>
           <span>${getPaymentMethod(orderDetails)}</span>
-        </div>
-
-        <div class="billing-info">
-          <strong>Billing Information</strong><br>
-          <strong>▶</strong> ${orderDetails.outlet_name}<br>
-          <strong>▶</strong> ${orderDetails.outlet_address || ''}<br>
-          <strong>▶</strong> ${orderDetails.outlet_mobile || ''}
         </div>
 
         <div class="footer">
