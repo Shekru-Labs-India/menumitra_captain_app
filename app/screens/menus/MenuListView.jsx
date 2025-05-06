@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   FlatList,
@@ -15,6 +15,11 @@ import {
   IconButton,
   Fab,
   Switch,
+  Modal,
+  Divider,
+  Flex,
+  Center,
+  Button,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -31,19 +36,34 @@ export default function MenuListView() {
   const [filteredMenus, setFilteredMenus] = useState([]);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [settings, setSettings] = useState({ POS_show_menu_image: true });
+  
+  // Add new states for category functionality
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  
+  // Add new states for food type filter
+  const [foodTypes, setFoodTypes] = useState([]);
+  const [selectedFoodType, setSelectedFoodType] = useState(null);
+  const [foodTypeModalVisible, setFoodTypeModalVisible] = useState(false);
+  
   const router = useRouter();
   const toast = useToast();
   const params = useLocalSearchParams();
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchMenus();
+      Promise.all([
+        fetchMenus(),
+        fetchCategories(),
+        fetchFoodTypes()
+      ]);
     }, [params?.refresh])
   );
 
   useEffect(() => {
     filterMenus();
-  }, [searchQuery, menus]);
+  }, [searchQuery, menus, selectedCategory, selectedFoodType]);
 
   useEffect(() => {
     if (params.refresh) {
@@ -98,43 +118,134 @@ export default function MenuListView() {
     }
   };
 
+  // Add fetchCategories function
+  const fetchCategories = async () => {
+    try {
+      const outletId = await AsyncStorage.getItem("outlet_id");
+      const deviceToken = await AsyncStorage.getItem("device_token");
+      
+      const response = await fetchWithAuth(`${getBaseUrl()}/menu_category_listview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: outletId,
+          device_token: deviceToken
+        }),
+      });
+      
+      if (response.st === 1) {
+        console.log("Categories fetched successfully");
+        const categoriesData = response.menucat_details || [];
+        
+        const formattedCategories = categoriesData
+          .filter(cat => cat && cat.menu_cat_id !== null)
+          .map(cat => ({
+            category_id: cat.menu_cat_id,
+            name: cat.category_name || "Unknown"
+          }));
+        
+        const allOption = { category_id: null, name: "All Categories" };
+        setCategories([allOption, ...formattedCategories]);
+      } else {
+        console.error("Error fetching categories:", response.msg);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
+
+  // Add fetchFoodTypes function
+  const fetchFoodTypes = async () => {
+    try {
+      const outletId = await AsyncStorage.getItem("outlet_id");
+      const deviceToken = await AsyncStorage.getItem("device_token");
+      
+      const response = await fetchWithAuth(`${getBaseUrl()}/get_food_type_list`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: outletId,
+          device_token: deviceToken
+        }),
+      });
+      
+      if (response.st === 1) {
+        const foodTypeList = Object.entries(response.food_type_list).map(
+          ([key, value]) => ({
+            id: key,
+            name: value,
+          })
+        );
+        const allOption = { id: null, name: "All Types" };
+        setFoodTypes([allOption, ...foodTypeList]);
+      } else {
+        console.error("Error fetching food types:", response.msg);
+        if (response.msg === "Unauthorized access. Please login again.") {
+          toast.show({
+            description: "Session expired. Please login again.",
+            status: "error",
+            duration: 3000,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching food types:", error);
+      // Don't show toast for this error to avoid duplicate errors
+    }
+  };
+
   const filterMenus = () => {
-    if (!searchQuery.trim()) {
-      setFilteredMenus(menus);
+    if (!menus || menus.length === 0) {
+      setFilteredMenus([]);
       return;
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = menus.filter(menu => 
-      menu.name.toLowerCase().includes(query) ||
-      menu.category_name.toLowerCase().includes(query)
-    );
+    let filtered = [...menus];
 
-    // Sort the filtered results based on priority
-    filtered.sort((a, b) => {
-      const nameA = a.name.toLowerCase();
-      const nameB = b.name.toLowerCase();
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(menu => 
+        menu.name.toLowerCase().includes(query) ||
+        menu.category_name.toLowerCase().includes(query)
+      );
       
-      // Priority 1: Exact match at the start of the name
-      if (nameA.startsWith(query) && !nameB.startsWith(query)) return -1;
-      if (!nameA.startsWith(query) && nameB.startsWith(query)) return 1;
-      
-      // Priority 2: Partial match in the name
-      const nameMatchA = nameA.includes(query);
-      const nameMatchB = nameB.includes(query);
-      if (nameMatchA && !nameMatchB) return -1;
-      if (!nameMatchA && nameMatchB) return 1;
-      
-      // Priority 3: Category match (only if no name match)
-      if (!nameMatchA && !nameMatchB) {
-        const catA = a.category_name.toLowerCase();
-        const catB = b.category_name.toLowerCase();
-        if (catA.includes(query) && !catB.includes(query)) return -1;
-        if (!catA.includes(query) && catB.includes(query)) return 1;
-      }
-      
-      return 0;
-    });
+      // Sort the filtered results based on priority
+      filtered.sort((a, b) => {
+        const nameA = a.name.toLowerCase();
+        const nameB = b.name.toLowerCase();
+        
+        // Priority 1: Exact match at the start of the name
+        if (nameA.startsWith(query) && !nameB.startsWith(query)) return -1;
+        if (!nameA.startsWith(query) && nameB.startsWith(query)) return 1;
+        
+        // Priority 2: Partial match in the name
+        const nameMatchA = nameA.includes(query);
+        const nameMatchB = nameB.includes(query);
+        if (nameMatchA && !nameMatchB) return -1;
+        if (!nameMatchA && nameMatchB) return 1;
+        
+        // Priority 3: Category match (only if no name match)
+        if (!nameMatchA && !nameMatchB) {
+          const catA = a.category_name.toLowerCase();
+          const catB = b.category_name.toLowerCase();
+          if (catA.includes(query) && !catB.includes(query)) return -1;
+          if (!catA.includes(query) && catB.includes(query)) return 1;
+        }
+        
+        return 0;
+      });
+    }
+
+    // Apply category filter
+    if (selectedCategory) {
+      filtered = filtered.filter(menu => menu.menu_cat_id === selectedCategory);
+    }
+
+    // Apply food type filter
+    if (selectedFoodType) {
+      filtered = filtered.filter(menu => menu.food_type === selectedFoodType);
+    }
 
     setFilteredMenus(filtered);
   };
@@ -197,6 +308,11 @@ export default function MenuListView() {
     } finally {
       setUpdatingStatus(false);
     }
+  };
+
+  const resetFilters = () => {
+    setSelectedCategory(null);
+    setSelectedFoodType(null);
   };
 
   const renderSpicyLevel = (level) => {
@@ -309,6 +425,80 @@ export default function MenuListView() {
     </Pressable>
   );
 
+  // Category Modal Component
+  const CategoryModal = () => (
+    <Modal isOpen={categoryModalVisible} onClose={() => setCategoryModalVisible(false)} size="xl">
+      <Modal.Content maxH="80%">
+        <Modal.CloseButton />
+        <Modal.Header>Select Category</Modal.Header>
+        <Modal.Body>
+          <FlatList
+            data={categories}
+            renderItem={({ item }) => (
+              <Pressable
+                py={3}
+                px={2}
+                bg={selectedCategory === item.category_id ? "primary.100" : "white"}
+                _pressed={{ bg: "primary.100" }}
+                onPress={() => {
+                  setSelectedCategory(item.category_id);
+                  setCategoryModalVisible(false);
+                }}
+                borderBottomWidth={1}
+                borderBottomColor="coolGray.200"
+              >
+                <Text
+                  color={selectedCategory === item.category_id ? "primary.600" : "coolGray.800"}
+                  fontWeight={selectedCategory === item.category_id ? "bold" : "normal"}
+                >
+                  {item.name}
+                </Text>
+              </Pressable>
+            )}
+            keyExtractor={(item) => (item.category_id?.toString() || "all")}
+          />
+        </Modal.Body>
+      </Modal.Content>
+    </Modal>
+  );
+
+  // Food Type Modal Component
+  const FoodTypeModal = () => (
+    <Modal isOpen={foodTypeModalVisible} onClose={() => setFoodTypeModalVisible(false)} size="xl">
+      <Modal.Content maxH="80%">
+        <Modal.CloseButton />
+        <Modal.Header>Select Food Type</Modal.Header>
+        <Modal.Body>
+          <FlatList
+            data={foodTypes}
+            renderItem={({ item }) => (
+              <Pressable
+                py={3}
+                px={2}
+                bg={selectedFoodType === item.id ? "primary.100" : "white"}
+                _pressed={{ bg: "primary.100" }}
+                onPress={() => {
+                  setSelectedFoodType(item.id);
+                  setFoodTypeModalVisible(false);
+                }}
+                borderBottomWidth={1}
+                borderBottomColor="coolGray.200"
+              >
+                <Text
+                  color={selectedFoodType === item.id ? "primary.600" : "coolGray.800"}
+                  fontWeight={selectedFoodType === item.id ? "bold" : "normal"}
+                >
+                  {item.name}
+                </Text>
+              </Pressable>
+            )}
+            keyExtractor={(item) => (item.id?.toString() || "all")}
+          />
+        </Modal.Body>
+      </Modal.Content>
+    </Modal>
+  );
+
   return (
     <Box flex={1} bg="coolGray.100" safeArea>
       <Header title="Menu List" showBackButton />
@@ -349,6 +539,81 @@ export default function MenuListView() {
             ) : null
           }
         />
+
+        {/* Filter Section */}
+        <HStack space={2} mt={3} alignItems="center">
+          <Pressable 
+            flex={1}
+            onPress={() => setCategoryModalVisible(true)}
+            bg={selectedCategory ? "primary.500" : "white"}
+            py={2}
+            px={3}
+            rounded="md"
+            borderWidth={1}
+            borderColor="coolGray.300"
+            flexDirection="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Text 
+              color={selectedCategory ? "white" : "coolGray.600"}
+              numberOfLines={1}
+              flex={1}
+            >
+              {selectedCategory 
+                ? categories.find(c => c.category_id === selectedCategory)?.name 
+                : "All Categories"}
+            </Text>
+            <Icon 
+              as={MaterialIcons} 
+              name="arrow-drop-down" 
+              size="sm" 
+              color={selectedCategory ? "white" : "coolGray.500"}
+            />
+          </Pressable>
+          
+          <Pressable 
+            flex={1}
+            onPress={() => setFoodTypeModalVisible(true)}
+            bg={selectedFoodType ? "primary.500" : "white"}
+            py={2}
+            px={3}
+            rounded="md"
+            borderWidth={1}
+            borderColor="coolGray.300"
+            flexDirection="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Text 
+              color={selectedFoodType ? "white" : "coolGray.600"}
+              numberOfLines={1}
+              flex={1}
+            >
+              {selectedFoodType 
+                ? foodTypes.find(t => t.id === selectedFoodType)?.name 
+                : "All Types"}
+            </Text>
+            <Icon 
+              as={MaterialIcons} 
+              name="arrow-drop-down" 
+              size="sm" 
+              color={selectedFoodType ? "white" : "coolGray.500"}
+            />
+          </Pressable>
+          
+          {(selectedCategory || selectedFoodType) && (
+            <IconButton
+              icon={<Icon as={MaterialIcons} name="refresh" size="sm" color="coolGray.500" />}
+              onPress={resetFilters}
+              variant="outline"
+              colorScheme="coolGray"
+              size="sm"
+              rounded="full"
+              borderColor="coolGray.300"
+            />
+          )}
+        </HStack>
       </Box>
 
       {loading ? (
@@ -363,9 +628,21 @@ export default function MenuListView() {
           contentContainerStyle={{ padding: 16 }}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <Box flex={1} justifyContent="center" alignItems="center" mt={10}>
+            <Center flex={1} p={10}>
+              <Icon 
+                as={MaterialIcons} 
+                name="search-off" 
+                size="5xl" 
+                color="coolGray.300" 
+                mb={4}
+              />
               <Text color="coolGray.400">No menu items found</Text>
-            </Box>
+              {(selectedCategory || selectedFoodType) && (
+                <Button mt={4} variant="subtle" onPress={resetFilters}>
+                  Clear Filters
+                </Button>
+              )}
+            </Center>
           }
         />
       )}
@@ -380,6 +657,10 @@ export default function MenuListView() {
         bottom={100}
         right={6}
       />
+
+      {/* Render Modals */}
+      <CategoryModal />
+      <FoodTypeModal />
     </Box>
   );
 }
