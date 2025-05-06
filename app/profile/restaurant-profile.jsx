@@ -11,12 +11,14 @@ import {
   Pressable,
   RefreshControl,
   Platform,
+  Modal,
 } from "react-native";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { RemixIcon } from "react-native-remix-icon";
 import {
   Box,
   HStack,
@@ -26,7 +28,6 @@ import {
   useToast,
   Icon,
   Center,
-  Modal,
   Spinner,
 } from "native-base";
 import { getBaseUrl } from "../../config/api.config";
@@ -52,6 +53,108 @@ const RestaurantProfile = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [hasCounter, setHasCounter] = useState(false);
   const qrViewRef = useRef();
+
+  // Define the QRCodeModal component inside RestaurantProfile
+  const QRCodeModal = () => {
+    return (
+      <Modal
+        visible={isQRModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsQRModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>COUNTER QR Code</Text>
+              <TouchableOpacity onPress={() => setIsQRModalVisible(false)}>
+                <RemixIcon name="close-line" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            {selectedQRData ? (
+              <>
+                <ViewShot ref={qrViewRef} options={{ format: 'png', quality: 1 }}>
+                  <View style={styles.qrContainer}>
+                    {/* Corner markers */}
+                    <View style={[styles.cornerMarker, styles.topLeftMarker]} />
+                    <View style={[styles.cornerMarker, styles.topRightMarker]} />
+                    <View style={[styles.cornerMarker, styles.bottomLeftMarker]} />
+                    <View style={[styles.cornerMarker, styles.bottomRightMarker]} />
+                    
+                    {/* QR Image */}
+                    <Image
+                      source={{ uri: selectedQRData?.qrCodeUrl }}
+                      style={styles.qrImage}
+                    />
+                    
+                    {/* Logo in center */}
+                    <View style={styles.logoWhiteSpace}>
+                      <View style={styles.logoContainer}>
+                        <Image
+                          source={mmLogo}
+                          style={styles.logoOverlay}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    </View>
+                  </View>
+                </ViewShot>
+                
+                <Text style={styles.scanText}>
+                  Scan to view our digital menu
+                </Text>
+                
+                <View style={styles.qrButtonsContainer}>
+                  {/* Download Button (with options) */}
+                  <TouchableOpacity
+                    style={[
+                      styles.qrButton,
+                      styles.downloadButton,
+                      (isDownloading || isSharing) && styles.disabledButton,
+                    ]}
+                    onPress={downloadQR}
+                    disabled={isDownloading || isSharing}
+                  >
+                    {isDownloading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <MaterialIcons name="file-download" size={18} color="#fff" />
+                        <Text style={styles.qrButtonText}>Download</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  
+                  {/* Share Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.qrButton,
+                      styles.shareButton,
+                      (isDownloading || isSharing) && styles.disabledButton,
+                    ]}
+                    onPress={shareQR}
+                    disabled={isDownloading || isSharing}
+                  >
+                    {isSharing ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <MaterialIcons name="share" size={18} color="#fff" />
+                        <Text style={styles.qrButtonText}>Share</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <ActivityIndicator size="large" color="#0dcaf0" />
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+  };
 
   // Load the counter setting from AsyncStorage
   const loadCounterSetting = async () => {
@@ -505,182 +608,6 @@ const RestaurantProfile = () => {
     }
   };
 
-  // QR Code Modal Component
-  const QRCodeModal = () => {
-    return (
-      <Modal
-        isOpen={isQRModalVisible}
-        onClose={() => setIsQRModalVisible(false)}
-        size="lg"
-      >
-        <Modal.Content borderRadius="lg">
-          <Modal.Header>
-            <HStack justifyContent="space-between" alignItems="center" width="100%">
-              <Heading size="md">COUNTER QR Code</Heading>
-              <IconButton
-                icon={<Icon as={MaterialIcons} name="close" size="sm" />}
-                onPress={() => setIsQRModalVisible(false)}
-                variant="ghost"
-                _pressed={{ bg: "coolGray.100" }}
-                borderRadius="full"
-              />
-            </HStack>
-          </Modal.Header>
-          
-          <Modal.Body alignItems="center">
-            {selectedQRData ? (
-              <>
-                <ViewShot ref={qrViewRef} options={{ format: 'png', quality: 1 }}>
-                  <Box
-                    width="250px"
-                    height="250px"
-                    padding="10px"
-                    bg="white"
-                    borderWidth="3"
-                    borderColor="#FF7043"
-                    borderRadius="10"
-                    alignItems="center"
-                    justifyContent="center"
-                    position="relative"
-                    shadow={2}
-                  >
-                    {/* Corner markers */}
-                    <Box
-                      position="absolute"
-                      top="10px"
-                      left="10px"
-                      width="20px"
-                      height="20px"
-                      borderTopWidth="4"
-                      borderLeftWidth="4"
-                      borderColor="#0066FF"
-                      borderTopLeftRadius="8"
-                    />
-                    <Box
-                      position="absolute"
-                      top="10px"
-                      right="10px"
-                      width="20px"
-                      height="20px"
-                      borderTopWidth="4"
-                      borderRightWidth="4"
-                      borderColor="#0066FF"
-                      borderTopRightRadius="8"
-                    />
-                    <Box
-                      position="absolute"
-                      bottom="10px"
-                      left="10px"
-                      width="20px"
-                      height="20px"
-                      borderBottomWidth="4"
-                      borderLeftWidth="4"
-                      borderColor="#0066FF"
-                      borderBottomLeftRadius="8"
-                    />
-                    <Box
-                      position="absolute"
-                      bottom="10px"
-                      right="10px"
-                      width="20px"
-                      height="20px"
-                      borderBottomWidth="4"
-                      borderRightWidth="4"
-                      borderColor="#0066FF"
-                      borderBottomRightRadius="8"
-                    />
-                    
-                    {/* QR Image */}
-                    <Image
-                      source={{ uri: selectedQRData?.qrCodeUrl }}
-                      style={styles.qrImage}
-                    />
-                    
-                    {/* Logo in center */}
-                    <Box
-                      position="absolute"
-                      width="60px"
-                      height="60px"
-                      bg="white"
-                      borderRadius="30px"
-                      justifyContent="center"
-                      alignItems="center"
-                      shadow={2}
-                    >
-                      <Box
-                        width="45px"
-                        height="45px"
-                        bg="white"
-                        borderRadius="25px"
-                        justifyContent="center"
-                        alignItems="center"
-                        overflow="hidden"
-                      >
-                        <Image
-                          source={mmLogo}
-                          style={styles.logoOverlay}
-                          resizeMode="contain"
-                        />
-                      </Box>
-                    </Box>
-                  </Box>
-                </ViewShot>
-                
-                <Text style={styles.scanText}>
-                  Scan to view our digital menu
-                </Text>
-                
-                <HStack space={3} mt={4}>
-                  {/* Download Button with options */}
-                  <Pressable
-                    style={[
-                      styles.qrButton,
-                      styles.downloadButton,
-                      (isDownloading || isSharing || isLoading) && styles.disabledButton,
-                    ]}
-                    onPress={downloadQR}
-                    disabled={isDownloading || isSharing || isLoading}
-                  >
-                    {isDownloading || isLoading ? (
-                      <Spinner size="sm" color="white" />
-                    ) : (
-                      <HStack space={2} alignItems="center">
-                        <Icon as={MaterialIcons} name="file-download" size="sm" color="white" />
-                        <Text style={styles.qrButtonText}>Download</Text>
-                      </HStack>
-                    )}
-                  </Pressable>
-                  
-                  {/* Share Button */}
-                  <Pressable
-                    style={[
-                      styles.qrButton,
-                      styles.shareButton,
-                      (isDownloading || isSharing || isLoading) && styles.disabledButton,
-                    ]}
-                    onPress={shareQR}
-                    disabled={isDownloading || isSharing || isLoading}
-                  >
-                    {isSharing ? (
-                      <Spinner size="sm" color="white" />
-                    ) : (
-                      <HStack space={2} alignItems="center">
-                        <Icon as={MaterialIcons} name="share" size="sm" color="white" />
-                        <Text style={styles.qrButtonText}>Share</Text>
-                      </HStack>
-                    )}
-                  </Pressable>
-                </HStack>
-              </>
-            ) : (
-              <Spinner size="lg" color="#0dcaf0" />
-            )}
-          </Modal.Body>
-        </Modal.Content>
-      </Modal>
-    );
-  };
-
   useFocusEffect(
     useCallback(() => {
       fetchRestaurantInfo();
@@ -1003,7 +930,7 @@ const RestaurantProfile = () => {
         </TouchableOpacity>
       )}
 
-      {/* QR Code Modal */}
+      {/* Using the QRCodeModal defined inside the component */}
       <QRCodeModal />
     </SafeAreaView>
   );
@@ -1170,6 +1097,112 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.7,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '85%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  qrContainer: {
+    width: 250,
+    height: 250,
+    padding: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#FF7043',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  cornerMarker: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderWidth: 4,
+    borderColor: '#0066FF',
+  },
+  topLeftMarker: {
+    top: 10,
+    left: 10,
+    borderBottomWidth: 0,
+    borderRightWidth: 0,
+    borderTopLeftRadius: 8,
+  },
+  topRightMarker: {
+    top: 10,
+    right: 10,
+    borderBottomWidth: 0,
+    borderLeftWidth: 0,
+    borderTopRightRadius: 8,
+  },
+  bottomLeftMarker: {
+    bottom: 10,
+    left: 10,
+    borderTopWidth: 0,
+    borderRightWidth: 0,
+    borderBottomLeftRadius: 8,
+  },
+  bottomRightMarker: {
+    bottom: 10,
+    right: 10,
+    borderTopWidth: 0,
+    borderLeftWidth: 0,
+    borderBottomRightRadius: 8,
+  },
+  logoWhiteSpace: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
+    elevation: 3,
+  },
+  logoContainer: {
+    width: 45,
+    height: 45,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  qrButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 15,
   },
 });
 
