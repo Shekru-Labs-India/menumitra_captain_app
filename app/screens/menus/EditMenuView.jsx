@@ -373,7 +373,9 @@ export default function EditMenuView() {
       formData.append("offer", menuDetails.offer || "0");
       formData.append("description", menuDetails.description || "");
       formData.append("ingredients", menuDetails.ingredients || "");
-      formData.append("rating", menuDetails.rating || "0");
+      // Format rating value as a string with one decimal place to match API expectations
+      const ratingValue = parseFloat(menuDetails.rating || 0).toFixed(1);
+      formData.append("rating", ratingValue);
       formData.append("is_special", menuDetails.is_special ? "1" : "0");
       formData.append("is_active", menuDetails.is_active ? "1" : "0");
 
@@ -391,10 +393,24 @@ export default function EditMenuView() {
         console.log(`Adding ${newImages.length} new images to formData`);
       }
       
-      // Handle removed images - tell API which images to remove
-      if (removedImageIds.length > 0) {
-        formData.append("existing_image_ids", JSON.stringify(removedImageIds));
-        console.log("IDs of images to remove:", JSON.stringify(removedImageIds));
+      // Construct the URL with remove_image_flag parameter when needed
+      let apiUrl = `${getBaseUrl()}/menu_update`;
+      const hasRemovedImages = removedImageIds.length > 0;
+      const allImagesRemoved = menuDetails.images.length === 0;
+      
+      // Add remove_image_flag query parameter in two cases:
+      // 1. When specific images have been removed (tracked in removedImageIds)
+      // 2. When all images have been removed (no images left)
+      if (hasRemovedImages || allImagesRemoved) {
+        apiUrl += "?remove_image_flag=True";
+        
+        // Only include existing_image_ids if we have specific IDs to remove
+        if (hasRemovedImages) {
+          formData.append("existing_image_ids", JSON.stringify(removedImageIds));
+          console.log("IDs of images to remove:", JSON.stringify(removedImageIds));
+        }
+        
+        console.log("Adding remove_image_flag to URL:", apiUrl);
       }
 
       console.log("Sending update request with FormData contents:", {
@@ -405,10 +421,11 @@ export default function EditMenuView() {
         full_price: menuDetails.full_price,
         food_type: menuDetails.food_type,
         newImagesCount: newImages.length,
-        removedImageIds: removedImageIds
+        removedImageIds: removedImageIds,
+        apiUrl: apiUrl
       });
 
-      const data = await fetchWithAuth(`${getBaseUrl()}/menu_update`, {
+      const data = await fetchWithAuth(apiUrl, {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -616,9 +633,11 @@ export default function EditMenuView() {
   };
 
   const handleRatingSelect = (rating) => {
+    // Ensure rating is stored as a string with one decimal place
+    const formattedRating = parseFloat(rating).toFixed(1);
     setMenuDetails((prev) => ({
       ...prev,
-      rating: rating,
+      rating: formattedRating,
     }));
   };
 
@@ -1231,12 +1250,9 @@ export default function EditMenuView() {
               renderItem={({ item }) => (
                 <Pressable
                   p={3}
-                  bg={parseFloat(menuDetails.rating) === parseFloat(item.key) ? "primary.100" : "white"}
+                  bg={parseFloat(menuDetails.rating).toFixed(1) === parseFloat(item.key).toFixed(1) ? "primary.100" : "white"}
                   onPress={() => {
-                    setMenuDetails((prev) => ({
-                      ...prev,
-                      rating: item.key
-                    }));
+                    handleRatingSelect(item.key);
                     setRatingModalVisible(false);
                   }}
                 >

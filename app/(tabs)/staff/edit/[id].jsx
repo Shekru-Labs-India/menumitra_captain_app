@@ -446,7 +446,11 @@ export default function EditStaffScreen() {
         formDataToSend.append("dob", formData.dob);
       }
 
-      const response = await fetchWithAuth(`${getBaseUrl()}/staff_update`, {
+      // Construct the URL with remove_image_flag parameter (like owner app)
+      const apiUrl = `${getBaseUrl()}/staff_update?remove_image_flag=True`;
+      console.log("Using URL with remove_image_flag:", apiUrl);
+
+      const response = await fetchWithAuth(apiUrl, {
         method: "POST",
         headers: { 
           "Content-Type": "multipart/form-data"
@@ -568,6 +572,9 @@ export default function EditStaffScreen() {
         formDataToSend.append("dob", formData.dob);
       }
 
+      // Construct the base URL
+      let apiUrl = `${getBaseUrl()}/staff_update`;
+      
       // Handle photo
       if (formData.photo) {
         const filename = formData.photo.split('/').pop();
@@ -579,14 +586,16 @@ export default function EditStaffScreen() {
           name: filename,
           type,
         });
-      } else if (formData.existing_photo === null) {
-        // If existing photo was removed and no new photo selected
-        formDataToSend.append("remove_photo", "1");
+      } else if (formData.existing_photo === null || formData.existing_photo === "") {
+        // If existing photo was removed and no new photo selected,
+        // use the remove_image_flag query parameter approach like owner app
+        apiUrl += "?remove_image_flag=True";
+        console.log("Adding remove_image_flag to URL:", apiUrl);
       }
 
-      console.log("Updating staff with data:", Object.fromEntries(formDataToSend));
+      console.log("Updating staff with data:", Object.fromEntries(formDataToSend._parts || []));
 
-      const data = await fetchWithAuth(`${getBaseUrl()}/staff_update`, {
+      const data = await fetchWithAuth(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "multipart/form-data" },
         body: formDataToSend,
