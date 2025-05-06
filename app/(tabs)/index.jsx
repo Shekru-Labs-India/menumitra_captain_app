@@ -722,20 +722,14 @@ export default function HomeScreen() {
           <HStack 
             alignItems="center" 
             justifyContent="space-between" 
-            bg="white" 
-            borderWidth={1} 
-            borderColor="red.500" 
+            bg="white"
             rounded="md" 
             p={2}
           >
             <HStack alignItems="center" space={2}>
               <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
               <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
-              <Icon as={MaterialIcons} name="keyboard-arrow-down" size={5} color="gray.600" />
             </HStack>
-            <Box bg="orange.400" px={2} py={0.5} rounded="md">
-              <Text color="white" fontSize="xs" fontWeight="bold">TESTING</Text>
-            </Box>
           </HStack>
         </Pressable>
       </Box>
