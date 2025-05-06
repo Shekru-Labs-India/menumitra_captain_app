@@ -986,8 +986,121 @@ const handleSettleOrder = async () => {
     return;
   }
 
-  // Show payment modal
-  setShowPaymentModal(true);
+  try {
+    setIsLoading(true);
+    setLoadingMessage("Processing settlement...");
+
+    // Get user and outlet IDs
+    const [storedUserId, storedOutletId, deviceToken] = await Promise.all([
+      AsyncStorage.getItem("user_id"),
+      AsyncStorage.getItem("outlet_id"),
+      AsyncStorage.getItem("deviceToken")
+    ]);
+
+    if (!storedUserId || !storedOutletId) {
+      throw new Error("Missing required information");
+    }
+
+    // Format order items for API
+    const orderItems = selectedItems.map((item) => ({
+      menu_id: item.menu_id?.toString(),
+      quantity: parseInt(item.quantity) || 1,
+      comment: item.specialInstructions || "",
+      half_or_full: (item.portionSize || "full").toLowerCase(),
+      price: parseFloat(item.price) || 0,
+      total_price: parseFloat(item.total_price) || 0,
+    }));
+
+    // Set payment method (default to "cash" if not selected)
+    const paymentMethod = selectedPaymentMethod?.toLowerCase() || "cash";
+
+    // Prepare API payload
+    const orderData = {
+      user_id: storedUserId?.toString(),
+      outlet_id: storedOutletId?.toString(),
+      order_type: params?.orderType || "dine-in",
+      order_items: orderItems,
+      grand_total: calculateGrandTotal(
+        selectedItems,
+        specialDiscount,
+        extraCharges,
+        serviceChargePercentage,
+        gstPercentage,
+        tip
+      )?.toString(),
+      action: "settle", // Explicitly set action to "settle"
+      is_paid: "paid",
+      payment_method: paymentMethod,
+      special_discount: specialDiscount?.toString() || "0",
+      charges: extraCharges?.toString() || "0",
+      tip: tip?.toString() || "0",
+      customer_name: customerDetails.customer_name || "",
+      customer_mobile: customerDetails.customer_mobile || "",
+      customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+      customer_address: customerDetails.customer_address || "",
+      customer_landmark: customerDetails.customer_landmark || "",
+      device_token: deviceToken || ""
+    };
+
+    // Add table information for dine-in orders
+    if ((params?.orderType || "dine-in") === "dine-in") {
+      if (!params.tableNumber || !params.sectionId) {
+        throw new Error("Missing table or section information for dine-in order");
+      }
+      orderData.tables = [params.tableNumber?.toString()];
+      orderData.section_id = params.sectionId?.toString();
+    }
+
+    // Add order_id for updates
+    if (params?.orderId) {
+      orderData.order_id = params.orderId?.toString();
+    }
+
+    console.log("Settle Order API Request:", orderData);
+
+    // Determine endpoint based on whether it's a new or existing order
+    const endpoint = params?.orderId ? 
+      `${onGetProductionUrl()}update_order` : 
+      `${onGetProductionUrl()}create_order`;
+
+    // Call API
+    const response = await fetchWithAuth(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(orderData),
+    });
+
+    console.log("Settle Order API Response:", response);
+
+    if (response.st !== 1) {
+      throw new Error(response.msg || "Failed to settle order");
+    }
+
+    toast.show({
+      description: "Order settled successfully",
+      status: "success",
+      duration: 3000,
+    });
+
+    // Navigate back to tables screen
+    router.replace({
+      pathname: "/(tabs)/tables/sections",
+      params: { 
+        refresh: Date.now().toString(),
+        status: "completed"
+      }
+    });
+  } catch (error) {
+    console.error("Settle order error:", error);
+    toast.show({
+      description: error.message || "Failed to settle order",
+      status: "error",
+      duration: 3000,
+    });
+  } finally {
+    setIsLoading(false);
+    setLoadingMessage("");
+  }
 };
 
 
