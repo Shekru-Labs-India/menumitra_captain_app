@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -24,27 +24,23 @@ import { useColorMode } from "native-base";
 import { getBaseUrl } from "../../config/api.config";
 import { fetchWithAuth } from "../../utils/apiInterceptor";
 import { usePrinter } from "../../context/PrinterContext";
-import { RefreshControl, Animated, Platform } from "react-native";
+import { RefreshControl, Animated, Platform, AppState } from "react-native";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const toast = useToast();
   const { colorMode, toggleColorMode } = useColorMode();
   const [isLoading, setIsLoading] = useState(true);
-  // Add refreshing state for pull-to-refresh
   const [refreshing, setRefreshing] = useState(false);
-  // Add granular loading states for individual settings
   const [loadingSettings, setLoadingSettings] = useState({});
-  // Animation for potential custom toast
+  const [appState, setAppState] = useState(AppState.currentState);
   const fadeAnim = useState(new Animated.Value(0))[0];
   
-  // Replace local printer states with context values
   const { 
     printerDevice, 
     isConnected: isPrinterConnected 
   } = usePrinter();
   
-  // Use explicitly boolean values for all toggles
   const [settings, setSettings] = useState({
     theme: "system",
     style: "blue",
@@ -71,44 +67,118 @@ export default function SettingsScreen() {
   const textColor = useColorModeValue("coolGray.800", "white");
   const mutedTextColor = useColorModeValue("coolGray.500", "coolGray.400");
 
-  const fetchDefaultSettings = async (showToast = false) => {
+  // Use outlet_settings_view API to get latest settings from server
+  const fetchLatestSettings = useCallback(async (showToast = false) => {
     try {
       if (!refreshing) {
         setIsLoading(true);
       }
+      
       const outlet_id = await AsyncStorage.getItem("outlet_id");
-      const storedSettings = await AsyncStorage.getItem("app_settings");
+      const device_token = await AsyncStorage.getItem("device_token");
+      
+      // Always fetch from server to ensure latest settings
+      const response = await fetchWithAuth(`${getBaseUrl()}/outlet_settings_view`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          outlet_id: outlet_id,
+          device_token: device_token 
+        })
+      });
 
-      // If this is just a regular component load (not a reset or refresh), and we have stored settings
-      // then use the stored settings and don't fetch from server
-      if (!showToast && !refreshing && storedSettings) {
-        const parsedSettings = JSON.parse(storedSettings);
+      if (response.st === 1 && response.data) {
+        const data = response.data;
         
         // Ensure all toggle values are explicitly boolean
-        setSettings({
-          theme: parsedSettings.theme,
-          style: parsedSettings.style,
-          showMenuImages: Boolean(parsedSettings.POS_show_menu_image),
+        const newSettings = {
+          theme: data.theme,
+          style: data.style,
+          showMenuImages: Boolean(data.POS_show_menu_image),
           orderTypes: {
-            dine_in: Boolean(parsedSettings.has_dine_in),
-            parcel: Boolean(parsedSettings.has_parcel),
-            counter: Boolean(parsedSettings.has_counter),
-            delivery: Boolean(parsedSettings.has_delivery),
-            driveThrough: Boolean(parsedSettings.has_drive_through),
+            dine_in: Boolean(data.has_dine_in),
+            parcel: Boolean(data.has_parcel),
+            counter: Boolean(data.has_counter),
+            delivery: Boolean(data.has_delivery),
+            driveThrough: Boolean(data.has_drive_through),
           },
           orderManagement: {
-            print_and_save: Boolean(parsedSettings.print_and_save),
-            KOT_and_save: Boolean(parsedSettings.KOT_and_save),
-            settle: Boolean(parsedSettings.settle),
-            reserve_table: Boolean(parsedSettings.reserve_table),
-            cancel: Boolean(parsedSettings.cancel),
+            print_and_save: Boolean(data.print_and_save),
+            KOT_and_save: Boolean(data.KOT_and_save),
+            settle: Boolean(data.settle),
+            reserve_table: Boolean(data.reserve_table),
+            cancel: Boolean(data.cancel),
           }
-        });
-        setIsLoading(false);
-        return;
-      }
+        };
 
-      // Only fetch from server if we're resetting settings, refreshing, or don't have stored settings
+        setSettings(newSettings);
+        // Store settings in AsyncStorage for backup only
+        await AsyncStorage.setItem("app_settings", JSON.stringify(data));
+
+        if (showToast) {
+          toast.show({
+            description: "Settings updated successfully",
+            status: "success",
+            placement: "bottom",
+            duration: 2000
+          });
+        }
+      } else {
+        // If API fails, try to load from backup in AsyncStorage
+        const storedSettings = await AsyncStorage.getItem("app_settings");
+        if (storedSettings) {
+          const parsedSettings = JSON.parse(storedSettings);
+          setSettings({
+            theme: parsedSettings.theme,
+            style: parsedSettings.style,
+            showMenuImages: Boolean(parsedSettings.POS_show_menu_image),
+            orderTypes: {
+              dine_in: Boolean(parsedSettings.has_dine_in),
+              parcel: Boolean(parsedSettings.has_parcel),
+              counter: Boolean(parsedSettings.has_counter),
+              delivery: Boolean(parsedSettings.has_delivery),
+              driveThrough: Boolean(parsedSettings.has_drive_through),
+            },
+            orderManagement: {
+              print_and_save: Boolean(parsedSettings.print_and_save),
+              KOT_and_save: Boolean(parsedSettings.KOT_and_save),
+              settle: Boolean(parsedSettings.settle),
+              reserve_table: Boolean(parsedSettings.reserve_table),
+              cancel: Boolean(parsedSettings.cancel),
+            }
+          });
+        }
+        
+        if (showToast) {
+          toast.show({
+            description: response.msg || "Failed to load settings",
+            status: "error",
+            placement: "bottom",
+            duration: 2000
+          });
+        }
+      }
+    } catch (error) {
+      if (showToast) {
+        toast.show({
+          description: "Error loading settings",
+          status: "error",
+          placement: "bottom",
+          duration: 2000  
+        });
+      }
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  }, [refreshing, toast]);
+
+  // Reset to default settings
+  const resetToDefaultSettings = async () => {
+    try {
+      setIsLoading(true);
+      const outlet_id = await AsyncStorage.getItem("outlet_id");
+      
       const response = await fetchWithAuth(`${getBaseUrl()}/default_settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -116,118 +186,18 @@ export default function SettingsScreen() {
       });
 
       if (response.st === 1 && response.data) {
-        const data = response.data;
-        
-        // Ensure all toggle values are explicitly boolean
-        const newSettings = {
-          theme: data.theme,
-          style: data.style,
-          showMenuImages: Boolean(data.POS_show_menu_image),
-          orderTypes: {
-            dine_in: Boolean(data.has_dine_in),
-            parcel: Boolean(data.has_parcel),
-            counter: Boolean(data.has_counter),
-            delivery: Boolean(data.has_delivery),
-            driveThrough: Boolean(data.has_drive_through),
-          },
-          orderManagement: {
-            print_and_save: Boolean(data.print_and_save),
-            KOT_and_save: Boolean(data.KOT_and_save),
-            settle: Boolean(data.settle),
-            reserve_table: Boolean(data.reserve_table),
-            cancel: Boolean(data.cancel),
-          }
-        };
-
-        setSettings(newSettings);
-        // Update stored settings
-        await AsyncStorage.setItem("app_settings", JSON.stringify(data));
-
-        if (showToast) {
-          toast.show({
-            description: response.msg || "Default settings applied successfully",
-            status: "success",
-            placement: "bottom",
-            duration: 2000
-          });
-        }
-      } else {
-        toast.show({
-          description: response.msg || "Failed to load settings",
-          status: "error",
-          placement: "bottom",
-          duration: 2000
-        });
-      }
-    } catch (error) {
-      toast.show({
-        description: "Error loading settings",
-        status: "error",
-        placement: "bottom",
-        duration: 2000  
-      });
-    } finally {
-      setIsLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDefaultSettings(false);
-  }, []);
-
-  // Add a specific refresh function for pull-to-refresh
-  const refreshSettings = async () => {
-    setRefreshing(true);
-    try {
-      const outlet_id = await AsyncStorage.getItem("outlet_id");
-      
-      // Use the outlet_settings_view endpoint to match owner app
-      const response = await fetchWithAuth(`${getBaseUrl()}/outlet_settings_view`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outlet_id: outlet_id })
-      });
-
-      if (response.st === 1 && response.data) {
-        const data = response.data;
-        
-        // Format the API response to match our settings structure
-        // Ensure all toggle values are explicitly boolean
-        const newSettings = {
-          theme: data.theme,
-          style: data.style,
-          showMenuImages: Boolean(data.POS_show_menu_image),
-          orderTypes: {
-            dine_in: Boolean(data.has_dine_in),
-            parcel: Boolean(data.has_parcel),
-            counter: Boolean(data.has_counter),
-            delivery: Boolean(data.has_delivery),
-            driveThrough: Boolean(data.has_drive_through),
-          },
-          orderManagement: {
-            print_and_save: Boolean(data.print_and_save),
-            KOT_and_save: Boolean(data.KOT_and_save),
-            settle: Boolean(data.settle),
-            reserve_table: Boolean(data.reserve_table),
-            cancel: Boolean(data.cancel),
-          }
-        };
-
-        setSettings(newSettings);
-        
-        // Save to AsyncStorage
-        await AsyncStorage.setItem("app_settings", JSON.stringify(data));
+        // After resetting to defaults, fetch latest settings to ensure consistency
+        await fetchLatestSettings(true);
         
         toast.show({
-          description: "Settings refreshed successfully",
+          description: "Default settings applied successfully",
           status: "success",
           placement: "bottom",
           duration: 2000
         });
       } else {
         toast.show({
-          description: "Failed to refresh settings",
+          description: response.msg || "Failed to reset settings",
           status: "error",
           placement: "bottom",
           duration: 2000
@@ -235,15 +205,43 @@ export default function SettingsScreen() {
       }
     } catch (error) {
       toast.show({
-        description: "Error refreshing settings",
-        status: "error", 
+        description: "Error resetting settings",
+        status: "error",
         placement: "bottom",
         duration: 2000
       });
     } finally {
-      setRefreshing(false);
+      setIsLoading(false);
     }
   };
+
+  // Handle app state change to refresh settings when app comes to foreground
+  const handleAppStateChange = useCallback((nextAppState) => {
+    if (appState.match(/inactive|background/) && nextAppState === 'active') {
+      // App has come to the foreground, refresh settings without toast
+      fetchLatestSettings(false);
+    }
+    setAppState(nextAppState);
+  }, [appState, fetchLatestSettings]);
+
+  useEffect(() => {
+    // Initial fetch of settings
+    fetchLatestSettings(false);
+    
+    // Set up app state change listener to refresh settings when app becomes active
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    // Clean up the subscription on unmount
+    return () => {
+      subscription.remove();
+    };
+  }, [fetchLatestSettings, handleAppStateChange]);
+
+  // Pull-to-refresh function
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchLatestSettings(true);
+  }, [fetchLatestSettings]);
 
   const updateSetting = async (type, value) => {
     // Set loading state for just this specific setting
@@ -293,9 +291,9 @@ export default function SettingsScreen() {
       });
 
       if (response.st === 1) {
-        const data = response.data;
-        // Update stored settings
-        await AsyncStorage.setItem("app_settings", JSON.stringify(data));
+        // After successful update, fetch latest settings to ensure consistency
+        // Pass false to avoid showing a toast message
+        await fetchLatestSettings(false);
 
         toast.show({
           description: response.msg || "Settings updated successfully",
@@ -304,8 +302,8 @@ export default function SettingsScreen() {
           duration: 2000
         });
       } else {
-        // Revert state change if the API call failed
-        fetchDefaultSettings(false);
+        // Revert state change if the API call failed and fetch latest settings
+        await fetchLatestSettings(false);
         
         toast.show({
           description: response.msg || "Failed to update setting",
@@ -315,8 +313,8 @@ export default function SettingsScreen() {
         });
       }
     } catch (error) {
-      // Revert state change on error
-      fetchDefaultSettings(false);
+      // Revert state change on error and fetch latest settings
+      await fetchLatestSettings(false);
       
       toast.show({
         description: "Error updating setting",
@@ -543,7 +541,7 @@ export default function SettingsScreen() {
           Settings
         </Heading>
         <Pressable 
-          onPress={() => fetchDefaultSettings(true)}
+          onPress={resetToDefaultSettings}
           bg="blue.500"
           px={3}
           py={1.5}
@@ -570,7 +568,7 @@ export default function SettingsScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={refreshSettings}
+            onRefresh={onRefresh}
             colors={["#2196F3"]}
             tintColor="#2196F3"
           />
