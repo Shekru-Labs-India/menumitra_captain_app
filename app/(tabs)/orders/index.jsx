@@ -1261,26 +1261,23 @@ const OrdersScreen = () => {
     <Box flex={1} bg="gray.50" safeArea>
       <Header title="My Orders" />
 
-      {/* <HStack
-        px={4}
-        py={3}
-        bg="gray.100"
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
-        alignItems="center"
-      >
-        <Pressable 
-          flex={1}
-          onPress={() => {}}
-          flexDirection="row"
-          alignItems="center"
-          mr={2}
-        >
-          <Icon as={MaterialIcons} name="business" size="sm" color="gray.600" mr={1} />
-          <Text fontWeight="semibold" mr={1}>{outletName}</Text>
-          <Icon as={MaterialIcons} name="keyboard-arrow-down" size="sm" color="gray.600" />
+      {/* Restaurant Name Display */}
+      <Box bg="white" borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <Pressable>
+          <HStack 
+            alignItems="center" 
+            justifyContent="space-between" 
+            bg="white"
+            rounded="md" 
+            p={2}
+          >
+            <HStack alignItems="center" space={2}>
+              <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
+              <Text fontWeight="medium" fontSize="md">{outletName || "Select Restaurant"}</Text>
+            </HStack>
+          </HStack>
         </Pressable>
-      </HStack> */}
+      </Box>
 
       <HStack
         px={4}
