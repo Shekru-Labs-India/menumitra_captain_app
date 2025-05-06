@@ -679,6 +679,8 @@ export default function OrderDetailsScreen() {
   const [isTimelineModalVisible, setIsTimelineModalVisible] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash");
 
   // Update the handleDownloadInvoice function with better error handling
   const handleDownloadInvoice = async () => {
@@ -984,28 +986,7 @@ export default function OrderDetailsScreen() {
           <Button
             colorScheme="green"
             leftIcon={<Icon as={MaterialIcons} name="payment" size="sm" />}
-            onPress={() => {
-              // Show payment method selection
-              Alert.alert(
-                "Mark as Paid",
-                "Select payment method",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  { 
-                    text: "Cash", 
-                    onPress: () => handleStatusUpdate("paid", { payment_method: "cash" })
-                  },
-                  { 
-                    text: "Card", 
-                    onPress: () => handleStatusUpdate("paid", { payment_method: "card" })
-                  },
-                  { 
-                    text: "UPI", 
-                    onPress: () => handleStatusUpdate("paid", { payment_method: "upi" })
-                  }
-                ]
-              );
-            }}
+            onPress={() => setShowPaymentModal(true)}
             isLoading={isLoading}
             width="100%"
           >
@@ -2470,6 +2451,103 @@ export default function OrderDetailsScreen() {
               </Button>
             </Button.Group>
           </Modal.Footer>
+        </Modal.Content>
+      </Modal>
+
+      {/* Payment Method Selection Modal */}
+      <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)}>
+        <Modal.Content maxWidth="90%" borderRadius="md">
+          <Modal.Body p={4}>
+            <Text fontSize="16" fontWeight="medium" color="gray.700" mb={4}>
+              Select Payment Method
+            </Text>
+            
+            <VStack space={4} mb={4}>
+              <HStack alignItems="center" space={2}>
+                <Pressable 
+                  onPress={() => setSelectedPaymentMethod("cash")}
+                  flex={1}
+                >
+                  <HStack alignItems="center" space={2}>
+                    <Box 
+                      size="20px" 
+                      borderRadius="full" 
+                      borderWidth="2px" 
+                      borderColor="gray.400"
+                      alignItems="center"
+                      justifyContent="center"
+                      bg={selectedPaymentMethod === "cash" ? "#00B5D8" : "white"}
+                    >
+                      {selectedPaymentMethod === "cash" && (
+                        <Box size="10px" borderRadius="full" bg="white" />
+                      )}
+                    </Box>
+                    <Text color={selectedPaymentMethod === "cash" ? "#00B5D8" : "gray.700"} fontWeight={selectedPaymentMethod === "cash" ? "bold" : "normal"}>CASH</Text>
+                  </HStack>
+                </Pressable>
+
+                <Pressable 
+                  onPress={() => setSelectedPaymentMethod("upi")}
+                  flex={1}
+                >
+                  <HStack alignItems="center" space={2}>
+                    <Box 
+                      size="20px" 
+                      borderRadius="full" 
+                      borderWidth="2px" 
+                      borderColor="gray.400"
+                      alignItems="center"
+                      justifyContent="center"
+                      bg={selectedPaymentMethod === "upi" ? "#00B5D8" : "white"}
+                    >
+                      {selectedPaymentMethod === "upi" && (
+                        <Box size="10px" borderRadius="full" bg="white" />
+                      )}
+                    </Box>
+                    <Text color={selectedPaymentMethod === "upi" ? "#00B5D8" : "gray.700"} fontWeight={selectedPaymentMethod === "upi" ? "bold" : "normal"}>UPI</Text>
+                  </HStack>
+                </Pressable>
+
+                <Pressable 
+                  onPress={() => setSelectedPaymentMethod("card")}
+                  flex={1}
+                >
+                  <HStack alignItems="center" space={2}>
+                    <Box 
+                      size="20px" 
+                      borderRadius="full" 
+                      borderWidth="2px" 
+                      borderColor="gray.400"
+                      alignItems="center"
+                      justifyContent="center"
+                      bg={selectedPaymentMethod === "card" ? "#00B5D8" : "white"}
+                    >
+                      {selectedPaymentMethod === "card" && (
+                        <Box size="10px" borderRadius="full" bg="white" />
+                      )}
+                    </Box>
+                    <Text color={selectedPaymentMethod === "card" ? "#00B5D8" : "gray.700"} fontWeight={selectedPaymentMethod === "card" ? "bold" : "normal"}>CARD</Text>
+                  </HStack>
+                </Pressable>
+              </HStack>
+            </VStack>
+            
+            <Button 
+              w="full"
+              onPress={() => {
+                handleStatusUpdate("paid", { payment_method: selectedPaymentMethod });
+                setShowPaymentModal(false);
+              }}
+              py={3}
+              bg="gray.200"
+              _text={{ color: "gray.700" }}
+              leftIcon={<Icon as={MaterialIcons} name="check" size="sm" color="gray.700" />}
+              _pressed={{ bg: "gray.300" }}
+              borderRadius="md"
+            >
+              Settle Order
+            </Button>
+          </Modal.Body>
         </Modal.Content>
       </Modal>
     </Box>
