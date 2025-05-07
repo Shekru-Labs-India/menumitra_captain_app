@@ -989,8 +989,8 @@ const handleSettleOrder = async () => {
   // Set the current action to 'settle'
   setCurrentAction('settle');
     
-  // Set isPaidChecked to true by default for the modal
-  setIsPaidChecked(true);
+  // Set isPaidChecked to false by default for the modal
+  setIsPaidChecked(false);
   
   // Set default payment method if not already set
   if (!selectedPaymentMethod) {
@@ -4165,16 +4165,12 @@ const handleSettleOrder = async () => {
                         <Checkbox
                           value="paid"
                           isChecked={isPaid}
-                          onChange={(value) => {
-                            setIsPaid(value);
-                            if (value) {
-                              setIsComplementary(false);
-                            }
+                          onChange={(isChecked) => {
+                            setIsPaidChecked(isChecked);
                           }}
-                          size="sm"
-                          colorScheme="green"
+                          size="lg"
                         >
-                          <Text fontSize="sm">Paid</Text>
+                          <Text fontSize="md">Paid</Text>
                         </Checkbox>
                       </HStack>
                     </Box>
@@ -4517,13 +4513,13 @@ const handleSettleOrder = async () => {
                 onChange={setSelectedPaymentMethod}
               >
                 <HStack space={6} flexWrap="wrap">
-                  <Radio value="CASH" size="lg" isDisabled={!isPaidChecked}>
+                  <Radio value="CASH" size="lg">
                     <Text fontSize="md">CASH</Text>
                   </Radio>
-                  <Radio value="UPI" size="lg" isDisabled={!isPaidChecked}>
+                  <Radio value="UPI" size="lg">
                     <Text fontSize="md">UPI</Text>
                   </Radio>
-                  <Radio value="CARD" size="lg" isDisabled={!isPaidChecked}>
+                  <Radio value="CARD" size="lg">
                     <Text fontSize="md">CARD</Text>
                   </Radio>
                 </HStack>
@@ -4551,14 +4547,9 @@ const handleSettleOrder = async () => {
               <Button
                 mt={4}
                 size="lg"
-                bg={isPaidChecked ? "blue.500" : "coolGray.400"}
-                _pressed={{ bg: isPaidChecked ? "blue.600" : "coolGray.500" }}
+                bg="blue.500"
+                _pressed={{ bg: "blue.600" }}
                 onPress={handlePaymentModalConfirm}
-                isDisabled={!isPaidChecked}
-                _disabled={{
-                  bg: "coolGray.400",
-                  opacity: 0.5
-                }}
               >
                 {currentAction === 'kot' ? 'Generate KOT' : 'Settle'}
               </Button>
