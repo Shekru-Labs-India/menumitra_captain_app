@@ -644,11 +644,11 @@ export default function MenuSelectionScreen() {
           <Text fontWeight="bold" color={isReserved ? "gray.400" : "cyan.500"}>₹{item.price}</Text>
         </HStack>
         
-        {item.category_name && item.category_name.toLowerCase().trim() !== selectedCategory.toLowerCase().trim() && (
+        {/* {item.category_name && item.category_name.toLowerCase().trim() !== selectedCategory.toLowerCase().trim() && (
           <Text fontSize="2xs" color={isReserved ? "gray.400" : "gray.500"} fontStyle="italic" mt={1}>
             From: {item.category_name}
           </Text>
-        )}
+        )} */}
       </Pressable>
     );
   };
