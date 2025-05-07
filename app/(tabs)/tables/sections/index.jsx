@@ -1646,78 +1646,39 @@ export default function TableSectionsScreen() {
           return;
         }
         
-        let uri = null;
+        // Generate a reliable QR code using QRServer API
+        const encodedQrValue = encodeURIComponent(qrValue);
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodedQrValue}&margin=10&color=0066FF&bgcolor=FFFFFF`;
+        const filename = `Table_${selectedTableForQR?.table_number || "Unknown"}_QR_${Date.now()}.png`;
+        const fileUri = `${FileSystem.cacheDirectory}${filename}`;
         
-        // Get QR code as data URL
-        if (global.nativeQRRef) {
-          try {
-            uri = await new Promise((resolve, reject) => {
-              const options = {
-                width: 400,
-                height: 400,
-                quality: 0.9,
-                includeECLevel: true,
-                includeLogo: true,
-                color: true
-              };
-              
-              global.nativeQRRef.toDataURL((data) => {
-                if (data) {
-                  console.log("QR data URL generated successfully");
-                  resolve(data);
-                } else {
-                  reject(new Error("Failed to generate QR code data URL"));
-                }
-              }, options);
-            });
-          } catch (error) {
-            console.error("QR ref method failed:", error);
-          }
-        }
+        // Download the QR image
+        const downloadResult = await FileSystem.downloadAsync(qrApiUrl, fileUri);
         
-        // Fallback to API method
-        if (!uri) {
-          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
-          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
-          const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-          
-          await FileSystem.downloadAsync(qrApiUrl, fileUri);
-          uri = fileUri;
+        if (downloadResult.status !== 200) {
+          throw new Error("Failed to download QR code image");
         }
         
         // Save to gallery
-        if (uri) {
-          // Create a unique filename
-          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
-          let fileUri = uri;
-          
-          // Only process data URLs, file URLs are already handled
-          if (uri.startsWith('data:')) {
-            fileUri = `${FileSystem.cacheDirectory}${filename}`;
-            const base64Data = uri.split(',')[1];
-            await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-              encoding: FileSystem.EncodingType.Base64
-            });
+        const asset = await MediaLibrary.createAssetAsync(fileUri);
+        
+        // Create album if it doesn't exist
+        try {
+          const album = await MediaLibrary.getAlbumAsync("MenuMitra");
+          if (album === null) {
+            await MediaLibrary.createAlbumAsync("MenuMitra", asset, false);
+          } else {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
           }
-          
-          // Save to media library
-          const asset = await MediaLibrary.createAssetAsync(fileUri);
-          
-          // Create album if it doesn't exist
-          try {
-            await MediaLibrary.createAlbumAsync("MenuMitra QR Codes", asset, false);
-          } catch (error) {
-            console.log("Album already exists or error creating album:", error);
-          }
-          
-          toast.show({
-            description: "QR code saved to gallery",
-            status: "success",
-            duration: 2000
-          });
-        } else {
-          throw new Error("Failed to generate QR code");
+        } catch (error) {
+          console.log("Album error (non-critical):", error);
         }
+        
+        toast.show({
+          description: "QR code saved to gallery",
+          status: "success",
+          duration: 2000
+        });
       } catch (error) {
         console.error("Download Error:", error);
         toast.show({
@@ -1729,7 +1690,7 @@ export default function TableSectionsScreen() {
       }
     };
 
-    // Add handlePDFDownload function
+    // PDF download function
     const handlePDFDownload = async () => {
       try {
         setIsDownloading(true);
@@ -1739,56 +1700,12 @@ export default function TableSectionsScreen() {
           duration: 2000
         });
         
-        // Get QR code as data URL
-        let qrDataUrl = null;
-        
-        if (global.nativeQRRef) {
-          try {
-            qrDataUrl = await new Promise((resolve, reject) => {
-              const options = {
-                width: 400,
-                height: 400,
-                quality: 0.9,
-                includeECLevel: true,
-                includeLogo: true,
-                color: true
-              };
-              
-              global.nativeQRRef.toDataURL((data) => {
-                if (data) {
-                  console.log("QR data URL generated for PDF");
-                  resolve(data);
-                } else {
-                  reject(new Error("Failed to generate QR code data for PDF"));
-                }
-              }, options);
-            });
-          } catch (error) {
-            console.error("Failed to generate QR code image:", error);
-            qrDataUrl = null;
-          }
-        }
-        
-        if (!qrDataUrl) {
-          // Fallback to API method
-          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
-          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
-          const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-          
-          await FileSystem.downloadAsync(qrApiUrl, fileUri);
-          
-          // Convert to base64
-          const base64 = await FileSystem.readAsStringAsync(fileUri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-          
-          qrDataUrl = `data:image/png;base64,${base64}`;
-        }
-        
-        // Get restaurant name for the PDF
+        // Get outlet name
         const outlet = await AsyncStorage.getItem("outlet_name") || "MenuMitra";
+        const encodedQrValue = encodeURIComponent(qrValue);
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodedQrValue}&margin=10&color=0066FF&bgcolor=FFFFFF`;
         
-        // Create HTML content with embedded QR code
+        // Create HTML content for PDF with directly embedded QR code URL
         const tableInfo = `Table ${selectedTableForQR?.table_number || "Unknown"}`;
         const htmlContent = `
           <html>
@@ -1801,12 +1718,7 @@ export default function TableSectionsScreen() {
                 .outlet-name { font-weight: bold; color: #0891b2; font-size: 22px; margin-bottom: 10px; }
                 .table-info { margin: 20px 0; font-size: 24px; font-weight: bold; color: #333; }
                 .qr-container { margin: 30px 0; position: relative; }
-                .qr-container img { max-width: 100%; height: auto; }
-                .corner { position: absolute; width: 20px; height: 20px; }
-                .top-left { top: 2px; left: 2px; border-top: 5px solid #FF7043; border-left: 5px solid #FF7043; border-top-left-radius: 6px; }
-                .top-right { top: 2px; right: 2px; border-top: 5px solid #FF7043; border-right: 5px solid #FF7043; border-top-right-radius: 6px; }
-                .bottom-left { bottom: 2px; left: 2px; border-bottom: 5px solid #FF7043; border-left: 5px solid #FF7043; border-bottom-left-radius: 6px; }
-                .bottom-right { bottom: 2px; right: 2px; border-bottom: 5px solid #FF7043; border-right: 5px solid #FF7043; border-bottom-right-radius: 6px; }
+                .qr-container img { max-width: 100%; height: auto; border: 3px solid #FF7043; border-radius: 10px; padding: 10px; }
                 .instructions { margin: 20px 0; font-size: 16px; color: #555; }
                 .footer { margin-top: 40px; font-size: 12px; color: #666; }
               </style>
@@ -1817,14 +1729,10 @@ export default function TableSectionsScreen() {
                 <h1>Menu QR Code</h1>
                 <div class="table-info">${tableInfo}</div>
                 <div class="qr-container">
-                  <img src="${qrDataUrl}" width="350" height="350" />
-                  <div class="corner top-left"></div>
-                  <div class="corner top-right"></div>
-                  <div class="corner bottom-left"></div>
-                  <div class="corner bottom-right"></div>
+                  <img src="${qrApiUrl}" width="350" height="350" />
                 </div>
                 <div class="instructions">
-                  Scan this QR code with your smartphone camera to access the digital menu
+                  Scan this QR code with your smartphone camera to place your order
                 </div>
                 <div class="footer">
                   &copy; MenuMitra - Digital Menu Solutions
@@ -1840,19 +1748,45 @@ export default function TableSectionsScreen() {
           base64: false
         });
         
-        // Share the PDF
-        await Sharing.shareAsync(pdfUri, {
-          mimeType: 'application/pdf',
-          UTI: 'com.adobe.pdf',
-          dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code PDF`
-        });
-        
-        toast.show({
-          description: "QR code PDF created successfully",
-          status: "success",
-          duration: 2000
-        });
-        
+        // For Android
+        if (Platform.OS === 'android') {
+          try {
+            const asset = await MediaLibrary.createAssetAsync(pdfUri);
+            const album = await MediaLibrary.getAlbumAsync('MenuMitra');
+            
+            if (album === null) {
+              await MediaLibrary.createAlbumAsync('MenuMitra', asset, false);
+            } else {
+              await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+            }
+            
+            toast.show({
+              description: "QR code PDF saved to your gallery!",
+              status: "success",
+              duration: 3000,
+            });
+          } catch (error) {
+            console.error('Save to gallery failed:', error);
+            // Fallback to sharing
+            await Sharing.shareAsync(pdfUri, {
+              mimeType: 'application/pdf',
+              dialogTitle: 'Save PDF',
+              UTI: 'com.adobe.pdf'
+            });
+          }
+        } else if (Platform.OS === 'ios') {
+          // iOS doesn't save PDFs to photo library, use sharing instead
+          await Sharing.shareAsync(pdfUri, {
+            UTI: 'com.adobe.pdf',
+            mimeType: 'application/pdf',
+            dialogTitle: 'Save PDF',
+          });
+          toast.show({
+            description: "Please select 'Save to Files' to save your PDF",
+            status: "success",
+            duration: 3000,
+          });
+        }
       } catch (error) {
         console.error("PDF Generation Error:", error);
         toast.show({
@@ -1870,66 +1804,37 @@ export default function TableSectionsScreen() {
       try {
         setIsSharing(true);
         
-        let uri = null;
+        if (!qrValue) {
+          throw new Error("No QR code data available to share");
+        }
         
-        // Get QR code as data URL
-        if (global.nativeQRRef) {
+        // Generate a reliable QR code using QRServer API
+        const encodedQrValue = encodeURIComponent(qrValue);
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodedQrValue}&margin=10&color=0066FF&bgcolor=FFFFFF`;
+        const filename = `Table_${selectedTableForQR?.table_number || "Unknown"}_QR_${Date.now()}.png`;
+        const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+        
+        // Download the QR image
+        const downloadResult = await FileSystem.downloadAsync(qrApiUrl, fileUri);
+        
+        if (downloadResult.status !== 200) {
+          throw new Error("Failed to download QR code image for sharing");
+        }
+        
+        // Share the file
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'image/png',
+          dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code`
+        });
+        
+        // Cleanup after sharing
+        setTimeout(async () => {
           try {
-            uri = await new Promise((resolve, reject) => {
-              const options = {
-                width: 400,
-                height: 400,
-                quality: 0.9,
-                includeECLevel: true,
-                includeLogo: true,
-                color: true
-              };
-              
-              global.nativeQRRef.toDataURL((data) => {
-                if (data) {
-                  resolve(data);
-                } else {
-                  reject(new Error("Failed to generate QR code data URL"));
-                }
-              }, options);
-            });
-          } catch (error) {
-            console.error("QR ref method failed:", error);
+            await FileSystem.deleteAsync(fileUri, { idempotent: true });
+          } catch (e) {
+            console.log("Cleanup error (non-critical):", e);
           }
-        }
-        
-        // Fallback to API method
-        if (!uri) {
-          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrValue)}`;
-          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
-          const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-          
-          await FileSystem.downloadAsync(qrApiUrl, fileUri);
-          uri = fileUri;
-        }
-        
-        if (uri) {
-          // Create a unique filename
-          const filename = `QRCode_Table${selectedTableForQR?.table_number || "Unknown"}_${Date.now()}.png`;
-          let fileUri = uri;
-          
-          // Only process data URLs, file URLs are already handled
-          if (uri.startsWith('data:')) {
-            fileUri = `${FileSystem.cacheDirectory}${filename}`;
-            const base64Data = uri.split(',')[1];
-            await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-              encoding: FileSystem.EncodingType.Base64
-            });
-          }
-          
-          // Share the file
-          await Sharing.shareAsync(fileUri, {
-            mimeType: 'image/png',
-            dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code`
-          });
-        } else {
-          throw new Error("Failed to generate QR code for sharing");
-        }
+        }, 3000);
       } catch (error) {
         console.error("Share Error:", error);
         toast.show({
@@ -1991,87 +1896,25 @@ export default function TableSectionsScreen() {
 
             {qrValue ? (
               <VStack space={4} alignItems="center">
-                {/* QR Code with ViewShot wrapper */}
+                {/* QR Container */}
                 <Box 
-                  ref={qrContainerRef}
-                  collapsable={false}
-                  key={"qrbox-" + qrRenderAttempt}
                   bg="white"
                   p={4}
+                  borderWidth={3}
+                  borderColor="#FF7043"
                   borderRadius="lg"
                   position="relative"
                 >
-                  {/* QR Code */}
-                  <Box position="relative">
-                    <QRCode
-                      value={qrValue}
-                      size={260}
-                      logo={require('../../../../assets/images/mm-logo.png')}
-                      logoSize={60}
-                      logoBackgroundColor="white"
-                      logoMargin={2}
-                      logoBorderRadius={8}
-                      backgroundColor="white"
-                      color="#000000"
-                      enableLinearGradient={false}
-                      ecl="H"
-                      quietZone={16}
-                      logoHasBackground={false}
-                      getRef={(c) => {
-                        global.nativeQRRef = c;
-                      }}
-                    />
-                    
-                    {/* Corner Markers */}
-                    <Box 
-                      position="absolute" 
-                      top={2} 
-                      left={2} 
-                      width={20} 
-                      height={20} 
-                      borderTopWidth={5} 
-                      borderLeftWidth={5} 
-                      borderTopColor="#FF7043" 
-                      borderLeftColor="#FF7043" 
-                      borderTopLeftRadius={6}
-                    />
-                    <Box 
-                      position="absolute" 
-                      top={2} 
-                      right={2} 
-                      width={20} 
-                      height={20} 
-                      borderTopWidth={5} 
-                      borderRightWidth={5} 
-                      borderTopColor="#FF7043" 
-                      borderRightColor="#FF7043" 
-                      borderTopRightRadius={6}
-                    />
-                    <Box 
-                      position="absolute" 
-                      bottom={2} 
-                      left={2} 
-                      width={20} 
-                      height={20} 
-                      borderBottomWidth={5} 
-                      borderLeftWidth={5} 
-                      borderBottomColor="#FF7043" 
-                      borderLeftColor="#FF7043" 
-                      borderBottomLeftRadius={6}
-                    />
-                    <Box 
-                      position="absolute" 
-                      bottom={2} 
-                      right={2} 
-                      width={20} 
-                      height={20} 
-                      borderBottomWidth={5} 
-                      borderRightWidth={5} 
-                      borderBottomColor="#FF7043" 
-                      borderRightColor="#FF7043" 
-                      borderBottomRightRadius={6}
-                    />
-                  </Box>
+                  {/* Render QR code directly from API */}
+                  <Image 
+                    source={{ 
+                      uri: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrValue)}&margin=10&color=0066FF&bgcolor=FFFFFF` 
+                    }}
+                    alt="QR Code"
+                    width={250}
+                    height={250}
+                    resizeMode="contain"
+                  />
                 </Box>
                 
                 <Text fontSize="md" color="coolGray.600" textAlign="center">
@@ -2089,8 +1932,8 @@ export default function TableSectionsScreen() {
                     justifyContent="center"
                     alignItems="center"
                     onPress={showDownloadOptions}
-                    disabled={isDownloading || isSharing || !qrReady}
-                    opacity={isDownloading || isSharing || !qrReady ? 0.7 : 1}
+                    disabled={isDownloading || isSharing}
+                    opacity={isDownloading || isSharing ? 0.7 : 1}
                   >
                     {isDownloading ? (
                       <Spinner size="sm" color="white" />
@@ -2113,8 +1956,8 @@ export default function TableSectionsScreen() {
                     justifyContent="center"
                     alignItems="center"
                     onPress={shareQRCode}
-                    disabled={isDownloading || isSharing || !qrReady}
-                    opacity={isDownloading || isSharing || !qrReady ? 0.7 : 1}
+                    disabled={isDownloading || isSharing}
+                    opacity={isDownloading || isSharing ? 0.7 : 1}
                   >
                     {isSharing ? (
                       <Spinner size="sm" color="white" />
@@ -2132,6 +1975,7 @@ export default function TableSectionsScreen() {
             ) : (
               <Center py={10}>
                 <Spinner size="lg" color="#0891b2" />
+                <Text mt={4} color="coolGray.600">Loading QR code...</Text>
               </Center>
             )}
           </Box>
@@ -2140,7 +1984,7 @@ export default function TableSectionsScreen() {
     );
   };
 
-  // Update handleQRIconPress for simplicity - no need for complex ref handling
+  // Update handleQRIconPress to fetch sections first if needed
   const handleQRIconPress = async (table, section) => {
     setIsLoadingQr(true);
     setIsQRModalOpen(true);
@@ -2153,6 +1997,9 @@ export default function TableSectionsScreen() {
     });
 
     try {
+      // Make sure we have the latest section data
+      await fetchSectionsForQR();
+      
       const data = await fetchWithAuth(`${getBaseUrl()}/send_qr_link`, {
         method: "POST",
         headers: {
@@ -2161,21 +2008,21 @@ export default function TableSectionsScreen() {
         body: JSON.stringify({
           outlet_id: outletId.toString(),
           table_id: table.table_id.toString(),
+          section_id: section.id.toString()
         }),
       });
 
       console.log("QR Response:", data);
 
-      if (!data.user_app_url || !data.outlet_code || !data.table_number || !data.section_id) {
+      if (!data.user_app_url || !data.outlet_code || !data.section_id || !data.table_number) {
         throw new Error("Invalid QR code data received");
       }
 
-      // Override the user_app_url with our testing URL using the correct format
-      const testingUrl = "https://menumitra-testing.netlify.app";
-      const qrUrl = `${testingUrl}/user_app/o${data.outlet_code}/s${data.section_id}/t${data.table_number}`;
+      // Generate the QR URL with proper format and encoding
+      const qrUrl = `${data.user_app_url}o${data.outlet_code}/s${data.section_id}/t${data.table_number}`;
       console.log("Generated QR URL:", qrUrl);
 
-      // Set QR data immediately - no need for complex timing as we're using ViewShot
+      // Set QR data
       setQrData({
         ...data,
         qr_code_url: qrUrl,
@@ -2728,6 +2575,36 @@ export default function TableSectionsScreen() {
       </VStack>
     </ScrollView>
   );
+
+  // Update the fetchRestaurantQRCode function to include correct parameters
+  const fetchSectionsForQR = async () => {
+    try {
+      const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      if (!storedOutletId) {
+        toast.show({
+          description: "Please login again",
+          status: "error",
+        });
+        router.replace("/login");
+        return;
+      }
+
+      const data = await fetchWithAuth(`${getBaseUrl()}/table_listview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: storedOutletId.toString(),
+        }),
+      });
+
+      if (data.st === 1 && data.data) {
+        // Process sections data if needed
+        console.log("Sections for QR fetched successfully");
+      }
+    } catch (error) {
+      console.error("Error fetching sections for QR:", error);
+    }
+  };
 
   return (
     <Box safeArea flex={1} bg="coolGray.100">
