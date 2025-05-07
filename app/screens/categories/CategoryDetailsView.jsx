@@ -234,228 +234,118 @@ export default function CategoryDetailsView() {
       />
 
       <ScrollView>
-        <VStack space={4} p={4}>
+        <Box mx={4} mt={4} bg="white" rounded="xl" shadow={2} overflow="hidden">
           {/* Category Image */}
-          <Box bg="white" rounded="lg" overflow="hidden" shadow={1}>
-            {categoryData?.image ? (
-              <Image
-                source={{ uri: categoryData.image }}
-                alt={categoryData.name}
-                h={200}
-                w="100%"
-                resizeMode="cover"
+          {categoryData?.image ? (
+            <Image
+              source={{ uri: categoryData.image }}
+              alt={categoryData.name}
+              h={200}
+              w="100%"
+              resizeMode="cover"
+            />
+          ) : (
+            <Box
+              h={200}
+              bg="gray.200"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Icon
+                as={MaterialIcons}
+                name="category"
+                size={12}
+                color="gray.400"
               />
-            ) : (
-              <Box
-                h={200}
-                bg="gray.200"
-                justifyContent="center"
-                alignItems="center"
-              >
-                <Icon
-                  as={MaterialIcons}
-                  name="category"
-                  size={12}
-                  color="gray.400"
-                />
-              </Box>
-            )}
+            </Box>
+          )}
+
+          {/* Category Name */}
+          <Box py={3} px={4} alignItems="center">
+            <Text fontSize="xl" fontWeight="bold">
+              {categoryData.name}
+            </Text>
           </Box>
 
           {/* Category Details */}
-          <Box bg="white" rounded="lg" p={4} shadow={1}>
-            <VStack space={4}>
-              <HStack justifyContent="space-between" alignItems="center">
-                <Text fontSize="xl" fontWeight="bold">
-                  {categoryData.name}
-                </Text>
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="restaurant-menu"
-                    size={5}
-                    color="coolGray.500"
-                  />
-                  <Text fontSize="md" color="coolGray.500">
-                    {categoryData.menu_count || 0}{" "}
-                    {categoryData.menu_count === 1 ? "Menu" : "Menus"}
-                  </Text>
-                </HStack>
+          <Box p={4} borderTopWidth={1} borderTopColor="coolGray.200">
+            <VStack space={3}>
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Created On:</Text>
+                <Text fontWeight="medium">{categoryData.created_on || ""}</Text>
               </HStack>
-
-              {/* Creation Details */}
-              <VStack
-                space={2}
-                borderBottomWidth={1}
-                borderBottomColor="coolGray.200"
-                pb={2}
-              >
-                <Text fontSize="md" fontWeight="bold" color="coolGray.700">
-                  Creation Details
+              
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Created By:</Text>
+                <Text fontWeight="medium">{categoryData.created_by || ""}</Text>
+              </HStack>
+              
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Updated On:</Text>
+                <Text fontWeight="medium">{categoryData.updated_on || ""}</Text>
+              </HStack>
+              
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Updated By:</Text>
+                <Text fontWeight="medium">{categoryData.updated_by || ""}</Text>
+              </HStack>
+              
+              <HStack justifyContent="space-between">
+                <Text color="coolGray.600">Status</Text>
+                <Text fontWeight="medium" color={categoryData.is_active ? "green.600" : "red.500"}>
+                  {categoryData.is_active ? "Active" : "Inactive"}
                 </Text>
-                <HStack space={2} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="person"
-                    size={5}
-                    color="coolGray.500"
-                  />
-                  <Text fontSize="sm" color="coolGray.600">
-                    Created by: {categoryData.created_by || "N/A"}
-                  </Text>
-                </HStack>
-                <HStack space={2} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="event"
-                    size={5}
-                    color="coolGray.500"
-                  />
-                  <Text fontSize="sm" color="coolGray.600">
-                    Created on: {categoryData.created_on || "N/A"}
-                  </Text>
-                </HStack>
-              </VStack>
-
-              {/* Update Details */}
-              <VStack space={2}>
-                <Text fontSize="md" fontWeight="bold" color="coolGray.700">
-                  Last Update Details
-                </Text>
-                <HStack space={2} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="person"
-                    size={5}
-                    color="coolGray.500"
-                  />
-                  <Text fontSize="sm" color="coolGray.600">
-                    Updated by: {categoryData.updated_by || "N/A"}
-                  </Text>
-                </HStack>
-                <HStack space={2} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="update"
-                    size={5}
-                    color="coolGray.500"
-                  />
-                  <Text fontSize="sm" color="coolGray.600">
-                    Updated on: {categoryData.updated_on || "N/A"}
-                  </Text>
-                </HStack>
-              </VStack>
+              </HStack>
             </VStack>
           </Box>
+        </Box>
 
-          {/* Menu Items Section */}
-          {menuItems && menuItems.length > 0 && (
-            <Box bg="white" rounded="lg" p={4} shadow={1}>
-              <VStack space={4}>
-                <Text fontSize="lg" fontWeight="bold" color="coolGray.700">
-                  Menu Items ({menuItems.length})
-                </Text>
-                {menuItems.map((item, index) => (
-                  <Box
-                    key={item.menu_id || index}
-                    py={3}
-                    borderBottomWidth={index < menuItems.length - 1 ? 1 : 0}
-                    borderBottomColor="coolGray.200"
-                  >
-                    <HStack space={3} alignItems="center">
-                      {item.image && (
-                        <Image
-                          source={{ uri: item.image }}
-                          alt={item.menu_name || "Menu Item"}
-                          size="md"
-                          rounded="md"
-                        />
+        {/* Menu Items Section - Only show if there are menu items */}
+        {menuItems && menuItems.length > 0 && (
+          <Box mx={4} my={4} bg="white" rounded="xl" p={4} shadow={2}>
+            <Text fontSize="lg" fontWeight="bold" color="coolGray.700" mb={4}>
+              Menu Items ({menuItems.length})
+            </Text>
+            <VStack space={4} divider={<Box h="1px" bg="coolGray.200" />}>
+              {menuItems.map((item, index) => (
+                <Box key={item.menu_id || index}>
+                  <HStack space={3} alignItems="center">
+                    {item.image && (
+                      <Image
+                        source={{ uri: item.image }}
+                        alt={item.menu_name || "Menu Item"}
+                        size="sm"
+                        rounded="md"
+                      />
+                    )}
+                    <VStack flex={1} space={1}>
+                      <Text fontSize="md" fontWeight="bold">
+                        {item.menu_name}
+                      </Text>
+                      {item.description && (
+                        <Text fontSize="sm" color="coolGray.600" numberOfLines={1}>
+                          {item.description}
+                        </Text>
                       )}
-                      <VStack flex={1} space={2}>
-                        {/* Menu Name and Food Type */}
-                        <HStack
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <Text fontSize="md" fontWeight="bold">
-                            {item.menu_name}
-                          </Text>
-                          <HStack
-                            space={1}
-                            alignItems="center"
-                            bg={
-                              item.food_type === "veg" ? "green.100" : "red.100"
-                            }
-                            px={2}
-                            py={1}
-                            rounded="full"
-                          >
-                            <Icon
-                              as={MaterialIcons}
-                              name="restaurant"
-                              size={4}
-                              color={
-                                item.food_type === "veg"
-                                  ? "green.600"
-                                  : "red.600"
-                              }
-                            />
-                            <Text
-                              fontSize="xs"
-                              color={
-                                item.food_type === "veg"
-                                  ? "green.600"
-                                  : "red.600"
-                              }
-                              textTransform="capitalize"
-                            >
+                      <HStack space={2} mt={1}>
+                        {item.food_type && (
+                          <Box px={2} py={0.5} bg={item.food_type === "veg" ? "green.100" : "red.100"} rounded="full">
+                            <Text fontSize="2xs" color={item.food_type === "veg" ? "green.600" : "red.600"}>
                               {item.food_type}
                             </Text>
-                          </HStack>
-                        </HStack>
-
-                        {/* Price Details */}
-                        <VStack space={1}>
-                          {item.full_price > 0 && (
-                            <HStack justifyContent="space-between">
-                              <Text fontSize="sm" color="coolGray.600">
-                                {item.half_price > 0 ? "Full Price" : "Price"}
-                              </Text>
-                              <Text fontSize="sm" fontWeight="semibold">
-                                ₹{item.full_price}
-                              </Text>
-                            </HStack>
-                          )}
-                          {item.half_price > 0 && (
-                            <HStack justifyContent="space-between">
-                              <Text fontSize="sm" color="coolGray.600">
-                                Half Price
-                              </Text>
-                              <Text fontSize="sm" fontWeight="semibold">
-                                ₹{item.half_price}
-                              </Text>
-                            </HStack>
-                          )}
-                        </VStack>
-
-                        {/* Description if available */}
-                        {item.description && (
-                          <Text
-                            fontSize="sm"
-                            color="coolGray.600"
-                            numberOfLines={2}
-                          >
-                            {item.description}
-                          </Text>
+                          </Box>
                         )}
-                      </VStack>
-                    </HStack>
-                  </Box>
-                ))}
-              </VStack>
-            </Box>
-          )}
-        </VStack>
+                        <Text fontSize="sm" fontWeight="medium">
+                          ₹{item.full_price}
+                        </Text>
+                      </HStack>
+                    </VStack>
+                  </HStack>
+                </Box>
+              ))}
+            </VStack>
+          </Box>
+        )}
       </ScrollView>
 
       {/* Add Edit FAB */}
