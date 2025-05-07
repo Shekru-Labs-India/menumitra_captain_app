@@ -2245,7 +2245,7 @@ export default function OrderDetailsScreen() {
         <Box mx={4} mb={4} p={4} bg="white" rounded="lg" shadow={1}>
           <HStack justifyContent="space-between" alignItems="center" mb={4}>
             <Heading size="sm">
-              Order Items{" "}
+              Menu Count{" "}
               <Text color="coolGray.600" fontSize="sm">
                 ({menuItems.length} {menuItems.length === 1 ? "item" : "items"})
               </Text>
