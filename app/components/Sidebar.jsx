@@ -189,7 +189,7 @@ export default function Sidebar({ isOpen, onClose }) {
             </Pressable>
           ))}
 
-          <Pressable
+          {/* <Pressable
             style={[styles.sidebarItem, { marginTop: "auto" }]}
             onPress={async () => {
               try {
@@ -232,7 +232,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <Text style={styles.sidebarText} numberOfLines={1}>
               Call Waiter
             </Text>
-          </Pressable>
+          </Pressable> */}
 
           {/* <Pressable
             style={[styles.sidebarItem]}
