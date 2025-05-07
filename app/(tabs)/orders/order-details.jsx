@@ -1989,7 +1989,12 @@ export default function OrderDetailsScreen() {
   const TimelineModal = ({ isOpen, onClose, data }) => (
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
       <Modal.Content maxWidth="400px">
-        <Modal.Header>Order Timeline - #{orderDetails?.order_number}</Modal.Header>
+        <Modal.Header>
+          <HStack space={0}>
+            <Text>Order Timeline - #</Text>
+            <Text>{orderDetails?.order_number}</Text>
+          </HStack>
+        </Modal.Header>
         <Modal.Body>
           <VStack space={4}>
             {data.map((item, index) => (
