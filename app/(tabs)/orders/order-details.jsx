@@ -2080,6 +2080,64 @@ export default function OrderDetailsScreen() {
     }
   }, [order_id]);
 
+  // Add PrinterStatusIndicator component
+  const PrinterStatusIndicator = () => (
+    <Pressable
+      onPress={() => {
+        if (isConnected && printerDevice) {
+          Alert.alert(
+            "Printer Connected",
+            `Connected to: ${printerDevice?.name || "Printer"}`,
+            [
+              {
+                text: "Disconnect",
+                style: "destructive",
+                onPress: async () => {
+                  try {
+                    await printerDevice.cancelConnection();
+                    setPrinterDevice(null);
+                    setIsConnected(false);
+                    toast.show({
+                      description: "Printer disconnected",
+                      status: "success",
+                      duration: 3000,
+                      placement: "bottom"
+                    });
+                  } catch (error) {
+                    console.error("Error disconnecting printer:", error);
+                  }
+                }
+              },
+              { text: "OK" }
+            ]
+          );
+        } else {
+          setIsModalVisible(true);
+          scanForPrinters();
+        }
+      }}
+    >
+      <HStack 
+        alignItems="center" 
+        justifyContent="center" 
+        bg={isConnected && printerDevice ? "green.100" : "red.100"} 
+        p={1} 
+        px={2} 
+        rounded="full"
+      >
+        <Icon 
+          as={MaterialIcons} 
+          name={isConnected && printerDevice ? "bluetooth-connected" : "bluetooth-disabled"} 
+          size="sm" 
+          color={isConnected && printerDevice ? "green.600" : "red.600"} 
+        />
+        <Text fontSize="xs" ml={1} color={isConnected && printerDevice ? "green.600" : "red.600"}>
+          {isConnected && printerDevice ? "Printer Connected" : "No Printer"}
+        </Text>
+      </HStack>
+    </Pressable>
+  );
+
   if (isLoading) {
     return (
       <Box flex={1} bg="white" safeArea>
@@ -2109,53 +2167,56 @@ export default function OrderDetailsScreen() {
         title="Order Details" 
         showBack 
         rightComponent={
-          orderDetails && 
-          orderDetails.order_status?.toLowerCase() !== "paid" && 
-          orderDetails.order_status?.toLowerCase() !== "cancelled" ? (
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Icon as={MaterialIcons} name="edit" size="sm" />}
-              onPress={() => router.push({
-                pathname: "/screens/orders/menu-selection",
-                params: {
-                  tableId: orderDetails.table_number?.[0],
-                  tableNumber: orderDetails.table_number?.[0],
-                  sectionId: orderDetails.section_id,
-                  sectionName: orderDetails.section,
-                  outletId: orderDetails.outlet_id,
-                  orderId: orderDetails.order_id,
-                  orderNumber: orderDetails.order_number,
-                  orderType: orderDetails.order_type || "dine-in",
-                  isOccupied: "1",
-                  orderDetails: JSON.stringify({
-                    order_id: orderDetails.order_id,
-                    menu_items: menuItems.map(item => ({
-                      menu_id: item.menu_id,
-                      menu_name: item.menu_name,
-                      name: item.menu_name,
-                      price: parseFloat(item.price),
-                      quantity: parseInt(item.quantity),
-                      half_price: item.half_price || 0,
-                      full_price: item.full_price || item.price,
-                      portionSize: item.half_or_full === "half" ? "Half" : "Full",
-                      offer: parseFloat(item.offer || 0),
-                      specialInstructions: item.comment || "",
-                      total_price: parseFloat(item.menu_sub_total),
-                    })),
-                    grand_total: orderDetails.grand_total,
-                    table_id: orderDetails.table_number?.[0],
-                    table_number: orderDetails.table_number?.[0],
-                    section_id: orderDetails.section_id,
-                    section_name: orderDetails.section,
-                    outlet_id: orderDetails.outlet_id,
-                  }),
-                },
-              })}
-            >
-              Edit
-            </Button>
-          ) : null
+          <HStack space={2} alignItems="center">
+            <PrinterStatusIndicator />
+            {orderDetails && 
+            orderDetails.order_status?.toLowerCase() !== "paid" && 
+            orderDetails.order_status?.toLowerCase() !== "cancelled" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Icon as={MaterialIcons} name="edit" size="sm" />}
+                onPress={() => router.push({
+                  pathname: "/screens/orders/menu-selection",
+                  params: {
+                    tableId: orderDetails.table_number?.[0],
+                    tableNumber: orderDetails.table_number?.[0],
+                    sectionId: orderDetails.section_id,
+                    sectionName: orderDetails.section,
+                    outletId: orderDetails.outlet_id,
+                    orderId: orderDetails.order_id,
+                    orderNumber: orderDetails.order_number,
+                    orderType: orderDetails.order_type || "dine-in",
+                    isOccupied: "1",
+                    orderDetails: JSON.stringify({
+                      order_id: orderDetails.order_id,
+                      menu_items: menuItems.map(item => ({
+                        menu_id: item.menu_id,
+                        menu_name: item.menu_name,
+                        name: item.menu_name,
+                        price: parseFloat(item.price),
+                        quantity: parseInt(item.quantity),
+                        half_price: item.half_price || 0,
+                        full_price: item.full_price || item.price,
+                        portionSize: item.half_or_full === "half" ? "Half" : "Full",
+                        offer: parseFloat(item.offer || 0),
+                        specialInstructions: item.comment || "",
+                        total_price: parseFloat(item.menu_sub_total),
+                      })),
+                      grand_total: orderDetails.grand_total,
+                      table_id: orderDetails.table_number?.[0],
+                      table_number: orderDetails.table_number?.[0],
+                      section_id: orderDetails.section_id,
+                      section_name: orderDetails.section,
+                      outlet_id: orderDetails.outlet_id,
+                    }),
+                  },
+                })}
+              >
+                Edit
+              </Button>
+            ) : null}
+          </HStack>
         }
       />
 
@@ -2636,6 +2697,8 @@ export default function OrderDetailsScreen() {
           </Modal.Body>
         </Modal.Content>
       </Modal>
+
+      <PrinterStatusIndicator />
     </Box>
   );
 }
