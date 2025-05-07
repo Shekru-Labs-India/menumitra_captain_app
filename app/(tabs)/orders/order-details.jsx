@@ -2035,6 +2035,8 @@ export default function OrderDetailsScreen() {
         ...textToBytes("KOT\n"),
         ...textToBytes("\x1D\x21\x00"), // Normal size
         ...textToBytes(`${orderDetails.outlet_name || "Restaurant"}\n`),
+        ...textToBytes(`${orderDetails.outlet_address || ""}\n`),
+        ...textToBytes(`${orderDetails.outlet_mobile ? `${orderDetails.outlet_mobile}\n` : ""}`),
         
         ...textToBytes("\x1B\x61\x00"), // Left align
         ...textToBytes(`Bill Number: ${orderDetails.order_number}\n`),
@@ -2428,7 +2430,7 @@ export default function OrderDetailsScreen() {
           <VStack space={3}>
             <HStack justifyContent="space-between" alignItems="flex-start">
               <VStack space={2}>
-                <Heading size="md">Order #{orderDetails.order_number}</Heading>
+                <Heading size="md">Order {orderDetails.order_number}</Heading>
                 <Text fontSize="sm" color="coolGray.600">
                   {orderDetails.date} • {orderDetails.time}
                 </Text>
