@@ -2336,11 +2336,11 @@ export default function OrderDetailsScreen() {
 
         {/* Bill Details Card */}
         <Box mx={4} mb={4} p={4} bg="white" rounded="lg" shadow={1}>
-          <Heading size="sm" mb={4}>Bill Details</Heading>
+          {/* <Heading size="sm" mb={4}>Bill Details</Heading> */}
           <VStack space={3}>
             {/* Items Total */}
             <HStack justifyContent="space-between">
-              <Text color="coolGray.600">Items Total</Text>
+              <Text color="coolGray.600">Total</Text>
               <Text>₹{Number(orderDetails.total_bill_amount || 0).toFixed(2)}</Text>
             </HStack>
 
