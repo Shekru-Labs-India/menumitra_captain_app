@@ -698,9 +698,6 @@ export default function AddStaffScreen() {
                 }
               />
             </Pressable>
-            {/* <FormControl.HelperText>
-              This field is optional
-            </FormControl.HelperText> */}
             <FormControl.ErrorMessage>{errors.dob}</FormControl.ErrorMessage>
 
             {showDatePicker && (
@@ -786,9 +783,6 @@ export default function AddStaffScreen() {
                     : "blue.500",
               }}
             />
-            {/* <FormControl.HelperText>
-              This field is optional
-            </FormControl.HelperText> */}
             <FormControl.ErrorMessage>
               {errors.address}
             </FormControl.ErrorMessage>

@@ -249,9 +249,6 @@ export default function EditProfileScreen() {
                   }
                 />
               </Pressable>
-              {/* <FormControl.HelperText>
-                This field is optional and can be left empty
-              </FormControl.HelperText> */}
               <FormControl.ErrorMessage>{errors.dob}</FormControl.ErrorMessage>
             </FormControl>
 

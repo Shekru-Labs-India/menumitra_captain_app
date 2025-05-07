@@ -179,7 +179,7 @@ export default function EditStaffScreen() {
       const data = await fetchWithAuth(`${getBaseUrl()}/get_staff_role`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}) // Empty body to ensure device_token is added
+        body: JSON.stringify({}), // Empty body to ensure device_token is added
       });
 
       console.log("Roles Response:", data);
@@ -302,9 +302,15 @@ export default function EditStaffScreen() {
     if (!sanitizedText) {
       setErrors((prev) => ({ ...prev, mobile: "Mobile number is required" }));
     } else if (sanitizedText.length !== 10) {
-      setErrors((prev) => ({ ...prev, mobile: "Mobile number must be 10 digits" }));
+      setErrors((prev) => ({
+        ...prev,
+        mobile: "Mobile number must be 10 digits",
+      }));
     } else if (!/^[6-9]\d{9}$/.test(sanitizedText)) {
-      setErrors((prev) => ({ ...prev, mobile: "Invalid mobile number format" }));
+      setErrors((prev) => ({
+        ...prev,
+        mobile: "Invalid mobile number format",
+      }));
     } else {
       // Explicitly remove the mobile error when input is valid
       setErrors((prev) => {
@@ -376,15 +382,15 @@ export default function EditStaffScreen() {
         // Get file info
         const { uri } = result.assets[0];
         const fileInfo = await FileSystem.getInfoAsync(uri);
-        
+
         // Check if fileInfo exists and has size
         if (!fileInfo?.size) {
           throw new Error("Couldn't get file size");
         }
-        
+
         // Convert bytes to MB
         const fileSizeInMB = fileInfo.size / (1024 * 1024);
-        
+
         // Check if file is larger than 3MB
         if (fileSizeInMB > 3) {
           toast.show({
@@ -395,9 +401,9 @@ export default function EditStaffScreen() {
           return;
         }
 
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          photo: result.assets[0].uri
+          photo: result.assets[0].uri,
         }));
 
         // Show success toast
@@ -441,7 +447,7 @@ export default function EditStaffScreen() {
       if (formData.address && formData.address.trim()) {
         formDataToSend.append("address", formData.address.trim());
       }
-      
+
       if (formData.dob && formData.dob.trim()) {
         formDataToSend.append("dob", formData.dob);
       }
@@ -452,37 +458,40 @@ export default function EditStaffScreen() {
 
       const response = await fetchWithAuth(apiUrl, {
         method: "POST",
-        headers: { 
-          "Content-Type": "multipart/form-data"
+        headers: {
+          "Content-Type": "multipart/form-data",
         },
         body: formDataToSend,
       });
 
       if (response.st === 1) {
         // Clear both photo states and force a refresh
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           photo: "",
-          existing_photo: ""
+          existing_photo: "",
         }));
 
         // Force refresh the staff details
-        const refreshResponse = await fetchWithAuth(`${getBaseUrl()}/staff_view`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            staff_id: id,
-            outlet_id: outletId,
-          }),
-        });
+        const refreshResponse = await fetchWithAuth(
+          `${getBaseUrl()}/staff_view`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              staff_id: id,
+              outlet_id: outletId,
+            }),
+          }
+        );
 
         if (refreshResponse.st === 1 && refreshResponse.data) {
           // Update form data with refreshed data
-          setFormData(prev => ({
+          setFormData((prev) => ({
             ...prev,
             ...refreshResponse.data,
             photo: "",
-            existing_photo: ""
+            existing_photo: "",
           }));
         }
 
@@ -490,7 +499,7 @@ export default function EditStaffScreen() {
           description: "Image removed successfully",
           status: "success",
           duration: 2000,
-          placement: "top"
+          placement: "top",
         });
       } else {
         throw new Error(response.msg || "Failed to remove image");
@@ -501,7 +510,7 @@ export default function EditStaffScreen() {
         description: "Failed to remove image. Please try again.",
         status: "error",
         duration: 3000,
-        placement: "top"
+        placement: "top",
       });
     } finally {
       setIsImageDeleting(false);
@@ -512,7 +521,10 @@ export default function EditStaffScreen() {
     const newErrors = {};
 
     // Validate all fields
-    if (!formData.name?.trim() || !/^[a-zA-Z\s]{2,50}$/.test(formData.name.trim())) {
+    if (
+      !formData.name?.trim() ||
+      !/^[a-zA-Z\s]{2,50}$/.test(formData.name.trim())
+    ) {
       newErrors.name = "Enter valid name (only letters and spaces)";
     }
 
@@ -534,7 +546,10 @@ export default function EditStaffScreen() {
     }
 
     // Address validation - optional field
-    if (formData.address?.trim().length > 0 && formData.address.trim().length < 5) {
+    if (
+      formData.address?.trim().length > 0 &&
+      formData.address.trim().length < 5
+    ) {
       newErrors.address = "Address must be at least 5 characters";
     } else if (formData.address?.trim().length > 50) {
       newErrors.address = "Address must not exceed 50 characters";
@@ -563,37 +578,43 @@ export default function EditStaffScreen() {
       formDataToSend.append("role", formData.role.toLowerCase());
       formDataToSend.append("aadhar_number", formData.aadhar_number);
       formDataToSend.append("device_token", deviceToken);
-      
+
       if (formData.address && formData.address.trim()) {
         formDataToSend.append("address", formData.address.trim());
       }
-      
+
       if (formData.dob && formData.dob.trim()) {
         formDataToSend.append("dob", formData.dob);
       }
 
       // Construct the base URL
       let apiUrl = `${getBaseUrl()}/staff_update`;
-      
+
       // Handle photo
       if (formData.photo) {
-        const filename = formData.photo.split('/').pop();
+        const filename = formData.photo.split("/").pop();
         const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-        
+        const type = match ? `image/${match[1]}` : "image/jpeg";
+
         formDataToSend.append("photo", {
           uri: formData.photo,
           name: filename,
           type,
         });
-      } else if (formData.existing_photo === null || formData.existing_photo === "") {
+      } else if (
+        formData.existing_photo === null ||
+        formData.existing_photo === ""
+      ) {
         // If existing photo was removed and no new photo selected,
         // use the remove_image_flag query parameter approach like owner app
         apiUrl += "?remove_image_flag=True";
         console.log("Adding remove_image_flag to URL:", apiUrl);
       }
 
-      console.log("Updating staff with data:", Object.fromEntries(formDataToSend._parts || []));
+      console.log(
+        "Updating staff with data:",
+        Object.fromEntries(formDataToSend._parts || [])
+      );
 
       const data = await fetchWithAuth(apiUrl, {
         method: "POST",
@@ -605,7 +626,7 @@ export default function EditStaffScreen() {
 
       if (data.st === 1) {
         toast.show({
-          description:"Staff details updated successfully",
+          description: "Staff details updated successfully",
           status: "success",
         });
         router.replace({
@@ -638,17 +659,19 @@ export default function EditStaffScreen() {
           <FormControl>
             <FormControl.Label>Photo</FormControl.Label>
             <VStack space={2}>
-              {(formData.photo || (formData.existing_photo && formData.existing_photo !== "")) && (
+              {(formData.photo ||
+                (formData.existing_photo &&
+                  formData.existing_photo !== "")) && (
                 <Box position="relative" alignSelf="center">
                   <Image
                     source={{
-                      uri: formData.photo || formData.existing_photo
+                      uri: formData.photo || formData.existing_photo,
                     }}
                     style={{
                       width: 100,
                       height: 100,
                       borderRadius: 50,
-                      alignSelf: "center"
+                      alignSelf: "center",
                     }}
                     fallback={
                       <Box
@@ -669,7 +692,9 @@ export default function EditStaffScreen() {
                     }
                   />
                   <IconButton
-                    icon={<MaterialIcons name="close" size={20} color="white" />}
+                    icon={
+                      <MaterialIcons name="close" size={20} color="white" />
+                    }
                     bg="red.500"
                     rounded="full"
                     position="absolute"
@@ -693,7 +718,9 @@ export default function EditStaffScreen() {
                   />
                 }
               >
-                {formData.photo || formData.existing_photo ? "Change Photo" : "Add Photo"}
+                {formData.photo || formData.existing_photo
+                  ? "Change Photo"
+                  : "Add Photo"}
               </Button>
             </VStack>
           </FormControl>
@@ -706,12 +733,19 @@ export default function EditStaffScreen() {
               placeholder="Enter name"
               autoCapitalize="words"
               borderColor={
-                formData.name && !errors.name ? "green.500" : 
-                errors.name ? "red.500" : "coolGray.200"
+                formData.name && !errors.name
+                  ? "green.500"
+                  : errors.name
+                  ? "red.500"
+                  : "coolGray.200"
               }
               _focus={{
-                borderColor: formData.name && !errors.name ? "green.500" : 
-                            errors.name ? "red.500" : "blue.500",
+                borderColor:
+                  formData.name && !errors.name
+                    ? "green.500"
+                    : errors.name
+                    ? "red.500"
+                    : "blue.500",
               }}
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
@@ -735,12 +769,19 @@ export default function EditStaffScreen() {
                 endIcon: <CheckIcon size="5" color="white" />,
               }}
               borderColor={
-                formData.role && !errors.role ? "green.500" : 
-                errors.role ? "red.500" : "coolGray.200"
+                formData.role && !errors.role
+                  ? "green.500"
+                  : errors.role
+                  ? "red.500"
+                  : "coolGray.200"
               }
               _focus={{
-                borderColor: formData.role && !errors.role ? "green.500" : 
-                            errors.role ? "red.500" : "blue.500",
+                borderColor:
+                  formData.role && !errors.role
+                    ? "green.500"
+                    : errors.role
+                    ? "red.500"
+                    : "blue.500",
               }}
               isReadOnly={true}
               onPressIn={() => {
@@ -767,12 +808,19 @@ export default function EditStaffScreen() {
               placeholder="Enter phone number (start with 6-9)"
               maxLength={10}
               borderColor={
-                formData.mobile && !errors.mobile ? "green.500" : 
-                errors.mobile ? "red.500" : "coolGray.200"
+                formData.mobile && !errors.mobile
+                  ? "green.500"
+                  : errors.mobile
+                  ? "red.500"
+                  : "coolGray.200"
               }
               _focus={{
-                borderColor: formData.mobile && !errors.mobile ? "green.500" : 
-                            errors.mobile ? "red.500" : "blue.500",
+                borderColor:
+                  formData.mobile && !errors.mobile
+                    ? "green.500"
+                    : errors.mobile
+                    ? "red.500"
+                    : "blue.500",
               }}
             />
             <FormControl.ErrorMessage>{errors.mobile}</FormControl.ErrorMessage>
@@ -786,25 +834,28 @@ export default function EditStaffScreen() {
                 isReadOnly
                 placeholder="Select date of birth (optional)"
                 borderColor={
-                  formData.dob && !errors.dob ? "green.500" : 
-                  errors.dob ? "red.500" : "coolGray.200"
+                  formData.dob && !errors.dob
+                    ? "green.500"
+                    : errors.dob
+                    ? "red.500"
+                    : "coolGray.200"
                 }
                 _focus={{
-                  borderColor: formData.dob && !errors.dob ? "green.500" : 
-                              errors.dob ? "red.500" : "blue.500",
+                  borderColor:
+                    formData.dob && !errors.dob
+                      ? "green.500"
+                      : errors.dob
+                      ? "red.500"
+                      : "blue.500",
                 }}
                 rightElement={
                   <HStack>
                     {formData.dob && (
                       <IconButton
                         icon={
-                          <MaterialIcons
-                            name="clear"
-                            size={20}
-                            color="gray"
-                          />
+                          <MaterialIcons name="clear" size={20} color="gray" />
                         }
-                        onPress={() => setFormData({...formData, dob: ""})}
+                        onPress={() => setFormData({ ...formData, dob: "" })}
                       />
                     )}
                     <IconButton
@@ -821,7 +872,6 @@ export default function EditStaffScreen() {
                 }
               />
             </Pressable>
-            <FormControl.HelperText>This field is optional</FormControl.HelperText>
           </FormControl>
 
           {showDatePicker && (
@@ -851,12 +901,19 @@ export default function EditStaffScreen() {
               placeholder="Enter 12-digit Aadhar number"
               maxLength={12}
               borderColor={
-                formData.aadhar_number && !errors.aadhar_number ? "green.500" : 
-                errors.aadhar_number ? "red.500" : "coolGray.200"
+                formData.aadhar_number && !errors.aadhar_number
+                  ? "green.500"
+                  : errors.aadhar_number
+                  ? "red.500"
+                  : "coolGray.200"
               }
               _focus={{
-                borderColor: formData.aadhar_number && !errors.aadhar_number ? "green.500" : 
-                            errors.aadhar_number ? "red.500" : "blue.500",
+                borderColor:
+                  formData.aadhar_number && !errors.aadhar_number
+                    ? "green.500"
+                    : errors.aadhar_number
+                    ? "red.500"
+                    : "blue.500",
               }}
             />
             <FormControl.ErrorMessage>
@@ -873,12 +930,19 @@ export default function EditStaffScreen() {
               autoCompleteType={undefined}
               h={20}
               borderColor={
-                formData.address && !errors.address ? "green.500" : 
-                errors.address ? "red.500" : "coolGray.200"
+                formData.address && !errors.address
+                  ? "green.500"
+                  : errors.address
+                  ? "red.500"
+                  : "coolGray.200"
               }
               _focus={{
-                borderColor: formData.address && !errors.address ? "green.500" : 
-                            errors.address ? "red.500" : "blue.500",
+                borderColor:
+                  formData.address && !errors.address
+                    ? "green.500"
+                    : errors.address
+                    ? "red.500"
+                    : "blue.500",
               }}
             />
             <FormControl.ErrorMessage>
