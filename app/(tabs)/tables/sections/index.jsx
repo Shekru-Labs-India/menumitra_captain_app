@@ -1144,8 +1144,8 @@ export default function TableSectionsScreen() {
                                             table.is_occupied === 0 && (
                                             <IconButton
                                               position="absolute"
-                                              top={-2}
-                                              right={-2}
+                                              top={-6}
+                                              right={-6}
                                               zIndex={2}
                                               size="sm"
                                               rounded="full"
