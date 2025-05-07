@@ -28,6 +28,7 @@ import {
   Icon,
   Center,
   Spinner,
+  Button,
 } from "native-base";
 import { getBaseUrl } from "../../config/api.config";
 import { fetchWithAuth } from "../../utils/apiInterceptor";
@@ -55,6 +56,7 @@ const RestaurantProfile = () => {
 
   // Define the QRCodeModal component inside RestaurantProfile
   const QRCodeModal = () => {
+    // Use a simple modal implementation with basic React Native components
     return (
       <Modal
         visible={isQRModalVisible}
@@ -65,47 +67,40 @@ const RestaurantProfile = () => {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>COUNTER QR Code</Text>
+              <Text style={styles.modalTitle}>Restaurant QR Code</Text>
               <TouchableOpacity onPress={() => setIsQRModalVisible(false)}>
                 <MaterialIcons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
             
-            {selectedQRData ? (
+            {selectedQRData && selectedQRData.qrCodeUrl ? (
               <>
-                <ViewShot ref={qrViewRef} options={{ format: 'png', quality: 1 }}>
-                  <View style={styles.qrContainer}>
-                    {/* Corner markers */}
-                    <View style={[styles.cornerMarker, styles.topLeftMarker]} />
-                    <View style={[styles.cornerMarker, styles.topRightMarker]} />
-                    <View style={[styles.cornerMarker, styles.bottomLeftMarker]} />
-                    <View style={[styles.cornerMarker, styles.bottomRightMarker]} />
-                    
-                    {/* QR Image */}
-                    <Image
-                      source={{ uri: selectedQRData?.qrCodeUrl }}
-                      style={styles.qrImage}
-                    />
-                    
-                    {/* Logo in center */}
-                    <View style={styles.logoWhiteSpace}>
-                      <View style={styles.logoContainer}>
-                        <Image
-                          source={mmLogo}
-                          style={styles.logoOverlay}
-                          resizeMode="contain"
-                        />
-                      </View>
+                {typeof ViewShot !== 'undefined' ? (
+                  <ViewShot ref={qrViewRef} options={{ format: 'png', quality: 1 }}>
+                    <View style={styles.qrContainer}>
+                      <Image
+                        source={{ uri: selectedQRData.qrCodeUrl }}
+                        style={styles.qrImage}
+                        resizeMode="contain"
+                      />
                     </View>
+                  </ViewShot>
+                ) : (
+                  <View style={styles.qrContainer}>
+                    <Image
+                      source={{ uri: selectedQRData.qrCodeUrl }}
+                      style={styles.qrImage}
+                      resizeMode="contain"
+                    />
                   </View>
-                </ViewShot>
+                )}
                 
                 <Text style={styles.scanText}>
                   Scan to view our digital menu
                 </Text>
                 
                 <View style={styles.qrButtonsContainer}>
-                  {/* Download Button (with options) */}
+                  {/* Download Button */}
                   <TouchableOpacity
                     style={[
                       styles.qrButton,
@@ -147,7 +142,10 @@ const RestaurantProfile = () => {
                 </View>
               </>
             ) : (
-              <ActivityIndicator size="large" color="#0dcaf0" />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#0dcaf0" />
+                <Text style={styles.loadingText}>Loading QR code...</Text>
+              </View>
             )}
           </View>
         </View>
@@ -239,6 +237,7 @@ const RestaurantProfile = () => {
   // Fetch restaurant QR code
   const fetchRestaurantQRCode = async () => {
     try {
+      setIsLoading(true);
       const outlet_id = await AsyncStorage.getItem("outlet_id");
 
       if (!outlet_id) {
@@ -253,33 +252,51 @@ const RestaurantProfile = () => {
         }),
       });
 
-      if (response) {
-        // Generate URL in the required format with counter suffix
-        const appDataUrl = `${response.user_app_url}o${response.outlet_code}`;
-        
-        // Use QR Server API for better logo visibility
-        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(appDataUrl)}&ecc=H&color=0066FF&bgcolor=FFFFFF&margin=1&qzone=1&size=400x400&logo=https://menumitra.com/assets/images/logo-icon.png&logosize=100`;
-        
-        const qrData = {
-          userAppUrl: response.user_app_url,
-          outletCode: response.outlet_code,
-          qrCodeUrl: qrCodeUrl,
-          rawUrl: appDataUrl
-        };
-        
-        setSelectedQRData(qrData);
-        setIsQRModalVisible(true);
+      // Log the response structure to help with debugging
+      console.log("QR code API response:", JSON.stringify(response, null, 2));
+
+      // Check if the response has a different structure than expected (might be tables data)
+      if (response && Array.isArray(response)) {
+        throw new Error("Received tables data instead of QR code data. Please check the API endpoint.");
+      }
+
+      // Add validation to check if the required fields exist
+      if (response && response.user_app_url && response.outlet_code) {
+        try {
+          // Generate URL in the required format with counter suffix
+          const appDataUrl = `${response.user_app_url}o${response.outlet_code}`;
+          
+          // Use a more reliable QR code service with fallback
+          const qrCodeUrl = encodeURI(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(appDataUrl)}&margin=10`);
+          
+          console.log("Generated QR code URL:", qrCodeUrl);
+          
+          const qrData = {
+            userAppUrl: response.user_app_url,
+            outletCode: response.outlet_code,
+            qrCodeUrl: qrCodeUrl,
+            rawUrl: appDataUrl
+          };
+          
+          setSelectedQRData(qrData);
+          setIsQRModalVisible(true);
+        } catch (formatError) {
+          console.error("Error formatting QR data:", formatError);
+          throw new Error("Failed to format QR code data: " + formatError.message);
+        }
       } else {
-        throw new Error("No data received from QR code API");
+        throw new Error("QR code data not received from server - missing required fields");
       }
     } catch (error) {
       console.error("Error fetching QR code:", error);
       toast.show({
-        description: "Failed to fetch QR code",
+        description: "Failed to fetch QR code: " + error.message,
         status: "error",
         placement: "bottom",
         duration: 3000,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -537,8 +554,94 @@ const RestaurantProfile = () => {
     }
   };
 
+  // Add a direct download option that doesn't rely on ViewShot
+  const downloadQRDirectly = async () => {
+    try {
+      setIsDownloading(true);
+      
+      // Check if we have QR data
+      if (!selectedQRData || !selectedQRData.qrCodeUrl) {
+        toast.show({
+          description: "No QR code available to download",
+          status: "error",
+          placement: "bottom",
+          duration: 3000,
+        });
+        setIsDownloading(false);
+        return;
+      }
+      
+      // Request permissions if not already granted
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'App needs permission to save files');
+        setIsDownloading(false);
+        return;
+      }
+      
+      // Get restaurant name for filename
+      const restaurantName = await AsyncStorage.getItem("outlet_name") || "Restaurant";
+      const cleanRestaurantName = restaurantName.replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `${cleanRestaurantName}_QR.png`;
+      
+      // Download the QR image directly
+      const fileUri = FileSystem.documentDirectory + fileName;
+      
+      // Download the image from the QR service
+      const downloadResult = await FileSystem.downloadAsync(
+        selectedQRData.qrCodeUrl,
+        fileUri
+      );
+      
+      if (downloadResult.status !== 200) {
+        throw new Error("Failed to download QR code image");
+      }
+      
+      // Save to media library
+      const asset = await MediaLibrary.createAssetAsync(fileUri);
+      
+      toast.show({
+        description: "QR Code saved to your gallery!",
+        status: "success",
+        placement: "bottom",
+        duration: 3000,
+      });
+      
+      setIsQRModalVisible(false);
+    } catch (error) {
+      console.error("Error downloading QR directly:", error);
+      toast.show({
+        description: "Could not download QR code: " + error.message,
+        status: "error",
+        placement: "bottom",
+        duration: 3000,
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   // Download QR options function
   const downloadQR = () => {
+    if (!qrViewRef.current) {
+      // Fallback to direct download if ViewShot ref is not available
+      Alert.alert(
+        "Download QR Code",
+        "The enhanced download is not available. Would you like to download the basic QR code?",
+        [
+          {
+            text: "Yes, download",
+            onPress: downloadQRDirectly,
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+          }
+        ]
+      );
+      return;
+    }
+    
     Alert.alert(
       "Download QR Code",
       "Choose download format",
@@ -560,6 +663,65 @@ const RestaurantProfile = () => {
     );
   };
 
+  // Add a direct share option that doesn't rely on ViewShot
+  const shareQRDirectly = async () => {
+    try {
+      setIsSharing(true);
+      
+      // Check if we have QR data
+      if (!selectedQRData || !selectedQRData.qrCodeUrl) {
+        toast.show({
+          description: "No QR code available to share",
+          status: "error",
+          placement: "bottom",
+          duration: 3000,
+        });
+        setIsSharing(false);
+        return;
+      }
+      
+      // Download the QR image to a temp file
+      const fileName = "temp_qr_code.png";
+      const fileUri = FileSystem.cacheDirectory + fileName;
+      
+      // Download the image from the QR service
+      const downloadResult = await FileSystem.downloadAsync(
+        selectedQRData.qrCodeUrl,
+        fileUri
+      );
+      
+      if (downloadResult.status !== 200) {
+        throw new Error("Failed to download QR code image for sharing");
+      }
+      
+      // Share the image
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'image/png',
+        dialogTitle: 'Share QR Code',
+        UTI: 'public.png'
+      });
+      
+      // Cleanup after sharing
+      setTimeout(async () => {
+        try {
+          await FileSystem.deleteAsync(fileUri, { idempotent: true });
+        } catch (e) {
+          console.log("Cleanup error (non-critical):", e);
+        }
+      }, 3000);
+    } catch (error) {
+      console.error("Error sharing QR directly:", error);
+      toast.show({
+        description: "Could not share QR code: " + error.message,
+        status: "error",
+        placement: "bottom",
+        duration: 3000,
+      });
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   // Share QR code
   const shareQR = async () => {
     try {
@@ -573,6 +735,13 @@ const RestaurantProfile = () => {
           duration: 3000,
         });
         setIsSharing(false);
+        return;
+      }
+      
+      if (!qrViewRef.current) {
+        // Fallback to direct sharing
+        setIsSharing(false);
+        shareQRDirectly();
         return;
       }
       
@@ -1202,6 +1371,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     marginTop: 15,
+  },
+  loadingContainer: {
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
   },
 });
 

@@ -1568,12 +1568,12 @@ export default function OrderDetailsScreen() {
         });
       } else if (printType === "kot") {
         await printKOT();
-        toast.show({
+      toast.show({
           description: "KOT printed successfully",
-          status: "success",
-          duration: 3000,
+        status: "success",
+        duration: 3000,
           placement: "bottom"
-        });
+      });
       } else {
         throw new Error(`Unknown print type: ${type}`);
       }
@@ -1871,7 +1871,7 @@ export default function OrderDetailsScreen() {
         // Use final_grand_total if available, otherwise use grand_total
         ...textToBytes(formatAmountLine("Total", finalGrandTotal || grandTotal)),
         ...textToBytes("\n"),
-
+        
         ...textToBytes("\x1B\x61\x01"), // Center align
         ...textToBytes("PhonePe  GPay  Paytm  UPI\n\n"),
         ...textToBytes("------------------------\n"),
@@ -2046,11 +2046,11 @@ export default function OrderDetailsScreen() {
         ),
         ...textToBytes(`DateTime: ${formattedDateTime}\n`),
         ...textToBytes("--------------------------------\n"),
-
+        
         // Column headers
         ...textToBytes("Item                      Qty\n"),
         ...textToBytes("--------------------------------\n"),
-
+        
         // Menu items - simplified format with just name and quantity
         ...menuItems.flatMap(item => {
           const name = item.menu_name || "";
@@ -2362,51 +2362,51 @@ export default function OrderDetailsScreen() {
           <HStack space={2} alignItems="center">
             <PrinterStatusIndicator />
             {orderDetails && 
-            orderDetails.order_status?.toLowerCase() !== "paid" && 
-            orderDetails.order_status?.toLowerCase() !== "cancelled" ? (
-              <Button
-                variant="outline"
-                size="sm"
-                leftIcon={<Icon as={MaterialIcons} name="edit" size="sm" />}
-                onPress={() => router.push({
-                  pathname: "/screens/orders/menu-selection",
-                  params: {
-                    tableId: orderDetails.table_number?.[0],
-                    tableNumber: orderDetails.table_number?.[0],
-                    sectionId: orderDetails.section_id,
-                    sectionName: orderDetails.section,
-                    outletId: orderDetails.outlet_id,
-                    orderId: orderDetails.order_id,
-                    orderNumber: orderDetails.order_number,
-                    orderType: orderDetails.order_type || "dine-in",
-                    isOccupied: "1",
-                    orderDetails: JSON.stringify({
-                      order_id: orderDetails.order_id,
-                      menu_items: menuItems.map(item => ({
-                        menu_id: item.menu_id,
-                        menu_name: item.menu_name,
-                        name: item.menu_name,
-                        price: parseFloat(item.price),
-                        quantity: parseInt(item.quantity),
-                        half_price: item.half_price || 0,
-                        full_price: item.full_price || item.price,
-                        portionSize: item.half_or_full === "half" ? "Half" : "Full",
-                        offer: parseFloat(item.offer || 0),
-                        specialInstructions: item.comment || "",
-                        total_price: parseFloat(item.menu_sub_total),
-                      })),
-                      grand_total: orderDetails.grand_total,
-                      table_id: orderDetails.table_number?.[0],
-                      table_number: orderDetails.table_number?.[0],
-                      section_id: orderDetails.section_id,
-                      section_name: orderDetails.section,
-                      outlet_id: orderDetails.outlet_id,
-                    }),
-                  },
-                })}
-              >
-                Edit
-              </Button>
+          orderDetails.order_status?.toLowerCase() !== "paid" && 
+          orderDetails.order_status?.toLowerCase() !== "cancelled" ? (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Icon as={MaterialIcons} name="edit" size="sm" />}
+              onPress={() => router.push({
+                pathname: "/screens/orders/menu-selection",
+                params: {
+                  tableId: orderDetails.table_number?.[0],
+                  tableNumber: orderDetails.table_number?.[0],
+                  sectionId: orderDetails.section_id,
+                  sectionName: orderDetails.section,
+                  outletId: orderDetails.outlet_id,
+                  orderId: orderDetails.order_id,
+                  orderNumber: orderDetails.order_number,
+                  orderType: orderDetails.order_type || "dine-in",
+                  isOccupied: "1",
+                  orderDetails: JSON.stringify({
+                    order_id: orderDetails.order_id,
+                    menu_items: menuItems.map(item => ({
+                      menu_id: item.menu_id,
+                      menu_name: item.menu_name,
+                      name: item.menu_name,
+                      price: parseFloat(item.price),
+                      quantity: parseInt(item.quantity),
+                      half_price: item.half_price || 0,
+                      full_price: item.full_price || item.price,
+                      portionSize: item.half_or_full === "half" ? "Half" : "Full",
+                      offer: parseFloat(item.offer || 0),
+                      specialInstructions: item.comment || "",
+                      total_price: parseFloat(item.menu_sub_total),
+                    })),
+                    grand_total: orderDetails.grand_total,
+                    table_id: orderDetails.table_number?.[0],
+                    table_number: orderDetails.table_number?.[0],
+                    section_id: orderDetails.section_id,
+                    section_name: orderDetails.section,
+                    outlet_id: orderDetails.outlet_id,
+                  }),
+                },
+              })}
+            >
+              Edit
+            </Button>
             ) : null}
           </HStack>
         }
