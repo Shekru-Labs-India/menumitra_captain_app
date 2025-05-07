@@ -4145,7 +4145,7 @@ const handleSettleOrder = async () => {
 
                     <VStack alignItems="center">
                       <Text fontWeight="semibold" fontSize="xs" color="red.500">-₹{calculateItemDiscount(selectedItems).toFixed(2)}</Text>
-                      <Text fontSize="2xs" color="gray.500">Disc ({specialDiscount || 0}%)</Text>
+                      <Text fontSize="2xs" color="gray.500">Total Disc ({specialDiscount || 0}%)</Text>
                     </VStack>
 
                     <VStack alignItems="center">
