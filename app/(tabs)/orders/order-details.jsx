@@ -2049,7 +2049,6 @@ export default function OrderDetailsScreen() {
               }\n`
         ),
         ...textToBytes(`DateTime: ${formattedDateTime}\n`),
-        ...textToBytes(`Items: ${menuItems.length}\n`),
         ...textToBytes("--------------------------------\n"),
 
         // Column headers
