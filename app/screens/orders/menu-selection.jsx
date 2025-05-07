@@ -1017,23 +1017,7 @@ export default function MenuSelectionScreen() {
                 </Pressable>
               )}
               
-              {isReserved ? (
-                <Pressable
-                  onPress={handleUnreserveTable}
-                  bg="red.500"
-                  px={3}
-                  py={1.5}
-                  rounded="md"
-                  _pressed={{
-                    bg: "red.600"
-                  }}
-                >
-                  <HStack space={1} alignItems="center">
-                    <MaterialIcons name="event-busy" size={20} color="white" />
-                    <Text color="white" fontWeight="medium">Unreserve</Text>
-                  </HStack>
-                </Pressable>
-              ) : !tableData.is_occupied && !tableData.order_id ? (
+              {tableData && !isReserved && !tableData.is_occupied && !tableData.order_id ? (
                 <Pressable
                   onPress={handleReserveTable}
                   bg="green.500"
