@@ -2406,13 +2406,40 @@ const handleSettleOrder = async () => {
       // Add totals and footer
       commands.push(
         ...textToBytes("--------------------------------\n"),
-        ...textToBytes(formatAmountLine("Subtotal", subtotal)),
-        ...textToBytes(formatAmountLine(`Discount(${discountPercent}%)`, itemDiscountAmount, "-")),
-        ...(specialDiscountAmount > 0 ? [...textToBytes(formatAmountLine("Special Discount", specialDiscountAmount, "-"))] : []),
-        ...(extraChargesAmount > 0 ? [...textToBytes(formatAmountLine("Extra Charges", extraChargesAmount, "+"))] : []),
-        ...textToBytes(formatAmountLine(`Service(${serviceChargePercentage}%)`, serviceAmount, "+")),
-        ...textToBytes(formatAmountLine(`GST(${gstPercentage}%)`, gstAmount, "+")),
-        ...(tipAmount > 0 ? [...textToBytes(formatAmountLine("Tip", tipAmount, "+"))] : []),
+        ...textToBytes(formatAmountLine("Subtotal", subtotal))
+      );
+      
+      // Only add discount line if discount amount is not zero
+      if (itemDiscountAmount > 0) {
+        commands.push(...textToBytes(formatAmountLine(`Discount(${discountPercent}%)`, itemDiscountAmount, "-")));
+      }
+      
+      // Only add special discount if amount is greater than zero
+      if (specialDiscountAmount > 0) {
+        commands.push(...textToBytes(formatAmountLine("Special Discount", specialDiscountAmount, "-")));
+      }
+      
+      // Only add extra charges if amount is greater than zero
+      if (extraChargesAmount > 0) {
+        commands.push(...textToBytes(formatAmountLine("Extra Charges", extraChargesAmount, "+")));
+      }
+      
+      // Only add service charge if percentage or amount is greater than zero
+      if (serviceChargePercentage > 0 && serviceAmount > 0) {
+        commands.push(...textToBytes(formatAmountLine(`Service(${serviceChargePercentage}%)`, serviceAmount, "+")));
+      }
+      
+      // Only add GST if percentage or amount is greater than zero
+      if (gstPercentage > 0 && gstAmount > 0) {
+        commands.push(...textToBytes(formatAmountLine(`GST(${gstPercentage}%)`, gstAmount, "+")));
+      }
+      
+      // Only add tip if amount is greater than zero
+      if (tipAmount > 0) {
+        commands.push(...textToBytes(formatAmountLine("Tip", tipAmount, "+")));
+      }
+      
+      commands.push(
         ...textToBytes("--------------------------------\n"),
         ...textToBytes(formatAmountLine("Total", total)),
         ...textToBytes("\n"),
