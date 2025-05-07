@@ -114,6 +114,45 @@ const PRINTER_CHARACTERISTIC_UUIDS = [
   "BEF8D6C9-9C21-4C9E-B632-BD58C1009F9F",
 ];
 
+// Add printer command constants
+const ESC = 0x1b;
+const GS = 0x1d;
+const COMMANDS = {
+  INITIALIZE: [ESC, "@"],
+  TEXT_NORMAL: [ESC, "!", 0],
+  TEXT_CENTERED: [ESC, "a", 1],
+  LINE_SPACING: [ESC, "3", 60],
+  CUT_PAPER: [GS, "V", 1],
+};
+
+// Add standardized date time formatter matching owner app
+const getCurrentDateTime = () => {
+  const now = new Date();
+  
+  // Get the day as 2-digit
+  const day = String(now.getDate()).padStart(2, '0');
+  
+  // Get the month name in uppercase
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const month = monthNames[now.getMonth()];
+  
+  // Get the year
+  const year = now.getFullYear();
+  
+  // Get hours and format for 12-hour clock
+  let hours = now.getHours();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  hours = String(hours).padStart(2, '0');
+  
+  // Get minutes
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  
+  // Format the final date string
+  return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+};
+
 // Add the generateReceiptHTML function
 const generateReceiptHTML = (orderDetails, menuItems) => {
   try {
@@ -1493,74 +1532,78 @@ export default function OrderDetailsScreen() {
       setIsLoading(true);
       setLoadingMessage(`Preparing to print ${type}...`);
 
-      // Check if we have bluetooth permissions
+      // Check for Bluetooth permissions first
       const hasPermissions = await requestPermissions();
       if (!hasPermissions) {
         throw new Error("Bluetooth permission is required to print");
       }
 
       // Check if printer is connected
-      if (!printerDevice || !isConnected) {
+      if (!isConnected || !printerDevice) {
+        console.log("No printer connected. Opening printer selection...");
         setLoadingMessage("No printer connected. Scanning for printers...");
+        
+        // Show modal and scan for printers
+        setIsModalVisible(true);
         await scanForPrinters();
-        if (!printerDevice || !isConnected) {
-          throw new Error("No printer connected");
-        }
+        
+        // Return early since we're showing the selection modal
+        // The user will need to select a printer first
+        setIsLoading(false);
+        setLoadingMessage("");
+        return;
       }
 
-      setLoadingMessage(`Printing ${type}...`);
-
-      // Print based on type - handle case insensitively
+      // Print based on type - directly print without additional prompts
       const printType = type.toLowerCase();
+      setLoadingMessage(`Printing ${printType}...`);
+      
       if (printType === "receipt") {
         await printReceipt();
+        toast.show({
+          description: "Receipt printed successfully",
+          status: "success",
+          duration: 3000,
+          placement: "bottom"
+        });
       } else if (printType === "kot") {
         await printKOT();
+        toast.show({
+          description: "KOT printed successfully",
+          status: "success",
+          duration: 3000,
+          placement: "bottom"
+        });
+      } else {
+        throw new Error(`Unknown print type: ${type}`);
       }
-
-      toast.show({
-        description: `${type} printed successfully`,
-        status: "success",
-        duration: 3000,
-        placement: "bottom",
-        isClosable: true,
-      });
       
       return true;
     } catch (error) {
       console.error(`${type} printing error:`, error);
       
-      // Handle the error with appropriate messaging
+      // Handle different error scenarios
       if (error.message.includes("Bluetooth permission")) {
         toast.show({
           description: "Bluetooth permission is required to print",
           status: "error",
           duration: 3000,
-          placement: "bottom",
-          isClosable: true,
+          placement: "bottom"
         });
       } else if (error.message.includes("No printer connected")) {
-        Alert.alert(
-          "Printer Not Connected",
-          "Please connect a printer to print",
-          [
-            { 
-              text: "Connect Printer", 
-              onPress: () => {
-                setIsModalVisible(true);
-                scanForPrinters();
-              } 
-            },
-            { text: "Cancel", style: "cancel" }
-          ]
-        );
+        // This should not happen since we check and show the modal above
+        toast.show({
+          description: "Please connect a printer first",
+          status: "error",
+          duration: 3000,
+          placement: "bottom"
+        });
       } else {
         toast.show({
           description: `Failed to print ${type}: ${error.message}`,
           status: "error",
           duration: 3000,
-          placement: "bottom",
-          isClosable: true,
+          placement: "bottom"
         });
       }
       
@@ -1571,135 +1614,279 @@ export default function OrderDetailsScreen() {
     }
   };
 
+  const sendDataToPrinter = async (commands) => {
+    try {
+      if (!printerDevice || !isConnected) {
+        console.error("Cannot send data: Printer not connected");
+        throw new Error("No printer connected");
+      }
+
+      // Find the appropriate service and characteristic
+      const services = await printerDevice.services();
+      
+      // Find a compatible service
+      const service = services.find((svc) =>
+        PRINTER_SERVICE_UUIDS.some((uuid) =>
+          svc.uuid.toLowerCase().includes(uuid.toLowerCase())
+        )
+      );
+      
+      if (!service) {
+        throw new Error("Printer service not found");
+      }
+      
+      // Find a compatible characteristic
+      const characteristics = await service.characteristics();
+      const writeCharacteristic = characteristics.find((char) =>
+        PRINTER_CHARACTERISTIC_UUIDS.some((uuid) =>
+          char.uuid.toLowerCase().includes(uuid.toLowerCase())
+        )
+      );
+      
+      if (!writeCharacteristic) {
+        throw new Error("Printer characteristic not found");
+      }
+
+      // Use very small chunks for better reliability
+      const CHUNK_SIZE = 20; // Even smaller chunks for reliability
+      
+      console.log(`Sending ${commands.length} bytes to printer in chunks of ${CHUNK_SIZE}`);
+      
+      // Try different writing methods based on what's available
+      const writeMethod = writeCharacteristic.isWritableWithResponse ? 
+                        'writeWithResponse' : 'writeWithoutResponse';
+      
+      for (let i = 0; i < commands.length; i += CHUNK_SIZE) {
+        const chunk = commands.slice(i, i + CHUNK_SIZE);
+        const encodedData = base64.encode(String.fromCharCode(...chunk));
+        
+        try {
+          await writeCharacteristic[writeMethod](encodedData);
+          // Delay between chunks for better reliability
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (err) {
+          console.log(`Error sending chunk ${i}:`, err);
+          // Try alternative method if available
+          if (writeMethod === 'writeWithResponse' && writeCharacteristic.isWritableWithoutResponse) {
+            await writeCharacteristic.writeWithoutResponse(encodedData);
+          } else if (writeMethod === 'writeWithoutResponse' && writeCharacteristic.isWritableWithResponse) {
+            await writeCharacteristic.writeWithResponse(encodedData);
+          } else {
+            throw err;
+          }
+          // Longer delay after error
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+      
+      // Final delay to ensure all data is processed by printer
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log("Print data sent successfully");
+      return true;
+    } catch (error) {
+      console.error("Send to printer error:", error);
+      throw error;
+    }
+  };
+
   const printReceipt = async () => {
     try {
       if (!printerDevice || !isConnected) {
         throw new Error("No printer connected");
       }
 
-      // Helper functions from create-order.jsx
-      const getDottedLine = () => "-------------------------------\n";
+      // Get UPI ID from AsyncStorage or use a default
+      const upiId = await AsyncStorage.getItem("upi_id") || "merchant@upi";
+      
+      // Determine payment status
+      const isPaid = orderDetails.is_paid === 1 || orderDetails.is_paid === "paid" || orderDetails.payment_status === "paid";
+      const isComplementary = orderDetails.is_complementary === 1 || orderDetails.is_complementary === true;
+      
+      // Format current date time in the required format
+      const formattedDateTime = getCurrentDateTime();
+      
+      // Calculate totals
+      const subtotal = parseFloat(orderDetails.total_bill_amount || 0);
+      const discount = parseFloat(orderDetails.discount_amount || 0);
+      const discountPercent = parseFloat(orderDetails.discount_percent || 0);
+      const specialDiscount = parseFloat(orderDetails.special_discount || 0);
+      const extraCharges = parseFloat(orderDetails.charges || 0);
+      const totalWithDiscount = parseFloat(orderDetails.total_bill_with_discount || subtotal - discount - specialDiscount + extraCharges);
+      const serviceCharges = parseFloat(orderDetails.service_charges_amount || 0);
+      const serviceChargesPercent = parseFloat(orderDetails.service_charges_percent || 0);
+      const gstAmount = parseFloat(orderDetails.gst_amount || 0);
+      const gstPercent = parseFloat(orderDetails.gst_percent || 0);
+      const tip = parseFloat(orderDetails.tip || 0);
+      const grandTotal = parseFloat(orderDetails.grand_total || 0);
+      const finalGrandTotal = parseFloat(orderDetails.final_grand_total || grandTotal);
+      
+      // Helper functions from owner app
+      const getDottedLine = () => "--------------------------------\n";
       
       const formatAmountLine = (label, amount, symbol = "") => {
         const amountStr = Math.abs(parseFloat(amount)).toFixed(2);
-        const totalWidth = 32; // Total width of the receipt
-        const amountWidth = 10; // Width allocated for the amount display
-        
-        // Calculate padding needed between label and amount
+        const totalWidth = 32;
+        const amountWidth = 12;
         const padding = Math.max(2, totalWidth - label.length - amountWidth);
-        return `${label}${" ".repeat(padding)}${symbol}${amountStr}\n`;
+        const amountWithSymbol = `${symbol}${amountStr}`;
+        const amountPadded = amountWithSymbol.padStart(amountWidth);
+        return `${label}${" ".repeat(padding)}${amountPadded}\n`;
       };
       
-      // Determine payment status
-      const isPaid = orderDetails.is_paid || orderDetails.payment_status === "paid";
+      const formatMenuItem = (item) => {
+        const name = item.menu_name || "";
+        const qty = item.quantity.toString();
+        const rate = Math.floor(parseFloat(item.price)).toString();
+        const total = parseFloat(item.menu_sub_total || item.price * item.quantity).toFixed(2);
+
+        if (name.length > 14) {
+          const lines = name.match(/.{1,14}/g) || [];
+          const firstLine = `${lines[0].padEnd(14)} ${qty.padStart(2)} ${rate.padStart(5)} ${total.padStart(8)}\n`;
+          if (lines.length > 1) {
+            const remainingLines = lines
+              .slice(1)
+              .map((line) => `${line.padEnd(14)}\n`)
+              .join("");
+            return firstLine + remainingLines;
+          }
+          return firstLine;
+        }
+        return `${name.padEnd(14)} ${qty.padStart(2)} ${rate.padStart(5)} ${total.padStart(8)}\n`;
+      };
       
-      // Format current date time in standard format
-      const now = new Date();
-      const dateTimeStr = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+      // Generate QR code data with safe values - matching owner app
+      const generateQRCode = (data) => {
+        return [
+          ...textToBytes("\x1D\x28\x6B\x04\x00\x31\x41\x32\x00"), // QR Code: Select the model
+          ...textToBytes("\x1D\x28\x6B\x03\x00\x31\x43\x08"), // QR Code: Set the size of module
+          ...textToBytes("\x1D\x28\x6B\x03\x00\x31\x45\x30"), // QR Code: Select the error correction level
+          ...textToBytes(
+            `\x1D\x28\x6B${String.fromCharCode(
+              data.length + 3,
+              0
+            )}\x31\x50\x30${data}`
+          ), // QR Code: Store the data in the symbol storage area
+          ...textToBytes("\x1D\x28\x6B\x03\x00\x31\x51\x30"), // QR Code: Print the symbol data in the symbol storage area
+        ];
+      };
       
-      // Calculate totals
-      const subtotal = menuItems.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0);
-      
-      // Build printer commands
+      // Generate QR code data with UPI info for payment
+      const qrData = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(
+        orderDetails.outlet_name || "Restaurant"
+      )}&am=${finalGrandTotal.toFixed(2)}`;
+
+      // Build printer commands exactly like owner app
       const commands = [
-        ...textToBytes("\x1B\x40"), // Initialize printer
-        ...textToBytes("\x1B\x61\x01"), // Center alignment
+        ...COMMANDS.INITIALIZE,
+        ...textToBytes("\x1B\x61\x01"), // Center align
         
-        // Receipt header
-        ...(isPaid ? [
-          ...textToBytes("\x1B\x45\x01"), // Bold ON
-          ...textToBytes("PAID\n"),
-          ...textToBytes("\x1B\x45\x00"), // Bold OFF
-        ] : []),
+        // Display PAID or COMPLEMENTARY status at the top
+        ...(isPaid ? 
+            textToBytes("PAID\n") : 
+            isComplementary ? 
+            textToBytes("COMPLEMENTARY\n") : 
+            []),
         
-        ...textToBytes("\x1B\x45\x01"), // Bold ON
-        ...textToBytes("\x1D\x21\x11"), // Double height and width
+        ...textToBytes("\x1B\x21\x08"), // Double height
         ...textToBytes(`${orderDetails.outlet_name || "Restaurant"}\n`),
-        ...textToBytes("\x1D\x21\x00"), // Normal size
-        ...textToBytes("\x1B\x45\x00"), // Bold OFF
-        
+        ...textToBytes("\x1B\x21\x00"), // Normal height
         ...textToBytes(`${orderDetails.outlet_address || ""}\n`),
-        ...textToBytes(`${orderDetails.outlet_contact || orderDetails.outlet_mobile || ""}\n\n`),
+        ...textToBytes(
+          `${
+            orderDetails.outlet_mobile
+              ? `${orderDetails.outlet_mobile}\n`
+              : ""
+          }`
+        ),
         
-        // Order details - left aligned
-        ...textToBytes("\x1B\x61\x00"), // Left alignment
+        ...textToBytes("\x1B\x61\x00"), // Left align
         ...textToBytes(`Bill Number: ${orderDetails.order_number}\n`),
+        ...textToBytes(
+          orderDetails.order_type === "dine-in"
+            ? `Table: ${orderDetails.section || ""} - ${orderDetails.table_number ? orderDetails.table_number[0] : ""}\n`
+            : `Type: ${
+                orderDetails.order_type?.charAt(0).toUpperCase() +
+                orderDetails.order_type?.slice(1) || "Takeaway"
+              }\n`
+        ),
+        ...textToBytes(`DateTime: ${formattedDateTime}\n`),
         
-        // Show table or order type based on context
-        ...(orderDetails.order_type === "dine-in" ? 
-          [textToBytes(`Table: ${orderDetails.section || ""} - ${orderDetails.table_number ? orderDetails.table_number[0] : ""}\n`)] :
-          [textToBytes(`Order Type: ${orderDetails.order_type || "Takeaway"}\n`)]),
+        // Add customer details if available
+        ...(orderDetails.customer_name ? 
+          textToBytes(`Customer: ${orderDetails.customer_name}\n`) : 
+          []),
         
-        // Date and payment method
-        ...textToBytes(`DateTime: ${dateTimeStr}\n`),
-        ...textToBytes(`Payment: ${orderDetails.payment_method || "CASH"}\n`),
+        // Display payment method if paid and method exists
+        ...((isPaid) && orderDetails.payment_method ? 
+          textToBytes(`Payment: ${orderDetails.payment_method.toString().toUpperCase()}\n`) : 
+          []),
         
-        // Item section header
         ...textToBytes(getDottedLine()),
         ...textToBytes("Item            Qty  Rate    Amount\n"),
         ...textToBytes(getDottedLine()),
         
-        // Menu items with formatting
-        ...menuItems.flatMap((item) => {
-          // Format item name - truncate if too long
-          let itemName = item.menu_name;
-          if (itemName.length > 14) {
-            itemName = itemName.substring(0, 13) + '.';
-          }
-          itemName = itemName.padEnd(15);
-          
-          // Format quantities and prices
-          const qty = String(item.quantity).padStart(2);
-          const rate = String(Math.round(parseFloat(item.price))).padStart(5);
-          const amount = String((parseFloat(item.price) * item.quantity).toFixed(2)).padStart(8);
-          
-          return textToBytes(`${itemName}${qty} ${rate} ${amount}\n`);
-        }),
-        
-        // Totals section
+        // Menu items
+        ...menuItems.flatMap((item) =>
+          textToBytes(formatMenuItem(item))
+        ),
         ...textToBytes(getDottedLine()),
+        
+        // Amount section
         ...textToBytes(formatAmountLine("Total", subtotal)),
-        
-        // Show discount if applicable
-        ...(orderDetails.discount_amount && parseFloat(orderDetails.discount_amount) > 0 ? 
-          [textToBytes(formatAmountLine(`Discount (${orderDetails.discount_percent || 0}%)`, orderDetails.discount_amount, "-"))] : 
-          []),
-          
-        // Show extra charges if applicable  
-        ...(orderDetails.extra_charges && parseFloat(orderDetails.extra_charges) > 0 ? 
-          [textToBytes(formatAmountLine("Extra Charges", orderDetails.extra_charges, "+"))] : 
-          []),
-        
-        // Subtotal after discount and charges
-        ...textToBytes(formatAmountLine("Subtotal", orderDetails.total_bill_with_discount || subtotal)),
-        
-        // Service charges and GST
-        ...(orderDetails.service_charges_amount && parseFloat(orderDetails.service_charges_amount) > 0 ? 
-          [textToBytes(formatAmountLine(`Service Ch (${orderDetails.service_charges_percent || 0}%)`, orderDetails.service_charges_amount, "+"))] : 
-          []),
-          
-        ...(orderDetails.gst_amount && parseFloat(orderDetails.gst_amount) > 0 ? 
-          [textToBytes(formatAmountLine(`GST (${orderDetails.gst_percent || 0}%)`, orderDetails.gst_amount, "+"))] : 
-          []),
-        
-        // Final total
+
+        // Discount if it exists
+        ...(discount > 0 ? 
+          textToBytes(formatAmountLine(`Discount(${discountPercent}%)`, discount, "-"))
+          : []),
+
+        // Special discount if it exists
+        ...(specialDiscount > 0 ? 
+          textToBytes(formatAmountLine("Special Discount", specialDiscount, "-"))
+          : []),
+
+        // Extra charges if they exist
+        ...(extraCharges > 0 ? 
+          textToBytes(formatAmountLine("Extra Charges", extraCharges, "+"))
+          : []),
+
+        ...textToBytes(formatAmountLine("Subtotal", totalWithDiscount)),
+
+        // Service charges if they exist
+        ...(serviceCharges > 0 ? 
+          textToBytes(formatAmountLine(`Service Ch.(${serviceChargesPercent}%)`, serviceCharges, "+"))
+          : []),
+
+        // GST if it exists
+        ...(gstAmount > 0 ? 
+          textToBytes(formatAmountLine(`GST(${gstPercent}%)`, gstAmount, "+"))
+          : []),
+
+        // Tip if it exists
+        ...(tip > 0 ? 
+          textToBytes(formatAmountLine("Tip", tip, "+"))
+          : []),
+
         ...textToBytes(getDottedLine()),
-        ...textToBytes(formatAmountLine("GRAND TOTAL", orderDetails.grand_total || subtotal)),
+        // Use final_grand_total if available, otherwise use grand_total
+        ...textToBytes(formatAmountLine("Total", finalGrandTotal || grandTotal)),
         ...textToBytes("\n"),
+
+        ...textToBytes("\x1B\x61\x01"), // Center align
+        ...textToBytes("PhonePe  GPay  Paytm  UPI\n\n"),
+        ...textToBytes("------------------------\n"),
         
-        // Footer - centered
-        ...textToBytes("\x1B\x61\x01"), // Center alignment
-        ...textToBytes("Thank You for your business!\n"),
-        ...textToBytes("Visit us again\n\n"),
-        ...textToBytes("Powered by MenuMitra\n"),
-        ...textToBytes("https://menumitra.com\n\n"),
-        
-        // Cut paper
-        ...textToBytes("\x1D\x56\x00"),
+        ...generateQRCode(qrData),
+        ...textToBytes('\n\n'),
+        ...textToBytes(`Scan to Pay ${finalGrandTotal.toFixed(2)}\n\n`),
+        ...textToBytes("\n"),
+        ...textToBytes("-----Thank You Visit Again!-----\n"),
+        ...textToBytes("https://menumitra.com/\n"),
+        ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
       ];
 
       console.log("Sending receipt commands:", commands.length, "bytes");
-      await sendToDevice(commands);
+      await sendDataToPrinter(commands);
       return true;
     } catch (error) {
       console.error("Receipt printing error:", error);
@@ -1831,65 +2018,73 @@ export default function OrderDetailsScreen() {
         throw new Error("No printer connected");
       }
 
-      // Get data formatting helpers
-      const getCurrentDateTime = () => {
-        const now = new Date();
-        const day = String(now.getDate()).padStart(2, '0');
-        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-        const month = monthNames[now.getMonth()];
-        const year = now.getFullYear();
-        const hours = String(now.getHours() % 12 || 12).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
-        return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
-      };
-      
-      // Create commands for the KOT exactly matching the sample image
+      // Calculate total quantity of all items
+      const totalQuantity = menuItems.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+
+      // Format the current date and time
+      const formattedDateTime = getCurrentDateTime();
+
+      // Get outlet mobile from order details
+      const outletMobile = orderDetails.outlet_mobile || "";
+
+      // Build KOT printing commands exactly like owner app
       const commands = [
-        ...textToBytes("\x1B\x40"), // Initialize printer
+        ...COMMANDS.INITIALIZE,
         ...textToBytes("\x1B\x61\x01"), // Center alignment
-        
-        // Hotel/Restaurant name in larger text
-        ...textToBytes("\x1B\x45\x01"), // Bold ON
-        ...textToBytes("\x1D\x21\x11"), // Double height and width
-        ...textToBytes(`${orderDetails.outlet_name}\n`),
+        ...textToBytes("\x1D\x21\x11"), // Double width and height
+        ...textToBytes("KOT\n"),
         ...textToBytes("\x1D\x21\x00"), // Normal size
-        ...textToBytes("\x1B\x45\x00"), // Bold OFF
+        ...textToBytes(`${orderDetails.outlet_name || "Restaurant"}\n`),
         
-        // Address and contact
-        ...textToBytes(`${orderDetails.outlet_address || ""}\n`),
-        ...textToBytes(`${orderDetails.outlet_mobile || ""}\n`),
-        
-        // Bill details - left aligned
-        ...textToBytes("\x1B\x61\x00"), // Left alignment
+        ...textToBytes("\x1B\x61\x00"), // Left align
         ...textToBytes(`Bill Number: ${orderDetails.order_number}\n`),
-        ...textToBytes(`Table: ${orderDetails.section} - ${orderDetails.table_number[0]}\n`),
-        ...textToBytes(`DateTime: ${getCurrentDateTime()}\n`),
-        
-        // Divider line
+        ...textToBytes(
+          orderDetails.order_type === "dine-in"
+            ? `Table: ${orderDetails.section || ""} - ${orderDetails.table_number ? orderDetails.table_number[0] : ""}\n`
+            : `Type: ${
+                orderDetails.order_type?.charAt(0).toUpperCase() +
+                orderDetails.order_type?.slice(1) || "Takeaway"
+              }\n`
+        ),
+        ...textToBytes(`DateTime: ${formattedDateTime}\n`),
+        ...textToBytes(`Items: ${menuItems.length}\n`),
         ...textToBytes("--------------------------------\n"),
-        
-        // Header for items
+
+        // Column headers
         ...textToBytes("Item                      Qty\n"),
         ...textToBytes("--------------------------------\n"),
-        
-        // Menu items - simple format with just name and quantity
-        ...menuItems.flatMap((item) => {
-          const name = item.menu_name.padEnd(24).substring(0, 24);
-          const qty = String(item.quantity).padStart(1);
-          return textToBytes(`${name} ${qty}\n`);
+
+        // Menu items - simplified format with just name and quantity
+        ...menuItems.flatMap(item => {
+          const name = item.menu_name || "";
+          const qty = item.quantity.toString();
+          
+          if (name.length > 23) {
+            const lines = name.match(/.{1,23}/g) || [];
+            return textToBytes(
+              lines
+                .map((line, index) =>
+                  index === 0
+                    ? `${line.padEnd(23)} ${qty}\n`
+                    : `${line.padEnd(26)}\n`
+                )
+                .join("")
+            );
+          }
+          return textToBytes(`${name.padEnd(23)} ${qty}\n`);
         }),
-        
-        // Divider line
+
         ...textToBytes("--------------------------------\n"),
-        
-        // Total items count
-        ...textToBytes(`Total Items: ${menuItems.reduce((acc, item) => acc + item.quantity, 0)}\n\n`),
-        
-        ...textToBytes("\x1D\x56\x41\x10"), // Cut paper
+        // Align "Total Items" with the quantity column by padding to 23 chars
+        ...textToBytes(`${"Total Items:".padEnd(23)} ${totalQuantity}\n`),
+        ...textToBytes("\n"),
+        ...textToBytes("\x1D\x56\x42\x40"), // Cut paper with specific command matching owner app
       ];
 
-      await sendToDevice(commands);
+      // Send to printer
+      console.log("Sending KOT commands:", commands.length, "bytes");
+      await sendDataToPrinter(commands);
+      
       return true;
     } catch (error) {
       console.error("KOT printing error:", error);
