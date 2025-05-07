@@ -418,7 +418,7 @@ export default function MenuListView() {
                 </Text>
               )}
               <Text fontSize="md" fontWeight="bold" color="primary.600">
-                Full: ₹{item.full_price}
+                 ₹{item.full_price}
               </Text>
             </HStack>
           </VStack>
