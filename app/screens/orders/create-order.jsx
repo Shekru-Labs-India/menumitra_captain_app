@@ -4487,6 +4487,9 @@ const handleSettleOrder = async () => {
           <Modal.CloseButton />
           <Modal.Body py={6}>
             <VStack space={4}>
+            <Text fontSize="lg" fontWeight="semibold">
+                Select Payment Method
+              </Text>
               <HStack justifyContent="space-between" alignItems="center">
                 <Text fontSize="lg" fontWeight="bold">
                   Table: {params?.tableNumber || "4"}
@@ -4506,9 +4509,7 @@ const handleSettleOrder = async () => {
                 </Text>
               </HStack>
 
-              <Text fontSize="lg" fontWeight="semibold" mb={2}>
-                Select Payment Method
-              </Text>
+              
 
               <Radio.Group
                 name="paymentMethod"
