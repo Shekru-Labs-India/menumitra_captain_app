@@ -1975,11 +1975,7 @@ export default function OrderDetailsScreen() {
       <body>
         ${isCancelled ? '<div class="cancelled-watermark">CANCELLED</div>' : ''}
         
-        <div class="kot-title">KOT</div>
-        
-        <div class="header">
-          <div class="restaurant-name">${orderDetails.outlet_name}</div>
-        </div>
+        <div class="kot-title">${orderDetails.outlet_name}</div>
 
         <div class="order-info">
           <strong>Order:</strong> #${orderDetails.order_number}<br>
