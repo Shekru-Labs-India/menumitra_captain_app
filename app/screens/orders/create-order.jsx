@@ -2379,6 +2379,10 @@ const handleSettleOrder = async () => {
       
       console.log("Using order number:", orderNumber);
 
+      // Determine order type
+      const orderType = params?.orderType || "dine-in";
+      const orderTypeFormatted = orderTypeMap[orderType] || orderType.charAt(0).toUpperCase() + orderType.slice(1);
+
       // Create header
       commands.push(
         ...COMMANDS.LINE_SPACING_TIGHT, // Use tighter line spacing for entire receipt
@@ -2390,8 +2394,23 @@ const handleSettleOrder = async () => {
         ...textToBytes(`${outletMobile ? `+91 ${outletMobile}\n` : ""}`),
 
         ...textToBytes("\x1B\x61\x00"), // Left align
-        ...textToBytes(`Bill No: ${orderNumber}\n`),
-        ...textToBytes(`Table: ${params?.sectionName || "Dining"}${params?.tableNumber ? ` - ${params.tableNumber}` : ''}\n`),
+        ...textToBytes(`Bill No: ${orderNumber}\n`)
+      );
+      
+      // Show different order information based on order type
+      if (orderType === "dine-in") {
+        // For dine-in orders, show section and table number
+        commands.push(
+          ...textToBytes(`Table: ${params?.sectionName || "Dining"}${params?.tableNumber ? ` - ${params.tableNumber}` : ''}\n`)
+        );
+      } else {
+        // For other order types (parcel, counter, delivery, drive-through), show the type
+        commands.push(
+          ...textToBytes(`Type: ${orderTypeFormatted}\n`)
+        );
+      }
+      
+      commands.push(
         ...textToBytes(`DateTime: ${orderData?.datetime ? formatTime(orderData.datetime) : getCurrentDateTime()}\n`),
         ...textToBytes("--------------------------------\n"),
         ...textToBytes("Item           Qty  Rate     Amt\n"),
@@ -2487,10 +2506,9 @@ const handleSettleOrder = async () => {
         params?.orderId || 
         "New";
       
-      // Get table info with fallbacks
-      const tableInfo = params?.tableNumber 
-        ? `${params.sectionName || ""} - ${params.tableNumber}`
-        : (params?.orderType || "dine-in");
+      // Determine order type
+      const orderType = params?.orderType || "dine-in";
+      const orderTypeFormatted = orderTypeMap[orderType] || orderType.charAt(0).toUpperCase() + orderType.slice(1);
       
       const getDottedLine = () => "-------------------------------\n";
 
@@ -2505,8 +2523,23 @@ const handleSettleOrder = async () => {
         ...textToBytes(`${outletMobile || ""}\n\n`),
         
         ...textToBytes("\x1B\x61\x00"), // Left align
-        ...textToBytes(`Bill no: ${orderNumber}\n`),
-        ...textToBytes(`Table: ${tableInfo}\n`),
+        ...textToBytes(`Bill no: ${orderNumber}\n`)
+      );
+
+      // Show different order information based on order type
+      if (orderType === "dine-in") {
+        // For dine-in orders, show table information
+        commands.push(
+          ...textToBytes(`Table: ${params?.sectionName || ""}${params?.tableNumber ? ` - ${params.tableNumber}` : ""}\n`)
+        );
+      } else {
+        // For other order types, show the order type
+        commands.push(
+          ...textToBytes(`Type: ${orderTypeFormatted}\n`)
+        );
+      }
+      
+      commands.push(
         ...textToBytes(`DateTime: ${orderData?.datetime ? formatTime(orderData.datetime) : getCurrentDateTime()}\n`), 
         
         ...(customerDetails?.customer_name ? [textToBytes(`Name: ${customerDetails.customer_name}\n`)] : []),
