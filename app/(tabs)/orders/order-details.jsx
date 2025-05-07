@@ -2294,7 +2294,7 @@ export default function OrderDetailsScreen() {
                         italic
                         textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
                       >
-                        Note: {item.comment}
+                        Special Instructions: {item.comment}
                       </Text>
                     )}
                     <HStack space={2} alignItems="center">
