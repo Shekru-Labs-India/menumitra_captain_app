@@ -1093,32 +1093,8 @@ export default function TableSectionsScreen() {
                                             </Box>
                                           )}
 
-                                          {/* QR icon when settings is active */}
-                                          {showEditIcons && (
-                                            <IconButton
-                                              position="absolute"
-                                              bottom={-2}
-                                              right={-2}
-                                              zIndex={2}
-                                              size="sm"
-                                              rounded="full"
-                                              bg="white"
-                                              shadow={2}
-                                              _pressed={{ bg: "gray.100" }}
-                                              _hover={{ bg: "gray.50" }}
-                                              icon={
-                                                <MaterialIcons
-                                                  name="qr-code"
-                                                  size={16}
-                                                  color="gray"
-                                                />
-                                              }
-                                              onPress={() => handleQRIconPress(table, section)}
-                                            />
-                                          )}
-
-                                          {/* Payment icon for occupied tables with orders */}
-                                          {isOccupied && table.order_id && (
+                                          {/* QR or Printer icon at bottom center (only one at a time) */}
+                                          {(showEditIcons || (isOccupied && table.order_id)) && (
                                             <Box
                                               position="absolute"
                                               bottom={-13}
@@ -1126,21 +1102,39 @@ export default function TableSectionsScreen() {
                                               style={{ transform: [{ translateX: -16 }] }}
                                               zIndex={2}
                                             >
-                                              <Pressable
-                                                onPress={() => handlePaymentIconPress(table, section)}
-                                                bg="white"
-                                                rounded="full"
-                                                size={8}
-                                                shadow={3}
-                                                alignItems="center"
-                                                justifyContent="center"
-                                              >
-                                                <MaterialIcons
-                                                  name="print"
-                                                  size={20}
-                                                  color="#f97316"
-                                                />
-                                              </Pressable>
+                                              {showEditIcons ? (
+                                                <Pressable
+                                                  onPress={() => handleQRIconPress(table, section)}
+                                                  bg="white"
+                                                  rounded="full"
+                                                  size={8}
+                                                  shadow={3}
+                                                  alignItems="center"
+                                                  justifyContent="center"
+                                                >
+                                                  <MaterialIcons
+                                                    name="qr-code"
+                                                    size={20}
+                                                    color="#0891b2"
+                                                  />
+                                                </Pressable>
+                                              ) : (
+                                                <Pressable
+                                                  onPress={() => handlePaymentIconPress(table, section)}
+                                                  bg="white"
+                                                  rounded="full"
+                                                  size={8}
+                                                  shadow={3}
+                                                  alignItems="center"
+                                                  justifyContent="center"
+                                                >
+                                                  <MaterialIcons
+                                                    name="print"
+                                                    size={20}
+                                                    color="#f97316"
+                                                  />
+                                                </Pressable>
+                                              )}
                                             </Box>
                                           )}
 
