@@ -178,14 +178,14 @@ export default function EditProfileScreen() {
         <Heading size="md" flex={1} textAlign="center">
           Edit Profile
         </Heading>
-        <IconButton
+        {/* <IconButton
           icon={<MaterialIcons name="check" size={24} color="green" />}
           onPress={handleSubmit}
           variant="ghost"
           _pressed={{ bg: "coolGray.100" }}
           borderRadius="full"
           isDisabled={isSubmitting}
-        />
+        /> */}
       </HStack>
 
       <ScrollView showsVerticalScrollIndicator={false}>
