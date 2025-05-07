@@ -120,7 +120,7 @@ export default function AddStaffScreen() {
   const handlePhoneChange = (text) => {
     // Only allow digits
     const sanitizedText = text.replace(/[^0-9]/g, "");
-    
+
     // If this is the first digit
     if (sanitizedText.length === 1) {
       // Check if the first digit is valid (6-9)
@@ -135,7 +135,7 @@ export default function AddStaffScreen() {
         return; // Don't update state with invalid first digit
       }
     }
-    
+
     // If we're adding to existing digits
     if (formData.phone === "" && sanitizedText.length > 1) {
       // Check first digit for new input with multiple digits
@@ -149,7 +149,7 @@ export default function AddStaffScreen() {
         return;
       }
     }
-    
+
     // Update state with valid input
     setFormData({ ...formData, phone: sanitizedText });
 
@@ -157,7 +157,10 @@ export default function AddStaffScreen() {
     if (!sanitizedText) {
       setErrors((prev) => ({ ...prev, phone: "Mobile number is required" }));
     } else if (sanitizedText.length !== 10) {
-      setErrors((prev) => ({ ...prev, phone: "Mobile number must be 10 digits" }));
+      setErrors((prev) => ({
+        ...prev,
+        phone: "Mobile number must be 10 digits",
+      }));
     } else {
       // Explicitly remove the phone error when input is valid
       setErrors((prev) => {
@@ -192,7 +195,7 @@ export default function AddStaffScreen() {
       ...formData,
       dob: "",
     });
-    
+
     // Clear any DOB error if it exists
     setErrors((prev) => {
       const { dob, ...rest } = prev;
@@ -237,7 +240,10 @@ export default function AddStaffScreen() {
       }
 
       // Address validation - now optional
-      if (formData.address?.trim().length > 0 && formData.address.trim().length < 5) {
+      if (
+        formData.address?.trim().length > 0 &&
+        formData.address.trim().length < 5
+      ) {
         newErrors.address = "Address must be at least 5 characters";
       }
 
@@ -269,8 +275,18 @@ export default function AddStaffScreen() {
         const date = new Date(dateString);
         const day = String(date.getDate()).padStart(2, "0");
         const months = [
-          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
         ];
         const month = months[date.getMonth()];
         const year = date.getFullYear();
@@ -295,7 +311,7 @@ export default function AddStaffScreen() {
       if (formData.dob) {
         staffData.dob = formatDOB(selectedDate);
       }
-      
+
       if (formData.address && formData.address.trim()) {
         staffData.address = formData.address.trim();
       }
@@ -348,7 +364,7 @@ export default function AddStaffScreen() {
       const data = await fetchWithAuth(`${getBaseUrl()}/get_staff_role`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}) // Empty body to ensure device_token is added
+        body: JSON.stringify({}), // Empty body to ensure device_token is added
       });
 
       console.log("Roles Response:", data);
@@ -458,8 +474,18 @@ export default function AddStaffScreen() {
 
       const day = String(selected.getDate()).padStart(2, "0");
       const months = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
       ];
       const month = months[selected.getMonth()];
       const year = selected.getFullYear();
@@ -521,12 +547,19 @@ export default function AddStaffScreen() {
               autoCapitalize="words"
               maxLength={50}
               borderColor={
-                formData.name && !errors.name ? "green.500" : 
-                errors.name ? "red.500" : "coolGray.200"
+                formData.name && !errors.name
+                  ? "green.500"
+                  : errors.name
+                  ? "red.500"
+                  : "coolGray.200"
               }
               _focus={{
-                borderColor: formData.name && !errors.name ? "green.500" : 
-                            errors.name ? "red.500" : "coolGray.500",
+                borderColor:
+                  formData.name && !errors.name
+                    ? "green.500"
+                    : errors.name
+                    ? "red.500"
+                    : "coolGray.500",
               }}
             />
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
@@ -564,12 +597,19 @@ export default function AddStaffScreen() {
                   endIcon: <CheckIcon size="5" color="white" />,
                 }}
                 borderColor={
-                  formData.role && !errors.role ? "green.500" : 
-                  errors.role ? "red.500" : "coolGray.200"
+                  formData.role && !errors.role
+                    ? "green.500"
+                    : errors.role
+                    ? "red.500"
+                    : "coolGray.200"
                 }
                 _focus={{
-                  borderColor: formData.role && !errors.role ? "green.500" : 
-                              errors.role ? "red.500" : "blue.500",
+                  borderColor:
+                    formData.role && !errors.role
+                      ? "green.500"
+                      : errors.role
+                      ? "red.500"
+                      : "blue.500",
                 }}
                 isReadOnly={true}
               >
@@ -594,12 +634,19 @@ export default function AddStaffScreen() {
               keyboardType="numeric"
               maxLength={10}
               borderColor={
-                formData.phone && !errors.phone ? "green.500" : 
-                errors.phone ? "red.500" : "coolGray.200"
+                formData.phone && !errors.phone
+                  ? "green.500"
+                  : errors.phone
+                  ? "red.500"
+                  : "coolGray.200"
               }
               _focus={{
-                borderColor: formData.phone && !errors.phone ? "green.500" : 
-                            errors.phone ? "red.500" : "blue.500",
+                borderColor:
+                  formData.phone && !errors.phone
+                    ? "green.500"
+                    : errors.phone
+                    ? "red.500"
+                    : "blue.500",
               }}
             />
             <FormControl.ErrorMessage>{errors.phone}</FormControl.ErrorMessage>
@@ -613,30 +660,47 @@ export default function AddStaffScreen() {
                 isReadOnly
                 placeholder="Select date of birth (optional)"
                 borderColor={
-                  formData.dob && !errors.dob ? "green.500" : 
-                  errors.dob ? "red.500" : "coolGray.200"
+                  formData.dob && !errors.dob
+                    ? "green.500"
+                    : errors.dob
+                    ? "red.500"
+                    : "coolGray.200"
                 }
                 _focus={{
-                  borderColor: formData.dob && !errors.dob ? "green.500" : 
-                              errors.dob ? "red.500" : "blue.500",
+                  borderColor:
+                    formData.dob && !errors.dob
+                      ? "green.500"
+                      : errors.dob
+                      ? "red.500"
+                      : "blue.500",
                 }}
                 rightElement={
                   <HStack>
                     {formData.dob && (
                       <IconButton
-                        icon={<MaterialIcons name="clear" size={20} color="gray" />}
+                        icon={
+                          <MaterialIcons name="clear" size={20} color="gray" />
+                        }
                         onPress={clearDOB}
                       />
                     )}
                     <IconButton
-                      icon={<MaterialIcons name="calendar-today" size={20} color="gray" />}
+                      icon={
+                        <MaterialIcons
+                          name="calendar-today"
+                          size={20}
+                          color="gray"
+                        />
+                      }
                       onPress={() => setShowDatePicker(true)}
                     />
                   </HStack>
                 }
               />
             </Pressable>
-            <FormControl.HelperText>This field is optional</FormControl.HelperText>
+            {/* <FormControl.HelperText>
+              This field is optional
+            </FormControl.HelperText> */}
             <FormControl.ErrorMessage>{errors.dob}</FormControl.ErrorMessage>
 
             {showDatePicker && (
@@ -678,12 +742,19 @@ export default function AddStaffScreen() {
               keyboardType="numeric"
               maxLength={12}
               borderColor={
-                formData.aadharNo && !errors.aadharNo ? "green.500" : 
-                errors.aadharNo ? "red.500" : "coolGray.200"
+                formData.aadharNo && !errors.aadharNo
+                  ? "green.500"
+                  : errors.aadharNo
+                  ? "red.500"
+                  : "coolGray.200"
               }
               _focus={{
-                borderColor: formData.aadharNo && !errors.aadharNo ? "green.500" : 
-                            errors.aadharNo ? "red.500" : "blue.500",
+                borderColor:
+                  formData.aadharNo && !errors.aadharNo
+                    ? "green.500"
+                    : errors.aadharNo
+                    ? "red.500"
+                    : "blue.500",
               }}
             />
             <FormControl.ErrorMessage>
@@ -700,15 +771,24 @@ export default function AddStaffScreen() {
               autoCompleteType={undefined}
               h={20}
               borderColor={
-                formData.address && !errors.address ? "green.500" : 
-                errors.address ? "red.500" : "coolGray.200"
+                formData.address && !errors.address
+                  ? "green.500"
+                  : errors.address
+                  ? "red.500"
+                  : "coolGray.200"
               }
               _focus={{
-                borderColor: formData.address && !errors.address ? "green.500" : 
-                            errors.address ? "red.500" : "blue.500",
+                borderColor:
+                  formData.address && !errors.address
+                    ? "green.500"
+                    : errors.address
+                    ? "red.500"
+                    : "blue.500",
               }}
             />
-            <FormControl.HelperText>This field is optional</FormControl.HelperText>
+            {/* <FormControl.HelperText>
+              This field is optional
+            </FormControl.HelperText> */}
             <FormControl.ErrorMessage>
               {errors.address}
             </FormControl.ErrorMessage>
@@ -721,7 +801,7 @@ export default function AddStaffScreen() {
             leftIcon={<MaterialIcons name="save" size={20} color="white" />}
             isLoadingText="Saving..."
           >
-            Save 
+            Save
           </Button>
         </VStack>
       </ScrollView>
