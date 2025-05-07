@@ -665,7 +665,9 @@ export default function MenuSelectionScreen() {
         <HStack alignItems="center">
           <MaterialIcons name="shopping-cart" size={24} color="#0dcaf0" />
           <Text ml={2} fontSize="md" fontWeight="bold" color="#0dcaf0">{cart.length}</Text>
-          <Text ml={2} fontWeight="bold" color="#0dcaf0">View Cart</Text>
+          <Text ml={2} fontWeight="bold" color="#0dcaf0">
+            {tableData?.order_id ? "Update Order" : "Create Order"}
+          </Text>
         </HStack>
       </Pressable>
     );
