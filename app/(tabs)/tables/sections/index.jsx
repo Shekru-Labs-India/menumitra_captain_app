@@ -1624,7 +1624,7 @@ export default function TableSectionsScreen() {
       );
     };
 
-    // Download as PNG
+    // Download as PNG - close modal after successful download
     const downloadAsPNG = async () => {
       try {
         setIsDownloading(true);
@@ -1679,6 +1679,11 @@ export default function TableSectionsScreen() {
           status: "success",
           duration: 2000
         });
+        
+        // Close modal on successful download
+        setTimeout(() => {
+          closeModal();
+        }, 1000);
       } catch (error) {
         console.error("Download Error:", error);
         toast.show({
@@ -1690,7 +1695,7 @@ export default function TableSectionsScreen() {
       }
     };
 
-    // PDF download function
+    // PDF download function - don't share automatically, just save
     const handlePDFDownload = async () => {
       try {
         setIsDownloading(true);
@@ -1742,11 +1747,13 @@ export default function TableSectionsScreen() {
           </html>
         `;
         
-        // Create and share PDF
+        // Create PDF
         const { uri: pdfUri } = await Print.printToFileAsync({
           html: htmlContent,
           base64: false
         });
+        
+        let saveSuccess = false;
         
         // For Android
         if (Platform.OS === 'android') {
@@ -1765,27 +1772,45 @@ export default function TableSectionsScreen() {
               status: "success",
               duration: 3000,
             });
+            saveSuccess = true;
           } catch (error) {
             console.error('Save to gallery failed:', error);
-            // Fallback to sharing
-            await Sharing.shareAsync(pdfUri, {
-              mimeType: 'application/pdf',
-              dialogTitle: 'Save PDF',
-              UTI: 'com.adobe.pdf'
+            // Show error but don't share automatically
+            toast.show({
+              description: "Could not save PDF to gallery",
+              status: "error",
+              duration: 3000,
             });
           }
         } else if (Platform.OS === 'ios') {
-          // iOS doesn't save PDFs to photo library, use sharing instead
-          await Sharing.shareAsync(pdfUri, {
-            UTI: 'com.adobe.pdf',
-            mimeType: 'application/pdf',
-            dialogTitle: 'Save PDF',
-          });
-          toast.show({
-            description: "Please select 'Save to Files' to save your PDF",
-            status: "success",
-            duration: 3000,
-          });
+          // iOS doesn't save PDFs to photo library, save to Files
+          try {
+            await Sharing.shareAsync(pdfUri, {
+              UTI: 'com.adobe.pdf',
+              mimeType: 'application/pdf',
+              dialogTitle: 'Save PDF',
+            });
+            toast.show({
+              description: "Please select 'Save to Files' to save your PDF",
+              status: "success",
+              duration: 3000,
+            });
+            saveSuccess = true;
+          } catch (error) {
+            console.error('iOS save failed:', error);
+            toast.show({
+              description: "Failed to save PDF",
+              status: "error",
+              duration: 3000,
+            });
+          }
+        }
+        
+        // Close modal on successful save
+        if (saveSuccess) {
+          setTimeout(() => {
+            closeModal();
+          }, 1500);
         }
       } catch (error) {
         console.error("PDF Generation Error:", error);
