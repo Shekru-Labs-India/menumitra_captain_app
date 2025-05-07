@@ -2390,7 +2390,7 @@ const handleSettleOrder = async () => {
         ...textToBytes(`${outletMobile ? `+91 ${outletMobile}\n` : ""}`),
 
         ...textToBytes("\x1B\x61\x00"), // Left align
-        ...textToBytes(`Bill Number: ${orderNumber}\n`),
+        ...textToBytes(`Bill No: ${orderNumber}\n`),
         ...textToBytes(`Table: ${params?.sectionName || "Dining"}${params?.tableNumber ? ` - ${params.tableNumber}` : ''}\n`),
         ...textToBytes(`DateTime: ${orderData?.datetime ? formatTime(orderData.datetime) : getCurrentDateTime()}\n`),
         ...textToBytes("--------------------------------\n"),
