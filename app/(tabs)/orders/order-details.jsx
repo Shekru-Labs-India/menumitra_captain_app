@@ -2365,10 +2365,12 @@ export default function OrderDetailsScreen() {
 
             {/* Extra Charges - Always show this section */}
             <VStack space={2}>
-              <HStack justifyContent="space-between">
-                <Text color="green.600">Extra Charges</Text>
-                <Text color="green.600">+₹{Number(orderDetails.charges || 0).toFixed(2)}</Text>
-              </HStack>
+              {Number(orderDetails.charges || 0) > 0 && (
+                <HStack justifyContent="space-between">
+                  <Text color="green.600">Extra Charges</Text>
+                  <Text color="green.600">+₹{Number(orderDetails.charges || 0).toFixed(2)}</Text>
+                </HStack>
+              )}
 
               <HStack justifyContent="space-between" pt={2} borderTopWidth={1} borderColor="coolGray.200">
                 <Text fontWeight="medium">Subtotal </Text>
@@ -2411,7 +2413,7 @@ export default function OrderDetailsScreen() {
 
             {/* Grand Total */}
             <HStack justifyContent="space-between" pt={3} mt={2} borderTopWidth={2} borderColor="coolGray.200">
-              <Text fontSize="lg" fontWeight="bold">Grand Total</Text>
+              <Text fontSize="lg" fontWeight="bold">Final Grand Total</Text>
               <Text fontSize="lg" fontWeight="bold">
                 ₹{(
                   Number(orderDetails.total_bill_amount || 0) -
