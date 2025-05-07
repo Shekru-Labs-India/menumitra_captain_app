@@ -971,6 +971,7 @@ export default function TableSectionsScreen() {
                                       <Pressable
                                         onPress={() => {
                                           setActiveSection(section);
+                                          setSelectedSection(section.id);
                                           setShowCreateTableModal(true);
                                         }}
                                       >
@@ -1568,13 +1569,20 @@ export default function TableSectionsScreen() {
       if (!storedUserId) {
         throw new Error("User ID not found. Please login again.");
       }
+      
+      // Check if we have a valid section ID - use activeSection as fallback
+      const sectionId = selectedSection || (activeSection?.id);
+      
+      if (!sectionId) {
+        throw new Error("No section selected. Please select a section first.");
+      }
 
       const data = await fetchWithAuth(`${getBaseUrl()}/table_create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
-          section_id: selectedSection.toString(),
+          section_id: sectionId.toString(),
           user_id: storedUserId.toString()
         }),
       });
