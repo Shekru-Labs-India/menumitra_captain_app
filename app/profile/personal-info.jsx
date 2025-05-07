@@ -282,136 +282,101 @@ export default function PersonalInfoScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }} // Add significant bottom padding to prevent FAB overlap
       >
-        {/* Profile Avatar */}
-        <Box alignItems="center" my={6}>
-          {/* <Avatar
-            size="xl"
-            source={{ uri: "https://via.placeholder.com/150" }}
-            bg="blue.500"
-          >
-            {userData?.name?.charAt(0)}
-          </Avatar> */}
-          <Text mt={2} fontSize="lg" fontWeight="bold">
-            {userData?.name}
-          </Text>
-          <Text fontSize="sm" color="coolGray.500">
-            {userData?.role}
-          </Text>
-        </Box>
+        {/* Profile Information Cards */}
+        <Box mx={4} mt={4}>
+          {/* Personal Information Card */}
+          <Box bg="white" rounded="lg" shadow={1} mb={4} p={4}>
+            <HStack alignItems="center" mb={4}>
+              <Icon as={MaterialIcons} name="person" size={5} color="primary.500" mr={2} />
+              <Text fontSize="md" fontWeight="medium" color="primary.600">Personal Information</Text>
+            </HStack>
 
-        {/* Profile Information */}
-        <Box bg="white" rounded="lg" shadow={1} mx={4} mb={4}>
-          <VStack space={4} p={4}>
-            <Heading size="sm" mb={2}>
-              Personal Information
-            </Heading>
-            
-            <HStack space={3} alignItems="center">
-              <Icon as={MaterialIcons} name="email" size={5} color="blue.500" />
-              <VStack>
-                <Text fontSize="xs" color="coolGray.500">
-                  Email
-                </Text>
-                <Text>{userData?.email || 'Not provided'}</Text>
-              </VStack>
-            </HStack>
-            
-            <Divider />
-            
-            <HStack space={3} alignItems="center">
-              <Icon as={MaterialIcons} name="phone" size={5} color="blue.500" />
-              <VStack>
-                <Text fontSize="xs" color="coolGray.500">
-                  Phone
-                </Text>
-                <Text>{userData?.mobile_number || 'Not provided'}</Text>
-              </VStack>
-            </HStack>
-            
-            <Divider />
-            
-            <HStack space={3} alignItems="center">
-              <Icon as={MaterialIcons} name="cake" size={5} color="blue.500" />
-              <VStack>
-                <Text fontSize="xs" color="coolGray.500">
-                  Date of Birth
-                </Text>
-                <Text>{userData?.dob || 'Not provided'}</Text>
-              </VStack>
-            </HStack>
-            
-            <Divider />
-            
-            <HStack space={3} alignItems="center">
-              <Icon as={MaterialIcons} name="badge" size={5} color="blue.500" />
-              <VStack>
-                <Text fontSize="xs" color="coolGray.500">
-                  Aadhar Number
-                </Text>
-                <Text>{userData?.aadhar_number || 'Not provided'}</Text>
-              </VStack>
-            </HStack>
-            
-            <Divider />
-            
-            <HStack space={3} alignItems="center">
-              <Icon as={MaterialIcons} name="access-time" size={5} color="blue.500" />
-              <VStack>
-                <Text fontSize="xs" color="coolGray.500">
-                  Last Activity
-                </Text>
-                <Text>{userData?.last_login || 'Not available'}</Text>
-              </VStack>
-            </HStack>
-            
-            <Divider />
-            
-            <HStack space={3} alignItems="center">
-              <Icon as={MaterialIcons} name="date-range" size={5} color="blue.500" />
-              <VStack>
-                <Text fontSize="xs" color="coolGray.500">
-                  Member Since
-                </Text>
-                <Text>{userData?.created_on || 'Not available'}</Text>
-              </VStack>
-            </HStack>
-            
-            <Divider />
-            
-            <HStack space={3} alignItems="center">
-              <Icon as={MaterialIcons} name="person" size={5} color="blue.500" />
-              <VStack>
-                <Text fontSize="xs" color="coolGray.500">
-                  Created By
-                </Text>
-                <Text>{userData?.created_by || 'Not available'}</Text>
-              </VStack>
-            </HStack>
-            
-            <Divider />
-            
-            <HStack space={3} alignItems="center">
-              <Icon as={MaterialIcons} name="update" size={5} color="blue.500" />
-              <VStack>
-                <Text fontSize="xs" color="coolGray.500">
-                  Last Updated
-                </Text>
-                <Text>
-                  {userData?.updated_on ? 
-                    `${userData.updated_on} by ${userData.updated_by || 'Unknown'}` : 
-                    'Not available'}
-                </Text>
-              </VStack>
-            </HStack>
-          </VStack>
-        </Box>
+            {/* Two column layout */}
+            <VStack space={4}>
+              {/* Name and Role */}
+              <HStack justifyContent="space-between">
+                <VStack flex={1} mr={2}>
+                  <Text fontWeight="medium">{userData?.name || '-'}</Text>
+                  <Text fontSize="xs" color="coolGray.500">Name</Text>
+                </VStack>
+                <VStack flex={1}>
+                  <Text fontWeight="medium">{userData?.role || '-'}</Text>
+                  <Text fontSize="xs" color="coolGray.500">Role</Text>
+                </VStack>
+              </HStack>
 
-        {/* Device Login Management */}
-        <Box bg="white" rounded="lg" shadow={1} mx={4} mb={4}>
-          <VStack space={4} p={4}>
-            <Heading size="sm" mb={2}>
-              My Active Sessions
-            </Heading>
+              {/* Date of Birth and Email */}
+              <HStack justifyContent="space-between">
+                <VStack flex={1} mr={2}>
+                  <Text fontWeight="medium">{userData?.dob || '-'}</Text>
+                  <Text fontSize="xs" color="coolGray.500">Date of Birth</Text>
+                </VStack>
+                <VStack flex={1}>
+                  <Text fontWeight="medium">{userData?.email || '-'}</Text>
+                  <Text fontSize="xs" color="coolGray.500">Email</Text>
+                </VStack>
+              </HStack>
+
+              {/* Mobile and Aadhar */}
+              <HStack justifyContent="space-between">
+                <VStack flex={1} mr={2}>
+                  <Text fontWeight="medium">{userData?.mobile_number || '-'}</Text>
+                  <Text fontSize="xs" color="coolGray.500">Mobile Number</Text>
+                </VStack>
+                <VStack flex={1}>
+                  <Text fontWeight="medium">{userData?.aadhar_number || '-'}</Text>
+                  <Text fontSize="xs" color="coolGray.500">Aadhar Number</Text>
+                </VStack>
+              </HStack>
+            </VStack>
+          </Box>
+
+          {/* Account Information Card */}
+          <Box bg="white" rounded="lg" shadow={1} mb={4} p={4}>
+            <HStack alignItems="center" mb={4}>
+              <Icon as={MaterialIcons} name="account-circle" size={5} color="primary.500" mr={2} />
+              <Text fontSize="md" fontWeight="medium" color="primary.600">Account Information</Text>
+            </HStack>
+
+            <VStack space={4}>
+              {/* Last Login */}
+              <VStack>
+                <Text fontWeight="medium">{userData?.last_login || "-"}</Text>
+                <Text fontSize="xs" color="coolGray.500">Last Login</Text>
+              </VStack>
+
+              {/* Created By */}
+              <VStack>
+                <Text fontWeight="medium">{userData?.created_by || "-"}</Text>
+                <Text fontSize="xs" color="coolGray.500">Created By</Text>
+              </VStack>
+
+              {/* Created On */}
+              <VStack>
+                <Text fontWeight="medium">{userData?.created_on || "-"}</Text>
+                <Text fontSize="xs" color="coolGray.500">Created On</Text>
+              </VStack>
+
+              {/* Updated By */}
+              <VStack>
+                <Text fontWeight="medium">{userData?.updated_by || "-"}</Text>
+                <Text fontSize="xs" color="coolGray.500">Updated By</Text>
+              </VStack>
+
+              {/* Updated On */}
+              <VStack>
+                <Text fontWeight="medium">{userData?.updated_on}</Text>
+                <Text fontSize="xs" color="coolGray.500">Updated On</Text>
+              </VStack>
+            </VStack>
+          </Box>
+
+          {/* Device Login Management */}
+          <Box bg="white" rounded="lg" shadow={1} mb={4} p={4}>
+            <HStack alignItems="center" mb={4}>
+              <Icon as={MaterialIcons} name="devices" size={5} color="primary.500" mr={2} />
+              <Text fontSize="md" fontWeight="medium" color="primary.600">My Active Sessions</Text>
+            </HStack>
 
             {deviceLogins.length > 0 ? (
               deviceLogins.map((device, index) => (
@@ -421,7 +386,7 @@ export default function PersonalInfoScreen() {
                   borderColor={device.isCurrentDevice ? "green.500" : "coolGray.200"} 
                   borderRadius="md" 
                   p={4} 
-                  mb={index === deviceLogins.length - 1 ? 10 : 0}
+                  mb={index === deviceLogins.length - 1 ? 10 : 3}
                 >
                   <HStack justifyContent="space-between" alignItems="center">
                     <VStack>
@@ -453,7 +418,7 @@ export default function PersonalInfoScreen() {
                 <Text color="coolGray.500">No active device sessions found</Text>
               </Box>
             )}
-          </VStack>
+          </Box>
         </Box>
       </ScrollView>
       
