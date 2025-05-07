@@ -704,17 +704,17 @@ export default function HomeScreen() {
         alignItems="center"
         bg="white"
       >
+        <Box width={10} />
+        <Heading size="md" flex={1} textAlign="center">
+          Home
+        </Heading>
         <IconButton
-          icon={<Icon as={MaterialIcons} name="arrow-back" size={6} color="gray.500" />}
-          onPress={() => router.back()}
+          icon={<Icon as={MaterialIcons} name="menu" size={6} color="gray.500" />}
+          onPress={toggleSidebar}
           variant="ghost"
           _pressed={{ bg: "coolGray.100" }}
           borderRadius="full"
         />
-        <Heading size="md" flex={1} textAlign="center">
-          Home
-        </Heading>
-        <Box width={10} />
       </HStack>
 
       <Box px={4} pb={3}>
