@@ -284,13 +284,13 @@ export default function PersonalInfoScreen() {
       >
         {/* Profile Avatar */}
         <Box alignItems="center" my={6}>
-          <Avatar
+          {/* <Avatar
             size="xl"
             source={{ uri: "https://via.placeholder.com/150" }}
             bg="blue.500"
           >
             {userData?.name?.charAt(0)}
-          </Avatar>
+          </Avatar> */}
           <Text mt={2} fontSize="lg" fontWeight="bold">
             {userData?.name}
           </Text>
