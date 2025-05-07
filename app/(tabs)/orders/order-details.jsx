@@ -2430,7 +2430,7 @@ export default function OrderDetailsScreen() {
           <VStack space={3}>
             <HStack justifyContent="space-between" alignItems="flex-start">
               <VStack space={2}>
-                <Heading size="md">Order {orderDetails.order_number}</Heading>
+                <Heading size="md">Order #{orderDetails.order_number}</Heading>
                 <Text fontSize="sm" color="coolGray.600">
                   {orderDetails.date} • {orderDetails.time}
                 </Text>
