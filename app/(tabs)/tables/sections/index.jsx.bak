@@ -47,6 +47,7 @@ import { Alert } from "react-native";
 import Image from "react-native/Libraries/Image/Image";
 import { TouchableOpacity, TouchableWithoutFeedback } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
+import RemixIcon from "react-native-remix-icon";
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -1994,7 +1995,7 @@ export default function TableSectionsScreen() {
                   bg="white"
                   p={4}
                   borderWidth={3}
-                  borderColor="coolGray.400"
+                  borderColor="#FF7043"
                   borderRadius="lg"
                   position="relative"
                 >
