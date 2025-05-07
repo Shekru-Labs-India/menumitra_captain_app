@@ -2360,7 +2360,7 @@ export default function OrderDetailsScreen() {
         showBack 
         rightComponent={
           <HStack space={2} alignItems="center">
-            <PrinterStatusIndicator />
+            {/* <PrinterStatusIndicator /> */}
             {orderDetails && 
           orderDetails.order_status?.toLowerCase() !== "paid" && 
           orderDetails.order_status?.toLowerCase() !== "cancelled" ? (
@@ -2552,7 +2552,7 @@ export default function OrderDetailsScreen() {
                         italic
                         textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
                       >
-                        Special Instructions: {item.comment}
+                        {item.comment}
                       </Text>
                     )}
                     <HStack space={2} alignItems="center">
@@ -2890,7 +2890,7 @@ export default function OrderDetailsScreen() {
         </Modal.Content>
       </Modal>
 
-      <PrinterStatusIndicator />
+      {/* <PrinterStatusIndicator /> */}
     </Box>
   );
 }
