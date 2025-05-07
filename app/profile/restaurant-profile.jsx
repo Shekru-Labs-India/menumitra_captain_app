@@ -56,6 +56,17 @@ const RestaurantProfile = () => {
 
   // Define the QRCodeModal component inside RestaurantProfile
   const QRCodeModal = () => {
+    // Determine QR code type based on available data
+    let qrType = "Restaurant QR Code";
+    
+    if (selectedQRData) {
+      if (selectedQRData.isCounter) {
+        qrType = "Counter QR Code";
+      } else if (selectedQRData.tableNumber) {
+        qrType = `Table ${selectedQRData.tableNumber} QR Code`;
+      }
+    }
+      
     // Use a simple modal implementation with basic React Native components
     return (
       <Modal
@@ -67,7 +78,7 @@ const RestaurantProfile = () => {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Restaurant QR Code</Text>
+              <Text style={styles.modalTitle}>{qrType}</Text>
               <TouchableOpacity onPress={() => setIsQRModalVisible(false)}>
                 <MaterialIcons name="close" size={24} color="#333" />
               </TouchableOpacity>
@@ -97,6 +108,11 @@ const RestaurantProfile = () => {
                 
                 <Text style={styles.scanText}>
                   Scan to view our digital menu
+                </Text>
+                
+                {/* Display QR URL for debugging */}
+                <Text style={styles.qrUrlText} numberOfLines={1} ellipsizeMode="middle">
+                  {selectedQRData.rawUrl}
                 </Text>
                 
                 <View style={styles.qrButtonsContainer}>
@@ -244,11 +260,16 @@ const RestaurantProfile = () => {
         throw new Error("Outlet ID missing");
       }
 
+      // For Counter QR, we need to send specific parameters
+      // Counter QR is typically represented as section "0" and table "0"
       const response = await fetchWithAuth(`${getBaseUrl()}/send_qr_link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outlet_id,
+          is_counter: true,  // Flag to indicate this is for counter
+          section_id: 0,     // Use "0" to indicate counter
+          table_id: 0        // Use "0" to indicate counter
         }),
       });
 
@@ -263,17 +284,33 @@ const RestaurantProfile = () => {
       // Add validation to check if the required fields exist
       if (response && response.user_app_url && response.outlet_code) {
         try {
-          // Generate URL in the required format with counter suffix
-          const appDataUrl = `${response.user_app_url}o${response.outlet_code}`;
+          // Generate URL in the correct format with all required parameters
+          let appDataUrl;
           
-          // Use a more reliable QR code service with fallback
-          const qrCodeUrl = encodeURI(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(appDataUrl)}&margin=10`);
+          // Check if section_id and table_number are available in the response
+          // This handles both counter QR codes and table QR codes
+          if (response.section_id && response.table_number) {
+            // Table QR code format with section and table
+            appDataUrl = `${response.user_app_url}o${response.outlet_code}/s${response.section_id}/t${response.table_number}`;
+          } else {
+            // Counter/Restaurant QR code format (outlet only)
+            appDataUrl = `${response.user_app_url}o${response.outlet_code}`;
+          }
+          
+          console.log("App data URL (unencoded):", appDataUrl);
+          
+          // FIXED: Use the QR API without double encoding the URL
+          // We're using encodeURIComponent only once for the data parameter
+          const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(appDataUrl)}&margin=10`;
           
           console.log("Generated QR code URL:", qrCodeUrl);
           
           const qrData = {
             userAppUrl: response.user_app_url,
             outletCode: response.outlet_code,
+            sectionId: response.section_id,
+            tableNumber: response.table_number,
+            isCounter: true,
             qrCodeUrl: qrCodeUrl,
             rawUrl: appDataUrl
           };
@@ -520,7 +557,7 @@ const RestaurantProfile = () => {
           console.error('Save to gallery failed:', error);
           // Fallback to sharing
           await Sharing.shareAsync(uri, {
-            mimeType: 'application/pdf',
+        mimeType: 'application/pdf',
             dialogTitle: 'Save your QR code',
             UTI: 'com.adobe.pdf'
           });
@@ -1381,6 +1418,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#666',
+  },
+  qrUrlText: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 
