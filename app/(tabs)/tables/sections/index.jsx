@@ -1074,7 +1074,7 @@ export default function TableSectionsScreen() {
                                             <Box
                                               position="absolute"
                                               top={-15} // Move higher up 
-                                              left="0"
+                                              left="2"
                                               right="0"
                                               mx="auto" // Center horizontally
                                               width="90%" // Adjust width to match screenshots
