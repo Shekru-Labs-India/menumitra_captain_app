@@ -1222,25 +1222,13 @@ export default function TableSectionsScreen() {
                                             height="100%"
                                           >
                                             <Text
-                                              fontSize={16}
-                                              fontWeight="bold"
-                                              textAlign="center"
-                                              color={
-                                                isOccupied
-                                                  ? table.isInAlarmState
-                                                    ? "#dc3545" // Alarm - Red
-                                                    : table.action === "print_and_save"
-                                                      ? "#ff9800" // Print & Save - Orange
-                                                      : table.action === "KOT_and_save"
-                                                        ? "#000000" // KOT & Save - Black
-                                                        : "#dc3545" // Regular occupied - Red
-                                                  : table.is_reserved 
-                                                    ? "#757575" // Reserved - Gray
-                                                    : "#198754" // Available - Green
-                                              }
-                                            >
-                                              {table.table_number}
-                                            </Text>
+  fontSize={16}
+  fontWeight="bold"
+  textAlign="center"
+  color="black" // Always use black color for table numbers, regardless of status
+>
+  {table.table_number}
+</Text>
                                             {isOccupied && (
                                               <Text
                                                 fontSize={14}
