@@ -21,6 +21,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { getBaseUrl } from "../../../config/api.config";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
 import Header from "../../components/Header";
+import BottomNavigation from "../../components/BottomNavigation";
 
 export default function CategoryDetailsView() {
   const router = useRouter();
@@ -405,6 +406,9 @@ export default function CategoryDetailsView() {
           </AlertDialog.Footer>
         </AlertDialog.Content>
       </AlertDialog>
+      
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </Box>
   );
 }

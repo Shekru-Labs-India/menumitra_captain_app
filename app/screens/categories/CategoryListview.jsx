@@ -23,6 +23,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import BottomNavigation from "../../components/BottomNavigation";
 
 export default function CategoryListView() {
   const [categories, setCategories] = useState([]);
@@ -430,6 +431,9 @@ export default function CategoryListView() {
         bottom={100}
         right={6}
       />
+      
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </Box>
   );
 }
