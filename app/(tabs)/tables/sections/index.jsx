@@ -1134,9 +1134,8 @@ export default function TableSectionsScreen() {
                                           {(showEditIcons || (isOccupied && table.order_id)) && (
                                             <Box
                                               position="absolute"
-                                              bottom={-10} // Move closer to card
-                                              left="50%"
-                                              style={{ transform: [{ translateX: -14 }] }} // Centered better
+                                              right={-1} // Position at right side
+                                              top={65} // Position at top
                                               zIndex={2}
                                             >
                                               {showEditIcons ? (
