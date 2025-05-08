@@ -334,9 +334,14 @@ const textToBytes = (text) => {
 
 // Add this helper function at the top level
 const calculateItemTotal = (price, quantity, offer = 0) => {
-  const total = price * quantity;
-  const discount = (total * offer) / 100;
-  return total - discount;
+  // Calculate the total price without discount
+  const rawTotal = price * quantity;
+  
+  // Apply discount if offer percentage is provided
+  const discount = (rawTotal * offer) / 100;
+  
+  // Return total after discount
+  return rawTotal - discount;
 };
 
 export default function CreateOrderScreen() {
@@ -644,10 +649,10 @@ export default function CreateOrderScreen() {
           // Set tax details
           if (orderDetails.order_details) {
             setServiceChargePercentage(
-              parseFloat(orderDetails.order_details.service_charges_percent)
+              parseFloat(orderDetails.order_details.service_charges_percent || 0)
             );
             setGstPercentage(
-              parseFloat(orderDetails.order_details.gst_percent)
+              parseFloat(orderDetails.order_details.gst_percent || 0)
             );
 
             // Set customer details
@@ -1187,32 +1192,48 @@ const handleSettleOrder = async () => {
               <Box key={index} borderBottomWidth={1} borderColor="gray.200" pb={2}>
                 <HStack justifyContent="space-between" alignItems="center">
                   <VStack flex={1}>
-                    <Text fontWeight="bold">{item.menu_name || item.name}</Text>
-                    <HStack space={2} alignItems="center">
-                      {item.half_price > 0 && (
-                        <Text fontSize={14}>Half: ₹{item.half_price}</Text>
-                      )}
-                      <Text fontSize={14}>Full: ₹{item.full_price}</Text>
-                    </HStack>
-                    {item.specialInstructions && (
-                      <Text fontSize="xs" color="gray.500">
-                        Note: {item.specialInstructions}
-                      </Text>
-                    )}
-                  </VStack>
-                  <VStack alignItems="flex-end">
-                    <Text fontWeight="bold">
-                      ₹
-                      {(item.menu_sub_total || item.price * item.quantity).toFixed(
-                        2
-                      )}
+                    <Text fontWeight={600} fontSize={16}>
+                      {item.menu_name}
+                      {item.offer > 0 && <Text color="green.600"> ({item.offer}% OFF)</Text>}
                     </Text>
-                    <Badge
-                      colorScheme={item.portionSize === "Half" ? "orange" : "blue"}
-                    >
-                      {item.portionSize}
-                    </Badge>
                   </VStack>
+                  <Pressable
+                    onPress={() => removeFromCart(item.menu_id, item.portion_size)}
+                    hitSlop={8}
+                  >
+                    <Icon as={MaterialIcons} name="close" size="sm" color="gray.500" />
+                  </Pressable>
+                </HStack>
+                <HStack mt={2} justifyContent="space-between" alignItems="center">
+                  <HStack space={3} alignItems="center">
+                    <IconButton
+                      icon={<Icon as={MaterialIcons} name="remove" size="xs" />}
+                      borderRadius="full"
+                      variant="outline"
+                      borderColor="gray.300"
+                      size="sm"
+                      p={0}
+                      onPress={() => {
+                        if (item.quantity > 1) {
+                          decreaseQuantity(item);
+                        } else {
+                          // When quantity is 1, remove the item completely
+                          removeFromCart(item.menu_id, item.portionSize || item.portion_size);
+                        }
+                      }}
+                    />
+                    <Text>{item.quantity}</Text>
+                    <IconButton
+                      icon={<Icon as={MaterialIcons} name="add" size="xs" />}
+                      borderRadius="full"
+                      variant="outline"
+                      borderColor="gray.300"
+                      size="sm"
+                      p={0}
+                      onPress={() => increaseQuantity(item)}
+                    />
+                  </HStack>
+                  <Text>Full: ₹{calculateItemTotal(item.price, item.quantity, item.offer).toFixed(2)}</Text>
                 </HStack>
               </Box>
             );
@@ -1318,9 +1339,9 @@ const handleSettleOrder = async () => {
 
         if (orderData.order_details) {
           setServiceChargePercentage(
-            parseFloat(orderData.order_details.service_charges_percent)
+            parseFloat(orderData.order_details.service_charges_percent || 0)
           );
-          setGstPercentage(parseFloat(orderData.order_details.gst_percent));
+          setGstPercentage(parseFloat(orderData.order_details.gst_percent || 0));
           
           // Set customer details
           if (orderData.order_details.customer_name) {
@@ -1739,19 +1760,28 @@ const handleSettleOrder = async () => {
 
   const calculateTotalDiscountPercentage = (items) => {
     if (items.length === 0) return 0;
-
-    const totalAmount = items?.reduce((sum, item) => {
-      const price =
-        item.portionSize === "Half"
-          ? Number(item.half_price || item.price)
-          : Number(item.full_price || item.price);
-      return sum + price * Number(item.quantity);
-    }, 0);
-
-    // Replace calculateDiscount with calculateItemDiscount
-    const totalDiscount = calculateItemDiscount(items);
-
-    return parseFloat(((totalDiscount / totalAmount) * 100).toFixed(2)) || 0;
+    
+    // Check if we have a Poha item with 25% discount
+    let totalDiscount = 0;
+    let totalAmount = 0;
+    
+    for (const item of items) {
+      // Get the original price (before discount) per unit
+      const originalUnitPrice = item.offer > 0 
+        ? item.price / (1 - item.offer/100) 
+        : item.price;
+      
+      // Calculate total original amount
+      const originalAmount = originalUnitPrice * item.quantity;
+      totalAmount += originalAmount;
+      
+      // Calculate discount amount
+      const discountAmount = (originalAmount * item.offer) / 100;
+      totalDiscount += discountAmount;
+    }
+    
+    // Return the weighted average discount percentage
+    return totalAmount > 0 ? (totalDiscount / totalAmount) * 100 : 0;
   };
 
   // Update handlePrint to use the PrinterContext
@@ -3806,6 +3836,15 @@ const handleSettleOrder = async () => {
     loadSettings();
   }, []);
 
+  // Add this function to match the owner app's calculation
+  const getDiscountPercentage = () => {
+    // Simply sum all the offer percentages in the cart
+    return selectedItems.reduce((total, item) => {
+      const offer = parseFloat(item.offer) || 0;
+      return total + offer;
+    }, 0);
+  };
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -4015,61 +4054,71 @@ const handleSettleOrder = async () => {
                     <>
                       {/* Simplified item display */}
                       {selectedItems.map((item, index) => (
-                        <Box
-                          key={index}
-                          bg="white"
-                          px={4}
-                          py={3}
-                          mb={1}
-                          borderBottomWidth={1}
-                          borderBottomColor="gray.200"
-                        >
-                          <HStack justifyContent="space-between" alignItems="center">
-                            <VStack>
-                              <Text fontWeight={600} fontSize={16}>
-                                {item.menu_name}
-                              </Text>
-                            </VStack>
-                            <Pressable
-                              onPress={() => removeFromCart(item.menu_id, item.portion_size)}
-                              hitSlop={8}
-                            >
-                              <Icon as={MaterialIcons} name="close" size="sm" color="gray.500" />
-                            </Pressable>
-                          </HStack>
-                          <HStack mt={2} justifyContent="space-between" alignItems="center">
-                            <HStack space={3} alignItems="center">
-                              <IconButton
-                                icon={<Icon as={MaterialIcons} name="remove" size="xs" />}
-                                borderRadius="full"
-                                variant="outline"
-                                borderColor="gray.300"
-                                size="sm"
-                                p={0}
-                                onPress={() => {
-                                  if (item.quantity > 1) {
-                                    decreaseQuantity(item);
-                                  } else {
-                                    // When quantity is 1, remove the item completely
-                                    removeFromCart(item.menu_id, item.portionSize || item.portion_size);
-                                  }
-                                }}
-                              />
-                              <Text>{item.quantity}</Text>
-                              <IconButton
-                                icon={<Icon as={MaterialIcons} name="add" size="xs" />}
-                                borderRadius="full"
-                                variant="outline"
-                                borderColor="gray.300"
-                                size="sm"
-                                p={0}
-                                onPress={() => increaseQuantity(item)}
-                              />
-                            </HStack>
-                            <Text>Full: ₹{calculateItemTotal(item.price, item.quantity, item.offer).toFixed(2)}</Text>
-                          </HStack>
-                        </Box>
-                      ))}
+  <Box
+    key={index}
+    bg="white"
+    px={4}
+    py={3}
+    mb={1}
+    borderBottomWidth={1}
+    borderBottomColor="gray.200"
+  >
+    <HStack justifyContent="space-between" alignItems="center">
+      <VStack flex={1}>
+        <Text fontWeight="bold" fontSize={16}>{item.menu_name || item.name}</Text>
+        {item.offer > 0 && (
+          <Text color="green.600" fontSize="xs" ml={1}>
+            ({item.offer}% OFF)
+          </Text>
+        )}
+        <HStack alignItems="center" mt={2}>
+          <Pressable
+            onPress={() => decreaseQuantity(item)}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 14,
+              backgroundColor: "#f0f0f0",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 8,
+            }}
+          >
+            <Text fontSize={18}>-</Text>
+          </Pressable>
+          <Text fontSize={16} fontWeight="bold" mx={1}>
+            {item.quantity}
+          </Text>
+          <Pressable
+            onPress={() => increaseQuantity(item)}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 14,
+              backgroundColor: "#f0f0f0",
+              alignItems: "center",
+              justifyContent: "center",
+              marginLeft: 8,
+            }}
+          >
+            <Text fontSize={18}>+</Text>
+          </Pressable>
+        </HStack>
+      </VStack>
+      <VStack alignItems="flex-end" ml={4}>
+        <Text color="gray.500" fontSize="sm">
+          Price : <Text color="blue.600" fontWeight="bold">₹{item.price.toFixed(2)}</Text>
+        </Text>
+        <Text color="gray.500" fontSize="sm">
+          Total : <Text color="blue.600" fontWeight="bold">₹{(item.price * item.quantity).toFixed(2)}</Text>
+        </Text>
+      </VStack>
+      <Pressable onPress={() => removeFromCart(item.menu_id, item.portion_size)} ml={2}>
+        <Icon as={MaterialIcons} name="close" size="sm" color="red.500" />
+      </Pressable>
+    </HStack>
+  </Box>
+))}
                     </>
                   )}
                 </VStack>
@@ -4201,7 +4250,7 @@ const handleSettleOrder = async () => {
 
                     <VStack alignItems="center">
                       <Text fontWeight="semibold" fontSize="xs" color="red.500">-₹{calculateItemDiscount(selectedItems).toFixed(2)}</Text>
-                      <Text fontSize="2xs" color="gray.500">Total Disc ({specialDiscount || 0}%)</Text>
+                      <Text fontSize="2xs" color="gray.500">Disc ({getDiscountPercentage()}%)</Text>
                     </VStack>
 
                     <VStack alignItems="center">
@@ -4209,7 +4258,7 @@ const handleSettleOrder = async () => {
                         calculateTotalAfterDiscounts(selectedItems, specialDiscount) + parseFloat(extraCharges || 0),
                         serviceChargePercentage
                       ).toFixed(2)}</Text>
-                      <Text fontSize="2xs" color="gray.500">Service ({serviceChargePercentage}%)</Text>
+                      <Text fontSize="2xs" color="gray.500">Service ({Math.round(serviceChargePercentage)}%)</Text>
                     </VStack>
 
                     <VStack alignItems="center">
@@ -4222,7 +4271,7 @@ const handleSettleOrder = async () => {
                         ),
                         gstPercentage
                       ).toFixed(2)}</Text>
-                      <Text fontSize="2xs" color="gray.500">GST ({gstPercentage}%)</Text>
+                      <Text fontSize="2xs" color="gray.500">GST ({Math.round(gstPercentage)}%)</Text>
                     </VStack>
 
                     <VStack alignItems="center">
