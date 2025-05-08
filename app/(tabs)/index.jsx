@@ -23,6 +23,7 @@ import {
   Center,
   Heading,
   IconButton,
+  Badge,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -735,6 +736,7 @@ export default function HomeScreen() {
           borderRadius="full"
         />
       </HStack>
+      
 
       <Box px={4} pb={3}>
         <Pressable>
@@ -749,6 +751,11 @@ export default function HomeScreen() {
               <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
               <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
             </HStack>
+       
+              <Badge colorScheme="warning" variant="solid" rounded="full" px={3} py={0.5}>
+                <Text color="white" fontSize="xs" fontWeight="medium">TESTING</Text>
+              </Badge>
+          
           </HStack>
         </Pressable>
       </Box>
