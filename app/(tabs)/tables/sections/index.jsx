@@ -606,15 +606,21 @@ export default function TableSectionsScreen() {
     }
   };
 
-  const getFilteredTables = (sectionTables) => {
+  const getFilteredTables = (sectionTables, sectionName) => {
     if (!sectionTables || sectionTables.length === 0) return [];
 
     // Filter by search query first
     let filteredBySearch = sectionTables;
     if (searchQuery.trim()) {
-      filteredBySearch = sectionTables.filter(
-        table => table.table_number.toString().includes(searchQuery)
-      );
+      // Check if the section name matches the search query
+      const sectionNameMatches = sectionName.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Only filter tables by search query if section name doesn't match
+      if (!sectionNameMatches) {
+        filteredBySearch = sectionTables.filter(
+          table => table.table_number.toString().includes(searchQuery)
+        );
+      }
     }
 
     // Then filter by status
@@ -631,10 +637,10 @@ export default function TableSectionsScreen() {
   };
 
   // Update the getTablesByRow function
-  const getTablesByRow = (sectionTables) => {
+  const getTablesByRow = (sectionTables, sectionName) => {
     if (!sectionTables || sectionTables.length === 0) return { 0: {} }; // For sections with no tables
 
-    const filteredTables = getFilteredTables(sectionTables);
+    const filteredTables = getFilteredTables(sectionTables, sectionName);
     const grouped = {};
 
     // Determine how many columns we have (should be 4)
@@ -810,14 +816,14 @@ export default function TableSectionsScreen() {
     <VStack space={4} p={2} pb={16}>
       {sections.map((section) => {
         // Filter tables based on current criteria (search and status filter)
-        const filteredTables = getFilteredTables(section.tables);
+        const filteredTables = getFilteredTables(section.tables, section.name);
         
         // Skip this section entirely if no tables match the filter criteria
         if (filteredTables.length === 0 && filterStatus !== "all") {
           return null;
         }
         
-        const tablesByRow = getTablesByRow(section.tables);
+        const tablesByRow = getTablesByRow(section.tables, section.name);
         const hasNoTables = !section.tables || section.tables.length === 0;
 
         return (
@@ -936,7 +942,9 @@ export default function TableSectionsScreen() {
                 {filteredTables.length === 0 ? (
                   <Center py={4}>
                     <Text color="coolGray.500" fontSize="sm">
-                      No tables match the current filter.
+                      {section.name.toLowerCase().includes(searchQuery.toLowerCase()) ? 
+                        "No tables match the current status filter." : 
+                        "No tables match the current filter."}
                     </Text>
                   </Center>
                 ) : (
