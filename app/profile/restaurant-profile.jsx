@@ -1112,7 +1112,7 @@ const RestaurantProfile = () => {
       </ScrollView>
 
       {/* Edit Restaurant Profile FAB */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={[
           styles.editFAB,
           hasCounter ? { bottom: 90 } : { bottom: 20 }
@@ -1120,7 +1120,7 @@ const RestaurantProfile = () => {
         onPress={() => router.push('/profile/edit-restaurant-profile')}
       >
         <MaterialIcons name="edit" size={24} color="#fff" />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       {/* Counter QR Button FAB - conditional based on settings */}
       {hasCounter && (
