@@ -2384,9 +2384,9 @@ export default function TableSectionsScreen() {
                   `Table ${selectedTable?.table_number}`
                 )}
               </Text>
-              <Badge colorScheme="cyan" rounded="md" px={2}>
+              {/* <Badge colorScheme="cyan" rounded="md" px={2}>
                 {getOrderTypeDisplay()}
-              </Badge>
+              </Badge> */}
             </HStack>
             <Text fontSize="sm" color="coolGray.600">
               Order #{selectedTable?.order_number} | ₹{selectedTable?.grand_total?.toFixed(2)}
