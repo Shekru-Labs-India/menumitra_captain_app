@@ -385,7 +385,7 @@ export default function OtpScreen() {
       <Box flex={1} px={6} justifyContent="center">
         <VStack space={6} alignItems="center" w="100%">
           <Image
-            source={require("../assets/images/mm-logo-bg-fill-hat.png")}
+            source={require("../assets/images/mm-captain-app.png")}
             alt="MenuMitra Logo"
             size="xl"
             resizeMode="contain"
