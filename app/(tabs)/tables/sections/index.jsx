@@ -866,7 +866,7 @@ export default function TableSectionsScreen() {
                     
                     {showEditIcons && (
                       <HStack space={2} alignItems="center">
-                        <Switch
+                        {/* <Switch
                           size="md"
                           onToggle={() => {
                             handleToggleStatus(section.id, section.is_active);
@@ -880,7 +880,7 @@ export default function TableSectionsScreen() {
                             offTrackColor: "coolGray.200",
                             offThumbColor: "coolGray.400",
                           }}
-                        />
+                        /> */}
                         <IconButton
                           size="sm"
                           variant="ghost"
