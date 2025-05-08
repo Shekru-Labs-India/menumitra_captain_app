@@ -1,126 +1,110 @@
 import React from "react";
-import { Tabs, usePathname } from "expo-router";
+import { Tabs, usePathname, Link } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
+import { Box, HStack, Icon, Pressable, Text } from "native-base";
 
+/**
+ * Shared BottomNavigation component to be used across the app
+ * This ensures a single source of truth for navigation
+ */
 const BottomNavigation = () => {
   const pathname = usePathname();
-
-  // Function to determine if a tab should be active
-  const isTabActive = (tabPath) => {
-    // For home tab
-    if (tabPath === "index") {
-      return (
-        pathname === "/(tabs)" ||
-        pathname.startsWith("/screens/inventory") ||
-        pathname.startsWith("/screens/suppliers")
-      );
-    }
-
-    // For orders tab - explicitly check only index and order-details
-    if (tabPath === "orders") {
-      return pathname === "/(tabs)/orders" || 
-             pathname === "/(tabs)/orders/index" || 
-             pathname === "/(tabs)/orders/order-details";
-    }
-
-    // For other tabs
-    return pathname === `/(tabs)/${tabPath}`;
+  
+  // Helper function to determine if a path is active
+  const isActive = (path) => {
+    if (path === "/") return pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/index";
+    return pathname.includes(path);
   };
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: "#0891b2",
-        tabBarInactiveTintColor: "#6b7280",
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "500",
-        },
-        tabBarStyle: {
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
-          display:
-            pathname.startsWith("/screens/inventory") ||
-            pathname.startsWith("/screens/suppliers")
-              ? "flex"
-              : undefined,
-        },
-      }}
+    <HStack 
+      bg="black" 
+      alignItems="center" 
+      safeAreaBottom
+      height={16}
+      width="100%"
+      px={5}
+      borderTopWidth={1}
+      borderTopColor="gray.800"
+      justifyContent="space-between"
+      position="absolute"
+      bottom={0}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="home" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="staff"
-        options={{
-          title: "Staff",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="people" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="orders"
-        options={{
-          title: "Orders",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons 
-              name="receipt" 
-              size={size} 
-              color={pathname.includes("create-order") ? "#6b7280" : color} 
-            />
-          ),
-          href: "/(tabs)/orders/",
-          unmountOnBlur: true,
-          tabBarActiveTintColor: isTabActive("orders") ? "#0891b2" : "#6b7280",
-          listeners: ({ navigation }) => ({
-            tabPress: (e) => {
-              e.preventDefault();
-              // Always navigate to orders index, never to create-order
-              navigation.navigate("/(tabs)/orders/");
-            },
-          }),
-        }}
-      />
-      <Tabs.Screen
-        name="tables"
-        options={{
-          title: "Tables",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="table-restaurant" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="account-circle" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="inventory"
-        options={{
-          tabBarButton: () => null, // This hides the tab but keeps the screen in the navigation
-        }}
-      />
-      <Tabs.Screen
-        name="suppliers"
-        options={{
-          tabBarButton: () => null, // This hides the tab but keeps the screen in the navigation
-        }}
-      />
-    </Tabs>
+      <Link href="/(tabs)/" asChild>
+        <Pressable flex={1} alignItems="center">
+          <Icon 
+            as={MaterialIcons} 
+            name="home" 
+            size={6} 
+            color={isActive("/") ? "#0891b2" : "#6b7280"} 
+          />
+          <Text 
+            fontSize="xs" 
+            color={isActive("/") ? "#0891b2" : "#6b7280"}
+          >Home</Text>
+        </Pressable>
+      </Link>
+      
+      <Link href="/(tabs)/staff" asChild>
+        <Pressable flex={1} alignItems="center">
+          <Icon 
+            as={MaterialIcons} 
+            name="people" 
+            size={6} 
+            color={isActive("/staff") ? "#0891b2" : "#6b7280"} 
+          />
+          <Text 
+            fontSize="xs" 
+            color={isActive("/staff") ? "#0891b2" : "#6b7280"}
+          >Staff</Text>
+        </Pressable>
+      </Link>
+      
+      <Link href="/(tabs)/tables" asChild>
+        <Pressable flex={1} alignItems="center">
+          <Icon 
+            as={MaterialIcons} 
+            name="table-restaurant" 
+            size={6} 
+            color={isActive("/tables") ? "#0891b2" : "#6b7280"} 
+          />
+          <Text 
+            fontSize="xs" 
+            color={isActive("/tables") ? "#0891b2" : "#6b7280"}
+          >Tables</Text>
+        </Pressable>
+      </Link>
+      
+      <Link href="/(tabs)/orders" asChild>
+        <Pressable flex={1} alignItems="center">
+          <Icon 
+            as={MaterialIcons} 
+            name="receipt" 
+            size={6} 
+            color={isActive("/orders") ? "#0891b2" : "#6b7280"} 
+          />
+          <Text 
+            fontSize="xs" 
+            color={isActive("/orders") ? "#0891b2" : "#6b7280"}
+          >Orders</Text>
+        </Pressable>
+      </Link>
+      
+      <Link href="/(tabs)/profile" asChild>
+        <Pressable flex={1} alignItems="center">
+          <Icon 
+            as={MaterialIcons} 
+            name="account-circle" 
+            size={6} 
+            color={isActive("/profile") ? "#0891b2" : "#6b7280"} 
+          />
+          <Text 
+            fontSize="xs" 
+            color={isActive("/profile") ? "#0891b2" : "#6b7280"}
+          >Profile</Text>
+        </Pressable>
+      </Link>
+    </HStack>
   );
 };
 

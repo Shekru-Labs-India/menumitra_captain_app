@@ -25,6 +25,7 @@ import { router } from "expo-router";
 import { Dimensions } from "react-native";
 import { getBaseUrl } from "../../../config/api.config";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import BottomNavigation from "../../components/BottomNavigation";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -574,7 +575,7 @@ export default function MenuDetailsView() {
         size="sm"
         icon={<Icon color="white" as={MaterialIcons} name="edit" size="sm" />}
         onPress={handleEdit}
-        bottom={4}
+        bottom={85}
         right={4}
       />
 
@@ -608,6 +609,9 @@ export default function MenuDetailsView() {
           </AlertDialog.Footer>
         </AlertDialog.Content>
       </AlertDialog>
+      
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </Box>
   );
 }

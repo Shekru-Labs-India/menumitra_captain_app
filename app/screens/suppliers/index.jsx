@@ -25,6 +25,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import BottomNavigation from "../../components/BottomNavigation";
 
 const toTitleCase = (str) => {
   return str
@@ -386,6 +387,9 @@ export default function SuppliersScreen() {
           bottom={85}
           right={6}
         />
+        
+        {/* Bottom Navigation */}
+        <BottomNavigation />
       </Box>
     </Box>
   );

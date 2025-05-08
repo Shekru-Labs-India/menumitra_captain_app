@@ -20,6 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import BottomNavigation from "../../components/BottomNavigation";
 
 export default function InventoryItemsScreen() {
   const router = useRouter();
@@ -239,7 +240,7 @@ export default function InventoryItemsScreen() {
         data={filteredItems}
         renderItem={renderItem}
         keyExtractor={(item) => item.inventory_id.toString()}
-        contentContainerStyle={{ paddingVertical: 16 }}
+        contentContainerStyle={{ paddingVertical: 16, paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <Box flex={1} justifyContent="center" alignItems="center" mt={10}>
@@ -260,9 +261,12 @@ export default function InventoryItemsScreen() {
         icon={<MaterialIcons name="add" size={24} color="white" />}
         onPress={() => router.push("/screens/inventory/add-inventory-item")}
         position="absolute"
-        bottom={4}
+        bottom={20}
         right={4}
       />
+      
+      {/* Use the shared BottomNavigation component */}
+      <BottomNavigation />
     </Box>
   );
 }

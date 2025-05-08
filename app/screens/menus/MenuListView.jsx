@@ -28,6 +28,7 @@ import Header from "../../components/Header";
 import { getBaseUrl } from "../../../config/api.config";
 import { useFocusEffect } from "@react-navigation/native";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import BottomNavigation from "../../components/BottomNavigation";
 
 export default function MenuListView() {
   const [menus, setMenus] = useState([]);
@@ -697,6 +698,9 @@ export default function MenuListView() {
       {/* Render Modals */}
       <CategoryModal />
       <FoodTypeModal />
+      
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </Box>
   );
 }
