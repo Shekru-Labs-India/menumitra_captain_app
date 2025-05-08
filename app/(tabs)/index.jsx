@@ -44,6 +44,7 @@ import * as Updates from "expo-updates";
 import Constants from 'expo-constants';
 import { fetchWithAuth } from "../../utils/apiInterceptor";
 import { useVersion } from "../../context/VersionContext";
+import * as Notifications from "expo-notifications";
 
 // Memoize static components
 const MemoizedStatusBar = memo(() => (
@@ -535,6 +536,24 @@ export default function HomeScreen() {
         "sessionToken",
       ]);
 
+      // Add clear console logs for token
+      console.log("======= EXPO PUSH TOKEN =======");
+      console.log(expoPushToken[1]);
+      console.log("================================");
+      
+      // Get token directly from Expo service as backup
+      try {
+        const directToken = await Notifications.getExpoPushTokenAsync({
+          projectId: "c58bd2bc-2b46-4518-a238-6e981d88470a",
+        });
+        
+        console.log("======= DIRECT EXPO TOKEN =======");
+        console.log(directToken.data);
+        console.log("=================================");
+      } catch (err) {
+        console.log("Error getting direct token:", err);
+      }
+
       const tokenInfo = {
         pushToken: expoPushToken[1],
         uniqueToken: sessionToken[1],
@@ -746,6 +765,18 @@ export default function HomeScreen() {
           />
         }
       >
+        {/* Add Expo Push Token Button at the top for easy access */}
+        {/* <Box px={4} py={2} mb={2}>
+          <Button 
+            onPress={showAndCopyTokens}
+            colorScheme="blue"
+            leftIcon={<Icon as={MaterialIcons} name="notifications" size="sm" />}
+            size="sm"
+          >
+            Get Expo Push Token
+          </Button>
+        </Box> */}
+
         <SalesSummary 
           liveSales={salesData.liveSales} 
           todayTotalSales={salesData.todayTotalSales} 

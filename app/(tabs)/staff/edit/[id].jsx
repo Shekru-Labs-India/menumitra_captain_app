@@ -17,6 +17,8 @@ import {
   Select,
   CheckIcon,
   Icon,
+  Factory,
+  useFormControlContext,
 } from "native-base";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar, Image, Keyboard } from "react-native";
@@ -650,6 +652,12 @@ export default function EditStaffScreen() {
     }
   };
 
+  // Custom component to show asterisk on the left side
+  const RequiredAsterisk = () => {
+    const { isRequired } = useFormControlContext();
+    return isRequired ? <Text color="red.500">* </Text> : null;
+  };
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header title="Edit Staff Details" />
@@ -657,7 +665,7 @@ export default function EditStaffScreen() {
       <ScrollView px={4} py={4}>
         <VStack space={4}>
           <FormControl>
-            <FormControl.Label>Photo</FormControl.Label>
+            <FormControl.Label><RequiredAsterisk />Photo</FormControl.Label>
             <VStack space={2}>
               {(formData.photo ||
                 (formData.existing_photo &&
@@ -726,7 +734,7 @@ export default function EditStaffScreen() {
           </FormControl>
 
           <FormControl isRequired isInvalid={"name" in errors}>
-            <FormControl.Label>Name</FormControl.Label>
+            <FormControl.Label><RequiredAsterisk />Name</FormControl.Label>
             <Input
               value={formData.name}
               onChangeText={handleNameChange}
@@ -752,7 +760,7 @@ export default function EditStaffScreen() {
           </FormControl>
 
           <FormControl isRequired isInvalid={"role" in errors}>
-            <FormControl.Label>Role</FormControl.Label>
+            <FormControl.Label><RequiredAsterisk />Role</FormControl.Label>
             <Select
               selectedValue={formData.role}
               onValueChange={(value) => {
@@ -800,7 +808,7 @@ export default function EditStaffScreen() {
           </FormControl>
 
           <FormControl isRequired isInvalid={"mobile" in errors}>
-            <FormControl.Label>Phone</FormControl.Label>
+            <FormControl.Label><RequiredAsterisk />Phone</FormControl.Label>
             <Input
               value={formData.mobile}
               onChangeText={handleMobileChange}
@@ -827,7 +835,7 @@ export default function EditStaffScreen() {
           </FormControl>
 
           <FormControl>
-            <FormControl.Label>Date of Birth (Optional)</FormControl.Label>
+            <FormControl.Label><RequiredAsterisk />Date of Birth (Optional)</FormControl.Label>
             <Pressable onPress={() => setShowDatePicker(true)}>
               <Input
                 value={formData.dob}
@@ -893,7 +901,7 @@ export default function EditStaffScreen() {
           )}
 
           <FormControl isRequired isInvalid={"aadhar_number" in errors}>
-            <FormControl.Label>Aadhar Number</FormControl.Label>
+            <FormControl.Label><RequiredAsterisk />Aadhar Number</FormControl.Label>
             <Input
               value={formData.aadhar_number}
               onChangeText={handleAadharChange}
@@ -922,7 +930,7 @@ export default function EditStaffScreen() {
           </FormControl>
 
           <FormControl isInvalid={"address" in errors}>
-            <FormControl.Label>Address</FormControl.Label>
+            <FormControl.Label><RequiredAsterisk />Address</FormControl.Label>
             <TextArea
               value={formData.address}
               onChangeText={handleAddressChange}
