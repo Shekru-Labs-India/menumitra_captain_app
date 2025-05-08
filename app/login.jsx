@@ -196,7 +196,7 @@ export default function LoginScreen() {
         <Center flex={1}>
           <VStack space={3} alignItems="center">
             <Image
-              source={require("../assets/images/mm-logo-bg-fill-hat.png")}
+              source={require("../assets/images/mm-captain-app.png")}
               alt="MenuMitra Logo"
               size="lg"
               resizeMode="contain"
