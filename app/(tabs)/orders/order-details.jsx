@@ -59,7 +59,7 @@ import { Asset } from 'expo-asset';
 // Add order status colors from owner app
 const ORDER_STATUS_COLORS = {
   PLACED: "#4B89DC",    // Blue for Placed
-  COOKING: "#FF9800",   // Orange for Cooking
+  COOKING: "#FF9800",   // Orange for Cooking - Match owner app color
   SERVED: "#0C8B51",    // Green for Served
   PAID: "#673AB7",      // Purple for Paid
   CANCELLED: "#F44336", // Red for Cancelled
@@ -2381,59 +2381,58 @@ export default function OrderDetailsScreen() {
   }
 
   return (
-    <Box flex={1} bg="white" safeArea>
+    <Box flex={1} bg="gray.50" safeArea>
       <Header 
         title="Order Details" 
         showBack 
         rightComponent={
           <HStack space={2} alignItems="center">
-            {/* <PrinterStatusIndicator /> */}
             {orderDetails && 
-          orderDetails.order_status?.toLowerCase() !== "paid" && 
-          orderDetails.order_status?.toLowerCase() !== "cancelled" ? (
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Icon as={MaterialIcons} name="edit" size="sm" />}
-              onPress={() => router.push({
-                pathname: "/screens/orders/menu-selection",
-                params: {
-                  tableId: orderDetails.table_number?.[0],
-                  tableNumber: orderDetails.table_number?.[0],
-                  sectionId: orderDetails.section_id,
-                  sectionName: orderDetails.section,
-                  outletId: orderDetails.outlet_id,
-                  orderId: orderDetails.order_id,
-                  orderNumber: orderDetails.order_number,
-                  orderType: orderDetails.order_type || "dine-in",
-                  isOccupied: "1",
-                  orderDetails: JSON.stringify({
-                    order_id: orderDetails.order_id,
-                    menu_items: menuItems.map(item => ({
-                      menu_id: item.menu_id,
-                      menu_name: item.menu_name,
-                      name: item.menu_name,
-                      price: parseFloat(item.price),
-                      quantity: parseInt(item.quantity),
-                      half_price: item.half_price || 0,
-                      full_price: item.full_price || item.price,
-                      portionSize: item.half_or_full === "half" ? "Half" : "Full",
-                      offer: parseFloat(item.offer || 0),
-                      specialInstructions: item.comment || "",
-                      total_price: parseFloat(item.menu_sub_total),
-                    })),
-                    grand_total: orderDetails.grand_total,
-                    table_id: orderDetails.table_number?.[0],
-                    table_number: orderDetails.table_number?.[0],
-                    section_id: orderDetails.section_id,
-                    section_name: orderDetails.section,
-                    outlet_id: orderDetails.outlet_id,
-                  }),
-                },
-              })}
-            >
-              Edit
-            </Button>
+            orderDetails.order_status?.toLowerCase() !== "paid" && 
+            orderDetails.order_status?.toLowerCase() !== "cancelled" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Icon as={MaterialIcons} name="edit" size="sm" />}
+                onPress={() => router.push({
+                  pathname: "/screens/orders/menu-selection",
+                  params: {
+                    tableId: orderDetails.table_number?.[0],
+                    tableNumber: orderDetails.table_number?.[0],
+                    sectionId: orderDetails.section_id,
+                    sectionName: orderDetails.section,
+                    outletId: orderDetails.outlet_id,
+                    orderId: orderDetails.order_id,
+                    orderNumber: orderDetails.order_number,
+                    orderType: orderDetails.order_type || "dine-in",
+                    isOccupied: "1",
+                    orderDetails: JSON.stringify({
+                      order_id: orderDetails.order_id,
+                      menu_items: menuItems.map(item => ({
+                        menu_id: item.menu_id,
+                        menu_name: item.menu_name,
+                        name: item.menu_name,
+                        price: parseFloat(item.price),
+                        quantity: parseInt(item.quantity),
+                        half_price: item.half_price || 0,
+                        full_price: item.full_price || item.price,
+                        portionSize: item.half_or_full === "half" ? "Half" : "Full",
+                        offer: parseFloat(item.offer || 0),
+                        specialInstructions: item.comment || "",
+                        total_price: parseFloat(item.menu_sub_total),
+                      })),
+                      grand_total: orderDetails.grand_total,
+                      table_id: orderDetails.table_number?.[0],
+                      table_number: orderDetails.table_number?.[0],
+                      section_id: orderDetails.section_id,
+                      section_name: orderDetails.section,
+                      outlet_id: orderDetails.outlet_id,
+                    }),
+                  },
+                })}
+              >
+                Edit
+              </Button>
             ) : null}
           </HStack>
         }
@@ -2447,166 +2446,233 @@ export default function OrderDetailsScreen() {
       />
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Order Summary Card */}
-        <Box m={4} p={4} bg="white" rounded="lg" shadow={1}>
-          <VStack space={3}>
+        {/* Order Summary Card - Enhanced styling like owner app */}
+        <Box 
+          mx={4} 
+          mt={4} 
+          rounded="lg" 
+          overflow="hidden" 
+          borderWidth={0}
+          shadow={1}
+        >
+          {/* Colored header section like the owner app */}
+          <Box 
+            bg={
+              orderDetails.order_status?.toLowerCase() === "cooking"
+                ? ORDER_STATUS_COLORS.COOKING
+                : orderDetails.order_status?.toLowerCase() === "served"
+                ? ORDER_STATUS_COLORS.SERVED
+                : orderDetails.order_status?.toLowerCase() === "paid"
+                ? ORDER_STATUS_COLORS.PAID  
+                : orderDetails.order_status?.toLowerCase() === "placed"
+                ? ORDER_STATUS_COLORS.PLACED
+                : orderDetails.order_status?.toLowerCase() === "cancelled"
+                ? ORDER_STATUS_COLORS.CANCELLED
+                : ORDER_STATUS_COLORS.DEFAULT
+            }
+            p={4}
+          >
             <HStack justifyContent="space-between" alignItems="flex-start">
-              <VStack space={2}>
-                <Heading size="md">Order #{orderDetails.order_number}</Heading>
-                <Text fontSize="sm" color="coolGray.600">
-                  {orderDetails.date} • {orderDetails.time}
+              <VStack space={1}>
+                <Text color="white" fontWeight="bold" fontSize="md">
+                  Status: {orderDetails.order_status?.charAt(0).toUpperCase() + orderDetails.order_status?.slice(1).toLowerCase()}
                 </Text>
-                {renderTimer()}
+                <Text color="white" fontSize="sm">
+                  {orderDetails.datetime}
+                </Text>
+                {/* Order type indicator with icon like owner app */}
+                <HStack alignItems="center" space={1} mt={1}>
+                  <Icon 
+                    as={MaterialIcons} 
+                    name={
+                      orderDetails.order_type?.toLowerCase() === "dine-in"
+                        ? "restaurant"
+                        : orderDetails.order_type?.toLowerCase() === "take-away" || 
+                          orderDetails.order_type?.toLowerCase() === "parcel"
+                        ? "takeout-dining"
+                        : orderDetails.order_type?.toLowerCase() === "drive-through"
+                        ? "drive-eta"
+                        : "receipt-long"
+                    } 
+                    size="sm" 
+                    color="white" 
+                  />
+                  <Text color="white" fontSize="sm">
+                    {orderDetails.order_type?.charAt(0).toUpperCase() + orderDetails.order_type?.slice(1).toLowerCase()}
+                  </Text>
+                </HStack>
               </VStack>
-              <VStack space={2} alignItems="flex-end">
-                <Badge
-                  px={3}
-                  py={1}
-                  rounded="full"
-                  bg={
-                    orderDetails.order_status?.toLowerCase() === "cooking"
-                      ? ORDER_STATUS_COLORS.COOKING
-                      : orderDetails.order_status?.toLowerCase() === "served"
-                      ? ORDER_STATUS_COLORS.SERVED
-                      : orderDetails.order_status?.toLowerCase() === "paid"
-                      ? ORDER_STATUS_COLORS.PAID
-                      : orderDetails.order_status?.toLowerCase() === "placed"
-                      ? ORDER_STATUS_COLORS.PLACED
-                      : orderDetails.order_status?.toLowerCase() === "cancelled"
-                      ? ORDER_STATUS_COLORS.CANCELLED
-                      : ORDER_STATUS_COLORS.DEFAULT
-                  }
-                  _text={{
-                    color: "white",
-                    fontWeight: "bold"
-                  }}
-                >
-                  {orderDetails.order_status?.toUpperCase()}
-                </Badge>
+              
+              <VStack alignItems="flex-end" space={1}>
+                <Text color="white" fontWeight="bold" fontSize="md">
+                  #{orderDetails.order_number}
+                </Text>
+                {/* Timeline button like owner app */}
                 <Button
-                  size="sm"
-                  variant="subtle"
-                  leftIcon={<Icon as={MaterialIcons} name="timeline" size="sm" />}
+                  size="xs"
+                  bg="rgba(255,255,255,0.2)"
+                  _pressed={{ bg: "rgba(255,255,255,0.1)" }}
+                  leftIcon={<Icon as={MaterialIcons} name="timeline" size="xs" color="white" />}
                   onPress={() => setIsTimelineModalVisible(true)}
+                  p={1}
+                  rounded="md"
+                  _text={{ color: "white", fontSize: "xs" }}
                 >
-                  View Timeline
+                  Timeline
                 </Button>
               </VStack>
             </HStack>
-            
-            {/* Display cancellation reason if order is cancelled */}
-            {orderDetails.order_status?.toLowerCase() === "cancelled" && orderDetails.cancel_reason && (
-              <Box bg="red.50" p={2} rounded="md" mt={2}>
-                <HStack space={2} alignItems="center">
-                  <Icon as={MaterialIcons} name="info" color="red.500" size="sm" />
-                  <Text color="red.600" fontWeight="medium">
-                    Reason: {orderDetails.cancel_reason}
-                  </Text>
-                </HStack>
-              </Box>
-            )}
-            
-            <HStack space={4} alignItems="center">
-              <HStack space={2} alignItems="center">
-                {orderDetails && (
-                  <>
-                    <MaterialIcons 
-                      name={getOrderDisplayInfo(orderDetails).icon} 
-                      size={20} 
-                      color="gray" 
-                    />
-                    <Text fontSize="md">
-                      {getOrderDisplayInfo(orderDetails).text}
-                    </Text>
-                  </>
-                )}
-              </HStack>
+          </Box>
+          
+          {/* Table information section like owner app */}
+          <Box bg="white" p={3} borderBottomWidth={1} borderBottomColor="gray.100">
+            <HStack space={2} alignItems="center">
+              <Icon 
+                as={MaterialIcons} 
+                name={
+                  orderDetails.order_type?.toLowerCase() === "dine-in"
+                    ? "table-restaurant"
+                    : "receipt-long"
+                } 
+                size="sm" 
+                color="gray.600" 
+              />
+              <Text fontSize="md" color="gray.700">
+                {orderDetails.order_type?.toLowerCase() === "dine-in"
+                  ? `${orderDetails.section || ""} - Table ${orderDetails.table_number?.join(", ") || "N/A"}`
+                  : orderDetails.order_type?.charAt(0).toUpperCase() + orderDetails.order_type?.slice(1).toLowerCase()}
+              </Text>
             </HStack>
-           
-          </VStack>
+          </Box>
+          
+          {/* Menu count section like owner app */}
+          <Box bg="white" p={3}>
+            <HStack space={2} alignItems="center">
+              <Box
+                bg="orange.100"
+                px={3}
+                py={1}
+                rounded="full"
+                flexDirection="row"
+                alignItems="center"
+              >
+                <Icon as={MaterialIcons} name="restaurant-menu" size="xs" color="orange.500" />
+                <Text ml={1} fontSize="sm" color="orange.700">
+                  Menu Count: {menuItems.length}
+                </Text>
+              </Box>
+            </HStack>
+          </Box>
+          
+          {/* Order comment section like owner app */}
+          {orderDetails.comment && (
+            <Box bg="yellow.50" p={3} borderTopWidth={1} borderTopColor="yellow.100">
+              <HStack space={2} alignItems="flex-start">
+                <Icon as={MaterialIcons} name="comment" size="sm" color="orange.500" top={1} />
+                <VStack>
+                  <Text fontWeight="medium" color="orange.800">Order Comment:</Text>
+                  <Text color="gray.700">{orderDetails.comment}</Text>
+                </VStack>
+              </HStack>
+            </Box>
+          )}
         </Box>
 
-        {/* Menu Items Card */}
-        <Box mx={4} mb={4} p={4} bg="white" rounded="lg" shadow={1}>
-          <HStack justifyContent="space-between" alignItems="center" mb={4}>
-            <Heading size="sm">
-              Menu Count{" "}
-              <Text color="coolGray.600" fontSize="sm">
-                ({menuItems.length} {menuItems.length === 1 ? "item" : "items"})
-              </Text>
-            </Heading>
-            
-          </HStack>
-          <VStack space={4}>
+        {/* Timer for placed orders */}
+        {renderTimer()}
+
+        {/* Menu Items Card - Styled like owner app */}
+        <Box mx={4} my={4} bg="white" rounded="lg" shadow={1}>
+          <VStack divider={<Divider />}>
             {menuItems.map((item, index) => (
               <Box
                 key={index}
-                borderBottomWidth={index !== menuItems.length - 1 ? 1 : 0}
-                borderColor="coolGray.200"
-                pb={index !== menuItems.length - 1 ? 4 : 0}
+                p={4}
                 opacity={orderDetails.order_status?.toLowerCase() === "cancelled" ? 0.6 : 1}
               >
                 <HStack justifyContent="space-between" alignItems="flex-start">
                   <VStack flex={1} space={1}>
-                    <Text 
-                      fontSize="md" 
-                      fontWeight="bold"
-                      textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
-                    >
-                      {item.menu_name}{" "}
+                    <HStack justifyContent="space-between" alignItems="flex-start">
                       <Text 
-                        fontSize="sm" 
-                        color="coolGray.600"
+                        fontSize="md" 
+                        fontWeight="bold"
+                        flex={1}
+                        pr={2}
                         textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
                       >
-                        ({item.quantity})
+                        {item.menu_name}
+                        {item.half_or_full && (
+                          <Text 
+                            fontSize="sm" 
+                            color="coolGray.600"
+                            fontStyle="italic"
+                          >
+                            {" "}({item.half_or_full})
+                          </Text>
+                        )}
                       </Text>
-                      {item.half_or_full && (
+                      
+                      <Box
+                        bg="orange.100"
+                        px={2}
+                        py={1}
+                        rounded="full"
+                      >
                         <Text 
-                          fontSize="sm" 
-                          color="coolGray.600"
-                          textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                          fontSize="md" 
+                          fontWeight="bold" 
+                          color="orange.600"
                         >
-                          {" "}
-                          - {item.half_or_full}
+                          x{item.quantity}
                         </Text>
-                      )}
-                    </Text>
+                      </Box>
+                    </HStack>
+                    
+                    {/* Item comment styled like owner app */}
                     {item.comment && (
                       <Text 
                         fontSize="sm" 
-                        color="coolGray.600" 
-                        italic
-                        textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                        color="gray.600" 
+                        fontStyle="italic"
+                        pl={1}
+                        borderLeftWidth={2}
+                        borderLeftColor="gray.200"
+                        ml={1}
                       >
                         {item.comment}
                       </Text>
                     )}
-                    <HStack space={2} alignItems="center">
-                      {item.offer > 0 && (
-                        <Badge
-                          colorScheme="red"
-                          variant="subtle"
+                    
+                    {/* Price row with divider like owner app */}
+                    <HStack 
+                      justifyContent="space-between" 
+                      alignItems="center"
+                      pt={2}
+                      mt={2}
+                      borderTopWidth={1}
+                      borderTopColor="gray.100"
+                    >
+                      <Text fontSize="sm" color="gray.600">
+                        ₹{Number(item.price).toFixed(2)}
+                      </Text>
+                      
+                      {Number(item.offer) > 0 && (
+                        <Box
+                          bg="green.100"
+                          px={2}
+                          py={0.5}
                           rounded="full"
-                          px={3}
-                          minW={16}
-                          alignItems="center"
-                          justifyContent="center"
                         >
-                          <Text fontSize="xs" fontWeight="medium">
-                            {item.offer}% OFF
+                          <Text fontSize="xs" color="green.600">
+                            {item.offer}% Off
                           </Text>
-                        </Badge>
+                        </Box>
                       )}
+                      
+                      <Text fontSize="md" fontWeight="bold" color="blue.600">
+                        ₹{Number(item.menu_sub_total).toFixed(2)}
+                      </Text>
                     </HStack>
-                  </VStack>
-                  <VStack alignItems="flex-end" space={1}>
-                    <Text fontSize="md" fontWeight="semibold">
-                      ₹{item.menu_sub_total}
-                    </Text>
-                    <Text fontSize="sm" color="coolGray.600">
-                      ₹{item.price}
-                    </Text>
                   </VStack>
                 </HStack>
               </Box>
@@ -2616,7 +2682,6 @@ export default function OrderDetailsScreen() {
 
         {/* Bill Details Card */}
         <Box mx={4} mb={4} p={4} bg="white" rounded="lg" shadow={1}>
-          {/* <Heading size="sm" mb={4}>Bill Details</Heading> */}
           <VStack space={3}>
             {/* Items Total */}
             <HStack justifyContent="space-between">
@@ -2639,7 +2704,6 @@ export default function OrderDetailsScreen() {
                     <Text color="red.600">-₹{Number(orderDetails.special_discount).toFixed(2)}</Text>
                   </HStack>
                 )}
-                
               </VStack>
             )}
 
@@ -2672,8 +2736,6 @@ export default function OrderDetailsScreen() {
                 <Text color="green.600">+₹{Number(orderDetails.service_charges_amount).toFixed(2)}</Text>
               </HStack>
             )}
-
-        
 
             {/* GST */}
             {Number(orderDetails.gst_amount) > 0 && (
@@ -2719,9 +2781,51 @@ export default function OrderDetailsScreen() {
           </VStack>
         </Box>
 
-        {/* Status Action Button */}
+        {/* Status Action Button - Styled like owner app */}
         <Box px={4} pb={4}>
-          <StatusActionButton />
+          {/* Show Serve button for cooking status */}
+          {orderDetails.order_status?.toLowerCase() === "cooking" && (
+            <Button
+              bg="orange.500"
+              _pressed={{ bg: "orange.600" }}
+              leftIcon={<Icon as={MaterialIcons} name="room-service" size="sm" />}
+              onPress={() => handleStatusUpdate("served")}
+              isLoading={isLoading}
+              width="100%"
+              height={12}
+              _text={{ fontWeight: "bold" }}
+              mb={2}
+            >
+              Mark as Served
+            </Button>
+          )}
+
+          {/* Show other appropriate buttons for other statuses */}
+          {orderDetails.order_status?.toLowerCase() === "placed" && (
+            <Button
+              colorScheme="red"
+              leftIcon={<Icon as={MaterialIcons} name="cancel" size="sm" />}
+              onPress={showCancelOrderModal}
+              isLoading={isLoading}
+              width="100%"
+              mb={2}
+            >
+              Cancel Order
+            </Button>
+          )}
+
+          {orderDetails.order_status?.toLowerCase() === "served" && (
+            <Button
+              colorScheme="green"
+              leftIcon={<Icon as={MaterialIcons} name="payment" size="sm" />}
+              onPress={() => setShowPaymentModal(true)}
+              isLoading={isLoading}
+              width="100%"
+              mb={2}
+            >
+              Mark as Paid
+            </Button>
+          )}
 
           {/* Print Buttons */}
           <HStack space={2} mt={2}>
@@ -2773,6 +2877,7 @@ export default function OrderDetailsScreen() {
         )}
       </ScrollView>
 
+      {/* All other modals remain unchanged */}
       <DeviceSelectionModal
         visible={isModalVisible}
         devices={availableDevices}
@@ -2818,7 +2923,7 @@ export default function OrderDetailsScreen() {
         </Modal.Content>
       </Modal>
 
-      {/* Payment Method Selection Modal - Updated to match index.jsx */}
+      {/* Payment Method Selection Modal */}
       <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} closeOnOverlayClick={!paymentLoading}>
         <Modal.Content maxWidth="350px" p={4} borderRadius="md" bg="white">
           {/* Close button */}
@@ -3022,8 +3127,6 @@ export default function OrderDetailsScreen() {
           )}
         </Modal.Content>
       </Modal>
-
-      {/* <PrinterStatusIndicator /> */}
     </Box>
   );
 }
