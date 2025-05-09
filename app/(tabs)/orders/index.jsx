@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Box,
   VStack,
@@ -156,42 +156,53 @@ const calculateOrderTimer = (orderTime) => {
 
 // Update OrderTimer component
 const OrderTimer = ({ orderTime, onEnd, orderId }) => {
-  const [remainingTime, setRemainingTime] = useState(() =>
-    calculateOrderTimer(orderTime)
-  );
-
+  // Use force update trick to ensure component re-renders every second
+  const [, forceUpdate] = useState(0);
+  const remainingTimeRef = useRef(calculateOrderTimer(orderTime));
+  
   useEffect(() => {
-    if (remainingTime <= 0) {
-      onEnd && onEnd(orderId);
-      return;
-    }
-
+    // Initial calculation
+    remainingTimeRef.current = calculateOrderTimer(orderTime);
+    
+    // Set up timer that updates every 100ms for smoother countdown
     const timer = setInterval(() => {
       const newTime = calculateOrderTimer(orderTime);
-      setRemainingTime(newTime);
-
-      if (newTime <= 0) {
+      
+      // Only trigger end function when time actually reaches zero
+      if (newTime <= 0 && remainingTimeRef.current > 0) {
         clearInterval(timer);
         onEnd && onEnd(orderId);
       }
-    }, 1000);
+      
+      // Update the ref
+      remainingTimeRef.current = newTime;
+      
+      // Force component to re-render
+      forceUpdate(prev => prev + 1);
+    }, 100); // Update 10 times per second for smooth countdown
 
     return () => clearInterval(timer);
   }, [orderTime, orderId, onEnd]);
 
-  if (remainingTime <= 0) return null;
+  if (remainingTimeRef.current <= 0) return null;
 
   return (
-    <HStack bg="red.50" px={2} py={1} rounded="full" alignItems="center" ml={2}>
-      <Icon as={MaterialIcons} name="timer" size="xs" color="red.500" mr={1} />
-      <Text
-        fontSize="xs"
-        color={remainingTime <= 30 ? "red.600" : "red.500"}
-        fontWeight="medium"
-      >
-        {remainingTime} seconds
-      </Text>
-    </HStack>
+    <Badge
+      bg={remainingTimeRef.current <= 30 ? "red.500" : "orange.500"}
+      rounded="full"
+      px={2}
+      py={0.5}
+      mt={2}
+      alignSelf="flex-start"
+      variant="solid"
+    >
+      <HStack space={1} alignItems="center">
+        <Icon as={MaterialIcons} name="timer" size="xs" color="white" />
+        <Text fontSize="xs" color="white" fontWeight="bold">
+          {remainingTimeRef.current}s
+        </Text>
+      </HStack>
+    </Badge>
   );
 };
 
@@ -245,9 +256,20 @@ const OrderCard = ({ order, onPress, onTimerEnd }) => {
         }}
       >
         <HStack justifyContent="space-between" alignItems="center" mb={2}>
-          <Text fontSize="lg" fontWeight="bold">
-            #{order.order_number}
-          </Text>
+          <HStack alignItems="center" space={2}>
+            <Text fontSize="lg" fontWeight="bold">
+              #{order.order_number}
+            </Text>
+            
+            {/* Timer Badge for Placed Orders */}
+            {order.order_status?.toLowerCase() === "placed" && (
+              <OrderTimer 
+                orderTime={order.datetime || order.time} 
+                onEnd={() => onTimerEnd && onTimerEnd(order.order_id)}
+                orderId={order.order_id}
+              />
+            )}
+          </HStack>
 
           <HStack space={1} alignItems="center">
             {order.order_status === "paid" && order.payment_method && (
@@ -835,12 +857,43 @@ const OrdersScreen = () => {
         }))
       );
 
+      // Show toast notification
+      toast.show({
+        description: "Order status automatically changed to Cooking",
+        status: "info",
+        duration: 3000,
+      });
+
+      // Make API call to update status on server
+      const restaurantId = await AsyncStorage.getItem("outlet_id");
+      const targetOrder = orders
+        .flatMap(group => group.data)
+        .find(order => order.order_id === orderId);
+
+      if (targetOrder) {
+        try {
+          await fetchWithAuth(`${getBaseUrl()}/update_order_status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              outlet_id: restaurantId,
+              order_id: orderId,
+              order_number: targetOrder.order_number,
+              order_status: "cooking",
+            }),
+          });
+          console.log("Order status updated to cooking via API");
+        } catch (apiError) {
+          console.error("API update failed, will refresh to sync:", apiError);
+        }
+      }
+
       // Perform a silent refresh to sync with server
       fetchOrders(true);
     } catch (error) {
       console.error("Error handling timer end:", error);
     }
-  }, []);
+  }, [orders, toast]);
 
   // Add this function to the OrdersScreen component
   const toggleSortDirection = () => {
