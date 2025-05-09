@@ -60,7 +60,7 @@ import { Asset } from 'expo-asset';
 const ORDER_STATUS_COLORS = {
   PLACED: "#4B89DC",    // Blue for Placed
   COOKING: "#FF9800",   // Orange for Cooking - Match owner app color
-  SERVED: "#0C8B51",    // Green for Served
+  SERVED: "#009688",    // Teal/Green for Served - Updated to match owner app
   PAID: "#BEE5CB",      // Light green for Paid - Updated to match owner app
   CANCELLED: "#F44336", // Red for Cancelled
   DEFAULT: "#9E9E9E",   // Gray for Default
@@ -2532,9 +2532,17 @@ export default function OrderDetailsScreen() {
                 {/* Timeline button with styling matching status */}
                 <Button
                   size="xs"
-                  bg={orderDetails.order_status?.toLowerCase() === "paid" ? "rgba(22, 128, 59, 0.2)" : "rgba(255,255,255,0.2)"}
+                  bg={
+                    orderDetails.order_status?.toLowerCase() === "paid" 
+                      ? "rgba(22, 128, 59, 0.2)" 
+                      : orderDetails.order_status?.toLowerCase() === "served"
+                      ? "rgba(255, 255, 255, 0.2)"
+                      : "rgba(255, 255, 255, 0.2)"
+                  }
                   _pressed={{ 
-                    bg: orderDetails.order_status?.toLowerCase() === "paid" ? "rgba(22, 128, 59, 0.1)" : "rgba(255,255,255,0.1)" 
+                    bg: orderDetails.order_status?.toLowerCase() === "paid" 
+                      ? "rgba(22, 128, 59, 0.1)" 
+                      : "rgba(255, 255, 255, 0.1)"
                   }}
                   leftIcon={
                     <Icon 
@@ -2583,15 +2591,48 @@ export default function OrderDetailsScreen() {
           <Box bg="white" p={3}>
             <HStack space={2} alignItems="center">
               <Box
-                bg="orange.100"
+                bg={
+                  orderDetails.order_status?.toLowerCase() === "served"
+                    ? "teal.100"
+                    : orderDetails.order_status?.toLowerCase() === "cooking"
+                    ? "orange.100"
+                    : orderDetails.order_status?.toLowerCase() === "paid"
+                    ? "green.100"
+                    : "coolGray.100"
+                }
                 px={3}
                 py={1}
                 rounded="full"
                 flexDirection="row"
                 alignItems="center"
               >
-                <Icon as={MaterialIcons} name="restaurant-menu" size="xs" color="orange.500" />
-                <Text ml={1} fontSize="sm" color="orange.700">
+                <Icon 
+                  as={MaterialIcons} 
+                  name="restaurant-menu" 
+                  size="xs" 
+                  color={
+                    orderDetails.order_status?.toLowerCase() === "served"
+                      ? "teal.500"
+                      : orderDetails.order_status?.toLowerCase() === "cooking"
+                      ? "orange.500"
+                      : orderDetails.order_status?.toLowerCase() === "paid"
+                      ? "green.500"
+                      : "coolGray.500"
+                  } 
+                />
+                <Text 
+                  ml={1} 
+                  fontSize="sm" 
+                  color={
+                    orderDetails.order_status?.toLowerCase() === "served"
+                      ? "teal.700"
+                      : orderDetails.order_status?.toLowerCase() === "cooking"
+                      ? "orange.700"
+                      : orderDetails.order_status?.toLowerCase() === "paid"
+                      ? "green.700"
+                      : "coolGray.700"
+                  }
+                >
                   Menu Count: {menuItems.length}
                 </Text>
               </Box>
