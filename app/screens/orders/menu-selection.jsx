@@ -1237,7 +1237,7 @@ export default function MenuSelectionScreen() {
       )}
       
       {/* Filter Buttons for order types */}
-      <FilterButtons />
+      {/* <FilterButtons /> */}
       
       <Box px={3} py={2}>
         <HStack space={3} alignItems="center" bg="white" borderRadius={8} px={3} borderWidth={1} borderColor="gray.200">
