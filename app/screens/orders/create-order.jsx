@@ -603,8 +603,8 @@ export default function CreateOrderScreen() {
         method: "POST",
         body: JSON.stringify({ 
           order_id: orderId,
-          order_number: "",       // Add this required parameter
-          outlet_id: storedOutletId, // Add this required parameter
+          order_number: params.orderNumber || "",       // Add required parameter
+          outlet_id: storedOutletId, // Add required parameter
           device_token: deviceToken  // Keep this
         }),
       });
@@ -628,10 +628,26 @@ export default function CreateOrderScreen() {
         setLoading(true);
         const storedOutletId = await AsyncStorage.getItem("outlet_id");
         
+        // Get the userName and userMobile from params, if available
+        const userNameFromParams = params.userName || "";
+        const userMobileFromParams = params.userMobile || "";
+        console.log("User data from params:", userNameFromParams, userMobileFromParams);
+        
+        // Update customer details with user data if available
+        if (userNameFromParams || userMobileFromParams) {
+          setCustomerDetails(prev => ({
+            ...prev,
+            customer_name: userNameFromParams || prev.customer_name,
+            customer_mobile: userMobileFromParams || prev.customer_mobile
+          }));
+        }
+        
         const data = await fetchWithAuth(`${onGetProductionUrl()}order_view`, {
           method: "POST",
           body: JSON.stringify({
-            order_id: orderId,
+            order_id: params.orderId,
+            order_number: params.orderNumber || "",
+            outlet_id: storedOutletId,
             device_type: "captain",
           }),
         });
@@ -664,8 +680,8 @@ export default function CreateOrderScreen() {
             // Set customer details
             if (orderDetails.order_details.customer_name) {
               setCustomerDetails({
-                customer_name: orderDetails.order_details.customer_name || "",
-                customer_mobile: orderDetails.order_details.customer_mobile || "",
+                customer_name: orderDetails.order_details.customer_name || userNameFromParams || "",
+                customer_mobile: orderDetails.order_details.customer_mobile || userMobileFromParams || "",
                 customer_alternate_mobile: orderDetails.order_details.customer_alternate_mobile || "",
                 customer_address: orderDetails.order_details.customer_address || "",
                 customer_landmark: orderDetails.order_details.customer_landmark || ""
@@ -687,20 +703,20 @@ export default function CreateOrderScreen() {
               setIsComplementary(true);
             }
           }
-      }
-    } catch (error) {
+        }
+      } catch (error) {
         console.error("Error initializing order:", error);
-      toast.show({
+        toast.show({
           description: "Error loading order details",
-        status: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+          status: "error",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
     initializeOrder();
-  }, [params?.orderId, params?.orderNumber]); // Add proper dependencies
+  }, [params?.orderId, params?.orderNumber, params.userName, params.userMobile]); // Add proper dependencies
 
   const handleHold = async () => {
     if (isLoading) return; // Prevent multiple calls
@@ -2826,6 +2842,8 @@ const handleSettleOrder = async () => {
             device_token: deviceToken || "",
             customer_name: customerDetails.customer_name || "",
             customer_mobile: customerDetails.customer_mobile || "",
+            user_name: customerDetails.customer_name || params.userName || "", // Include user_name
+            user_mobile: customerDetails.customer_mobile || params.userMobile || "", // Include user_mobile
           };
           
           if (orderType === "dine-in") {

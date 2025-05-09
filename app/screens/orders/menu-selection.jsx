@@ -90,6 +90,9 @@ export default function MenuSelectionScreen() {
   const [showTableSwitcher, setShowTableSwitcher] = useState(false);
   const [availableTables, setAvailableTables] = useState([]);
   const [loadingTables, setLoadingTables] = useState(false);
+  // Add state variables for user info
+  const [userName, setUserName] = useState("");
+  const [userMobile, setUserMobile] = useState("");
   // Add settings state
   const [settings, setSettings] = useState({
     has_parcel: true,
@@ -250,6 +253,13 @@ export default function MenuSelectionScreen() {
 
       if (response.st === 1 && response.lists) {
         setExistingOrderDetails(response.lists.order_details);
+        
+        // Store user_name and user_mobile from order details
+        if (response.lists.order_details) {
+          setUserName(response.lists.order_details.user_name || "");
+          setUserMobile(response.lists.order_details.user_mobile || "");
+          console.log("User data from order:", response.lists.order_details.user_name, response.lists.order_details.user_mobile);
+        }
         
         // Create a map of menu_id to quantity from existing order
         const quantityMap = {};
@@ -453,6 +463,7 @@ export default function MenuSelectionScreen() {
     console.log("Navigating to create-order with cart items:", formattedCartItems.length);
     console.log("Cart items details:", JSON.stringify(formattedCartItems));
     console.log("New items in cart:", formattedCartItems.filter(item => item.isNewItem).length);
+    console.log("User data being passed:", userName, userMobile);
 
     router.push({
       pathname: "/screens/orders/create-order",
@@ -466,9 +477,13 @@ export default function MenuSelectionScreen() {
         orderId: tableData?.order_id,
         orderNumber: tableData?.order_number,
         orderType: orderType,
+        userName: userName,  // Add user name
+        userMobile: userMobile, // Add user mobile
         orderDetails: JSON.stringify({
           ...orderDetails,
-          menu_items: formattedCartItems
+          menu_items: formattedCartItems,
+          user_name: userName,
+          user_mobile: userMobile
         })
       }
     });
