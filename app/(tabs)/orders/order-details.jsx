@@ -62,7 +62,7 @@ const ORDER_STATUS_COLORS = {
   COOKING: "#FF9800",   // Orange for Cooking - Match owner app color
   SERVED: "#009688",    // Teal/Green for Served - Updated to match owner app
   PAID: "#BEE5CB",      // Light green for Paid - Updated to match owner app
-  CANCELLED: "#F44336", // Red for Cancelled
+  CANCELLED: "#FF5252", // Red for Cancelled - Updated to match the owner app
   DEFAULT: "#9E9E9E",   // Gray for Default
 };
 
@@ -2491,6 +2491,8 @@ export default function OrderDetailsScreen() {
               <HStack space={2} alignItems="center">
                 {orderDetails.order_status?.toLowerCase() === "paid" ? (
                   <Icon as={MaterialIcons} name="check-circle" size="md" color="#16803B" />
+                ) : orderDetails.order_status?.toLowerCase() === "cancelled" ? (
+                  <Icon as={MaterialIcons} name="cancel" size="md" color="white" />
                 ) : (
                   <Icon 
                     as={MaterialIcons} 
@@ -2536,6 +2538,8 @@ export default function OrderDetailsScreen() {
                     orderDetails.order_status?.toLowerCase() === "paid" 
                       ? "rgba(22, 128, 59, 0.2)" 
                       : orderDetails.order_status?.toLowerCase() === "served"
+                      ? "rgba(255, 255, 255, 0.2)"
+                      : orderDetails.order_status?.toLowerCase() === "cancelled"
                       ? "rgba(255, 255, 255, 0.2)"
                       : "rgba(255, 255, 255, 0.2)"
                   }
@@ -2598,6 +2602,8 @@ export default function OrderDetailsScreen() {
                     ? "orange.100"
                     : orderDetails.order_status?.toLowerCase() === "paid"
                     ? "green.100"
+                    : orderDetails.order_status?.toLowerCase() === "cancelled"
+                    ? "red.100"
                     : "coolGray.100"
                 }
                 px={3}
@@ -2617,6 +2623,8 @@ export default function OrderDetailsScreen() {
                       ? "orange.500"
                       : orderDetails.order_status?.toLowerCase() === "paid"
                       ? "green.500"
+                      : orderDetails.order_status?.toLowerCase() === "cancelled"
+                      ? "red.500"
                       : "coolGray.500"
                   } 
                 />
@@ -2630,6 +2638,8 @@ export default function OrderDetailsScreen() {
                       ? "orange.700"
                       : orderDetails.order_status?.toLowerCase() === "paid"
                       ? "green.700"
+                      : orderDetails.order_status?.toLowerCase() === "cancelled"
+                      ? "red.700"
                       : "coolGray.700"
                   }
                 >
@@ -2656,7 +2666,7 @@ export default function OrderDetailsScreen() {
         {/* Timer for placed orders */}
         {renderTimer()}
 
-        {/* Menu Items Card - Styled like owner app */}
+        {/* Menu Items Card - Special styling for cancelled orders with strikethrough */}
         <Box mx={4} my={4} bg="white" rounded="lg" shadow={1}>
           <VStack divider={<Divider />}>
             {menuItems.map((item, index) => (
@@ -2688,7 +2698,17 @@ export default function OrderDetailsScreen() {
                       </Text>
                       
                       <Box
-                        bg="orange.100"
+                        bg={
+                          orderDetails.order_status?.toLowerCase() === "cancelled"
+                          ? "red.100"
+                          : orderDetails.order_status?.toLowerCase() === "served"
+                          ? "teal.100"
+                          : orderDetails.order_status?.toLowerCase() === "cooking"
+                          ? "orange.100"
+                          : orderDetails.order_status?.toLowerCase() === "paid"
+                          ? "green.100"
+                          : "blue.100"
+                        }
                         px={2}
                         py={1}
                         rounded="full"
@@ -2696,7 +2716,18 @@ export default function OrderDetailsScreen() {
                         <Text 
                           fontSize="md" 
                           fontWeight="bold" 
-                          color="orange.600"
+                          color={
+                            orderDetails.order_status?.toLowerCase() === "cancelled"
+                            ? "red.600"
+                            : orderDetails.order_status?.toLowerCase() === "served"
+                            ? "teal.600"
+                            : orderDetails.order_status?.toLowerCase() === "cooking"
+                            ? "orange.600"
+                            : orderDetails.order_status?.toLowerCase() === "paid"
+                            ? "green.600"
+                            : "blue.600"
+                          }
+                          textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
                         >
                           x{item.quantity}
                         </Text>
@@ -2713,6 +2744,7 @@ export default function OrderDetailsScreen() {
                         borderLeftWidth={2}
                         borderLeftColor="gray.200"
                         ml={1}
+                        textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
                       >
                         {item.comment}
                       </Text>
@@ -2727,7 +2759,11 @@ export default function OrderDetailsScreen() {
                       borderTopWidth={1}
                       borderTopColor="gray.100"
                     >
-                      <Text fontSize="sm" color="gray.600">
+                      <Text 
+                        fontSize="sm" 
+                        color="gray.600"
+                        textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                      >
                         ₹{Number(item.price).toFixed(2)}
                       </Text>
                       
@@ -2737,14 +2773,24 @@ export default function OrderDetailsScreen() {
                           px={2}
                           py={0.5}
                           rounded="full"
+                          opacity={orderDetails.order_status?.toLowerCase() === "cancelled" ? 0.6 : 1}
                         >
-                          <Text fontSize="xs" color="green.600">
+                          <Text 
+                            fontSize="xs" 
+                            color="green.600"
+                            textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                          >
                             {item.offer}% Off
                           </Text>
                         </Box>
                       )}
                       
-                      <Text fontSize="md" fontWeight="bold" color="blue.600">
+                      <Text 
+                        fontSize="md" 
+                        fontWeight="bold" 
+                        color="blue.600"
+                        textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                      >
                         ₹{Number(item.menu_sub_total).toFixed(2)}
                       </Text>
                     </HStack>
@@ -2755,13 +2801,22 @@ export default function OrderDetailsScreen() {
           </VStack>
         </Box>
 
-        {/* Bill Details Card */}
+        {/* Bill Details Card - Special styling for cancelled orders with strikethrough */}
         <Box mx={4} mb={4} p={4} bg="white" rounded="lg" shadow={1}>
           <VStack space={3}>
             {/* Items Total */}
             <HStack justifyContent="space-between">
-              <Text color="coolGray.600">Total</Text>
-              <Text>₹{Number(orderDetails.total_bill_amount || 0).toFixed(2)}</Text>
+              <Text 
+                color="coolGray.600" 
+                textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+              >
+                Total
+              </Text>
+              <Text 
+                textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+              >
+                ₹{Number(orderDetails.total_bill_amount || 0).toFixed(2)}
+              </Text>
             </HStack>
 
             {/* Total Discounts Section */}
@@ -2769,14 +2824,34 @@ export default function OrderDetailsScreen() {
               <VStack space={2}>
                 {Number(orderDetails.discount_amount) > 0 && (
                   <HStack justifyContent="space-between">
-                    <Text color="red.600">Discount ({orderDetails.discount_percent}%)</Text>
-                    <Text color="red.600">-₹{Number(orderDetails.discount_amount).toFixed(2)}</Text>
+                    <Text 
+                      color="red.600"
+                      textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                    >
+                      Discount ({orderDetails.discount_percent}%)
+                    </Text>
+                    <Text 
+                      color="red.600"
+                      textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                    >
+                      -₹{Number(orderDetails.discount_amount).toFixed(2)}
+                    </Text>
                   </HStack>
                 )}
                 {Number(orderDetails.special_discount) > 0 && (
                   <HStack justifyContent="space-between">
-                    <Text color="red.600">Special Discount</Text>
-                    <Text color="red.600">-₹{Number(orderDetails.special_discount).toFixed(2)}</Text>
+                    <Text 
+                      color="red.600"
+                      textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                    >
+                      Special Discount
+                    </Text>
+                    <Text 
+                      color="red.600"
+                      textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                    >
+                      -₹{Number(orderDetails.special_discount).toFixed(2)}
+                    </Text>
                   </HStack>
                 )}
               </VStack>
@@ -2786,14 +2861,32 @@ export default function OrderDetailsScreen() {
             <VStack space={2}>
               {Number(orderDetails.charges || 0) > 0 && (
                 <HStack justifyContent="space-between">
-                  <Text color="green.600">Extra Charges</Text>
-                  <Text color="green.600">+₹{Number(orderDetails.charges || 0).toFixed(2)}</Text>
+                  <Text 
+                    color="green.600"
+                    textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                  >
+                    Extra Charges
+                  </Text>
+                  <Text 
+                    color="green.600"
+                    textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                  >
+                    +₹{Number(orderDetails.charges || 0).toFixed(2)}
+                  </Text>
                 </HStack>
               )}
 
               <HStack justifyContent="space-between" pt={2} borderTopWidth={1} borderColor="coolGray.200">
-                <Text fontWeight="medium">Subtotal </Text>
-                <Text fontWeight="medium">
+                <Text 
+                  fontWeight="medium"
+                  textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                >
+                  Subtotal 
+                </Text>
+                <Text 
+                  fontWeight="medium"
+                  textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                >
                   ₹{(
                     Number(orderDetails.total_bill_amount || 0) -
                     Number(orderDetails.discount_amount || 0) -
@@ -2807,31 +2900,71 @@ export default function OrderDetailsScreen() {
             {/* Service Charge (calculated on subtotal) */}
             {Number(orderDetails.service_charges_amount) > 0 && (
               <HStack justifyContent="space-between">
-                <Text color="coolGray.600">Service Charges ({orderDetails.service_charges_percent}%)</Text>
-                <Text color="green.600">+₹{Number(orderDetails.service_charges_amount).toFixed(2)}</Text>
+                <Text 
+                  color="coolGray.600"
+                  textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                >
+                  Service Charges ({orderDetails.service_charges_percent}%)
+                </Text>
+                <Text 
+                  color="green.600"
+                  textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                >
+                  +₹{Number(orderDetails.service_charges_amount).toFixed(2)}
+                </Text>
               </HStack>
             )}
 
             {/* GST */}
             {Number(orderDetails.gst_amount) > 0 && (
               <HStack justifyContent="space-between">
-                <Text color="coolGray.600">GST ({orderDetails.gst_percent}%)</Text>
-                <Text color="green.600">+₹{Number(orderDetails.gst_amount).toFixed(2)}</Text>
+                <Text 
+                  color="coolGray.600"
+                  textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                >
+                  GST ({orderDetails.gst_percent}%)
+                </Text>
+                <Text 
+                  color="green.600"
+                  textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                >
+                  +₹{Number(orderDetails.gst_amount).toFixed(2)}
+                </Text>
               </HStack>
             )}
 
             {/* Tip */}
             {Number(orderDetails.tip) > 0 && (
               <HStack justifyContent="space-between">
-                <Text color="coolGray.600">Tip</Text>
-                <Text color="green.600">+₹{Number(orderDetails.tip).toFixed(2)}</Text>
+                <Text 
+                  color="coolGray.600"
+                  textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                >
+                  Tip
+                </Text>
+                <Text 
+                  color="green.600"
+                  textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                >
+                  +₹{Number(orderDetails.tip).toFixed(2)}
+                </Text>
               </HStack>
             )}
 
             {/* Grand Total */}
             <HStack justifyContent="space-between" pt={3} mt={2} borderTopWidth={2} borderColor="coolGray.200">
-              <Text fontSize="lg" fontWeight="bold">Final Grand Total</Text>
-              <Text fontSize="lg" fontWeight="bold">
+              <Text 
+                fontSize="lg" 
+                fontWeight="bold"
+                textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+              >
+                Final Grand Total
+              </Text>
+              <Text 
+                fontSize="lg" 
+                fontWeight="bold"
+                textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+              >
                 ₹{(
                   Number(orderDetails.total_bill_amount || 0) -
                   Number(orderDetails.discount_amount || 0) -
@@ -2844,14 +2977,19 @@ export default function OrderDetailsScreen() {
               </Text>
             </HStack>
 
-            {/* Payment Status - Only show for paid orders */}
-            {orderDetails.order_status?.toLowerCase() === "paid" && (
-              <HStack justifyContent="space-between" mt={2} bg="green.50" p={3} rounded="md">
-                <Text color="green.600" fontWeight="medium">Payment Method</Text>
-                <Text color="green.600" fontWeight="bold">
-                  {orderDetails.payment_method?.toUpperCase() || "CASH"}
-                </Text>
-              </HStack>
+            {/* Cancelled Notice - Only show for cancelled orders */}
+            {orderDetails.order_status?.toLowerCase() === "cancelled" && (
+              <Box mt={4} p={3} bg="red.100" rounded="md" borderWidth={1} borderColor="red.200">
+                <HStack alignItems="center" space={2}>
+                  <Icon as={MaterialIcons} name="cancel" size="sm" color="red.600" />
+                  <Text fontWeight="bold" color="red.600">ORDER CANCELLED</Text>
+                </HStack>
+                {orderDetails.cancel_reason && (
+                  <Text mt={1} color="red.600">
+                    Reason: {orderDetails.cancel_reason}
+                  </Text>
+                )}
+              </Box>
             )}
           </VStack>
         </Box>
@@ -3199,6 +3337,33 @@ export default function OrderDetailsScreen() {
           )}
         </Modal.Content>
       </Modal>
+
+      {/* Cancellation reason section - if available */}
+      {orderDetails.order_status?.toLowerCase() === "cancelled" && orderDetails.cancel_reason && (
+        <Box mx={4} mb={4} p={4} bg="red.50" rounded="lg" borderWidth={1} borderColor="red.200">
+          <VStack space={2}>
+            <HStack space={2} alignItems="center">
+              <Icon as={MaterialIcons} name="info-outline" color="red.600" />
+              <Text fontSize="md" fontWeight="bold" color="red.600">Cancellation Reason</Text>
+            </HStack>
+            <Text color="coolGray.700">{orderDetails.cancel_reason}</Text>
+          </VStack>
+        </Box>
+      )}
+
+      {/* Print Button - Only show for cancelled orders */}
+      {orderDetails.order_status?.toLowerCase() === "cancelled" && (
+        <Button
+          mx={4}
+          mb={4}
+          bg="coolGray.500"
+          _pressed={{ bg: "coolGray.600" }}
+          leftIcon={<Icon as={MaterialIcons} name="print" size="sm" />}
+          onPress={() => handlePrint("receipt")}
+        >
+          Print Cancelled Receipt
+        </Button>
+      )}
     </Box>
   );
 }
