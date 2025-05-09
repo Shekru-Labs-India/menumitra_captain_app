@@ -61,7 +61,7 @@ const ORDER_STATUS_COLORS = {
   PLACED: "#4B89DC",    // Blue for Placed
   COOKING: "#FF9800",   // Orange for Cooking - Match owner app color
   SERVED: "#0C8B51",    // Green for Served
-  PAID: "#673AB7",      // Purple for Paid
+  PAID: "#BEE5CB",      // Light green for Paid - Updated to match owner app
   CANCELLED: "#F44336", // Red for Cancelled
   DEFAULT: "#9E9E9E",   // Gray for Default
 };
@@ -2357,6 +2357,21 @@ export default function OrderDetailsScreen() {
     }
   };
 
+  // Add this if it's not already there
+  const getStatusIconName = (status) => {
+    if (!status) return "help-outline";
+    
+    status = status.toLowerCase();
+    
+    if (status === "paid") return "check-circle";
+    if (status === "cooking") return "restaurant";
+    if (status === "served") return "room-service";
+    if (status === "placed") return "receipt";
+    if (status === "cancelled") return "cancel";
+    
+    return "help-outline";
+  };
+
   if (isLoading) {
     return (
       <Box flex={1} bg="white" safeArea>
@@ -2473,50 +2488,69 @@ export default function OrderDetailsScreen() {
             p={4}
           >
             <HStack justifyContent="space-between" alignItems="flex-start">
-              <VStack space={1}>
-                <Text color="white" fontWeight="bold" fontSize="md">
-                  Status: {orderDetails.order_status?.charAt(0).toUpperCase() + orderDetails.order_status?.slice(1).toLowerCase()}
-                </Text>
-                <Text color="white" fontSize="sm">
-                  {orderDetails.datetime}
-                </Text>
-                {/* Order type indicator with icon like owner app */}
-                <HStack alignItems="center" space={1} mt={1}>
+              <HStack space={2} alignItems="center">
+                {orderDetails.order_status?.toLowerCase() === "paid" ? (
+                  <Icon as={MaterialIcons} name="check-circle" size="md" color="#16803B" />
+                ) : (
                   <Icon 
                     as={MaterialIcons} 
-                    name={
-                      orderDetails.order_type?.toLowerCase() === "dine-in"
-                        ? "restaurant"
-                        : orderDetails.order_type?.toLowerCase() === "take-away" || 
-                          orderDetails.order_type?.toLowerCase() === "parcel"
-                        ? "takeout-dining"
-                        : orderDetails.order_type?.toLowerCase() === "drive-through"
-                        ? "drive-eta"
-                        : "receipt-long"
+                    name={getStatusIconName(orderDetails.order_status)} 
+                    size="md" 
+                    color={
+                      orderDetails.order_status?.toLowerCase() === "cooking" ? "white" :
+                      orderDetails.order_status?.toLowerCase() === "served" ? "white" :
+                      orderDetails.order_status?.toLowerCase() === "paid" ? "#16803B" :
+                      orderDetails.order_status?.toLowerCase() === "cancelled" ? "white" : "white"
                     } 
-                    size="sm" 
-                    color="white" 
                   />
-                  <Text color="white" fontSize="sm">
-                    {orderDetails.order_type?.charAt(0).toUpperCase() + orderDetails.order_type?.slice(1).toLowerCase()}
+                )}
+                <VStack space={1}>
+                  <Text 
+                    color={orderDetails.order_status?.toLowerCase() === "paid" ? "#16803B" : "white"} 
+                    fontWeight="bold" 
+                    fontSize="md"
+                  >
+                    Status: {orderDetails.order_status?.charAt(0).toUpperCase() + orderDetails.order_status?.slice(1).toLowerCase()}
                   </Text>
-                </HStack>
-              </VStack>
+                  <Text 
+                    color={orderDetails.order_status?.toLowerCase() === "paid" ? "#333" : "white"} 
+                    fontSize="sm"
+                  >
+                    {orderDetails.datetime}
+                  </Text>
+                </VStack>
+              </HStack>
               
               <VStack alignItems="flex-end" space={1}>
-                <Text color="white" fontWeight="bold" fontSize="md">
+                <Text 
+                  color={orderDetails.order_status?.toLowerCase() === "paid" ? "#16803B" : "white"} 
+                  fontWeight="bold" 
+                  fontSize="md"
+                >
                   #{orderDetails.order_number}
                 </Text>
-                {/* Timeline button like owner app */}
+                {/* Timeline button with styling matching status */}
                 <Button
                   size="xs"
-                  bg="rgba(255,255,255,0.2)"
-                  _pressed={{ bg: "rgba(255,255,255,0.1)" }}
-                  leftIcon={<Icon as={MaterialIcons} name="timeline" size="xs" color="white" />}
+                  bg={orderDetails.order_status?.toLowerCase() === "paid" ? "rgba(22, 128, 59, 0.2)" : "rgba(255,255,255,0.2)"}
+                  _pressed={{ 
+                    bg: orderDetails.order_status?.toLowerCase() === "paid" ? "rgba(22, 128, 59, 0.1)" : "rgba(255,255,255,0.1)" 
+                  }}
+                  leftIcon={
+                    <Icon 
+                      as={MaterialIcons} 
+                      name="timeline" 
+                      size="xs" 
+                      color={orderDetails.order_status?.toLowerCase() === "paid" ? "#16803B" : "white"} 
+                    />
+                  }
                   onPress={() => setIsTimelineModalVisible(true)}
                   p={1}
                   rounded="md"
-                  _text={{ color: "white", fontSize: "xs" }}
+                  _text={{ 
+                    color: orderDetails.order_status?.toLowerCase() === "paid" ? "#16803B" : "white", 
+                    fontSize: "xs" 
+                  }}
                 >
                   Timeline
                 </Button>
@@ -2524,7 +2558,7 @@ export default function OrderDetailsScreen() {
             </HStack>
           </Box>
           
-          {/* Table information section like owner app */}
+          {/* Table information section */}
           <Box bg="white" p={3} borderBottomWidth={1} borderBottomColor="gray.100">
             <HStack space={2} alignItems="center">
               <Icon 
@@ -2545,7 +2579,7 @@ export default function OrderDetailsScreen() {
             </HStack>
           </Box>
           
-          {/* Menu count section like owner app */}
+          {/* Menu count section */}
           <Box bg="white" p={3}>
             <HStack space={2} alignItems="center">
               <Box
@@ -2564,7 +2598,7 @@ export default function OrderDetailsScreen() {
             </HStack>
           </Box>
           
-          {/* Order comment section like owner app */}
+          {/* Order comment section if present */}
           {orderDetails.comment && (
             <Box bg="yellow.50" p={3} borderTopWidth={1} borderTopColor="yellow.100">
               <HStack space={2} alignItems="flex-start">
@@ -2769,12 +2803,12 @@ export default function OrderDetailsScreen() {
               </Text>
             </HStack>
 
-            {/* Payment Status */}
-            {orderDetails.is_paid === "paid" && (
-              <HStack justifyContent="space-between" mt={2} bg="green.50" p={2} rounded="md">
-                <Text color="green.600" fontWeight="medium">Payment Status</Text>
-                <Text color="green.600" fontWeight="medium">
-                  PAID ({orderDetails.payment_method?.toUpperCase() || "CASH"})
+            {/* Payment Status - Only show for paid orders */}
+            {orderDetails.order_status?.toLowerCase() === "paid" && (
+              <HStack justifyContent="space-between" mt={2} bg="green.50" p={3} rounded="md">
+                <Text color="green.600" fontWeight="medium">Payment Method</Text>
+                <Text color="green.600" fontWeight="bold">
+                  {orderDetails.payment_method?.toUpperCase() || "CASH"}
                 </Text>
               </HStack>
             )}
@@ -2783,7 +2817,7 @@ export default function OrderDetailsScreen() {
 
         {/* Status Action Button - Styled like owner app */}
         <Box px={4} pb={4}>
-          {/* Show Serve button for cooking status */}
+          {/* Show appropriate buttons based on order status */}
           {orderDetails.order_status?.toLowerCase() === "cooking" && (
             <Button
               bg="orange.500"
@@ -2800,7 +2834,6 @@ export default function OrderDetailsScreen() {
             </Button>
           )}
 
-          {/* Show other appropriate buttons for other statuses */}
           {orderDetails.order_status?.toLowerCase() === "placed" && (
             <Button
               colorScheme="red"
@@ -2827,6 +2860,28 @@ export default function OrderDetailsScreen() {
             </Button>
           )}
 
+          {/* Invoice Button - Styled like owner app for paid orders */}
+          {orderDetails.order_status?.toLowerCase() === "paid" && (
+            <Pressable
+              onPress={handleDownloadInvoice}
+              mb={4}
+            >
+              <HStack 
+                space={2} 
+                alignItems="center" 
+                justifyContent="center"
+                bg="white"
+                p={3}
+                rounded="md"
+                borderWidth={1}
+                borderColor="#4d80ff"
+              >
+                <Icon as={MaterialIcons} name="download" size="sm" color="#4d80ff" />
+                <Text color="#4d80ff" fontWeight="medium">Download Invoice</Text>
+              </HStack>
+            </Pressable>
+          )}
+
           {/* Print Buttons */}
           <HStack space={2} mt={2}>
             <Button
@@ -2851,30 +2906,6 @@ export default function OrderDetailsScreen() {
             </Button>
           </HStack>
         </Box>
-
-        {/* Invoice Button */}
-        {orderDetails.order_status === "paid" && (
-          <Pressable
-            onPress={handleDownloadInvoice}
-            mx={4}
-            mb={4}
-          >
-            <Box
-              bg="blue.50"
-              p={4}
-              rounded="lg"
-              borderWidth={1}
-              borderColor="blue.200"
-            >
-              <HStack space={2} alignItems="center" justifyContent="center">
-                <MaterialIcons name="download" size={24} color="#3182CE" />
-                <Text color="blue.600" fontWeight="semibold">
-                  Download Invoice
-                </Text>
-              </HStack>
-            </Box>
-          </Pressable>
-        )}
       </ScrollView>
 
       {/* All other modals remain unchanged */}
