@@ -132,10 +132,10 @@ export default function MenuSelectionScreen() {
 
   // Fetch existing order details if orderId exists
   useEffect(() => {
-    if (params.orderId) {
+    if (params.orderId, params.orderNumber) {
       fetchExistingOrder();
     }
-  }, [params.orderId]);
+  }, [params.orderId, params.orderNumber]);
 
   // Fetch menu data on component mount
   useEffect(() => {
@@ -236,12 +236,15 @@ export default function MenuSelectionScreen() {
 
   // Function to fetch existing order
   const fetchExistingOrder = async () => {
+    console.log("239:", params.orderId);
     try {
       const response = await fetchWithAuth(`${getBaseUrl()}/order_view`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          order_id: params.orderId
+          order_id: params.orderId,
+          order_number: params.orderNumber,
+          outlet_id: params.outletId
         }),
       });
 
@@ -287,14 +290,14 @@ export default function MenuSelectionScreen() {
         setFilteredMenuItems(menuItems);
       } else {
         const categoryFiltered = menuItems.filter(item => 
-          item.category_name.toLowerCase().trim() === selectedCategory.toLowerCase().trim()
+          item.category_name?.toLowerCase().trim() === selectedCategory?.toLowerCase().trim()
         );
         setFilteredMenuItems(categoryFiltered);
       }
     } else {
       // When searching, search across ALL menu items regardless of selected category
       const searchResults = menuItems.filter(item =>
-        item.name.toLowerCase().includes(text.toLowerCase())
+        item.name?.toLowerCase().includes(text?.toLowerCase())
       );
       setFilteredMenuItems(searchResults);
     }
@@ -306,7 +309,7 @@ export default function MenuSelectionScreen() {
     
     if (searchQuery.trim() !== "") {
       const searchResults = menuItems.filter(item =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase())
+        item.name?.toLowerCase().includes(searchQuery?.toLowerCase())
       );
       setFilteredMenuItems(searchResults);
       return;
@@ -316,7 +319,7 @@ export default function MenuSelectionScreen() {
       setFilteredMenuItems(menuItems);
     } else {
       const filtered = menuItems.filter(
-        (item) => item.category_name.toLowerCase().trim() === category.toLowerCase().trim()
+        (item) => item.category_name?.toLowerCase().trim() === category?.toLowerCase().trim()
       );
       setFilteredMenuItems(filtered);
     }
@@ -499,7 +502,7 @@ export default function MenuSelectionScreen() {
       if (item.category_name === "ALL") {
         // For ALL category, just add the menu_id to the set
         uniqueMenuIds.add(cartItem.menu_id);
-      } else if (cartItem.category_name.toLowerCase().trim() === item.category_name.toLowerCase().trim()) {
+      } else if (cartItem.category_name?.toLowerCase().trim() === item.category_name?.toLowerCase().trim()) {
         // For specific categories, only count items from that category
         uniqueMenuIds.add(cartItem.menu_id);
       }
@@ -513,7 +516,7 @@ export default function MenuSelectionScreen() {
     if (item.category_name !== "ALL") {
       // Get all menu items for this category
       const categoryMenuIds = menuItems
-        .filter(menuItem => menuItem.category_name.toLowerCase().trim() === item.category_name.toLowerCase().trim())
+        .filter(menuItem => menuItem.category_name?.toLowerCase().trim() === item.category_name?.toLowerCase().trim())
         .map(menuItem => menuItem.menu_id.toString());
       
       // Count unique items from existingMenuQuantities

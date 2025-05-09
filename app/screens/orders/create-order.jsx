@@ -597,10 +597,16 @@ export default function CreateOrderScreen() {
   const fetchOrderDetails = async (orderId) => {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
+      const deviceToken = await AsyncStorage.getItem("device_token");
       
       const data = await fetchWithAuth(`${onGetProductionUrl()}order_view`, {
         method: "POST",
-        body: JSON.stringify({ order_id: orderId, device_type: "captain" }),
+        body: JSON.stringify({ 
+          order_id: orderId,
+          order_number: "",       // Add this required parameter
+          outlet_id: storedOutletId, // Add this required parameter
+          device_token: deviceToken  // Keep this
+        }),
       });
 
       if (data.st === 1 && data.lists) {
@@ -625,7 +631,7 @@ export default function CreateOrderScreen() {
         const data = await fetchWithAuth(`${onGetProductionUrl()}order_view`, {
           method: "POST",
           body: JSON.stringify({
-            order_id: params.orderId,
+            order_id: orderId,
             device_type: "captain",
           }),
         });
