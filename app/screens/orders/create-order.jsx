@@ -4304,7 +4304,7 @@ const handleSettleOrder = async () => {
                     
                     {/* Middle row - Lock icon and KOT & Save */}
                     <HStack space={1}>
-                      {settings.orderManagement.reserve_table && (
+                      {settings.orderManagement.reserve_table && !params?.orderId && (
                         <Button
                           w="36px"
                           h={10}
