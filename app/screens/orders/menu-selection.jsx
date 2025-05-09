@@ -30,6 +30,7 @@ import {
 } from "native-base";
 import { getBaseUrl } from "../../../config/api.config";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
+import { getSettings } from "../../../utils/getSettings";
 import Header from "../../../app/components/Header";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -86,6 +87,18 @@ export default function MenuSelectionScreen() {
   const [showTableSwitcher, setShowTableSwitcher] = useState(false);
   const [availableTables, setAvailableTables] = useState([]);
   const [loadingTables, setLoadingTables] = useState(false);
+  // Add settings state
+  const [settings, setSettings] = useState({
+    has_parcel: true,
+    has_counter: true,
+    has_delivery: true,
+    has_drive_through: true,
+    print_and_save: true,
+    KOT_and_save: true,
+    settle: true,
+    reserve_table: true,
+    cancel: true
+  });
 
   // Initialize cart from existing order if available
   useEffect(() => {
@@ -307,10 +320,23 @@ export default function MenuSelectionScreen() {
   };
 
   // Handle refresh
-  const onRefresh = () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    fetchAllData();
-  };
+    
+    try {
+      // Refresh settings
+      const appSettings = await getSettings();
+      setSettings(appSettings);
+      console.log("Settings refreshed on pull-to-refresh in MenuSelectionScreen");
+      
+      // Then refresh menu data
+      await fetchAllData();
+    } catch (error) {
+      console.error("Error during refresh in MenuSelectionScreen:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   // Add item to cart
   const addToCart = (item) => {
@@ -564,20 +590,13 @@ export default function MenuSelectionScreen() {
           }
 
           if (cartItem) {
-            if (cartItem.quantity >= 20) {
-              toast.show({
-                description: "Maximum 20 items allowed per menu",
-                status: "warning",
-                duration: 2000
-              });
-              return;
-            }
-            const updatedCart = cart.map(ci => 
-              ci.menu_id === item.menu_id 
-                ? {...ci, quantity: ci.quantity + 1}
-                : ci
-            );
-            setCart(updatedCart);
+            // If item is already in cart, show a message instead of incrementing
+            toast.show({
+              description: "Item already in your order",
+              status: "info",
+              duration: 1000
+            });
+            return;
           } else {
             addToCart({
               ...item,
@@ -852,6 +871,16 @@ export default function MenuSelectionScreen() {
 
   // Handle reserving a table
   const handleReserveTable = async () => {
+    // Check if table reservation is enabled in settings
+    if (!settings.reserve_table) {
+      toast.show({
+        description: "Table reservation is currently disabled",
+        status: "warning",
+        duration: 3000
+      });
+      return;
+    }
+    
     try {
       setLoading(true);
       
@@ -989,6 +1018,134 @@ export default function MenuSelectionScreen() {
     );
   };
 
+  // Add useEffect to fetch settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        console.log("Loading settings in MenuSelectionScreen");
+        // Get the latest settings from API or AsyncStorage
+        const appSettings = await getSettings();
+        console.log("Settings loaded in MenuSelectionScreen:", appSettings);
+        setSettings(appSettings);
+      } catch (error) {
+        console.error("Error loading settings in MenuSelectionScreen:", error);
+      }
+    };
+    
+    loadSettings();
+  }, []);
+
+  // Update the FilterButtons component to respect settings
+  const FilterButtons = () => {
+    // Determine which buttons should be shown based on settings
+    const buttons = [
+      {
+        type: "counter",
+        active: settings.has_counter,
+        icon: "point-of-sale",
+        label: "Counter",
+        params: {
+          isSpecialOrder: "true",
+          orderType: "counter",
+          clearPrevious: "true",
+          outlet_id: tableData?.outlet_id?.toString() || "",
+        }
+      },
+      {
+        type: "parcel",
+        active: settings.has_parcel,
+        icon: "takeout-dining",
+        label: "Parcel",
+        params: {
+          isSpecialOrder: "true",
+          orderType: "parcel",
+          clearPrevious: "true", 
+          outlet_id: tableData?.outlet_id?.toString() || "",
+        }
+      },
+      {
+        type: "delivery",
+        active: settings.has_delivery,
+        icon: "delivery-dining",
+        label: "Delivery",
+        params: {
+          isSpecialOrder: "true",
+          orderType: "delivery",
+          clearPrevious: "true",
+          outlet_id: tableData?.outlet_id?.toString() || "",
+        }
+      },
+      {
+        type: "drive-through",
+        active: settings.has_drive_through,
+        icon: "drive-eta",
+        label: "Drive",
+        params: {
+          isSpecialOrder: "true",
+          orderType: "drive-through",
+          clearPrevious: "true",
+          outlet_id: tableData?.outlet_id?.toString() || "",
+        }
+      }
+    ].filter(button => button.active);
+
+    // Calculate active buttons count
+    const activeButtonCount = buttons.length;
+    
+    // Calculate width percentage based on active button count
+    // Subtract small gap amount (2%) between buttons from total width
+    const buttonWidthPercent = activeButtonCount > 0 ? (100 - (activeButtonCount - 1) * 2) / activeButtonCount : 100;
+
+    if (activeButtonCount === 0) {
+      return null; // Don't render anything if no buttons are active
+    }
+
+    return (
+      <Box bg="white" py={2} borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <Box px={4} width="100%">
+          <HStack space={2} justifyContent={activeButtonCount === 0 ? "center" : "space-between"}>
+            {buttons.map((button, index) => (
+              <Pressable
+                key={button.type}
+                flex={1}
+                maxWidth={`${buttonWidthPercent}%`}
+                onPress={() =>
+                  router.push({
+                    pathname: "/screens/orders/menu-selection",
+                    params: button.params,
+                  })
+                }
+              >
+                <Box
+                  py={2.5}
+                  bg="white"
+                  borderWidth={1}
+                  borderColor="#0891b2"
+                  rounded="lg"
+                  shadow={1}
+                  flexDirection="row"
+                  alignItems="center"
+                  justifyContent="center"
+                  width="100%"
+                >
+                  <MaterialIcons
+                    name={button.icon}
+                    size={20}
+                    color="#0891b2"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text color="#0891b2" fontSize="sm" fontWeight="medium">
+                    {button.label}
+                  </Text>
+                </Box>
+              </Pressable>
+            ))}
+          </HStack>
+        </Box>
+      </Box>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -1050,6 +1207,9 @@ export default function MenuSelectionScreen() {
           </Text>
         </View>
       )}
+      
+      {/* Filter Buttons for order types */}
+      <FilterButtons />
       
       <Box px={3} py={2}>
         <HStack space={3} alignItems="center" bg="white" borderRadius={8} px={3} borderWidth={1} borderColor="gray.200">
