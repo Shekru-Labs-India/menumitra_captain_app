@@ -775,10 +775,10 @@ export default function OrderDetailsScreen() {
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cash');
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [isPaid, setIsPaid] = useState(true);
+  const [isPaid, setIsPaid] = useState(false);
 
   // Update the handleDownloadInvoice function with better error handling
   const handleDownloadInvoice = async () => {
@@ -3142,25 +3142,12 @@ export default function OrderDetailsScreen() {
 
           {/* Header */}
           <Box mb={5} mt={2}>
-            <HStack justifyContent="space-between" alignItems="center" mb={1}>
-              <Text 
-                fontSize="md" 
-                fontWeight="medium" 
-                color="coolGray.800"
-              >
-                {/* Show table/order type if available, else fallback */}
-                {orderDetails?.order_type && orderDetails.order_type !== "dine-in" ? (
-                  orderDetails.order_type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-')
-                ) : (
-                  `Table ${orderDetails?.table_number?.[0] || ''}`
-                )}
-              </Text>
-              <Badge colorScheme="cyan" rounded="md" px={2}>
-                {orderDetails?.order_type ? orderDetails.order_type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-') : 'Dine-In'}
-              </Badge>
-            </HStack>
-            <Text fontSize="sm" color="coolGray.600">
-              Order #{orderDetails?.order_number} | ₹{orderDetails?.grand_total?.toFixed(2) || orderDetails?.total_bill_amount?.toFixed(2)}
+            <Text 
+              fontSize="md" 
+              fontWeight="medium" 
+              color="coolGray.800"
+            >
+              Table {orderDetails?.table_number?.[0] || ''} | Order No: {orderDetails?.order_number} | ₹{orderDetails?.grand_total?.toFixed(2) || orderDetails?.total_bill_amount?.toFixed(2)}
             </Text>
           </Box>
 
@@ -3321,8 +3308,8 @@ export default function OrderDetailsScreen() {
                 isLoadingText="Settling..."
                 _text={{ fontWeight: "medium" }}
                 startIcon={<Icon as={MaterialIcons} name="check" size="sm" color="white" />}
-                disabled={paymentLoading || !selectedPaymentMethod}
-                opacity={!selectedPaymentMethod ? 0.7 : 1}
+                disabled={paymentLoading || !selectedPaymentMethod || !isPaid}
+                opacity={(!selectedPaymentMethod || !isPaid) ? 0.5 : 1}
               >
                 Settle
               </Button>
