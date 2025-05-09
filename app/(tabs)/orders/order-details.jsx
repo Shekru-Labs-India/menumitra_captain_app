@@ -1172,39 +1172,6 @@ export default function OrderDetailsScreen() {
     };
   }, [orderDetails]);
 
-  const renderTimer = () => {
-    if (
-      orderDetails?.order_status?.toLowerCase() !== "placed" ||
-      timeRemaining <= 0
-    ) {
-      return null;
-    }
-
-    return (
-      <HStack
-        bg={timeRemaining <= 30 ? "red.100" : "orange.100"}
-        p={2}
-        rounded="md"
-        alignItems="center"
-        space={2}
-      >
-        <Icon
-          as={MaterialIcons}
-          name="timer"
-          size={5}
-          color={timeRemaining <= 30 ? "red.500" : "orange.500"}
-        />
-        <Text
-          fontSize="lg"
-          color={timeRemaining <= 30 ? "red.500" : "orange.500"}
-          fontWeight="bold"
-        >
-          {timeRemaining} seconds
-        </Text>
-      </HStack>
-    );
-  };
-
   const textToBytes = (text) => {
     const encoder = new TextEncoder();
     return Array.from(encoder.encode(text));
@@ -2403,51 +2370,51 @@ export default function OrderDetailsScreen() {
         rightComponent={
           <HStack space={2} alignItems="center">
             {orderDetails && 
-            orderDetails.order_status?.toLowerCase() !== "paid" && 
-            orderDetails.order_status?.toLowerCase() !== "cancelled" ? (
-              <Button
-                variant="outline"
-                size="sm"
-                leftIcon={<Icon as={MaterialIcons} name="edit" size="sm" />}
-                onPress={() => router.push({
-                  pathname: "/screens/orders/menu-selection",
-                  params: {
-                    tableId: orderDetails.table_number?.[0],
-                    tableNumber: orderDetails.table_number?.[0],
-                    sectionId: orderDetails.section_id,
-                    sectionName: orderDetails.section,
-                    outletId: orderDetails.outlet_id,
-                    orderId: orderDetails.order_id,
-                    orderNumber: orderDetails.order_number,
-                    orderType: orderDetails.order_type || "dine-in",
-                    isOccupied: "1",
-                    orderDetails: JSON.stringify({
-                      order_id: orderDetails.order_id,
-                      menu_items: menuItems.map(item => ({
-                        menu_id: item.menu_id,
-                        menu_name: item.menu_name,
-                        name: item.menu_name,
-                        price: parseFloat(item.price),
-                        quantity: parseInt(item.quantity),
-                        half_price: item.half_price || 0,
-                        full_price: item.full_price || item.price,
-                        portionSize: item.half_or_full === "half" ? "Half" : "Full",
-                        offer: parseFloat(item.offer || 0),
-                        specialInstructions: item.comment || "",
-                        total_price: parseFloat(item.menu_sub_total),
-                      })),
-                      grand_total: orderDetails.grand_total,
-                      table_id: orderDetails.table_number?.[0],
-                      table_number: orderDetails.table_number?.[0],
-                      section_id: orderDetails.section_id,
-                      section_name: orderDetails.section,
-                      outlet_id: orderDetails.outlet_id,
-                    }),
-                  },
-                })}
-              >
-                Edit
-              </Button>
+          orderDetails.order_status?.toLowerCase() !== "paid" && 
+          orderDetails.order_status?.toLowerCase() !== "cancelled" ? (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Icon as={MaterialIcons} name="edit" size="sm" />}
+              onPress={() => router.push({
+                pathname: "/screens/orders/menu-selection",
+                params: {
+                  tableId: orderDetails.table_number?.[0],
+                  tableNumber: orderDetails.table_number?.[0],
+                  sectionId: orderDetails.section_id,
+                  sectionName: orderDetails.section,
+                  outletId: orderDetails.outlet_id,
+                  orderId: orderDetails.order_id,
+                  orderNumber: orderDetails.order_number,
+                  orderType: orderDetails.order_type || "dine-in",
+                  isOccupied: "1",
+                  orderDetails: JSON.stringify({
+                    order_id: orderDetails.order_id,
+                    menu_items: menuItems.map(item => ({
+                      menu_id: item.menu_id,
+                      menu_name: item.menu_name,
+                      name: item.menu_name,
+                      price: parseFloat(item.price),
+                      quantity: parseInt(item.quantity),
+                      half_price: item.half_price || 0,
+                      full_price: item.full_price || item.price,
+                      portionSize: item.half_or_full === "half" ? "Half" : "Full",
+                      offer: parseFloat(item.offer || 0),
+                      specialInstructions: item.comment || "",
+                      total_price: parseFloat(item.menu_sub_total),
+                    })),
+                    grand_total: orderDetails.grand_total,
+                    table_id: orderDetails.table_number?.[0],
+                    table_number: orderDetails.table_number?.[0],
+                    section_id: orderDetails.section_id,
+                    section_name: orderDetails.section,
+                    outlet_id: orderDetails.outlet_id,
+                  }),
+                },
+              })}
+            >
+              Edit
+            </Button>
             ) : null}
           </HStack>
         }
@@ -2472,19 +2439,19 @@ export default function OrderDetailsScreen() {
         >
           {/* Colored header section like the owner app */}
           <Box 
-            bg={
-              orderDetails.order_status?.toLowerCase() === "cooking"
-                ? ORDER_STATUS_COLORS.COOKING
-                : orderDetails.order_status?.toLowerCase() === "served"
-                ? ORDER_STATUS_COLORS.SERVED
-                : orderDetails.order_status?.toLowerCase() === "paid"
-                ? ORDER_STATUS_COLORS.PAID  
-                : orderDetails.order_status?.toLowerCase() === "placed"
-                ? ORDER_STATUS_COLORS.PLACED
-                : orderDetails.order_status?.toLowerCase() === "cancelled"
-                ? ORDER_STATUS_COLORS.CANCELLED
-                : ORDER_STATUS_COLORS.DEFAULT
-            }
+                  bg={
+                    orderDetails.order_status?.toLowerCase() === "cooking"
+                      ? ORDER_STATUS_COLORS.COOKING
+                      : orderDetails.order_status?.toLowerCase() === "served"
+                      ? ORDER_STATUS_COLORS.SERVED
+                      : orderDetails.order_status?.toLowerCase() === "paid"
+                      ? ORDER_STATUS_COLORS.PAID
+                      : orderDetails.order_status?.toLowerCase() === "placed"
+                      ? ORDER_STATUS_COLORS.PLACED
+                      : orderDetails.order_status?.toLowerCase() === "cancelled"
+                      ? ORDER_STATUS_COLORS.CANCELLED
+                      : ORDER_STATUS_COLORS.DEFAULT
+                  }
             p={4}
           >
             <HStack justifyContent="space-between" alignItems="flex-start">
@@ -2570,9 +2537,38 @@ export default function OrderDetailsScreen() {
             </HStack>
           </Box>
           
+          
+            
           {/* Table information section */}
           <Box bg="white" p={3} borderBottomWidth={1} borderBottomColor="gray.100">
-            <HStack space={2} alignItems="center">
+          {/* Timer Badge for Placed orders - inline with header */}
+          {orderDetails.order_status?.toLowerCase() === "placed" && timeRemaining > 0 && (
+            <Badge
+              bg="#F44336"
+              rounded="full"
+              // mt={3}
+              py={1}
+              px={3}
+              alignSelf="flex-start"
+            >
+                <HStack space={2} alignItems="center">
+                <Icon
+                  as={MaterialIcons}
+                  name="timer"
+                  size="3"
+                  color="white"
+                />
+                <Text
+                  fontSize="xs"
+                  color="white"
+                  fontWeight="bold"
+                >
+                  {timeRemaining}s remaining
+                  </Text>
+                </HStack>
+            </Badge>
+            )}
+              <HStack space={2} alignItems="center">
               <Icon 
                 as={MaterialIcons} 
                 name={
@@ -2587,10 +2583,10 @@ export default function OrderDetailsScreen() {
                 {orderDetails.order_type?.toLowerCase() === "dine-in"
                   ? `${orderDetails.section || ""} - Table ${orderDetails.table_number?.join(", ") || "N/A"}`
                   : orderDetails.order_type?.charAt(0).toUpperCase() + orderDetails.order_type?.slice(1).toLowerCase()}
-              </Text>
-            </HStack>
-          </Box>
-          
+                    </Text>
+              </HStack>
+        </Box>
+
           {/* Menu count section */}
           <Box bg="white" p={3}>
             <HStack space={2} alignItems="center">
@@ -2644,7 +2640,7 @@ export default function OrderDetailsScreen() {
                   }
                 >
                   Menu Count: {menuItems.length}
-                </Text>
+              </Text>
               </Box>
             </HStack>
           </Box>
@@ -2658,13 +2654,10 @@ export default function OrderDetailsScreen() {
                   <Text fontWeight="medium" color="orange.800">Order Comment:</Text>
                   <Text color="gray.700">{orderDetails.comment}</Text>
                 </VStack>
-              </HStack>
+          </HStack>
             </Box>
           )}
         </Box>
-
-        {/* Timer for placed orders */}
-        {renderTimer()}
 
         {/* Menu Items Card - Special styling for cancelled orders with strikethrough */}
         <Box mx={4} my={4} bg="white" rounded="lg" shadow={1}>
@@ -2678,22 +2671,22 @@ export default function OrderDetailsScreen() {
                 <HStack justifyContent="space-between" alignItems="flex-start">
                   <VStack flex={1} space={1}>
                     <HStack justifyContent="space-between" alignItems="flex-start">
-                      <Text 
-                        fontSize="md" 
-                        fontWeight="bold"
+                    <Text 
+                      fontSize="md" 
+                      fontWeight="bold"
                         flex={1}
                         pr={2}
-                        textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
-                      >
+                      textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
+                    >
                         {item.menu_name}
                         {item.half_or_full && (
-                          <Text 
-                            fontSize="sm" 
-                            color="coolGray.600"
+                      <Text 
+                        fontSize="sm" 
+                        color="coolGray.600"
                             fontStyle="italic"
-                          >
+                      >
                             {" "}({item.half_or_full})
-                          </Text>
+                      </Text>
                         )}
                       </Text>
                       
@@ -2753,7 +2746,7 @@ export default function OrderDetailsScreen() {
                     {/* Price row with divider like owner app */}
                     <HStack 
                       justifyContent="space-between" 
-                      alignItems="center"
+                          alignItems="center"
                       pt={2}
                       mt={2}
                       borderTopWidth={1}
@@ -2765,7 +2758,7 @@ export default function OrderDetailsScreen() {
                         textDecorationLine={orderDetails.order_status?.toLowerCase() === "cancelled" ? "line-through" : "none"}
                       >
                         ₹{Number(item.price).toFixed(2)}
-                      </Text>
+                          </Text>
                       
                       {Number(item.offer) > 0 && (
                         <Box
@@ -2983,7 +2976,7 @@ export default function OrderDetailsScreen() {
                 <HStack alignItems="center" space={2}>
                   <Icon as={MaterialIcons} name="cancel" size="sm" color="red.600" />
                   <Text fontWeight="bold" color="red.600">ORDER CANCELLED</Text>
-                </HStack>
+              </HStack>
                 {orderDetails.cancel_reason && (
                   <Text mt={1} color="red.600">
                     Reason: {orderDetails.cancel_reason}
