@@ -300,15 +300,14 @@ const formatMenuItem = (item) => {
 };
 
 const formatAmountLine = (label, amount, symbol = "") => {
-  const amountStr = Math.abs(amount).toFixed(2);
-  const totalWidth = 30; //? Reduced from 32 to save horizontal space
-  const amountWidth = 10; //? Reduced from 12 to save horizontal space
-
-  const padding = Math.max(1, totalWidth - label.length - amountWidth);
-  const amountWithSymbol = `${symbol}${amountStr}`;
-  const amountPadded = amountWithSymbol.padStart(amountWidth);
-
-  return `${label}${" ".repeat(padding)}${amountPadded}\n`;
+  // Format amount to 2 decimal places
+  const formattedAmount = parseFloat(parseFloat(amount).toFixed(2));
+  
+  // Calculate available space for dots
+  const dotCount = Math.max(1, 33 - label.length - formattedAmount.toString().length - 1);
+  const line = `${label} ${".".repeat(dotCount)} ${symbol}${formattedAmount}`;
+  
+  return line + "\n";
 };
 
 const generateQRCode = (data) => {
@@ -3708,7 +3707,7 @@ const handleSettleOrder = async () => {
       return total + offer;
     }, 0);
     
-    // Format to 2 decimal places like in the Owner App
+    // Format to 2 decimal places
     return parseFloat(totalDiscount.toFixed(2));
   };
 
