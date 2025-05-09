@@ -40,6 +40,9 @@ export default function MenuSelectionScreen() {
   const params = useLocalSearchParams();
   const toast = useToast();
   
+  // Add maximum item quantity constant
+  const MAX_ITEM_QUANTITY = 20;
+  
   // Parse params passed from the tables screen
   const tableData = useMemo(() => {
     if (params.tableId && params.tableNumber && params.sectionId) {
@@ -367,6 +370,32 @@ export default function MenuSelectionScreen() {
     }
   };
 
+  // Add function to increment cart item quantity
+  const incrementCartItem = (menuId) => {
+    const updatedCart = cart.map((item) => {
+      if (item.menu_id === menuId) {
+        // Check if adding one more would exceed the limit
+        if (item.quantity >= MAX_ITEM_QUANTITY) {
+          // Don't increment and show a toast instead
+          toast.show({
+            description: `Maximum ${MAX_ITEM_QUANTITY} items allowed per menu`,
+            status: "warning",
+            duration: 2000
+          });
+          return item;
+        }
+        
+        return {
+          ...item,
+          quantity: item.quantity + 1,
+          total_price: (item.price || 0) * (item.quantity + 1),
+        };
+      }
+      return item;
+    });
+    setCart(updatedCart);
+  };
+
   // Handle adding to cart with half/full portion option
   const handleAddToCart = (item) => {
     if (item.half_price > 0 && item.full_price > 0) {
@@ -462,70 +491,54 @@ export default function MenuSelectionScreen() {
 
   // Render category item
   const renderCategoryItem = ({ item }) => {
-    // Calculate badge count (items in cart from this category)
-    const badgeCount = cart.reduce((total, cartItem) => {
-      // For ALL category, show total quantity of all items
+    // Create a set to track unique menu IDs per category
+    const uniqueMenuIds = new Set();
+    
+    // Count unique items in cart by category
+    cart.forEach(cartItem => {
       if (item.category_name === "ALL") {
-        return total + (parseInt(cartItem.quantity) || 0);
+        // For ALL category, just add the menu_id to the set
+        uniqueMenuIds.add(cartItem.menu_id);
+      } else if (cartItem.category_name.toLowerCase().trim() === item.category_name.toLowerCase().trim()) {
+        // For specific categories, only count items from that category
+        uniqueMenuIds.add(cartItem.menu_id);
       }
-      
-      // For specific categories, only count items from that category
-      if (cartItem.category_name.toLowerCase().trim() === item.category_name.toLowerCase().trim()) {
-        return total + (parseInt(cartItem.quantity) || 0);
-      }
-      return total;
-    }, 0);
-
-    // Also check existingMenuQuantities for the category if it's a new session
-    if (!badgeCount && item.category_name !== "ALL") {
+    });
+    
+    // Get the count of unique items
+    const badgeCount = uniqueMenuIds.size;
+    
+    // For existing menu items (from previous order)
+    let existingCount = 0;
+    if (item.category_name !== "ALL") {
       // Get all menu items for this category
       const categoryMenuIds = menuItems
         .filter(menuItem => menuItem.category_name.toLowerCase().trim() === item.category_name.toLowerCase().trim())
-        .map(menuItem => menuItem.menu_id);
-
-      // Sum up quantities from existingMenuQuantities for this category's items
-      const existingCount = Object.entries(existingMenuQuantities)
-        .reduce((total, [menuId, quantity]) => {
-          if (categoryMenuIds.includes(parseInt(menuId))) {
-            return total + (parseInt(quantity) || 0);
-          }
-          return total;
-        }, 0);
-
-      if (existingCount > 0) {
-        return (
-          <Pressable
-            style={[
-              styles.categoryItem,
-              selectedCategory === item.category_name && styles.activeCategoryItem,
-            ]}
-            onPress={() => filterByCategory(item.category_name)}
-          >
-            <Box alignItems="center" position="relative">
-              <Box w={50} h={50} bg="gray.200" borderRadius={25} mb={1} justifyContent="center" alignItems="center">
-                <MaterialIcons name="restaurant" size={24} color="#999" />
-              </Box>
-              <Text fontSize="sm" fontWeight="bold" textAlign="center">{item.category_name}</Text>
-              
-              <Box 
-                position="absolute" 
-                top={-5} 
-                right={-5} 
-                bg="red.500" 
-                w={5} 
-                h={5} 
-                borderRadius={10} 
-                justifyContent="center" 
-                alignItems="center"
-                shadow={2}
-              >
-                <Text color="white" fontSize="2xs" fontWeight="bold">{existingCount}</Text>
-              </Box>
-            </Box>
-          </Pressable>
-        );
-      }
+        .map(menuItem => menuItem.menu_id.toString());
+      
+      // Count unique items from existingMenuQuantities
+      const existingUniqueMenuIds = new Set();
+      Object.entries(existingMenuQuantities).forEach(([menuId, quantity]) => {
+        if (categoryMenuIds.includes(menuId) && parseInt(quantity) > 0) {
+          existingUniqueMenuIds.add(menuId);
+        }
+      });
+      
+      existingCount = existingUniqueMenuIds.size;
+    } else {
+      // For ALL category, count unique menu IDs from existing quantities
+      const allExistingMenuIds = new Set();
+      Object.entries(existingMenuQuantities).forEach(([menuId, quantity]) => {
+        if (parseInt(quantity) > 0) {
+          allExistingMenuIds.add(menuId);
+        }
+      });
+      
+      existingCount = allExistingMenuIds.size;
     }
+    
+    // Total unique items (from cart + existing)
+    const totalUniqueBadgeCount = badgeCount + (existingCount > 0 ? existingCount : 0);
     
     return (
       <Pressable
@@ -541,7 +554,7 @@ export default function MenuSelectionScreen() {
           </Box>
           <Text fontSize="sm" fontWeight="bold" textAlign="center">{item.category_name}</Text>
           
-          {(badgeCount > 0 || (item.category_name === "ALL" && Object.values(existingMenuQuantities).reduce((a, b) => a + (parseInt(b) || 0), 0) > 0)) && (
+          {totalUniqueBadgeCount > 0 && (
             <Box 
               position="absolute" 
               top={-5} 
@@ -555,9 +568,7 @@ export default function MenuSelectionScreen() {
               shadow={2}
             >
               <Text color="white" fontSize="2xs" fontWeight="bold">
-                {item.category_name === "ALL" 
-                  ? Object.values(existingMenuQuantities).reduce((a, b) => a + (parseInt(b) || 0), 0) + badgeCount
-                  : badgeCount || 0}
+                {totalUniqueBadgeCount}
               </Text>
             </Box>
           )}
@@ -572,12 +583,16 @@ export default function MenuSelectionScreen() {
     const existingQuantity = existingMenuQuantities[item.menu_id] || 0;
     const quantity = cartItem ? cartItem.quantity : existingQuantity;
     const foodTypeColor = getFoodTypeColor(item.food_type);
+    
+    // Check if item has reached maximum quantity
+    const hasReachedMaxQuantity = quantity >= MAX_ITEM_QUANTITY;
 
     return (
       <Pressable 
         style={[
           styles.menuItem, 
-          isReserved && styles.disabledMenuItem
+          isReserved && styles.disabledMenuItem,
+          hasReachedMaxQuantity && { opacity: 0.7 } // Add opacity for max quantity items
         ]}
         onPress={() => {
           if (isReserved) {
@@ -589,14 +604,18 @@ export default function MenuSelectionScreen() {
             return;
           }
 
-          if (cartItem) {
-            // If item is already in cart, show a message instead of incrementing
+          if (hasReachedMaxQuantity) {
             toast.show({
-              description: "Item already in your order",
-              status: "info",
-              duration: 1000
+              description: `Maximum ${MAX_ITEM_QUANTITY} items allowed per menu`,
+              status: "warning",
+              duration: 2000
             });
             return;
+          }
+
+          // If item is already in cart, increment quantity instead of showing message
+          if (cartItem) {
+            incrementCartItem(cartItem.menu_id);
           } else {
             addToCart({
               ...item,
@@ -639,11 +658,26 @@ export default function MenuSelectionScreen() {
             </Box>
           )}
 
+          {hasReachedMaxQuantity && (
+            <Box
+              position="absolute"
+              top={2}
+              left={2}
+              bg="orange.500"
+              px={1}
+              py={0.5}
+              rounded="sm"
+              zIndex={1}
+            >
+              <Text color="white" fontSize="2xs" fontWeight="bold">Max</Text>
+            </Box>
+          )}
+
           {item.offer > 0 && (
             <Box
               position="absolute"
               left={2}
-              top={2}
+              top={hasReachedMaxQuantity ? 8 : 2}
               bg="red.500"
               px={1}
               py={0.5}
@@ -662,12 +696,6 @@ export default function MenuSelectionScreen() {
         <HStack justifyContent="space-between" alignItems="center">
           <Text fontWeight="bold" color={isReserved ? "gray.400" : "cyan.500"}>₹{item.price}</Text>
         </HStack>
-        
-        {/* {item.category_name && item.category_name.toLowerCase().trim() !== selectedCategory.toLowerCase().trim() && (
-          <Text fontSize="2xs" color={isReserved ? "gray.400" : "gray.500"} fontStyle="italic" mt={1}>
-            From: {item.category_name}
-          </Text>
-        )} */}
       </Pressable>
     );
   };
