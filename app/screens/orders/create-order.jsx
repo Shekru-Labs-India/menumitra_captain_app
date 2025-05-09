@@ -724,8 +724,12 @@ export default function CreateOrderScreen() {
   // Update handleKOT function to check for printer connection properly
 
 
-  const handleKOT = async () => {
+  const handleKOT = async (modalPaymentMethod = null, modalIsPaidValue = null) => {
     try {
+      // Use modal values if provided 
+      const effectiveIsPaid = modalIsPaidValue !== null ? modalIsPaidValue : isPaid;
+      const effectivePaymentMethod = modalPaymentMethod || paymentMethod;
+      
       // Check if we're connected to a printer
       if (!printerConnected || !contextPrinterDevice) {
         Alert.alert(
@@ -746,10 +750,10 @@ export default function CreateOrderScreen() {
                   setLoadingMessage("Saving order...");
                   
                   // Save order without printing
-                  const savedOrder = await createOrder("settle");
+                  const savedOrder = await createOrder("KOT_and_save");
                   
                   if (savedOrder) {
-        toast.show({
+                    toast.show({
                       description: "Order saved successfully",
                       status: "success",
                       duration: 2000,
@@ -768,9 +772,9 @@ export default function CreateOrderScreen() {
                   console.error("Save order error:", error);
                   toast.show({
                     description: "Error saving order: " + error.message,
-          status: "error",
-          duration: 3000,
-        });
+                    status: "error",
+                    duration: 3000,
+                  });
                 } finally {
                   setIsProcessing(false);
                   setLoadingMessage("");
@@ -2712,6 +2716,7 @@ const handleSettleOrder = async () => {
 
   const createOrder = async (orderStatus, returnResponse = false) => {
     try {
+      // Critical check for valid input
       if (selectedItems.length === 0) {
         toast.show({
           description: "Please add items to the order",
@@ -2720,96 +2725,44 @@ const handleSettleOrder = async () => {
         return;
       }
 
-      // Add token verification step
-      const accessToken = await AsyncStorage.getItem('access');
-      if (!accessToken) {
-        console.error("Authentication token missing");
-        toast.show({
-          description: "Authentication error. Please log in again.",
-          status: "error",
-          duration: 3000,
-        });
-        
-        // Delay to allow toast to show before potentially navigating
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        router.replace("/login");
-        return;
-      }
-
-      const [storedUserId, storedOutletId] = await Promise.all([
+      // Standard action check - determine if status update needed
+      const shouldUpdateStatus = ["KOT_and_save", "print_and_save", "settle"].includes(orderStatus);
+      
+      // Get required authentication and device info
+      const [accessToken, storedUserId, storedOutletId, deviceToken] = await Promise.all([
+        AsyncStorage.getItem('access'),
         AsyncStorage.getItem("user_id"),
         AsyncStorage.getItem("outlet_id"),
+        AsyncStorage.getItem("device_token")
       ]);
 
+      // Standard validation
       if (!storedUserId || !storedOutletId) {
         throw new Error("Missing required information");
       }
 
-      // Get the order type - this is the critical change
-      const orderType = params?.orderType || "dine-in";
-      
-      // Only check table availability for dine-in orders
-      if (orderType === "dine-in" && !params?.orderId && params?.tableNumber && params?.isOccupied !== "1") {
-        try {
-          // Use fetchWithAuth instead of axiosInstance
-          const tableCheckResponse = await fetchWithAuth(
-            onGetProductionUrl() + "check_table_is_reserved", {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                outlet_id: storedOutletId?.toString(),
-                table_number: params.tableNumber?.toString(),
-                section_id: params.sectionId?.toString(),
-              })
-            }
-          );
-          
-          if (tableCheckResponse.st === 0) {
-            throw new Error(`Table ${params.tableNumber} is currently occupied`);
-          }
-        } catch (tableCheckError) {
-          console.error("Table check error:", tableCheckError);
-          if (tableCheckError.message?.includes("currently occupied")) {
-            toast.show({
-              description: `Table ${params.tableNumber} is already occupied. Please select another table.`,
-              status: "error",
-              duration: 4000,
-              placement: "bottom",
-            });
-            throw tableCheckError;
-          }
-          // If it's some other error with the check, continue with order creation
-          console.warn("Table check failed, proceeding with order creation:", tableCheckError.message);
-        }
-      }
-
-      const orderItems = selectedItems.map((item) => ({
-        menu_id: item.menu_id?.toString(),
-        quantity: parseInt(item.quantity) || 1,
-        comment: item.specialInstructions || "",
-        half_or_full: (item.portionSize || "full").toLowerCase(),
-        price: parseFloat(item.price) || 0,
-        total_price: parseFloat(item.total_price) || 0,
-      }));
-
-      // Process payment and complementary statuses
+      // Payment status handling matching Owner App
       const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
-      const effectivePaymentMethod = isPaid ? selectedPaymentMethod.toLowerCase() : "";
+      const effectivePaymentMethod = isPaid ? paymentMethod.toLowerCase() : "";
 
+      // Build order data with all required fields
       const orderData = {
         user_id: storedUserId?.toString(),
         outlet_id: storedOutletId?.toString(),
-        order_type: orderType, // Use the orderType we extracted above
-        order_items: orderItems,
+        order_type: orderType,
+        order_items: selectedItems.map(item => ({
+          menu_id: item.menu_id?.toString(),
+          quantity: parseInt(item.quantity) || 1,
+          comment: item.specialInstructions || "",
+          half_or_full: (item.portionSize || "full").toLowerCase(),
+          price: parseFloat(item.price) || 0,
+          total_price: parseFloat(item.total_price) || 0,
+        })),
         grand_total: calculateGrandTotal(
-          selectedItems,
-          specialDiscount,
-          extraCharges,
-          serviceChargePercentage,
-          gstPercentage,
-          tip
+          selectedItems, specialDiscount, extraCharges,
+          serviceChargePercentage, gstPercentage, tip
         )?.toString(),
-        action: orderStatus, // This can now be "create_order", "saved", "settle", "KOT_and_save", or "print_and_save"
+        action: orderStatus,
         is_paid: paymentStatus,
         payment_method: effectivePaymentMethod,
         special_discount: specialDiscount?.toString(),
@@ -2820,9 +2773,10 @@ const handleSettleOrder = async () => {
         customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
         customer_address: customerDetails.customer_address || "",
         customer_landmark: customerDetails.customer_landmark || "",
+        device_token: deviceToken || "" // Include device token
       };
 
-      // Only add table information for dine-in orders
+      // Add table info for dine-in orders
       if (orderType === "dine-in") {
         if (!params.tableNumber || !params.sectionId) {
           throw new Error("Missing table or section information for dine-in order");
@@ -2831,53 +2785,82 @@ const handleSettleOrder = async () => {
         orderData.section_id = params.sectionId?.toString();
       }
 
-      const endpoint = params?.orderId ? 
-        onGetProductionUrl() + "update_order" : 
-        onGetProductionUrl() + "create_order";
-
+      // Add order_id for updates
       if (params?.orderId) {
         orderData.order_id = params.orderId?.toString();
       }
 
-      console.log(`Making request to ${endpoint} with action: ${orderStatus}`);
-      console.log('Using auth token:', accessToken.substring(0, 10) + '...');
-      console.log('Order data:', JSON.stringify(orderData, null, 2));
-      
-      // Use fetchWithAuth instead of axiosInstance for better auth handling
+      // Select endpoint based on order type
+      const endpoint = params?.orderId ? 
+        onGetProductionUrl() + "update_order" : 
+        onGetProductionUrl() + "create_order";
+
+      // Make API request
       const response = await fetchWithAuth(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData)
       });
-      
-      // Log whole response
-      console.log(`${orderStatus} Response:`, response);
 
+      // Error handling
       if (response.st !== 1) {
         throw new Error(response.msg || "Failed to process order");
       }
 
+      // Status update for certain actions (matching Owner App)
+      if (shouldUpdateStatus) {
+        try {
+          const statusRequestBody = {
+            outlet_id: storedOutletId?.toString(),
+            order_id: params?.orderId || response.order_id,
+            order_status: isPaid ? "paid" : (orderStatus === "settle" ? "paid" : "placed"),
+            user_id: storedUserId?.toString(),
+            action: orderStatus,
+            is_paid: paymentStatus,
+            payment_method: effectivePaymentMethod,
+            device_token: deviceToken || "",
+            customer_name: customerDetails.customer_name || "",
+            customer_mobile: customerDetails.customer_mobile || "",
+          };
+          
+          if (orderType === "dine-in") {
+            statusRequestBody.tables = [params.tableNumber?.toString()];
+            statusRequestBody.section_id = params.sectionId?.toString();
+          }
+          
+          const statusResponse = await fetchWithAuth(
+            onGetProductionUrl() + "update_order_status", 
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(statusRequestBody)
+            }
+          );
+          
+          if (statusResponse.st !== 1) {
+            console.warn("Order status update warning:", statusResponse.msg);
+          }
+        } catch (statusError) {
+          console.error("Failed to update order status:", statusError);
+        }
+      }
+
+      // Return response for callers that need it
       if (returnResponse) {
         return response;
       }
 
-      let successMessage = "Order processed successfully";
-      
-      // Customize message based on action type
-      if (orderStatus === "create_order") {
-        successMessage = `Order ${params?.orderId ? "updated" : "created"} successfully`;
-      } else if (orderStatus === "saved") {
-        successMessage = "Order saved successfully";
-      } else if (orderStatus === "settle") {
-        successMessage = "Order settled successfully";
-      } else if (orderStatus === "KOT_and_save") {
-        successMessage = "Order saved with KOT successfully";
-      } else if (orderStatus === "print_and_save") {
-        successMessage = "Order saved for printing successfully";
-      }
+      // Success message
+      const actionMessages = {
+        "create_order": `Order ${params?.orderId ? "updated" : "created"} successfully`,
+        "saved": "Order saved successfully",
+        "settle": "Order settled successfully",
+        "KOT_and_save": "Order saved with KOT successfully",
+        "print_and_save": "Order saved for printing successfully"
+      };
       
       toast.show({
-        description: successMessage,
+        description: actionMessages[orderStatus] || "Order processed successfully",
         status: "success",
         duration: 3000,
       });
@@ -2885,43 +2868,7 @@ const handleSettleOrder = async () => {
       return response;
     } catch (error) {
       console.error(`${orderStatus} Error:`, error);
-      
-      // Check if it's an authentication error
-      if (error.message?.includes("Unauthorized") || error.message?.includes("401")) {
-        toast.show({
-          description: "Your session has expired. Please log in again.",
-          status: "error",
-          duration: 4000,
-        });
-        
-        // Delay to allow toast to show
-        setTimeout(() => {
-          router.replace("/login");
-        }, 1500);
-        return false;
-      }
-      
-      if (error.message?.includes("currently occupied")) {
-        toast.show({
-          description: `Table is already occupied. Please select another table.`,
-          status: "error",
-          duration: 4000,
-          placement: "bottom",
-        });
-      } else {
-        if (!returnResponse) {
-          toast.show({
-            description: error.response?.msg || error.message || "Failed to process order",
-            status: "error",
-            duration: 3000,
-          });
-        }
-      }
-      
-      if (returnResponse) {
-        throw error;
-      }
-      return false;
+      throw error;
     }
   };
 
@@ -3108,41 +3055,7 @@ const handleSettleOrder = async () => {
               text: "Skip Printing and Save",
               style: "cancel",
               onPress: async () => {
-                // Just save the order without printing
-                try {
-                  setIsProcessing(true);
-                  setLoadingMessage("Saving order...");
-                  
-                  // Save order without printing
-                  const savedOrder = await createOrder("create_order");
-                  
-                  if (savedOrder) {
-          toast.show({
-                      description: "Order saved successfully",
-                      status: "success",
-            duration: 2000,
-          });
-                    
-                    // Navigate back to tables view
-                    router.replace({
-                      pathname: "/(tabs)/tables/sections",
-                      params: { 
-                        refresh: Date.now().toString(),
-                        status: "completed"
-                      }
-                    });
-                  }
-                } catch (error) {
-                  console.error("Save order error:", error);
-        toast.show({
-                    description: "Error saving order: " + error.message,
-                    status: "error",
-          duration: 3000,
-        });
-                } finally {
-                  setIsProcessing(false);
-                  setLoadingMessage("");
-                }
+                // Continue with just saving logic...
               }
             }
           ]
@@ -3355,8 +3268,12 @@ const handleSettleOrder = async () => {
   const [currentAction, setCurrentAction] = useState(""); // "kot" or "settle"
 
   // Add the handleSettlePaymentConfirm function inside the component
-  const handleSettlePaymentConfirm = async () => {
+  const handleSettlePaymentConfirm = async (modalPaymentMethod = null, modalIsPaidValue = null) => {
     try {
+      // Use modal values if provided
+      const effectiveIsPaid = modalIsPaidValue !== null ? modalIsPaidValue : isPaid;
+      const effectivePaymentMethod = modalPaymentMethod || paymentMethod;
+      
       setIsLoading(true);
       setLoadingMessage("Processing settlement...");
       setShowPaymentModal(false);
@@ -3385,8 +3302,7 @@ const handleSettleOrder = async () => {
       }));
   
       // Use the selected payment method and paid status from the modal
-      const paymentStatus = isPaidChecked ? "paid" : (isComplementary ? "complementary" : "unpaid");
-      const effectivePaymentMethod = isPaidChecked ? selectedPaymentMethod.toLowerCase() : "";
+      const paymentStatus = effectiveIsPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
   
       const orderData = {
         user_id: storedUserId?.toString(),
@@ -3475,7 +3391,7 @@ const handleSettleOrder = async () => {
 
   // Add a handlePaymentModalConfirm function similar to the owner app
   const handlePaymentModalConfirm = () => {
-    // Validate payment method selection when paid is checked
+    // Validate payment method selection
     if (isPaidChecked && !selectedPaymentMethod) {
       toast.show({
         description: "Please select a payment method",
@@ -3485,23 +3401,23 @@ const handleSettleOrder = async () => {
       return;
     }
 
-    // Store the current selected payment method before closing the modal
-    const selectedMethod = selectedPaymentMethod;
+    // Store values before closing modal
+    const modalIsPaid = isPaidChecked;
+    const modalPaymentMethod = selectedPaymentMethod;
     
     // Close the modal
     setShowPaymentModal(false);
     
-    // Transfer the isPaidChecked value to isPaid
-    setIsPaid(isPaidChecked);
+    // Update isPaid state
+    setIsPaid(modalIsPaid);
     
-    // Call the appropriate handler based on which button was clicked
+    // Call appropriate handler with modal values (matching Owner App)
     if (currentAction === 'kot') {
-      // For KOT, we can call the handleKOT function
-      handleKOT();
+      handleKOT(modalPaymentMethod, modalIsPaid);
     } else if (currentAction === 'settle') {
-      // For Settle, call the handleSettlePaymentConfirm function
-      handleSettlePaymentConfirm();
+      handleSettlePaymentConfirm(modalPaymentMethod, modalIsPaid);
     }
+    // Note: Print & Save doesn't use the payment modal in Owner App
   };
 
   // Add handler for KOT button press
@@ -3786,11 +3702,116 @@ const handleSettleOrder = async () => {
 
   // Add this function to match the owner app's calculation
   const getDiscountPercentage = () => {
-    // Simply sum all the offer percentages in the cart
-    return selectedItems.reduce((total, item) => {
+    // Calculate total discount percentage
+    const totalDiscount = selectedItems.reduce((total, item) => {
       const offer = parseFloat(item.offer) || 0;
       return total + offer;
     }, 0);
+    
+    // Format to 2 decimal places like in the Owner App
+    return parseFloat(totalDiscount.toFixed(2));
+  };
+
+  // Handler for Print & Save button
+  const onPrintAndSavePress = () => {
+    if (selectedItems.length === 0) {
+      toast.show({
+        description: "Please add items to the order",
+        status: "warning",
+        duration: 2000,
+      });
+      return;
+    }
+    
+    // Direct call matching Owner App - no payment modal
+    handlePrintAndSave();
+  };
+
+  // Consolidated print & save function
+  const handlePrintAndSave = async () => {
+    try {
+      setIsProcessing(true);
+      setLoadingMessage("Processing print and save...");
+      
+      // Check printer - could be extracted to a util function
+      if (!printerConnected || !contextPrinterDevice) {
+        Alert.alert(
+          "Printer Not Connected",
+          "Do you want to connect a printer?",
+          [
+            { text: "Yes", onPress: () => setIsDeviceSelectionModalVisible(true) },
+            { 
+              text: "Skip Printing", 
+              style: "cancel",
+              onPress: async () => {
+                try {
+                  const savedOrder = await createOrder("print_and_save");
+                  if (savedOrder) {
+                    toast.show({
+                      description: "Order saved successfully",
+                      status: "success",
+                      duration: 2000,
+                    });
+                    router.replace({
+                      pathname: "/(tabs)/tables/sections",
+                      params: { refresh: Date.now().toString(), status: "completed" }
+                    });
+                  }
+                } catch (error) {
+                  console.error("Save order error:", error);
+                  toast.show({
+                    description: "Error saving order: " + error.message,
+                    status: "error",
+                    duration: 3000,
+                  });
+                } finally {
+                  setIsProcessing(false);
+                  setLoadingMessage("");
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
+      // Create order with print_and_save status
+      const apiResponse = await createOrder("print_and_save", true);
+      
+      // Print receipt
+      try {
+        setLoadingMessage("Printing receipt...");
+        await printReceipt(apiResponse);
+        toast.show({
+          description: "Order saved and receipt printed successfully",
+          status: "success",
+          duration: 2000,
+        });
+      } catch (printError) {
+        console.error("Print error:", printError);
+        toast.show({
+          description: "Order saved but printing failed: " + printError.message,
+          status: "warning",
+          duration: 3000,
+        });
+      }
+      
+      // Navigate back to tables
+      router.replace({
+        pathname: "/(tabs)/tables/sections",
+        params: { refresh: Date.now().toString(), status: "completed" }
+      });
+    } catch (error) {
+      console.error("Print and Save error:", error);
+      toast.show({
+        description: "Error: " + error.message,
+        status: "error",
+        duration: 3000,
+      });
+    } finally {
+      setIsProcessing(false);
+      setLoadingMessage("");
+    }
   };
 
   return (
@@ -4198,7 +4219,7 @@ const handleSettleOrder = async () => {
 
                     <VStack alignItems="center">
                       <Text fontWeight="semibold" fontSize="xs" color="red.500">-₹{calculateItemDiscount(selectedItems).toFixed(2)}</Text>
-                      <Text fontSize="2xs" color="gray.500">Disc ({getDiscountPercentage()}%)</Text>
+                      <Text fontSize="2xs" color="gray.500">Disc ({formatCurrency(getDiscountPercentage())}%)</Text>
                     </VStack>
 
                     <VStack alignItems="center">
@@ -4247,7 +4268,7 @@ const handleSettleOrder = async () => {
                           _pressed={{ bg: "#F57C00" }}
                           borderRadius="md"
                           leftIcon={<Icon as={MaterialIcons} name="print" size="sm" color="white" />}
-                          onPress={handlePrint}
+                          onPress={onPrintAndSavePress}
                           py={0}
                         >
                           <Text color="white" fontSize="xs">Print & Save</Text>
