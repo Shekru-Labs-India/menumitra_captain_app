@@ -1422,7 +1422,7 @@ const OrdersScreen = () => {
         <Box bg="gray.100" p={3} rounded="md">
           <HStack alignItems="center" flexWrap="wrap">
             <Text fontSize="sm" fontWeight="medium" color="coolGray.700" mr={2}>
-              Total: {orders.reduce((total, dateGroup) => total + dateGroup.data.length, 0)}
+              Total: {filteredOrders.reduce((total, dateGroup) => total + dateGroup.data.length, 0)}
             </Text>
             
             <HStack space={2} alignItems="center" flexWrap="wrap">
@@ -1437,7 +1437,7 @@ const OrdersScreen = () => {
                 <HStack space={1} alignItems="center">
                   <Icon as={MaterialIcons} name="local-fire-department" size="xs" color="orange.500" />
                   <Text fontSize="xs" color="orange.500" fontWeight="medium">
-                    Cooking: {orders.reduce((total, dateGroup) => 
+                    Cooking: {filteredOrders.reduce((total, dateGroup) => 
                       total + dateGroup.data.filter(order => 
                         order.order_status?.toLowerCase() === "cooking"
                       ).length, 0)}
@@ -1456,7 +1456,7 @@ const OrdersScreen = () => {
                 <HStack space={1} alignItems="center">
                   <Icon as={MaterialIcons} name="check-circle" size="xs" color="blue.500" />
                   <Text fontSize="xs" color="blue.500" fontWeight="medium">
-                    Paid: {orders.reduce((total, dateGroup) => 
+                    Paid: {filteredOrders.reduce((total, dateGroup) => 
                       total + dateGroup.data.filter(order => 
                         order.order_status?.toLowerCase() === "paid"
                       ).length, 0)}
@@ -1475,7 +1475,7 @@ const OrdersScreen = () => {
                 <HStack space={1} alignItems="center">
                   <Icon as={MaterialIcons} name="restaurant" size="xs" color="purple.500" />
                   <Text fontSize="xs" color="purple.500" fontWeight="medium">
-                    Dine-in: {orders.reduce((total, dateGroup) => 
+                    Dine-in: {filteredOrders.reduce((total, dateGroup) => 
                       total + dateGroup.data.filter(order => 
                         order.order_type?.toLowerCase() === "dine-in"
                       ).length, 0)}
@@ -1494,7 +1494,7 @@ const OrdersScreen = () => {
                 <HStack space={1} alignItems="center">
                   <Icon as={MaterialIcons} name="takeout-dining" size="xs" color="emerald.500" />
                   <Text fontSize="xs" color="emerald.500" fontWeight="medium">
-                    Parcel: {orders.reduce((total, dateGroup) => 
+                    Parcel: {filteredOrders.reduce((total, dateGroup) => 
                       total + dateGroup.data.filter(order => 
                         order.order_type?.toLowerCase() === "parcel"
                       ).length, 0)}
@@ -1513,7 +1513,7 @@ const OrdersScreen = () => {
                 <HStack space={1} alignItems="center">
                   <Icon as={MaterialIcons} name="drive-eta" size="xs" color="amber.500" />
                   <Text fontSize="xs" color="amber.500" fontWeight="medium">
-                    Drive: {orders.reduce((total, dateGroup) => 
+                    Drive: {filteredOrders.reduce((total, dateGroup) => 
                       total + dateGroup.data.filter(order => 
                         order.order_type?.toLowerCase() === "drive-through"
                       ).length, 0)}
@@ -1532,7 +1532,7 @@ const OrdersScreen = () => {
                 <HStack space={1} alignItems="center">
                   <Icon as={MaterialIcons} name="point-of-sale" size="xs" color="pink.500" />
                   <Text fontSize="xs" color="pink.500" fontWeight="medium">
-                    Counter: {orders.reduce((total, dateGroup) => 
+                    Counter: {filteredOrders.reduce((total, dateGroup) => 
                       total + dateGroup.data.filter(order => 
                         order.order_type?.toLowerCase() === "counter"
                       ).length, 0)}
