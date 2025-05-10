@@ -365,7 +365,9 @@ export default function TableSectionsScreen() {
           tables: section.tables.map((table) => ({
             ...table,
             timeSinceOccupied: calculateTimeDifference(table.occupied_time),
-            isInAlarmState: isTableInAlarmState(table.occupied_time)
+            isInAlarmState: isTableInAlarmState(table.occupied_time),
+            // Make sure action property is present and correctly set
+            action: table.action || (table.is_occupied === 1 ? "placed" : null)
           })),
           totalTables: section.tables.length,
           engagedTables: section.tables.filter(
@@ -1252,10 +1254,11 @@ export default function TableSectionsScreen() {
                                                 height="100%"
                                               >
                                                 <HStack space={1} alignItems="center">
-                                                  {isOccupied && (table.action === "print_and_save" || 
-                                                         table.action === "KOT_and_save" || 
-                                                         table.action === "create_order" || 
-                                                         table.action === "placed") && (
+                                                  {/* Blinker indicator - matching owner app conditions exactly */}
+                                                  {(table.action === "KOT_and_save" || 
+                                                    table.action === "print_and_save" || 
+                                                    table.action === "create_order" || 
+                                                    table.action === "placed") && (
                                                     <Animated.View 
                                                       style={{
                                                         width: 8,
@@ -2316,7 +2319,10 @@ export default function TableSectionsScreen() {
   }, [getRestaurantName]);
 
   useEffect(() => {
-    // Create the animation sequence
+    // Reset animation value to 0
+    blinkAnimation.setValue(0);
+    
+    // Create animation
     const blinkSequence = Animated.loop(
       Animated.sequence([
         Animated.timing(blinkAnimation, {
@@ -2332,14 +2338,14 @@ export default function TableSectionsScreen() {
       ])
     );
     
-    // Start the animation immediately
+    // Start animation
     blinkSequence.start();
     
-    // Cleanup function
+    // Clean up
     return () => {
-      blinkSequence.stop();  // Use stop() instead of stopAnimation()
+      blinkSequence.reset();
     };
-  }, [blinkAnimation]); // Add blinkAnimation to dependency array
+  }, []);  // Remove blinkAnimation from dependencies to avoid re-triggering
 
   // Updated payment icon press handler to match RestaurantTables.js pattern
   const handlePaymentIconPress = (table, section) => {
