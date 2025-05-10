@@ -264,11 +264,16 @@ const formatMenuItem = (item) => {
   const rate = Math.floor(item?.price || 0)?.toString();
   const total = (item?.quantity * item?.price || 0).toFixed(2);
 
+  // FIXED: Adjust column widths for 58mm printer (max 30-32 chars per line)
+  // Standard 58mm printer can fit 30-32 characters per line
+  // Format: name (12 chars), qty (2 chars), rate (4 chars), total (7 chars)
+  // 12 + 2 + 4 + 7 + spaces = approx 28 chars total
+  
   // Special handling for long item names
-  if (name.length > 14) {
-    const lines = splitLongText(name, 14);
+  if (name.length > 12) {
+    const lines = splitLongText(name, 12);
     // First line contains the item name, qty, rate, and amount
-    const firstLine = `${lines[0].padEnd(14)} ${qty.padStart(2)} ${rate.padStart(5)} ${total.padStart(8)}\n`;
+    const firstLine = `${lines[0].padEnd(12)} ${qty.padStart(2)} ${rate.padStart(4)} ${total.padStart(7)}\n`;
     
     // If there are additional lines, format them with minimal spacing
     if (lines.length > 1) {
@@ -277,7 +282,7 @@ const formatMenuItem = (item) => {
       let currentLine = "";
       
       for (let i = 1; i < lines.length; i++) {
-        if (currentLine.length + lines[i].length + 1 <= 28) {
+        if (currentLine.length + lines[i].length + 1 <= 25) {
           currentLine += (currentLine ? " " : "") + lines[i];
         } else {
           remainingLines.push(currentLine);
@@ -296,16 +301,27 @@ const formatMenuItem = (item) => {
     return firstLine;
   }
   
-  return `${name.padEnd(14)} ${qty.padStart(2)} ${rate.padStart(5)} ${total.padStart(8)}\n`;
+  return `${name.padEnd(12)} ${qty.padStart(2)} ${rate.padStart(4)} ${total.padStart(7)}\n`;
 };
 
 const formatAmountLine = (label, amount, symbol = "") => {
   // Format amount to 2 decimal places
   const formattedAmount = parseFloat(parseFloat(amount).toFixed(2));
   
-  // Calculate available space for dots
-  const dotCount = Math.max(1, 33 - label.length - formattedAmount.toString().length - 1);
-  const line = `${label} ${".".repeat(dotCount)} ${symbol}${formattedAmount}`;
+  // FIXED: Use the owner app's approach with spaces instead of dots
+  // For 58mm printer (30-32 chars max width)
+  const totalWidth = 30; // Max width for 58mm printer
+  const amountWidth = 10; // Space for amount with symbols
+  
+  // Calculate padding needed between label and amount
+  const padding = Math.max(2, totalWidth - label.length - amountWidth);
+  
+  // Format with symbol and proper padding
+  const amountWithSymbol = `${symbol}${formattedAmount}`;
+  const amountPadded = amountWithSymbol.padStart(amountWidth);
+  
+  // Create line with spaces instead of dots
+  const line = `${label}${" ".repeat(padding)}${amountPadded}`;
   
   return line + "\n";
 };
@@ -2479,9 +2495,9 @@ const handleSettleOrder = async () => {
       
       commands.push(
         ...textToBytes(`DateTime: ${orderData?.datetime ? formatTime(orderData.datetime) : getCurrentDateTime()}\n`),
-        ...textToBytes("--------------------------------\n"),
-        ...textToBytes("Item           Qty  Rate     Amt\n"),
-        ...textToBytes("--------------------------------\n")
+        ...textToBytes("------------------------------\n"),
+        ...textToBytes("Item         Qty Rate    Amt\n"),
+        ...textToBytes("------------------------------\n")
       );
 
       // Add items
@@ -2491,7 +2507,7 @@ const handleSettleOrder = async () => {
 
       // Add totals and footer
       commands.push(
-        ...textToBytes("--------------------------------\n"),
+        ...textToBytes("------------------------------\n"),
         ...textToBytes(formatAmountLine("Subtotal", subtotal))
       );
       
@@ -2526,17 +2542,17 @@ const handleSettleOrder = async () => {
       }
       
       commands.push(
-        ...textToBytes("--------------------------------\n"),
+        ...textToBytes("------------------------------\n"),
         ...textToBytes(formatAmountLine("Total", total)),
         ...textToBytes("\n"),
         ...textToBytes("\x1B\x61\x01"), // Center alignment
-        ...textToBytes("------ Payment Options ------\n"),
+        ...textToBytes("---- Payment Options ----\n"),
         ...textToBytes("\x1B\x21\x00"), // Normal text
-        ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
+        ...textToBytes("PhonePe GPay Paytm UPI\n"),
         ...generateQRCode(upiPaymentString),
         ...textToBytes("\n"),
         ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n`),
-        ...textToBytes("-----Thank You Visit Again!-----\n"),
+        ...textToBytes("----Thank You Visit Again!----\n"),
         ...textToBytes("https://menumitra.com/\n"),
         ...textToBytes("\x1D\x56\x42\x40") // Cut paper
       );
@@ -2581,7 +2597,7 @@ const handleSettleOrder = async () => {
       const orderType = params?.orderType || "dine-in";
       const orderTypeFormatted = orderTypeMap[orderType] || orderType.charAt(0).toUpperCase() + orderType.slice(1);
       
-      const getDottedLine = () => "-------------------------------\n";
+      const getDottedLine = () => "------------------------------\n";
 
       // Create header
       commands.push(
@@ -3035,7 +3051,7 @@ const handleSettleOrder = async () => {
     </Pressable>
   );
 
-  const getDottedLine = () => "-------------------------------\n";
+  const getDottedLine = () => "------------------------------\n";
 
   const centerText = (text) => {
     // For standard 58mm receipt printers (32 characters per line)
