@@ -35,11 +35,15 @@ const SupportScreen = () => {
 
   const fetchTicketStats = async () => {
     try {
-      const outletId = await AsyncStorage.getItem('outlet_id');
+      const [outletId, accessToken] = await AsyncStorage.multiGet(['outlet_id', 'access_token']);
+      
       const response = await fetchWithAuth(`${getBaseUrl()}/total_tickets`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          outlet_id: outletId
+          outlet_id: outletId[1]
         })
       });
 
@@ -51,6 +55,8 @@ const SupportScreen = () => {
           wip_tickets: response.wip_tickets || 0,
           rejected_tickets: response.rejected_tickets || 0
         });
+      } else {
+        throw new Error(response.msg || 'Failed to fetch ticket statistics');
       }
     } catch (error) {
       console.error('Error fetching ticket stats:', error);
