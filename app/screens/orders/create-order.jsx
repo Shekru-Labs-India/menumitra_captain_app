@@ -4689,6 +4689,8 @@ const handleSettleOrder = async () => {
                 bg="blue.500"
                 _pressed={{ bg: "blue.600" }}
                 onPress={handlePaymentModalConfirm}
+                // Only enable the button when isPaidChecked is true
+                isDisabled={!isPaidChecked}
               >
                 {currentAction === 'kot' ? 'Generate KOT' : 'Settle'}
               </Button>
