@@ -633,7 +633,7 @@ const OrdersScreen = () => {
       // Open the date picker modal again
       setTimeout(() => {
         setShowPicker(true);
-      }, 300);
+      }, 0);
     }
   };
 
@@ -652,7 +652,7 @@ const OrdersScreen = () => {
         });
         setTimeout(() => {
           setShowEndDatePicker(true);
-        }, 500);
+        }, 50);
         return;
       }
 
@@ -665,7 +665,7 @@ const OrdersScreen = () => {
         });
         setTimeout(() => {
           setShowEndDatePicker(true);
-        }, 500);
+        }, 50);
         return;
       }
 
@@ -680,7 +680,7 @@ const OrdersScreen = () => {
       // Open the date picker modal again
       setTimeout(() => {
         setShowPicker(true);
-      }, 300);
+      }, 0);
     }
   };
 
@@ -1927,172 +1927,71 @@ const OrdersScreen = () => {
 
               {/* Custom Date Range Section */}
               <VStack p={4} space={3}>
-                <Text fontWeight="medium">Custom Date Range</Text>
+                <Text fontSize="md" fontWeight="medium" color="coolGray.700">
+                  Custom Date Range
+                </Text>
 
+                {/* Start Date Section */}
                 <Pressable
-                  borderWidth={1}
-                  borderColor="coolGray.300"
-                  p={3}
-                  rounded="md"
                   onPress={() => {
-                    setShowPicker(false);
-                    setTimeout(() => {
-                      // Set default date to today or existing start date
-                      const defaultDate = dateRange.start
-                        ? (() => {
-                            try {
-                              const [day, month, year] =
-                                dateRange.start.split(" ");
-                              const monthIndex = [
-                                "Jan",
-                                "Feb",
-                                "Mar",
-                                "Apr",
-                                "May",
-                                "Jun",
-                                "Jul",
-                                "Aug",
-                                "Sep",
-                                "Oct",
-                                "Nov",
-                                "Dec",
-                              ].indexOf(month);
-                              return new Date(
-                                parseInt(year),
-                                monthIndex,
-                                parseInt(day)
-                              );
-                            } catch (e) {
-                              return new Date();
-                            }
-                          })()
-                        : new Date();
-
-                      setPickerDate(defaultDate);
-                      setShowDatePicker(true);
-                    }, 300);
+                    setShowDatePicker(true);
                   }}
                 >
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text color="coolGray.600">Start Date:</Text>
-                    <Text>
+                  <Box borderWidth={1} borderColor="coolGray.200" rounded="md">
+                    <Text fontSize="sm" color="coolGray.600" px={4} pt={2}>
+                      Start Date:
+                    </Text>
+                    <Text fontSize="md" px={4} pb={2} color="coolGray.800">
                       {dateRange.start || formatDateString(new Date())}
                     </Text>
-                  </HStack>
+                  </Box>
                 </Pressable>
 
+                {/* End Date Section */}
                 <Pressable
-                  borderWidth={1}
-                  borderColor="coolGray.300"
-                  p={3}
-                  rounded="md"
                   onPress={() => {
                     if (!dateRange.start) {
-                      // If start date is not set, set it first
                       setDateRange({
                         ...dateRange,
                         start: formatDateString(new Date()),
                       });
                     }
-
-                    setShowPicker(false);
-                    setTimeout(() => {
-                      // Set default date to today, existing end date, or day after start date
-                      const defaultDate = dateRange.end
-                        ? (() => {
-                            try {
-                              const [day, month, year] =
-                                dateRange.end.split(" ");
-                              const monthIndex = [
-                                "Jan",
-                                "Feb",
-                                "Mar",
-                                "Apr",
-                                "May",
-                                "Jun",
-                                "Jul",
-                                "Aug",
-                                "Sep",
-                                "Oct",
-                                "Nov",
-                                "Dec",
-                              ].indexOf(month);
-                              return new Date(
-                                parseInt(year),
-                                monthIndex,
-                                parseInt(day)
-                              );
-                            } catch (e) {
-                              return new Date();
-                            }
-                          })()
-                        : dateRange.start
-                        ? (() => {
-                            try {
-                              const [day, month, year] =
-                                dateRange.start.split(" ");
-                              const monthIndex = [
-                                "Jan",
-                                "Feb",
-                                "Mar",
-                                "Apr",
-                                "May",
-                                "Jun",
-                                "Jul",
-                                "Aug",
-                                "Sep",
-                                "Oct",
-                                "Nov",
-                                "Dec",
-                              ].indexOf(month);
-                              const startDate = new Date(
-                                parseInt(year),
-                                monthIndex,
-                                parseInt(day)
-                              );
-                              // Set to the same day as start date by default
-                              return startDate;
-                            } catch (e) {
-                              return new Date();
-                            }
-                          })()
-                        : new Date();
-
-                      setEndDate(defaultDate);
-                      setShowEndDatePicker(true);
-                    }, 300);
+                    setShowEndDatePicker(true);
                   }}
                 >
-                  <HStack justifyContent="space-between" alignItems="center">
-                    <Text color="coolGray.600">End Date:</Text>
-                    <Text>{dateRange.end || formatDateString(new Date())}</Text>
-                  </HStack>
+                  <Box borderWidth={1} borderColor="coolGray.200" rounded="md">
+                    <Text fontSize="sm" color="coolGray.600" px={4} pt={2}>
+                      End Date:
+                    </Text>
+                    <Text fontSize="md" px={4} pb={2} color="coolGray.800">
+                      {dateRange.end || formatDateString(new Date())}
+                    </Text>
+                  </Box>
                 </Pressable>
 
                 <Button
                   colorScheme="blue"
                   onPress={() => {
                     setShowPicker(false);
-
+                    
                     // If dates aren't set, use today's date
-                    const start =
-                      dateRange.start || formatDateString(new Date());
+                    const start = dateRange.start || formatDateString(new Date());
                     const end = dateRange.end || formatDateString(new Date());
-
+                    
                     setDateFilter("custom");
                     setDateRange({
                       start,
                       end,
                       label: "Custom Date",
                     });
-
+                    
                     // Show success toast
                     toast.show({
                       description: `Showing orders from ${start} to ${end}`,
                       status: "success",
                       duration: 3000,
                     });
-
+                    
                     fetchOrders(true);
                   }}
                 >
@@ -2104,16 +2003,22 @@ const OrdersScreen = () => {
         </Modal>
       )}
 
+      {/* DateTimePicker components - these will appear over the modal on Android */}
       {showDatePicker && (
         <DateTimePicker
           value={pickerDate}
           mode="date"
-          display="default"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={(event, date) => {
             setShowDatePicker(false);
             if (date) {
               setPickerDate(date);
-              handleDatePickerChange(event, date);
+              // Update the date range without closing modal
+              const formattedStartDate = formatDateString(date);
+              setDateRange({
+                ...dateRange,
+                start: formattedStartDate,
+              });
             }
           }}
           maximumDate={new Date()}
@@ -2124,12 +2029,30 @@ const OrdersScreen = () => {
         <DateTimePicker
           value={endDate}
           mode="date"
-          display="default"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={(event, date) => {
+            setShowEndDatePicker(false);
             if (date) {
-              handleEndDatePickerChange(event, date);
-            } else {
-              setShowEndDatePicker(false);
+              // Validate end date
+              const today = new Date();
+              today.setHours(23, 59, 59, 999);
+              
+              if (date > today) {
+                toast.show({
+                  description: "Cannot select future dates",
+                  status: "warning",
+                  duration: 3000,
+                });
+                return;
+              }
+              
+              // Only update if valid
+              setEndDate(date);
+              const formattedEndDate = formatDateString(date);
+              setDateRange({
+                ...dateRange,
+                end: formattedEndDate,
+              });
             }
           }}
           maximumDate={new Date()}
