@@ -1142,10 +1142,10 @@ export default function TableSectionsScreen() {
                                                 <Box
                                                   position="absolute"
                                                   top={-10}
-                                                  left="95%"
-                                                  style={{ transform: [{ translateX: -50 }] }}
+                                                  left="75%"
+                                                  style={{ transform: [{ translateX: -55 }] }}
                                                   bg="gray.500"
-                                                  px={0.5}
+                                                  px={2}
                                                   py={1}
                                                   rounded="10px"
                                                   zIndex={1}
@@ -1155,7 +1155,7 @@ export default function TableSectionsScreen() {
                                                     color="white"
                                                     fontWeight="medium"
                                                   >
-                                                    Reserveds
+                                                    Reserved
                                                   </Text>
                                                 </Box>
                                               )}
