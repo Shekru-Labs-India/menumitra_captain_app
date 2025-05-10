@@ -636,15 +636,15 @@ export default function TableSectionsScreen() {
     }
   };
 
-  // Update the getTablesByRow function
+  // Update the getTablesByRow function to fix spacing issues
   const getTablesByRow = (sectionTables, sectionName) => {
     if (!sectionTables || sectionTables.length === 0) return { 0: {} }; // For sections with no tables
 
     const filteredTables = getFilteredTables(sectionTables, sectionName);
     const grouped = {};
 
-    // Determine how many columns we have (should be 4)
-    const columnsPerRow = 4;
+    // Determine how many columns we have (changing from 4 to 3)
+    const columnsPerRow = 3;
 
     // Fill in the existing tables in a grid
     filteredTables.forEach((table, index) => {
@@ -825,7 +825,7 @@ export default function TableSectionsScreen() {
 
   // Update the renderGridView function's table rendering logic
   const renderGridView = (sections) => (
-    <VStack space={4} p={2} pb={16}>
+    <VStack space={4} p={2} pb={showEditIcons ? 16 : 8}>
       {sections.map((section) => {
         // Filter tables based on current criteria (search and status filter)
         const filteredTables = getFilteredTables(section.tables, section.name);
@@ -884,21 +884,6 @@ export default function TableSectionsScreen() {
                     
                     {showEditIcons && (
                       <HStack space={2} alignItems="center">
-                        {/* <Switch
-                          size="md"
-                          onToggle={() => {
-                            handleToggleStatus(section.id, section.is_active);
-                          }}
-                          isChecked={section.is_active}
-                          isDisabled={updatingStatus}
-                          colorScheme="primary"
-                          _light={{
-                            onTrackColor: "primary.500",
-                            onThumbColor: "white",
-                            offTrackColor: "coolGray.200",
-                            offThumbColor: "coolGray.400",
-                          }}
-                        /> */}
                         <IconButton
                           size="sm"
                           variant="ghost"
@@ -967,14 +952,14 @@ export default function TableSectionsScreen() {
                           <HStack
                             key={rowIndex}
                             px={0}
-                            py={3} // Increased vertical spacing between rows
+                            py={3} // Consistent vertical spacing for all rows
                             alignItems="center"
                             justifyContent="space-evenly" // More evenly spaced tables
                           >
-                            {Array.from({ length: 4 }).map(
+                            {Array.from({ length: 3 }).map(
                               (_, colIndex) => {
                                 // Calculate the absolute index for this position
-                                const absoluteIndex = parseInt(rowIndex) * 4 + colIndex;
+                                const absoluteIndex = parseInt(rowIndex) * 3 + colIndex;
                                 
                                 // Is this position immediately after the last table?
                                 const isAddTableSlot = 
@@ -987,7 +972,14 @@ export default function TableSectionsScreen() {
                                 // If this is a place for the add button
                                 if (isAddTableSlot) {
                                   return (
-                                    <Box key={`${rowIndex}-${colIndex}`}>
+                                    <Box 
+                                      key={`${rowIndex}-${colIndex}`}
+                                      width="31%" // Keep this or adjust as needed
+                                      minW="100px" // Slightly wider since there are fewer columns
+                                      height="100px"
+                                      mx="1%"
+                                      my="1.5%"
+                                    >
                                       <Pressable
                                         onPress={() => {
                                           setActiveSection(section);
@@ -997,11 +989,8 @@ export default function TableSectionsScreen() {
                                       >
                                         <Box
                                           rounded="lg"
-                                          width="31%" 
-                                          minW="90px"
-                                          height="100px"
-                                          mx="1%"
-                                          my="1.5%"
+                                          width="100%" 
+                                          height="100%"
                                           borderWidth={1}
                                           borderStyle="dashed"
                                           borderColor="#0dcaf0"
@@ -1032,8 +1021,8 @@ export default function TableSectionsScreen() {
                                   return (
                                     <Box 
                                       key={`${rowIndex}-${colIndex}`}
-                                      width="31%"
-                                      minW="90px" 
+                                      width="31%" // Keep this or adjust as needed
+                                      minW="100px" // Slightly wider since there are fewer columns
                                       height="100px"
                                       mx="1%"
                                       my="1.5%"
@@ -1042,7 +1031,14 @@ export default function TableSectionsScreen() {
                                 }
 
                                 return (
-                                  <Box key={`${rowIndex}-${colIndex}`}>
+                                  <Box 
+                                    key={`${rowIndex}-${colIndex}`}
+                                    width="31%" // Keep this or adjust as needed
+                                    minW="100px" // Slightly wider since there are fewer columns
+                                    height="100px"
+                                    mx="1%"
+                                    my="1.5%"
+                                  >
                                     {table ? (
                                       <Pressable
                                         onPress={() =>
@@ -1052,11 +1048,8 @@ export default function TableSectionsScreen() {
                                         <Box
                                           p={2}
                                           rounded="lg"
-                                          width="31%" 
-                                          minW="90px"
-                                          height="100px"
-                                          mx="1%"
-                                          my="1.5%"
+                                          width="100%" 
+                                          height="100%"
                                           bg={
                                             isOccupied
                                               ? table.action === "print_and_save"
@@ -1597,12 +1590,48 @@ export default function TableSectionsScreen() {
       console.log("Create Table Response:", data);
 
       if (data.st === 1) {
+        // Get the new table data from API response
+        const newTableData = data.data;
+        
+        // Make sure table_number is properly included
+        if (!newTableData.table_number && newTableData.id) {
+          // If API doesn't return table_number, log warning and fall back to full refresh
+          console.warn("API response missing table_number, falling back to full refresh");
+          await fetchSections(outletId);
+          return;
+        }
+        
+        // Update only the specific section with the new table
+        setSections(prevSections => 
+          prevSections.map(section => {
+            if (section.id === parseInt(sectionId)) {
+              // Create new table object with proper formatting
+              const newTable = {
+                table_id: newTableData.id || newTableData.table_id,
+                table_number: newTableData.table_number,
+                is_occupied: 0,
+                outlet_id: outletId,
+                timeSinceOccupied: "",
+                isInAlarmState: false,
+                is_reserved: false
+              };
+              
+              // Update section with new table
+              return {
+                ...section,
+                tables: [...section.tables, newTable],
+                totalTables: section.totalTables + 1,
+                engagedTables: section.engagedTables
+              };
+            }
+            return section;
+          })
+        );
+        
         toast.show({
           description: "Table created successfully",
           status: "success",
         });
-        await fetchSections(outletId);
-        // Remove the modal close since we're not showing it anymore
       } else {
         throw new Error(data.msg || "Failed to create table");
       }
