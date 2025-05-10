@@ -291,9 +291,8 @@ export default function SettingsScreen() {
       });
 
       if (response.st === 1) {
-        // After successful update, fetch latest settings to ensure consistency
-        // Pass false to avoid showing a toast message
-        await fetchLatestSettings(false);
+        // Instead of fetching all settings again, keep the current state
+        // No need to call fetchLatestSettings here
 
         toast.show({
           description: response.msg || "Settings updated successfully",
@@ -302,8 +301,31 @@ export default function SettingsScreen() {
           duration: 2000
         });
       } else {
-        // Revert state change if the API call failed and fetch latest settings
-        await fetchLatestSettings(false);
+        // Only revert this specific setting if the API call failed
+        const revertedSettings = { ...settings };
+        // Reverse the changes to just this setting
+        if (type === 'has_dine_in') {
+          revertedSettings.orderTypes.dine_in = !Boolean(value);
+        } else if (type === 'has_parcel') {
+          revertedSettings.orderTypes.parcel = !Boolean(value);
+        } else if (type === 'has_counter') {
+          revertedSettings.orderTypes.counter = !Boolean(value);
+        } else if (type === 'has_delivery') {
+          revertedSettings.orderTypes.delivery = !Boolean(value);
+        } else if (type === 'has_drive_through') {
+          revertedSettings.orderTypes.driveThrough = !Boolean(value);
+        } else if (type === 'POS_show_menu_image') {
+          revertedSettings.showMenuImages = !Boolean(value);
+        } else if (type === 'print_and_save' || type === 'KOT_and_save' || type === 'settle' || 
+                  type === 'reserve_table' || type === 'cancel') {
+          revertedSettings.orderManagement[type] = !Boolean(value);
+        } else if (type === 'theme') {
+          // Keep previous theme
+        } else if (type === 'style') {
+          // Keep previous style
+        }
+        
+        setSettings(revertedSettings);
         
         toast.show({
           description: response.msg || "Failed to update setting",
@@ -313,8 +335,31 @@ export default function SettingsScreen() {
         });
       }
     } catch (error) {
-      // Revert state change on error and fetch latest settings
-      await fetchLatestSettings(false);
+      // Revert just this specific setting on error
+      const revertedSettings = { ...settings };
+      // Same reversion logic as above
+      if (type === 'has_dine_in') {
+        revertedSettings.orderTypes.dine_in = !Boolean(value);
+      } else if (type === 'has_parcel') {
+        revertedSettings.orderTypes.parcel = !Boolean(value);
+      } else if (type === 'has_counter') {
+        revertedSettings.orderTypes.counter = !Boolean(value);
+      } else if (type === 'has_delivery') {
+        revertedSettings.orderTypes.delivery = !Boolean(value);
+      } else if (type === 'has_drive_through') {
+        revertedSettings.orderTypes.driveThrough = !Boolean(value);
+      } else if (type === 'POS_show_menu_image') {
+        revertedSettings.showMenuImages = !Boolean(value);
+      } else if (type === 'print_and_save' || type === 'KOT_and_save' || type === 'settle' || 
+                type === 'reserve_table' || type === 'cancel') {
+        revertedSettings.orderManagement[type] = !Boolean(value);
+      } else if (type === 'theme') {
+        // Keep previous theme
+      } else if (type === 'style') {
+        // Keep previous style
+      }
+      
+      setSettings(revertedSettings);
       
       toast.show({
         description: "Error updating setting",
@@ -435,9 +480,10 @@ export default function SettingsScreen() {
             </Text>
           </HStack>
           <HStack space={2} alignItems="center">
-            {loadingSettings[type] ? (
-              <Spinner size="sm" color="blue.500" />
-            ) : isDropdown ? (
+            {loadingSettings[type] && (
+              <Spinner size="sm" color="blue.500" mr={1} />
+            )}
+            {isDropdown ? (
               <Select
                 selectedValue={value}
                 minWidth="120"
@@ -510,14 +556,6 @@ export default function SettingsScreen() {
       </Pressable>
     );
   };
-
-  if (isLoading && !refreshing) {
-    return (
-      <Center flex={1} bg="coolGray.50">
-        <Spinner size="lg" color="blue.500" />
-      </Center>
-    );
-  }
 
   return (
     <Box flex={1} bg="coolGray.50" safeArea>
