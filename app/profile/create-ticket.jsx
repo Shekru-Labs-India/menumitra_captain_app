@@ -39,18 +39,28 @@ const CreateTicketScreen = () => {
 
     setIsSubmitting(true);
     try {
-      const [outletId, captainId] = await AsyncStorage.multiGet(['outlet_id', 'captain_id']);
+      const [outletId, captainId, deviceToken] = await AsyncStorage.multiGet([
+        'outlet_id', 
+        'captain_id',
+        'device_token'
+      ]);
       
-      const response = await fetchWithAuth(`${getBaseUrl()}/support/create-ticket`, {
+      const formData = new FormData();
+      formData.append('user_id', captainId[1]);
+      formData.append('outlet_id', outletId[1]);
+      formData.append('title', subject.trim());
+      formData.append('description', message.trim());
+      formData.append('status', 'open');
+      formData.append('priority', priority);
+      formData.append('app', 'captain');
+      formData.append('device_token', deviceToken[1] || '');
+
+      const response = await fetchWithAuth(`${getBaseUrl()}/create_ticket`, {
         method: 'POST',
-        body: JSON.stringify({
-          outlet_id: outletId[1],
-          user_id: captainId[1],
-          subject: subject,
-          message: message,
-          priority: priority,
-          app: 'captain',
-        })
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        body: formData
       });
 
       if (response.st === 1) {
