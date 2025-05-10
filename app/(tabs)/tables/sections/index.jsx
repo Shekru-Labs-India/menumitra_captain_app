@@ -1161,23 +1161,30 @@ export default function TableSectionsScreen() {
                                               {(showEditIcons || (isOccupied && table.order_id)) && (
                                                 <Box
                                                   position="absolute"
-                                                  right={-1} // Position at right side
-                                                  top={65} // Position at top
+                                                  right={1} // Moved inside the table box
+                                                  bottom={1} // Positioned at bottom right corner
                                                   zIndex={2}
                                                 >
                                                   {showEditIcons ? (
                                                     <Pressable
                                                       onPress={() => handleQRIconPress(table, section)}
-                                                      bg="white"
+                                                      bg="transparent" // Changed from "white" to "transparent"
                                                       rounded="full"
                                                       size={8}
-                                                      shadow={3}
+                                                      w={8}
+                                                      h={8}
+                                                      shadow={0} // Removed shadow
                                                       alignItems="center"
                                                       justifyContent="center"
+                                                      style={{ // Add direct style to ensure no shadow
+                                                        shadowOpacity: 0,
+                                                        elevation: 0,
+                                                        backgroundColor: 'transparent'
+                                                      }}
                                                     >
                                                       <MaterialIcons
                                                         name="qr-code"
-                                                        size={20}
+                                                        size={22}
                                                         color="#0891b2"
                                                       />
                                                     </Pressable>
