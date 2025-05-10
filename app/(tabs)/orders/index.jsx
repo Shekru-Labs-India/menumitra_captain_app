@@ -1683,7 +1683,7 @@ const OrdersScreen = () => {
         </Pressable>
       </HStack>
 
-      <Box px={4} py={2} bg="gray.50">
+      <Box px={4} py={3}>
         <HStack alignItems="center" mb={2}>
           <Text fontSize="md" fontWeight="semibold" color="coolGray.800">
             {dateFilter === "custom" && dateRange.start && dateRange.end
@@ -1711,319 +1711,98 @@ const OrdersScreen = () => {
           )}
         </HStack>
 
-        <Box bg="gray.100" p={3} rounded="md">
-          <HStack alignItems="center" flexWrap="wrap">
-            <Text fontSize="sm" fontWeight="medium" color="coolGray.700" mr={2}>
-              Total:{" "}
-              {filteredOrders.reduce(
-                (total, dateGroup) => total + dateGroup.data.length,
-                0
-              )}
+        <Text fontSize="sm" fontWeight="medium" color="coolGray.700" mb={2}>
+          Total: {filteredOrders.reduce(
+            (total, dateGroup) => total + dateGroup.data.length,
+            0
+          )}
+        </Text>
+
+        {/* Status badges - Single row */}
+        <HStack space={2} mb={2} flexWrap="wrap">
+          <Badge bg="blue.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="blue.800">Placed: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.filter(
+                (order) => order.order_status?.toLowerCase() === "placed"
+              ).length, 0)}
             </Text>
+          </Badge>
+          
+          <Badge bg="orange.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="orange.800">Cooking: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.filter(
+                (order) => order.order_status?.toLowerCase() === "cooking"
+              ).length, 0)}
+            </Text>
+          </Badge>
+          
+          <Badge bg="green.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="green.800">Served: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.filter(
+                (order) => order.order_status?.toLowerCase() === "served"
+              ).length, 0)}
+            </Text>
+          </Badge>
+          
+          <Badge bg="purple.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="purple.800">Paid: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.filter(
+                (order) => order.order_status?.toLowerCase() === "paid"
+              ).length, 0)}
+            </Text>
+          </Badge>
+          
+          <Badge bg="red.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="red.800">Cancelled: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.filter(
+                (order) => order.order_status?.toLowerCase() === "cancelled"
+              ).length, 0)}
+            </Text>
+          </Badge>
+        </HStack>
 
-            <HStack space={2} alignItems="center" flexWrap="wrap">
-              <Badge
-                bg="purple.100"
-                _text={{ color: "purple.800" }}
-                rounded="sm"
-                px={1.5}
-                py={0.5}
-                mb={1}
-              >
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="pending-actions"
-                    size="xs"
-                    color="purple.500"
-                  />
-                  <Text fontSize="xs" color="purple.500" fontWeight="medium">
-                    Placed:{" "}
-                    {filteredOrders.reduce(
-                      (total, dateGroup) =>
-                        total +
-                        dateGroup.data.filter(
-                          (order) =>
-                            order.order_status?.toLowerCase() === "placed"
-                        ).length,
-                      0
-                    )}
-                  </Text>
-                </HStack>
-              </Badge>
-              
-              <Badge
-                bg="amber.100"
-                _text={{ color: "amber.800" }}
-                rounded="sm"
-                px={1.5}
-                py={0.5}
-                mb={1}
-              >
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="local-fire-department"
-                    size="xs"
-                    color="orange.500"
-                  />
-                  <Text fontSize="xs" color="orange.500" fontWeight="medium">
-                    Cooking:{" "}
-                    {filteredOrders.reduce(
-                      (total, dateGroup) =>
-                        total +
-                        dateGroup.data.filter(
-                          (order) =>
-                            order.order_status?.toLowerCase() === "cooking"
-                        ).length,
-                      0
-                    )}
-                  </Text>
-                </HStack>
-              </Badge>
-
-              <Badge
-                bg="teal.100"
-                _text={{ color: "teal.800" }}
-                rounded="sm"
-                px={1.5}
-                py={0.5}
-                mb={1}
-              >
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="restaurant"
-                    size="xs"
-                    color="teal.500"
-                  />
-                  <Text fontSize="xs" color="teal.500" fontWeight="medium">
-                    Served:{" "}
-                    {filteredOrders.reduce(
-                      (total, dateGroup) =>
-                        total +
-                        dateGroup.data.filter(
-                          (order) =>
-                            order.order_status?.toLowerCase() === "served"
-                        ).length,
-                      0
-                    )}
-                  </Text>
-                </HStack>
-              </Badge>
-
-              <Badge
-                bg="blue.100"
-                _text={{ color: "blue.800" }}
-                rounded="sm"
-                px={1.5}
-                py={0.5}
-                mb={1}
-              >
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="check-circle"
-                    size="xs"
-                    color="blue.500"
-                  />
-                  <Text fontSize="xs" color="blue.500" fontWeight="medium">
-                    Paid:{" "}
-                    {filteredOrders.reduce(
-                      (total, dateGroup) =>
-                        total +
-                        dateGroup.data.filter(
-                          (order) =>
-                            order.order_status?.toLowerCase() === "paid"
-                        ).length,
-                      0
-                    )}
-                  </Text>
-                </HStack>
-              </Badge>
-
-              <Badge
-                bg="red.100"
-                _text={{ color: "red.800" }}
-                rounded="sm"
-                px={1.5}
-                py={0.5}
-                mb={1}
-              >
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="cancel"
-                    size="xs"
-                    color="red.500"
-                  />
-                  <Text fontSize="xs" color="red.500" fontWeight="medium">
-                    Cancelled:{" "}
-                    {filteredOrders.reduce(
-                      (total, dateGroup) =>
-                        total +
-                        dateGroup.data.filter(
-                          (order) =>
-                            order.order_status?.toLowerCase() === "cancelled"
-                        ).length,
-                      0
-                    )}
-                  </Text>
-                </HStack>
-              </Badge>
-
-              <Badge
-                bg="purple.100"
-                _text={{ color: "purple.800" }}
-                rounded="sm"
-                px={1.5}
-                py={0.5}
-                mb={1}
-              >
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="restaurant"
-                    size="xs"
-                    color="purple.500"
-                  />
-                  <Text fontSize="xs" color="purple.500" fontWeight="medium">
-                    Dine-in:{" "}
-                    {filteredOrders.reduce(
-                      (total, dateGroup) =>
-                        total +
-                        dateGroup.data.filter(
-                          (order) =>
-                            order.order_type?.toLowerCase() === "dine-in"
-                        ).length,
-                      0
-                    )}
-                  </Text>
-                </HStack>
-              </Badge>
-
-              <Badge
-                bg="emerald.100"
-                _text={{ color: "emerald.800" }}
-                rounded="sm"
-                px={1.5}
-                py={0.5}
-                mb={1}
-              >
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="takeout-dining"
-                    size="xs"
-                    color="emerald.500"
-                  />
-                  <Text fontSize="xs" color="emerald.500" fontWeight="medium">
-                    Parcel:{" "}
-                    {filteredOrders.reduce(
-                      (total, dateGroup) =>
-                        total +
-                        dateGroup.data.filter(
-                          (order) =>
-                            order.order_type?.toLowerCase() === "parcel"
-                        ).length,
-                      0
-                    )}
-                  </Text>
-                </HStack>
-              </Badge>
-
-              <Badge
-                bg="indigo.100"
-                _text={{ color: "indigo.800" }}
-                rounded="sm"
-                px={1.5}
-                py={0.5}
-                mb={1}
-              >
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="delivery-dining"
-                    size="xs"
-                    color="indigo.500"
-                  />
-                  <Text fontSize="xs" color="indigo.500" fontWeight="medium">
-                    Delivery:{" "}
-                    {filteredOrders.reduce(
-                      (total, dateGroup) =>
-                        total +
-                        dateGroup.data.filter(
-                          (order) =>
-                            order.order_type?.toLowerCase() === "delivery"
-                        ).length,
-                      0
-                    )}
-                  </Text>
-                </HStack>
-              </Badge>
-
-              <Badge
-                bg="amber.100"
-                _text={{ color: "amber.800" }}
-                rounded="sm"
-                px={1.5}
-                py={0.5}
-                mb={1}
-              >
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="drive-eta"
-                    size="xs"
-                    color="amber.500"
-                  />
-                  <Text fontSize="xs" color="amber.500" fontWeight="medium">
-                    Drive:{" "}
-                    {filteredOrders.reduce(
-                      (total, dateGroup) =>
-                        total +
-                        dateGroup.data.filter(
-                          (order) =>
-                            order.order_type?.toLowerCase() === "drive-through"
-                        ).length,
-                      0
-                    )}
-                  </Text>
-                </HStack>
-              </Badge>
-
-              <Badge
-                bg="pink.100"
-                _text={{ color: "pink.800" }}
-                rounded="sm"
-                px={1.5}
-                py={0.5}
-                mb={1}
-              >
-                <HStack space={1} alignItems="center">
-                  <Icon
-                    as={MaterialIcons}
-                    name="point-of-sale"
-                    size="xs"
-                    color="pink.500"
-                  />
-                  <Text fontSize="xs" color="pink.500" fontWeight="medium">
-                    Counter:{" "}
-                    {filteredOrders.reduce(
-                      (total, dateGroup) =>
-                        total +
-                        dateGroup.data.filter(
-                          (order) =>
-                            order.order_type?.toLowerCase() === "counter"
-                        ).length,
-                      0
-                    )}
-                  </Text>
-                </HStack>
-              </Badge>
-            </HStack>
-          </HStack>
-        </Box>
+        {/* Order type badges */}
+        <HStack space={2} flexWrap="wrap">
+          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="coolGray.800">Dine-in: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.filter(
+                (order) => order.order_type?.toLowerCase() === "dine-in"
+              ).length, 0)}
+            </Text>
+          </Badge>
+          
+          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="coolGray.800">Parcel: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.filter(
+                (order) => order.order_type?.toLowerCase() === "parcel"
+              ).length, 0)}
+            </Text>
+          </Badge>
+          
+          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="coolGray.800">Drive: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.filter(
+                (order) => order.order_type?.toLowerCase() === "drive-through"
+              ).length, 0)}
+            </Text>
+          </Badge>
+          
+          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="coolGray.800">Counter: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.filter(
+                (order) => order.order_type?.toLowerCase() === "counter"
+              ).length, 0)}
+            </Text>
+          </Badge>
+          
+          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="coolGray.800">Delivery: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.filter(
+                (order) => order.order_type?.toLowerCase() === "delivery"
+              ).length, 0)}
+            </Text>
+          </Badge>
+        </HStack>
       </Box>
 
       {/* Date Picker */}
@@ -2373,7 +2152,7 @@ const OrdersScreen = () => {
         sections={filteredOrders}
         keyExtractor={(item) => item.order_id?.toString()}
         renderItem={renderOrderItem}
-        renderSectionHeader={renderSectionHeader}
+        // renderSectionHeader={renderSectionHeader}
         ListEmptyComponent={
           <EmptyStateAnimation
             orderStatus={orderStatus}
