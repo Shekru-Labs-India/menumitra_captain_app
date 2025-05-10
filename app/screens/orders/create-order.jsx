@@ -3535,8 +3535,7 @@ const handleSettleOrder = async () => {
     if (selectedItems.length === 0) {
       toast.show({
         description: "Please add items to the order",
-        status: "warning",
-        duration: 2000,
+        status: "warning"
       });
       return;
     }
@@ -3544,8 +3543,8 @@ const handleSettleOrder = async () => {
     // Set the current action to 'kot'
     setCurrentAction('kot');
     
-    // Set isPaidChecked to true by default for the modal
-    setIsPaidChecked(true);
+    // Set isPaidChecked to false by default for the modal
+    setIsPaidChecked(false);
     
     // Show the payment modal
     setShowPaymentModal(true);
@@ -4401,7 +4400,7 @@ const handleSettleOrder = async () => {
                         _pressed={{ bg: "#333" }}
                         borderRadius="md"
                         leftIcon={<Icon as={MaterialIcons} name="receipt" size="sm" color="white" />}
-                        onPress={handleKOT}
+                        onPress={onKOTPress}
                         py={0}
                       >
                         <Text color="white" fontSize="xs">KOT</Text>
@@ -4628,7 +4627,7 @@ const handleSettleOrder = async () => {
                   Table: {params?.tableNumber || "4"}
                 </Text>
                 <Text fontSize="lg" fontWeight="bold">
-                  Bill no: {params?.orderId || "141"}
+                  Bill no: {params?.orderId || ""}
                 </Text>
                 <Text fontSize="lg" fontWeight="bold" color="green.500">
                   ₹{calculateGrandTotal(
