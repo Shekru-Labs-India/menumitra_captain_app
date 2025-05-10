@@ -1104,8 +1104,8 @@ export default function TableSectionsScreen() {
                                                 <Box
                                                   position="absolute"
                                                   top={-15} // Move higher up 
-                                                  left="2"
-                                                  right="0"
+                                                  left={3}
+                                                  right={15}
                                                   mx="auto" // Center horizontally
                                                   width="90%" // Adjust width to match screenshots
                                                   bg={
@@ -1118,7 +1118,7 @@ export default function TableSectionsScreen() {
                                                           : "#2196f3" // Regular occupied - Blue
                                                   }
                                                   py={1}
-                                                  px={2}
+                                                  px={1}
                                                   rounded="md"
                                                   shadow={1}
                                                   zIndex={1}
