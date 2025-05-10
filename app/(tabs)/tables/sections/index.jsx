@@ -667,6 +667,18 @@ export default function TableSectionsScreen() {
         }
       }
     });
+    
+    // Only add an extra row for the "Add Table" button when edit mode is active
+    // This ensures we don't have unnecessary empty space when not in edit mode
+    if (showEditIcons && filteredTables.length > 0 && filteredTables.length % columnsPerRow === 0) {
+      const extraRowIndex = Math.floor(filteredTables.length / columnsPerRow);
+      if (!grouped[extraRowIndex]) {
+        grouped[extraRowIndex] = {};
+      }
+      for (let i = 0; i < columnsPerRow; i++) {
+        grouped[extraRowIndex][i] = null;
+      }
+    }
 
     return grouped;
   };
