@@ -1051,215 +1051,231 @@ export default function TableSectionsScreen() {
                                           width="100%" 
                                           height="100%"
                                           bg={
-                                            isOccupied
-                                              ? table.action === "print_and_save"
-                                                ? "#fff3e0" // Print & Save - Light orange background
-                                                : table.action === "KOT_and_save"
-                                                  ? "#e2e2e2" // KOT & Save - Gray background
-                                                  : table.isInAlarmState
-                                                    ? "#ffcdd2" // Alarm - Red background
-                                                    : "#ffcdd2" // Occupied - Red background
-                                              : table.is_reserved 
-                                                ? "#e0e0e0" // Reserved - Gray background
-                                                : "#e8f5e9" // Available - Light green background
+                                            table.isLoading
+                                              ? "#f0f0f0" // Light gray for loading state
+                                              : isOccupied
+                                                ? table.action === "print_and_save"
+                                                  ? "#fff3e0" // Print & Save - Light orange background
+                                                  : table.action === "KOT_and_save"
+                                                    ? "#e2e2e2" // KOT & Save - Gray background
+                                                    : table.isInAlarmState
+                                                      ? "#ffcdd2" // Alarm - Red background
+                                                      : "#ffcdd2" // Occupied - Red background
+                                                : table.is_reserved 
+                                                  ? "#e0e0e0" // Reserved - Gray background
+                                                  : "#e8f5e9" // Available - Light green background
                                           }
                                           borderWidth={1}
                                           borderStyle="dashed"
                                           borderColor={
-                                            isOccupied
-                                              ? table.action === "print_and_save"
-                                                ? "#ff9800" // Print & Save - Orange border
-                                                : table.action === "KOT_and_save"
-                                                  ? "#000000" // KOT & Save - Black border
-                                                  : table.isInAlarmState
-                                                    ? "#dc3545" // Alarm - Red border
-                                                    : "#dc3545" // Occupied - Red border
-                                              : table.is_reserved 
-                                                ? "#757575" // Reserved - Gray border
-                                                : "#198754" // Available - Green border
+                                            table.isLoading
+                                              ? "#aaaaaa" // Gray border for loading
+                                              : isOccupied
+                                                ? table.action === "print_and_save"
+                                                  ? "#ff9800" // Print & Save - Orange border
+                                                  : table.action === "KOT_and_save"
+                                                    ? "#000000" // KOT & Save - Black border
+                                                    : table.isInAlarmState
+                                                      ? "#dc3545" // Alarm - Red border
+                                                      : "#dc3545" // Occupied - Red border
+                                                : table.is_reserved 
+                                                  ? "#757575" // Reserved - Gray border
+                                                  : "#198754" // Available - Green border
                                           }
                                           position="relative"
                                           justifyContent="center"
                                           alignItems="center"
                                         >
-                                          {/* Price banner for occupied tables */}
-                                          {isOccupied && (
-                                            <Box
-                                              position="absolute"
-                                              top={-15} // Move higher up 
-                                              left="2"
-                                              right="0"
-                                              mx="auto" // Center horizontally
-                                              width="90%" // Adjust width to match screenshots
-                                              bg={
-                                                table.action === "print_and_save"
-                                                  ? "#ff9800" // Print & Save - Orange
-                                                  : table.action === "KOT_and_save"
-                                                    ? "#000000" // KOT & Save - Black
-                                                    : table.isInAlarmState
-                                                      ? "#dc3545" // Alarm - Red
-                                                      : "#2196f3" // Regular occupied - Blue
-                                              }
-                                              py={1}
-                                              px={2}
-                                              rounded="md"
-                                              shadow={1}
-                                              zIndex={1}
-                                              alignItems="center"
-                                              alignSelf="center"
-                                            >
-                                              <Text
-                                                color="white"
-                                                fontSize="xs" // Smaller text
-                                                fontWeight="bold"
-                                                numberOfLines={1}
-                                                adjustsFontSizeToFit
-                                              >
-                                                ₹{(table.grand_total || 0).toFixed(2)}
+                                          {/* Show spinner for loading tables */}
+                                          {table.isLoading ? (
+                                            <VStack space={2} alignItems="center" justifyContent="center">
+                                              <Spinner size="sm" color="gray.500" />
+                                              <Text fontSize={16} fontWeight="medium" color="gray.500">
+                                                {table.table_number}
                                               </Text>
-                                            </Box>
-                                          )}
-
-                                          {/* Reserved label */}
-                                          {table.is_reserved && (
-                                            <Box
-                                              position="absolute"
-                                              top={-10}
-                                              left="95%"
-                                              style={{ transform: [{ translateX: -50 }] }}
-                                              bg="gray.500"
-                                              px={0.5}
-                                              py={1}
-                                              rounded="10px"
-                                              zIndex={1}
-                                            >
-                                              <Text
-                                                fontSize={12}
-                                                color="white"
-                                                fontWeight="medium"
-                                              >
-                                                Reserved
-                                              </Text>
-                                            </Box>
-                                          )}
-
-                                          {/* QR or Printer icon at bottom center (only one at a time) */}
-                                          {(showEditIcons || (isOccupied && table.order_id)) && (
-                                            <Box
-                                              position="absolute"
-                                              right={-1} // Position at right side
-                                              top={65} // Position at top
-                                              zIndex={2}
-                                            >
-                                              {showEditIcons ? (
-                                                <Pressable
-                                                  onPress={() => handleQRIconPress(table, section)}
-                                                  bg="white"
-                                                  rounded="full"
-                                                  size={8}
-                                                  shadow={3}
-                                                  alignItems="center"
-                                                  justifyContent="center"
-                                                >
-                                                  <MaterialIcons
-                                                    name="qr-code"
-                                                    size={20}
-                                                    color="#0891b2"
-                                                  />
-                                                </Pressable>
-                                              ) : (
-                                                <Pressable
-                                                  onPress={() => handlePaymentIconPress(table, section)}
+                                            </VStack>
+                                          ) : (
+                                            <>
+                                              {/* Price banner for occupied tables */}
+                                              {isOccupied && (
+                                                <Box
+                                                  position="absolute"
+                                                  top={-15} // Move higher up 
+                                                  left="2"
+                                                  right="0"
+                                                  mx="auto" // Center horizontally
+                                                  width="90%" // Adjust width to match screenshots
                                                   bg={
                                                     table.action === "print_and_save"
                                                       ? "#ff9800" // Print & Save - Orange
                                                       : table.action === "KOT_and_save"
                                                         ? "#000000" // KOT & Save - Black
-                                                        : "#f97316" // Default orange
+                                                        : table.isInAlarmState
+                                                          ? "#dc3545" // Alarm - Red
+                                                          : "#2196f3" // Regular occupied - Blue
                                                   }
-                                                  w={8}
-                                                  h={8}
-                                                  rounded="full"
-                                                  shadow={2}
+                                                  py={1}
+                                                  px={2}
+                                                  rounded="md"
+                                                  shadow={1}
+                                                  zIndex={1}
                                                   alignItems="center"
-                                                  justifyContent="center"
+                                                  alignSelf="center"
                                                 >
-                                                  <MaterialIcons
-                                                    name="print"
-                                                    size={22}
+                                                  <Text
                                                     color="white"
-                                                  />
-                                                </Pressable>
+                                                    fontSize="xs" // Smaller text
+                                                    fontWeight="bold"
+                                                    numberOfLines={1}
+                                                    adjustsFontSizeToFit
+                                                  >
+                                                    ₹{(table.grand_total || 0).toFixed(2)}
+                                                  </Text>
+                                                </Box>
                                               )}
-                                            </Box>
-                                          )}
 
-                                          {/* Delete icon for last table */}
-                                          {showEditIcons && 
-                                            table.table_id === getLastTable(section.tables)?.table_id && 
-                                            table.is_occupied === 0 && (
-                                            <IconButton
-                                              position="absolute"
-                                              top={-6}
-                                              right={-6}
-                                              zIndex={2}
-                                              size="sm"
-                                              rounded="full"
-                                              bg="white"
-                                              shadow={2}
-                                              _pressed={{ bg: "gray.100" }}
-                                              _hover={{ bg: "gray.50" }}
-                                              icon={
-                                                <MaterialIcons
-                                                  name="delete"
-                                                  size={16}
-                                                  color="red"
+                                              {/* Reserved label */}
+                                              {table.is_reserved && (
+                                                <Box
+                                                  position="absolute"
+                                                  top={-10}
+                                                  left="95%"
+                                                  style={{ transform: [{ translateX: -50 }] }}
+                                                  bg="gray.500"
+                                                  px={0.5}
+                                                  py={1}
+                                                  rounded="10px"
+                                                  zIndex={1}
+                                                >
+                                                  <Text
+                                                    fontSize={12}
+                                                    color="white"
+                                                    fontWeight="medium"
+                                                  >
+                                                    Reserved
+                                                  </Text>
+                                                </Box>
+                                              )}
+
+                                              {/* QR or Printer icon at bottom center (only one at a time) */}
+                                              {(showEditIcons || (isOccupied && table.order_id)) && (
+                                                <Box
+                                                  position="absolute"
+                                                  right={-1} // Position at right side
+                                                  top={65} // Position at top
+                                                  zIndex={2}
+                                                >
+                                                  {showEditIcons ? (
+                                                    <Pressable
+                                                      onPress={() => handleQRIconPress(table, section)}
+                                                      bg="white"
+                                                      rounded="full"
+                                                      size={8}
+                                                      shadow={3}
+                                                      alignItems="center"
+                                                      justifyContent="center"
+                                                    >
+                                                      <MaterialIcons
+                                                        name="qr-code"
+                                                        size={20}
+                                                        color="#0891b2"
+                                                      />
+                                                    </Pressable>
+                                                  ) : (
+                                                    <Pressable
+                                                      onPress={() => handlePaymentIconPress(table, section)}
+                                                      bg={
+                                                        table.action === "print_and_save"
+                                                          ? "#ff9800" // Print & Save - Orange
+                                                          : table.action === "KOT_and_save"
+                                                            ? "#000000" // KOT & Save - Black
+                                                            : "#f97316" // Default orange
+                                                      }
+                                                      w={8}
+                                                      h={8}
+                                                      rounded="full"
+                                                      shadow={2}
+                                                      alignItems="center"
+                                                      justifyContent="center"
+                                                    >
+                                                      <MaterialIcons
+                                                        name="print"
+                                                        size={22}
+                                                        color="white"
+                                                      />
+                                                    </Pressable>
+                                                  )}
+                                                </Box>
+                                              )}
+
+                                              {/* Delete icon for last table */}
+                                              {showEditIcons && 
+                                                table.table_id === getLastTable(section.tables)?.table_id && 
+                                                table.is_occupied === 0 && (
+                                                <IconButton
+                                                  position="absolute"
+                                                  top={-6}
+                                                  right={-6}
+                                                  zIndex={2}
+                                                  size="sm"
+                                                  rounded="full"
+                                                  bg="white"
+                                                  shadow={2}
+                                                  _pressed={{ bg: "gray.100" }}
+                                                  _hover={{ bg: "gray.50" }}
+                                                  icon={
+                                                    <MaterialIcons
+                                                      name="delete"
+                                                      size={16}
+                                                      color="red"
+                                                    />
+                                                  }
+                                                  onPress={() => handleDeleteTable(section.id, table.table_id)}
                                                 />
-                                              }
-                                              onPress={() => handleDeleteTable(section.id, table.table_id)}
-                                            />
-                                          )}
+                                              )}
 
-                                          <VStack
-                                            space={2}
-                                            alignItems="center"
-                                            justifyContent="center"
-                                            height="100%"
-                                          >
-                                            <Text
-  fontSize={16}
-  fontWeight="bold"
-  textAlign="center"
-  color="black" // Always use black color for table numbers, regardless of status
->
-  {table.table_number}
-</Text>
-                                            {isOccupied && (
-                                              <Text
-                                                fontSize={14}
-                                                mt={-2}
-                                                color={
-                                                  table.timeSinceOccupied && 
-                                                  (table.timeSinceOccupied.includes("3h+") || 
-                                                   (table.timeSinceOccupied.includes("m") && 
-                                                    parseInt(table.timeSinceOccupied.split("m")[0]) > 45))
-                                                    ? "#dc3545" // Red for tables occupied > 45 min
-                                                    : "#555" // Regular gray otherwise
-                                                }
-                                                textAlign="center"
-                                                fontWeight={
-                                                  table.timeSinceOccupied && 
-                                                  (table.timeSinceOccupied.includes("3h+") || 
-                                                   (table.timeSinceOccupied.includes("m") && 
-                                                    parseInt(table.timeSinceOccupied.split("m")[0]) > 45))
-                                                    ? "bold" 
-                                                    : "normal"
-                                                }
+                                              <VStack
+                                                space={2}
+                                                alignItems="center"
+                                                justifyContent="center"
+                                                height="100%"
                                               >
-                                                {table.timeSinceOccupied || "3h+"}
-                                              </Text>
-                                            )}
-                                          </VStack>
+                                                <Text
+                                                  fontSize={16}
+                                                  fontWeight="bold"
+                                                  textAlign="center"
+                                                  color="black"
+                                                >
+                                                  {table.table_number}
+                                                </Text>
+                                                {isOccupied && (
+                                                  <Text
+                                                    fontSize={14}
+                                                    mt={-2}
+                                                    color={
+                                                      table.timeSinceOccupied && 
+                                                      (table.timeSinceOccupied.includes("3h+") || 
+                                                       (table.timeSinceOccupied.includes("m") && 
+                                                        parseInt(table.timeSinceOccupied.split("m")[0]) > 45))
+                                                        ? "#dc3545" // Red for tables occupied > 45 min
+                                                        : "#555" // Regular gray otherwise
+                                                    }
+                                                    textAlign="center"
+                                                    fontWeight={
+                                                      table.timeSinceOccupied && 
+                                                      (table.timeSinceOccupied.includes("3h+") || 
+                                                       (table.timeSinceOccupied.includes("m") && 
+                                                        parseInt(table.timeSinceOccupied.split("m")[0]) > 45))
+                                                        ? "bold" 
+                                                        : "normal"
+                                                    }
+                                                  >
+                                                    {table.timeSinceOccupied || "3h+"}
+                                                  </Text>
+                                                )}
+                                              </VStack>
+                                            </>
+                                          )}
                                         </Box>
                                       </Pressable>
                                     ) : isAddTableSlot ? (
@@ -1562,21 +1578,68 @@ export default function TableSectionsScreen() {
   };
 
   const handleCreateTable = async () => {
+    // Get section ID
+    const sectionId = selectedSection || (activeSection?.id);
+    
+    if (!sectionId) {
+      toast.show({
+        description: "No section selected. Please select a section first.",
+        status: "error",
+      });
+      return;
+    }
+
+    // Optimistically add a temporary table with loading state
+    const tempId = `temp-${Date.now()}`;
+    let lastTableNumber = 0;
+    
+    // Find the section and get the last table number
+    setSections(prevSections => {
+      const updatedSections = prevSections.map(section => {
+        if (section.id === parseInt(sectionId)) {
+          // Find the highest table number in this section
+          const tables = section.tables || [];
+          if (tables.length > 0) {
+            tables.forEach(table => {
+              const tableNum = parseInt(table.table_number);
+              if (!isNaN(tableNum) && tableNum > lastTableNumber) {
+                lastTableNumber = tableNum;
+              }
+            });
+          }
+          
+          // Create a temporary table with next number
+          const tempTable = {
+            table_id: tempId,
+            table_number: (lastTableNumber + 1).toString(),
+            is_occupied: 0,
+            outlet_id: outletId,
+            timeSinceOccupied: "",
+            isInAlarmState: false,
+            is_reserved: false,
+            isLoading: true // Add loading state
+          };
+          
+          return {
+            ...section,
+            tables: [...section.tables, tempTable],
+            totalTables: section.totalTables + 1
+          };
+        }
+        return section;
+      });
+      
+      return updatedSections;
+    });
+    
+    // Now make the actual API call (without setting global loading state)
     try {
-      setLoading(true);
       const storedUserId = await AsyncStorage.getItem("user_id");
       
       if (!storedUserId) {
         throw new Error("User ID not found. Please login again.");
       }
       
-      // Check if we have a valid section ID - use activeSection as fallback
-      const sectionId = selectedSection || (activeSection?.id);
-      
-      if (!sectionId) {
-        throw new Error("No section selected. Please select a section first.");
-      }
-
       const data = await fetchWithAuth(`${getBaseUrl()}/table_create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1590,63 +1653,75 @@ export default function TableSectionsScreen() {
       console.log("Create Table Response:", data);
 
       if (data.st === 1) {
-        // If the API response was successful but didn't return table data,
-        // fall back to full refresh to get the latest data
-        if (!data.data || typeof data.data !== 'object') {
-          console.warn("API response missing table data, falling back to full refresh");
-          await fetchSections(outletId);
-          toast.show({
-            description: "Table created successfully",
-            status: "success",
-          });
-          return;
-        }
-
-        // Get the new table data from API response
-        const newTableData = data.data;
-        
-        // Create new table object with proper formatting
-        const newTable = {
-          table_id: newTableData.id || newTableData.table_id || Date.now(), // Fallback ID if missing
-          table_number: newTableData.table_number || newTableData.number || "New",
-          is_occupied: 0,
-          outlet_id: outletId,
-          timeSinceOccupied: "",
-          isInAlarmState: false,
-          is_reserved: false
-        };
-        
-        // Update only the specific section with the new table
-        setSections(prevSections => 
-          prevSections.map(section => {
+        // Success - replace temp table with actual table data
+        setSections(prevSections => {
+          return prevSections.map(section => {
             if (section.id === parseInt(sectionId)) {
-              // Update section with new table
+              // Get tables without the temp
+              const tablesWithoutTemp = section.tables.filter(t => t.table_id !== tempId);
+              
+              // Create real table object with data from API or fallback to our temp data
+              const newTable = {
+                table_id: data.data?.id || data.data?.table_id || Date.now(),
+                table_number: data.data?.table_number || (lastTableNumber + 1).toString(),
+                is_occupied: 0,
+                outlet_id: outletId,
+                timeSinceOccupied: "",
+                isInAlarmState: false,
+                is_reserved: false
+              };
+              
               return {
                 ...section,
-                tables: [...section.tables, newTable],
-                totalTables: section.totalTables + 1,
-                engagedTables: section.engagedTables
+                tables: [...tablesWithoutTemp, newTable]
               };
             }
             return section;
-          })
-        );
+          });
+        });
         
         toast.show({
           description: "Table created successfully",
           status: "success",
         });
       } else {
+        // API returned error - remove the temp table
+        setSections(prevSections => {
+          return prevSections.map(section => {
+            if (section.id === parseInt(sectionId)) {
+              return {
+                ...section,
+                tables: section.tables.filter(t => t.table_id !== tempId),
+                totalTables: section.totalTables - 1
+              };
+            }
+            return section;
+          });
+        });
+        
         throw new Error(data.msg || "Failed to create table");
       }
     } catch (error) {
       console.error("Create Table Error:", error);
+      
+      // Remove the temporary table on error
+      setSections(prevSections => {
+        return prevSections.map(section => {
+          if (section.id === parseInt(sectionId)) {
+            return {
+              ...section,
+              tables: section.tables.filter(t => t.table_id !== tempId),
+              totalTables: section.totalTables - 1
+            };
+          }
+          return section;
+        });
+      });
+      
       toast.show({
         description: error.message || "Failed to create table",
         status: "error",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
