@@ -992,7 +992,7 @@ export default function TableSectionsScreen() {
                                         onPress={() => {
                                           setActiveSection(section);
                                           setSelectedSection(section.id);
-                                          setShowCreateTableModal(true);
+                                          handleCreateTable(); // Call handleCreateTable directly
                                         }}
                                       >
                                         <Box
@@ -1273,7 +1273,7 @@ export default function TableSectionsScreen() {
                                       <Pressable
                                         onPress={() => {
                                           setSelectedSection(section.id);
-                                          setShowCreateTableModal(true);
+                                          handleCreateTable(); // Call handleCreateTable directly
                                         }}
                                       >
                                         <Box
@@ -1602,7 +1602,7 @@ export default function TableSectionsScreen() {
           status: "success",
         });
         await fetchSections(outletId);
-        setShowCreateTableModal(false);
+        // Remove the modal close since we're not showing it anymore
       } else {
         throw new Error(data.msg || "Failed to create table");
       }
@@ -1617,33 +1617,9 @@ export default function TableSectionsScreen() {
     }
   };
 
-  const CreateTableModal = () => (
-    <Modal
-      isOpen={showCreateTableModal}
-      onClose={() => setShowCreateTableModal(false)}
-    >
-      <Modal.Content maxWidth="400px">
-        <Modal.Header>Create New Table</Modal.Header>
-        <Modal.CloseButton />
-        <Modal.Body>
-          <Text>Are you sure you want to create a new table?</Text>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button.Group space={2}>
-            <Button
-              variant="ghost"
-              onPress={() => setShowCreateTableModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button onPress={handleCreateTable} isLoading={loading}>
-              Create
-            </Button>
-          </Button.Group>
-        </Modal.Footer>
-      </Modal.Content>
-    </Modal>
-  );
+  // You can remove or comment out the CreateTableModal component
+  // since it's not being used anymore
+  // const CreateTableModal = () => (...)
 
   // Add this handler function at component level
   const handleSectionNameChange = (text) => {
@@ -2985,9 +2961,6 @@ export default function TableSectionsScreen() {
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal />
-
-      {/* Create Table Modal */}
-      <CreateTableModal />
 
       {/* Add QR Code Modal */}
       <QRCodeModal />
