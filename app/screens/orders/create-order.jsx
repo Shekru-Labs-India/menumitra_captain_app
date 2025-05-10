@@ -4626,9 +4626,12 @@ const handleSettleOrder = async () => {
                 <Text fontSize="lg" fontWeight="bold">
                   Table: {params?.tableNumber || "4"}
                 </Text>
-                <Text fontSize="lg" fontWeight="bold">
-                  Bill no: {params?.orderId || ""}
-                </Text>
+                {/* Only show bill number if orderNumber exists */}
+                {params?.orderNumber ? (
+                  <Text fontSize="lg" fontWeight="bold">
+                    Bill no: #{params?.orderNumber}
+                  </Text>
+                ) : null}
                 <Text fontSize="lg" fontWeight="bold" color="green.500">
                   ₹{calculateGrandTotal(
                     selectedItems,
