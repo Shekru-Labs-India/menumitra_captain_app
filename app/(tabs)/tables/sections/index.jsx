@@ -1590,32 +1590,36 @@ export default function TableSectionsScreen() {
       console.log("Create Table Response:", data);
 
       if (data.st === 1) {
+        // If the API response was successful but didn't return table data,
+        // fall back to full refresh to get the latest data
+        if (!data.data || typeof data.data !== 'object') {
+          console.warn("API response missing table data, falling back to full refresh");
+          await fetchSections(outletId);
+          toast.show({
+            description: "Table created successfully",
+            status: "success",
+          });
+          return;
+        }
+
         // Get the new table data from API response
         const newTableData = data.data;
         
-        // Make sure table_number is properly included
-        if (!newTableData.table_number && newTableData.id) {
-          // If API doesn't return table_number, log warning and fall back to full refresh
-          console.warn("API response missing table_number, falling back to full refresh");
-          await fetchSections(outletId);
-          return;
-        }
+        // Create new table object with proper formatting
+        const newTable = {
+          table_id: newTableData.id || newTableData.table_id || Date.now(), // Fallback ID if missing
+          table_number: newTableData.table_number || newTableData.number || "New",
+          is_occupied: 0,
+          outlet_id: outletId,
+          timeSinceOccupied: "",
+          isInAlarmState: false,
+          is_reserved: false
+        };
         
         // Update only the specific section with the new table
         setSections(prevSections => 
           prevSections.map(section => {
             if (section.id === parseInt(sectionId)) {
-              // Create new table object with proper formatting
-              const newTable = {
-                table_id: newTableData.id || newTableData.table_id,
-                table_number: newTableData.table_number,
-                is_occupied: 0,
-                outlet_id: outletId,
-                timeSinceOccupied: "",
-                isInAlarmState: false,
-                is_reserved: false
-              };
-              
               // Update section with new table
               return {
                 ...section,
