@@ -1157,26 +1157,29 @@ export default function TableSectionsScreen() {
                                                 </Box>
                                               )}
 
-                                              {/* QR or Printer icon at bottom center (only one at a time) */}
+                                              {/* QR or Printer icon centered in the table box */}
                                               {(showEditIcons || (isOccupied && table.order_id)) && (
                                                 <Box
                                                   position="absolute"
-                                                  right={1} // Moved inside the table box
-                                                  bottom={1} // Positioned at bottom right corner
+                                                  style={{
+                                                    left: '50%',
+                                                    bottom: '50%',
+                                                    transform: [{ translateX: -10 }, { translateY: 56 }] // Half of the width/height (8px) for proper centering
+                                                  }}
                                                   zIndex={2}
                                                 >
                                                   {showEditIcons ? (
                                                     <Pressable
                                                       onPress={() => handleQRIconPress(table, section)}
-                                                      bg="transparent" // Changed from "white" to "transparent"
+                                                      bg="transparent"
                                                       rounded="full"
                                                       size={8}
                                                       w={8}
                                                       h={8}
-                                                      shadow={0} // Removed shadow
+                                                      shadow={0}
                                                       alignItems="center"
                                                       justifyContent="center"
-                                                      style={{ // Add direct style to ensure no shadow
+                                                      style={{
                                                         shadowOpacity: 0,
                                                         elevation: 0,
                                                         backgroundColor: 'transparent'
