@@ -1155,7 +1155,7 @@ export default function TableSectionsScreen() {
                                                     color="white"
                                                     fontWeight="medium"
                                                   >
-                                                    Reserved
+                                                    Reserveds
                                                   </Text>
                                                 </Box>
                                               )}
