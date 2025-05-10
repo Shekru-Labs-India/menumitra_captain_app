@@ -1060,10 +1060,12 @@ export default function TableSectionsScreen() {
                                                 ? table.action === "print_and_save"
                                                   ? "#fff3e0" // Print & Save - Light orange background
                                                   : table.action === "KOT_and_save"
-                                                    ? "#e2e2e2" // KOT & Save - Gray background
-                                                    : table.isInAlarmState
-                                                      ? "#ffcdd2" // Alarm - Red background
-                                                      : "#ffcdd2" // Occupied - Red background
+                                                    ? "#e2e2e2" // KOT & Save - Grey background
+                                                    : table.action === "create_order"
+                                                      ? "#ffcdd2" // Create order - Light red background
+                                                      : table.action === "placed"
+                                                        ? "#ffcdd2" // Placed - Light red background  
+                                                        : "#ffcdd2" // Standard occupied - Light red background
                                                 : table.is_reserved 
                                                   ? "#e0e0e0" // Reserved - Gray background
                                                   : "#e8f5e9" // Available - Light green background
@@ -1078,9 +1080,11 @@ export default function TableSectionsScreen() {
                                                   ? "#ff9800" // Print & Save - Orange border
                                                   : table.action === "KOT_and_save"
                                                     ? "#000000" // KOT & Save - Black border
-                                                    : table.isInAlarmState
-                                                      ? "#dc3545" // Alarm - Red border
-                                                      : "#dc3545" // Occupied - Red border
+                                                    : table.action === "create_order"
+                                                      ? "#dc3545" // Create order - Red
+                                                      : table.action === "placed"
+                                                        ? "#dc3545" // Placed - Red
+                                                        : "#2196f3" // Regular occupied - Blue
                                                 : table.is_reserved 
                                                   ? "#757575" // Reserved - Gray border
                                                   : "#198754" // Available - Green border
@@ -1113,9 +1117,11 @@ export default function TableSectionsScreen() {
                                                       ? "#ff9800" // Print & Save - Orange
                                                       : table.action === "KOT_and_save"
                                                         ? "#000000" // KOT & Save - Black
-                                                        : table.isInAlarmState
-                                                          ? "#dc3545" // Alarm - Red
-                                                          : "#2196f3" // Regular occupied - Blue
+                                                        : table.action === "create_order"
+                                                          ? "#dc3545" // Create order - Red
+                                                          : table.action === "placed"
+                                                            ? "#dc3545" // Placed - Red
+                                                            : "#2196f3" // Regular occupied - Blue
                                                   }
                                                   py={1}
                                                   px={1}
@@ -1202,7 +1208,9 @@ export default function TableSectionsScreen() {
                                                           ? "#ff9800" // Print & Save - Orange
                                                           : table.action === "KOT_and_save"
                                                             ? "#000000" // KOT & Save - Black
-                                                            : "#f97316" // Default orange
+                                                            : table.action === "create_order"
+                                                              ? "#dc3545" // Create order - Red
+                                                              : "#f97316" // Default orange
                                                       }
                                                       w={8}
                                                       h={8}
