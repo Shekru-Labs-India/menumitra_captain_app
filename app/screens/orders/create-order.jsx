@@ -2507,40 +2507,42 @@ const handleSettleOrder = async () => {
 
       // Add totals and footer
       commands.push(
-        ...textToBytes("------------------------------\n"),
-        ...textToBytes(formatAmountLine("Subtotal", subtotal))
+        ...textToBytes("------------------------------\n")
       );
-      
+
       // Only add discount line if discount amount is not zero
       if (itemDiscountAmount > 0) {
         commands.push(...textToBytes(formatAmountLine(`Discount(${discountPercent}%)`, itemDiscountAmount, "-")));
       }
-      
-      // Only add special discount if amount is greater than zero
+
+      // Only add special discount if amount is greater than zero - MOVED UP
       if (specialDiscountAmount > 0) {
         commands.push(...textToBytes(formatAmountLine("Special Discount", specialDiscountAmount, "-")));
       }
-      
-      // Only add extra charges if amount is greater than zero
+
+      // Only add extra charges if amount is greater than zero - MOVED UP
       if (extraChargesAmount > 0) {
         commands.push(...textToBytes(formatAmountLine("Extra Charges", extraChargesAmount, "+")));
       }
-      
+
+      // Subtotal MOVED AFTER special discount and extra charges
+      commands.push(...textToBytes(formatAmountLine("Subtotal", subtotal)));
+
       // Only add service charge if percentage or amount is greater than zero
       if (serviceChargePercentage > 0 && serviceAmount > 0) {
         commands.push(...textToBytes(formatAmountLine(`Service(${serviceChargePercentage}%)`, serviceAmount, "+")));
       }
-      
+
       // Only add GST if percentage or amount is greater than zero
       if (gstPercentage > 0 && gstAmount > 0) {
         commands.push(...textToBytes(formatAmountLine(`GST(${gstPercentage}%)`, gstAmount, "+")));
       }
-      
-      // Only add tip if amount is greater than zero
+
+      // Only add tip if amount is greater than zero - MOVED TO END
       if (tipAmount > 0) {
         commands.push(...textToBytes(formatAmountLine("Tip", tipAmount, "+")));
       }
-      
+
       commands.push(
         ...textToBytes("------------------------------\n"),
         ...textToBytes(formatAmountLine("Total", total)),
