@@ -3143,7 +3143,7 @@ export default function OrderDetailsScreen() {
               fontWeight="medium" 
               color="coolGray.800"
             >
-              Table {orderDetails?.table_number?.[0] || ''} | Order No: {orderDetails?.order_number} | ₹{orderDetails?.grand_total?.toFixed(2) || orderDetails?.total_bill_amount?.toFixed(2)}
+              Table {orderDetails?.table_number?.[0] || ''} | Order No: {orderDetails?.order_number} | ₹{orderDetails?.final_grand_total?.toFixed(2) || orderDetails?.total_bill_amount?.toFixed(2)}
             </Text>
           </Box>
 
