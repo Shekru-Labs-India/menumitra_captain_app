@@ -447,74 +447,77 @@ const formatDateString = (inputDate) => {
 // Add these helper functions at the top level
 const getDateRange = (filter) => {
   const today = new Date();
-  const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-
+  const todayStr = formatDateString(today);
+  
   switch (filter) {
     case "today":
       return {
-        start: formatDateString(startOfDay),
-        end: formatDateString(new Date()),
-        label: "Today",
+        start: todayStr,
+        end: todayStr,
+        label: "Today"
       };
     case "yesterday": {
-      const yesterday = new Date(startOfDay);
+      const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = formatDateString(yesterday);
       return {
-        start: formatDateString(yesterday),
-        end: formatDateString(yesterday),
-        label: "Yesterday",
+        start: yesterdayStr,
+        end: yesterdayStr,
+        label: "Yesterday"
       };
     }
-    case "this_week": {
-      const firstDay = new Date(startOfDay);
-      firstDay.setDate(firstDay.getDate() - firstDay.getDay());
+    case "thisWeek": {
+      // Get start of current week (Sunday)
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
       return {
-        start: formatDateString(firstDay),
-        end: formatDateString(new Date()),
-        label: "This Week",
+        start: formatDateString(startOfWeek),
+        end: todayStr,
+        label: "This Week"
       };
     }
-    case "last_week": {
-      const lastWeekStart = new Date(startOfDay);
-      lastWeekStart.setDate(
-        lastWeekStart.getDate() - lastWeekStart.getDay() - 7
-      );
-      const lastWeekEnd = new Date(lastWeekStart);
-      lastWeekEnd.setDate(lastWeekEnd.getDate() + 6);
+    case "lastWeek": {
+      // Last week: from last Sunday to last Saturday
+      const endOfLastWeek = new Date(today);
+      endOfLastWeek.setDate(today.getDate() - today.getDay() - 1);
+      const startOfLastWeek = new Date(endOfLastWeek);
+      startOfLastWeek.setDate(endOfLastWeek.getDate() - 6);
       return {
-        start: formatDateString(lastWeekStart),
-        end: formatDateString(lastWeekEnd),
-        label: "Last Week",
+        start: formatDateString(startOfLastWeek),
+        end: formatDateString(endOfLastWeek),
+        label: "Last Week"
       };
     }
-    case "this_month": {
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    case "thisMonth": {
+      // This month: from 1st of current month to today
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       return {
-        start: formatDateString(firstDay),
-        end: formatDateString(new Date()),
-        label: "This Month",
+        start: formatDateString(startOfMonth),
+        end: todayStr,
+        label: "This Month"
       };
     }
-    case "last_month": {
-      const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+    case "lastMonth": {
+      // Last month: from 1st to last day of previous month
+      const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
       return {
-        start: formatDateString(firstDay),
-        end: formatDateString(lastDay),
-        label: "Last Month",
+        start: formatDateString(startOfLastMonth),
+        end: formatDateString(endOfLastMonth),
+        label: "Last Month"
       };
     }
     case "custom":
       return {
         start: "",
         end: "",
-        label: "Custom Date",
+        label: "Custom Date"
       };
     default:
       return {
-        start: formatDateString(new Date()),
-        end: formatDateString(new Date()),
-        label: "Today",
+        start: todayStr,
+        end: todayStr,
+        label: "Today"
       };
   }
 };
@@ -684,22 +687,15 @@ const OrdersScreen = () => {
   // Function to set date filter and update UI state
   const handleDateFilterChange = (filter) => {
     setDateFilter(filter);
-
-    // Set today button state
     setIsTodayActive(filter === "today");
-
+    
     if (filter === "custom") {
       setShowPicker(true);
     } else {
-      // Get the date range for this filter
+      // Get the date range for this filter using the updated logic
       const newRange = getDateRange(filter);
       setDateRange(newRange);
-
-      // For "today" filter, set the current date to today
-      // For other filters, set it to the end date of the range
       setDate(filter === "today" ? formatDateString(new Date()) : newRange.end);
-
-      // Fetch orders with the updated date - use silent refresh to prevent full screen loading
       fetchOrders(true);
     }
   };
@@ -732,77 +728,32 @@ const OrdersScreen = () => {
     if (!dateString || !startDateString || !endDateString) return false;
 
     try {
-      // Parse input dates from format "DD MMM YYYY"
-      const [day, month, year] = dateString.split(" ");
-      const monthIndex = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ].indexOf(month);
-
-      if (monthIndex === -1) return false;
-
-      const date = new Date(parseInt(year), monthIndex, parseInt(day));
-
-      // Parse start date
-      const [startDay, startMonth, startYear] = startDateString.split(" ");
-      const startMonthIndex = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ].indexOf(startMonth);
-      const startDateObj = new Date(
-        parseInt(startYear),
-        startMonthIndex,
-        parseInt(startDay)
-      );
-
-      // Parse end date
-      const [endDay, endMonth, endYear] = endDateString.split(" ");
-      const endMonthIndex = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ].indexOf(endMonth);
-      const endDateObj = new Date(
-        parseInt(endYear),
-        endMonthIndex,
-        parseInt(endDay)
-      );
-
-      // Set times to ensure full day comparison
-      startDateObj.setHours(0, 0, 0, 0);
-      endDateObj.setHours(23, 59, 59, 999);
-      date.setHours(12, 0, 0, 0);
-
-      return date >= startDateObj && date <= endDateObj;
+      // Parse input dates using consistent approach
+      const parseDate = (dateStr) => {
+        const [day, month, year] = dateStr.split(" ");
+        const monthIndex = [
+          "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        ].indexOf(month);
+        
+        if (monthIndex === -1) return null;
+        return new Date(parseInt(year), monthIndex, parseInt(day));
+      };
+      
+      const date = parseDate(dateString);
+      const startDate = parseDate(startDateString);
+      const endDate = parseDate(endDateString);
+      
+      if (!date || !startDate || !endDate) return false;
+      
+      // Set hours consistently to remove time component influence
+      // Use beginning of day for order date and start date
+      date.setHours(0, 0, 0, 0);
+      startDate.setHours(0, 0, 0, 0);
+      // Use end of day for end date
+      endDate.setHours(23, 59, 59, 999);
+      
+      return date >= startDate && date <= endDate;
     } catch (error) {
       console.error("Error checking date range:", error);
       return false;
@@ -1679,13 +1630,13 @@ const OrdersScreen = () => {
                 ? "Date Filter"
                 : dateFilter === "yesterday"
                 ? "Yesterday"
-                : dateFilter === "this_week"
+                : dateFilter === "thisWeek"
                 ? "This Week"
-                : dateFilter === "last_week"
+                : dateFilter === "lastWeek"
                 ? "Last Week"
-                : dateFilter === "this_month"
+                : dateFilter === "thisMonth"
                 ? "This Month"
-                : dateFilter === "last_month"
+                : dateFilter === "lastMonth"
                 ? "Last Month"
                 : dateFilter === "custom"
                 ? "Custom Date"
@@ -1959,7 +1910,7 @@ const OrdersScreen = () => {
 
                 <Pressable
                   onPress={() => {
-                    handleDateFilterChange("this_week");
+                    handleDateFilterChange("thisWeek");
                     setShowPicker(false);
                   }}
                   py={3}
@@ -1967,7 +1918,7 @@ const OrdersScreen = () => {
                 >
                   <HStack alignItems="center" justifyContent="space-between">
                     <Text>This Week</Text>
-                    {dateFilter === "this_week" && (
+                    {dateFilter === "thisWeek" && (
                       <Icon
                         as={MaterialIcons}
                         name="check"
@@ -1980,7 +1931,7 @@ const OrdersScreen = () => {
 
                 <Pressable
                   onPress={() => {
-                    handleDateFilterChange("last_week");
+                    handleDateFilterChange("lastWeek");
                     setShowPicker(false);
                   }}
                   py={3}
@@ -1988,7 +1939,7 @@ const OrdersScreen = () => {
                 >
                   <HStack alignItems="center" justifyContent="space-between">
                     <Text>Last Week</Text>
-                    {dateFilter === "last_week" && (
+                    {dateFilter === "lastWeek" && (
                       <Icon
                         as={MaterialIcons}
                         name="check"
@@ -2001,7 +1952,7 @@ const OrdersScreen = () => {
 
                 <Pressable
                   onPress={() => {
-                    handleDateFilterChange("this_month");
+                    handleDateFilterChange("thisMonth");
                     setShowPicker(false);
                   }}
                   py={3}
@@ -2009,7 +1960,7 @@ const OrdersScreen = () => {
                 >
                   <HStack alignItems="center" justifyContent="space-between">
                     <Text>This Month</Text>
-                    {dateFilter === "this_month" && (
+                    {dateFilter === "thisMonth" && (
                       <Icon
                         as={MaterialIcons}
                         name="check"
@@ -2022,7 +1973,7 @@ const OrdersScreen = () => {
 
                 <Pressable
                   onPress={() => {
-                    handleDateFilterChange("last_month");
+                    handleDateFilterChange("lastMonth");
                     setShowPicker(false);
                   }}
                   py={3}
@@ -2030,7 +1981,7 @@ const OrdersScreen = () => {
                 >
                   <HStack alignItems="center" justifyContent="space-between">
                     <Text>Last Month</Text>
-                    {dateFilter === "last_month" && (
+                    {dateFilter === "lastMonth" && (
                       <Icon
                         as={MaterialIcons}
                         name="check"
