@@ -13,12 +13,16 @@ import {
   useToast,
   Select,
   CheckIcon,
+  Image,
+  Pressable,
 } from 'native-base';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getBaseUrl } from '../../config/api.config';
 import { fetchWithAuth } from '../../utils/apiInterceptor';
+import * as ImagePicker from 'expo-image-picker';
+import { Alert, Platform } from 'react-native';
 
 const CreateTicketScreen = () => {
   const router = useRouter();
@@ -27,11 +31,38 @@ const CreateTicketScreen = () => {
   const [message, setMessage] = useState('');
   const [priority, setPriority] = useState('normal');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachment1, setAttachment1] = useState(null);
+  const [attachment2, setAttachment2] = useState(null);
+
+  const pickImage = async (attachmentNumber) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        if (attachmentNumber === 1) {
+          setAttachment1(result.assets[0]);
+        } else {
+          setAttachment2(result.assets[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      toast.show({
+        description: "Failed to pick image",
+        status: "error"
+      });
+    }
+  };
 
   const handleSubmitTicket = async () => {
     if (!subject.trim() || !message.trim()) {
       toast.show({
-        description: "Please fill in all fields",
+        description: "Please fill in all required fields",
         status: "warning"
       });
       return;
@@ -55,10 +86,43 @@ const CreateTicketScreen = () => {
       formData.append('app', 'captain');
       formData.append('device_token', deviceToken[1] || '');
 
+      if (attachment1) {
+        const fileExtension = attachment1.uri.split('.').pop();
+        const fileName = `attachment1.${fileExtension}`;
+        // Handle file path for iOS
+        const uri = Platform.OS === 'ios' ? attachment1.uri.replace('file://', '') : attachment1.uri;
+        formData.append('attachment_1', {
+          uri: uri,
+          type: `image/${fileExtension}`,
+          name: fileName,
+          // Additional required properties for proper file upload
+          size: attachment1.fileSize,
+          lastModified: new Date().getTime(),
+        });
+      }
+
+      if (attachment2) {
+        const fileExtension = attachment2.uri.split('.').pop();
+        const fileName = `attachment2.${fileExtension}`;
+        // Handle file path for iOS
+        const uri = Platform.OS === 'ios' ? attachment2.uri.replace('file://', '') : attachment2.uri;
+        formData.append('attachment_2', {
+          uri: uri,
+          type: `image/${fileExtension}`,
+          name: fileName,
+          // Additional required properties for proper file upload
+          size: attachment2.fileSize,
+          lastModified: new Date().getTime(),
+        });
+      }
+
+      console.log('FormData being sent:', JSON.stringify(Array.from(formData.entries())));
+
       const response = await fetchWithAuth(`${getBaseUrl()}/create_ticket`, {
         method: 'POST',
         headers: {
           'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json',
         },
         body: formData
       });
@@ -153,6 +217,69 @@ const CreateTicketScreen = () => {
                   bg: "white",
                 }}
               />
+
+              <Text fontSize="md" color="coolGray.600" mb={2}>
+                Attachments (Optional)
+              </Text>
+              <HStack space={4} justifyContent="space-between">
+                <Pressable
+                  flex={1}
+                  h={120}
+                  bg="coolGray.50"
+                  rounded="lg"
+                  borderWidth={1}
+                  borderStyle="dashed"
+                  borderColor="coolGray.300"
+                  justifyContent="center"
+                  alignItems="center"
+                  overflow="hidden"
+                  onPress={() => pickImage(1)}
+                >
+                  {attachment1 ? (
+                    <Image
+                      source={{ uri: attachment1.uri }}
+                      alt="Attachment 1"
+                      w="full"
+                      h="full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <VStack alignItems="center" space={2}>
+                      <MaterialIcons name="add-photo-alternate" size={24} color="#0066FF" />
+                      <Text fontSize="sm" color="coolGray.600">Add Image 1</Text>
+                    </VStack>
+                  )}
+                </Pressable>
+
+                <Pressable
+                  flex={1}
+                  h={120}
+                  bg="coolGray.50"
+                  rounded="lg"
+                  borderWidth={1}
+                  borderStyle="dashed"
+                  borderColor="coolGray.300"
+                  justifyContent="center"
+                  alignItems="center"
+                  overflow="hidden"
+                  onPress={() => pickImage(2)}
+                >
+                  {attachment2 ? (
+                    <Image
+                      source={{ uri: attachment2.uri }}
+                      alt="Attachment 2"
+                      w="full"
+                      h="full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <VStack alignItems="center" space={2}>
+                      <MaterialIcons name="add-photo-alternate" size={24} color="#0066FF" />
+                      <Text fontSize="sm" color="coolGray.600">Add Image 2</Text>
+                    </VStack>
+                  )}
+                </Pressable>
+              </HStack>
 
               <Button
                 onPress={handleSubmitTicket}
