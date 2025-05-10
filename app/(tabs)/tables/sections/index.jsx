@@ -2367,8 +2367,8 @@ export default function TableSectionsScreen() {
       setSelectedPaymentMethod('cash'); // Default to cash in our case
     }
     
-    // Set paid to true by default
-    setIsPaid(true);
+    // Set paid to false by default
+    setIsPaid(false);
     
     // Open modal
     setIsPaymentModalVisible(true);
@@ -2680,8 +2680,8 @@ export default function TableSectionsScreen() {
                 isLoadingText="Settling..."
                 _text={{ fontWeight: "medium" }}
                 startIcon={<Icon as={MaterialIcons} name="check" size="sm" color="white" />}
-                disabled={paymentLoading || !selectedPaymentMethod}
-                opacity={!selectedPaymentMethod ? 0.7 : 1}
+                isDisabled={paymentLoading || !selectedPaymentMethod || !isPaid}
+                opacity={!selectedPaymentMethod || !isPaid ? 0.7 : 1}
               >
                 Settle
               </Button>
