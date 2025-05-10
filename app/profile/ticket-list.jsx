@@ -28,12 +28,15 @@ const TicketListScreen = () => {
 
   const fetchTickets = async () => {
     try {
-      const outletId = await AsyncStorage.getItem('outlet_id');
+      const [outletId, accessToken] = await AsyncStorage.multiGet(['outlet_id', 'access_token']);
       
-      const response = await fetchWithAuth(`${getBaseUrl()}/support/list-tickets`, {
+      const response = await fetchWithAuth(`${getBaseUrl()}/ticket_listview`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          outlet_id: outletId,
+          outlet_id: outletId[1],
           app: 'captain'
         })
       });
@@ -51,12 +54,13 @@ const TicketListScreen = () => {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchTickets().finally(() => setRefreshing(false));
+    fetchTickets();
   }, []);
 
   useEffect(() => {
@@ -158,33 +162,41 @@ const TicketListScreen = () => {
           <VStack space={3} p={4}>
             {tickets.map((ticket) => (
               <Pressable
-                key={ticket.id}
+                key={ticket.ticket_number}
                 onPress={() => router.push({
                   pathname: "/profile/ticket-details",
-                  params: { id: ticket.id }
+                  params: { id: ticket.ticket_id }
                 })}
               >
                 <Box bg="white" p={4} rounded="lg" shadow={1}>
                   <VStack space={2}>
                     <HStack justifyContent="space-between" alignItems="center">
-                      <Text fontSize="md" fontWeight="bold" color="coolGray.800" flex={1}>
-                        {ticket.subject}
-                      </Text>
+                      <HStack space={2} flex={1}>
+                        <Text fontSize="sm" color="coolGray.600">
+                          #{ticket.ticket_number}
+                        </Text>
+                        <Text fontSize="md" fontWeight="bold" color="coolGray.800" flex={1}>
+                          {ticket.title}
+                        </Text>
+                      </HStack>
                       <Badge colorScheme={getStatusColor(ticket.status)} variant="subtle">
                         {ticket.status}
                       </Badge>
                     </HStack>
                     
                     <Text fontSize="sm" color="coolGray.600" numberOfLines={2}>
-                      {ticket.message}
+                      {ticket.description}
                     </Text>
                     
                     <HStack justifyContent="space-between" alignItems="center" mt={2}>
-                      <Badge colorScheme={getPriorityColor(ticket.priority)} variant="outline">
-                        {ticket.priority}
-                      </Badge>
+                      <HStack space={2} alignItems="center">
+                        <MaterialIcons name="person" size={16} color="#666" />
+                        <Text fontSize="xs" color="coolGray.600">
+                          {ticket.user_name} ({ticket.user_role})
+                        </Text>
+                      </HStack>
                       <Text fontSize="xs" color="coolGray.500">
-                        {formatDate(ticket.created_at)}
+                        {ticket.created_on}
                       </Text>
                     </HStack>
                   </VStack>
