@@ -1200,6 +1200,37 @@ const OrdersScreen = () => {
 
               <Pressable
                 onPress={() => {
+                  setOrderType("delivery");
+                  setShowOrderTypeModal(false);
+                  // Use silent refresh
+                  fetchOrders(true);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <HStack alignItems="center" space={2}>
+                    <Icon
+                      as={MaterialIcons}
+                      name={ORDER_TYPE_ICONS["delivery"] || "delivery-dining"}
+                      size="sm"
+                      color="coolGray.600"
+                    />
+                    <Text>Delivery</Text>
+                  </HStack>
+                  {orderType === "delivery" && (
+                    <Icon
+                      as={MaterialIcons}
+                      name="check"
+                      size="sm"
+                      color="primary.500"
+                    />
+                  )}
+                </HStack>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
                   setOrderType("drive-through");
                   setShowOrderTypeModal(false);
                   // Use silent refresh
