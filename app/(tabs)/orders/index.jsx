@@ -406,7 +406,7 @@ const OrderCard = ({ order, onPress, onTimerEnd }) => {
           )}
           <VStack alignItems="flex-end">
             <Text fontSize="md" fontWeight="bold" color="primary.600">
-              ₹{Number(order.grand_total || 0).toFixed(2)}
+              ₹{Number(order.final_grand_total || 0).toFixed(2)}
             </Text>
             <Text fontSize="xs" color="gray.500">
               Grand Total
