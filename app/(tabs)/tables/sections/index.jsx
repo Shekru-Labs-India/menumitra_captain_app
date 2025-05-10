@@ -1,3 +1,4 @@
+// import React, {
 import React, {
   useState,
   useMemo,
@@ -211,7 +212,7 @@ export default function TableSectionsScreen() {
   const appState = useRef(AppState.currentState);
   const [restaurantName, setRestaurantName] = useState("");
   const [editedSectionName, setEditedSectionName] = useState("");
-  const [blinkAnimation] = useState(new Animated.Value(1));
+  const [blinkAnimation] = useState(new Animated.Value(0));
   const [qrReady, setQrReady] = useState(false);
   const [qrRenderAttempt, setQrRenderAttempt] = useState(0);
   const qrContainerRef = useRef(null);
@@ -1250,14 +1251,31 @@ export default function TableSectionsScreen() {
                                                 justifyContent="center"
                                                 height="100%"
                                               >
-                                                <Text
-                                                  fontSize={16}
-                                                  fontWeight="bold"
-                                                  textAlign="center"
-                                                  color="black"
-                                                >
-                                                  {table.table_number}
-                                                </Text>
+                                                <HStack space={1} alignItems="center">
+                                                  {isOccupied && (table.action === "print_and_save" || 
+                                                         table.action === "KOT_and_save" || 
+                                                         table.action === "create_order" || 
+                                                         table.action === "placed") && (
+                                                    <Animated.View 
+                                                      style={{
+                                                        width: 8,
+                                                        height: 8,
+                                                        borderRadius: 4,
+                                                        backgroundColor: '#dc3545',
+                                                        marginRight: 4,
+                                                        opacity: blinkAnimation
+                                                      }} 
+                                                    />
+                                                  )}
+                                                  <Text
+                                                    fontSize={16}
+                                                    fontWeight="bold"
+                                                    textAlign="center"
+                                                    color="black"
+                                                  >
+                                                    {table.table_number}
+                                                  </Text>
+                                                </HStack>
                                                 {isOccupied && (
                                                   <Text
                                                     fontSize={14}
@@ -2298,23 +2316,30 @@ export default function TableSectionsScreen() {
   }, [getRestaurantName]);
 
   useEffect(() => {
-    const startBlinking = () => {
+    // Create the animation sequence
+    const blinkSequence = Animated.loop(
       Animated.sequence([
         Animated.timing(blinkAnimation, {
-          toValue: 0.3,
-          duration: 1000,
-          useNativeDriver: true,
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true
         }),
         Animated.timing(blinkAnimation, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ]).start(() => startBlinking());
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true
+        })
+      ])
+    );
+    
+    // Start the animation immediately
+    blinkSequence.start();
+    
+    // Cleanup function
+    return () => {
+      blinkSequence.stop();  // Use stop() instead of stopAnimation()
     };
-
-    startBlinking();
-  }, []);
+  }, [blinkAnimation]); // Add blinkAnimation to dependency array
 
   // Updated payment icon press handler to match RestaurantTables.js pattern
   const handlePaymentIconPress = (table, section) => {
