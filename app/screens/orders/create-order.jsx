@@ -2914,6 +2914,9 @@ const handleSettleOrder = async () => {
             customer_mobile: customerDetails.customer_mobile || "",
             user_name: customerDetails.customer_name || params.userName || "", // Include user_name
             user_mobile: customerDetails.customer_mobile || params.userMobile || "", // Include user_mobile
+            tip: tip?.toString(), // Add tip to status update
+            special_discount: specialDiscount?.toString(), // Add special discount
+            charges: extraCharges?.toString(), // Add extra charges
           };
           
           if (orderType === "dine-in") {
