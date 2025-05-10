@@ -1725,38 +1725,60 @@ const handleSettleOrder = async () => {
             : "green.100"
         }
         rounded="lg"
-        px={0.1}
-        py={0.1}
+        px={2}
+        py={1}
       >
         <VStack alignItems="center">
           {params?.isSpecialOrder || (params?.orderType && params?.orderType !== "dine-in") ? (
-            <Text
-              color={
-                params.orderType === "parcel"
-                  ? "amber.800"
-                  : params.orderType === "drive-through"
-                  ? "purple.800"
-                  : params.orderType === "delivery"
-                  ? "teal.800"
+            <>
+              <Text
+                color={
+                  params.orderType === "parcel"
+                    ? "amber.800"
+                    : params.orderType === "drive-through"
+                    ? "purple.800"
+                    : params.orderType === "delivery"
+                    ? "teal.800"
+                    : params.orderType === "counter"
+                    ? "blue.800"
+                    : "indigo.800"
+                }
+                fontSize="xs"
+                fontWeight="medium"
+                numberOfLines={1}
+              >
+                {params.orderType === "drive-through"
+                  ? "Drive Through"
                   : params.orderType === "counter"
-                  ? "blue.800"
-                  : "indigo.800"
-              }
-              fontSize="xs"
-              fontWeight="medium"
-              numberOfLines={1}
-            >
-              {params.orderType === "drive-through"
-                ? "Drive Through"
-                : params.orderType === "counter"
-                ? "Counter"
-                : params.orderType === "delivery"
-                ? "Delivery"
-                : params.orderType === "parcel"
-                ? "Parcel"
-                : params.orderType.charAt(0).toUpperCase() +
-                  params.orderType.slice(1)}
-            </Text>
+                  ? "Counter"
+                  : params.orderType === "delivery"
+                  ? "Delivery"
+                  : params.orderType === "parcel"
+                  ? "Parcel"
+                  : params.orderType.charAt(0).toUpperCase() +
+                    params.orderType.slice(1)}
+              </Text>
+              {params?.orderNumber && (
+                <Text
+                  color={
+                    params.orderType === "parcel"
+                      ? "amber.800"
+                      : params.orderType === "drive-through"
+                      ? "purple.800"
+                      : params.orderType === "delivery"
+                      ? "teal.800"
+                      : params.orderType === "counter"
+                      ? "blue.800" 
+                      : "indigo.800"
+                  }
+                  fontSize="xs"
+                  fontWeight="medium"
+                  numberOfLines={1}
+                >
+                  Bill #{params.orderNumber}
+                </Text>
+              )}
+            </>
           ) : (
             <>
               <Text

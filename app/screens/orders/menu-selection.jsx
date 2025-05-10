@@ -26,7 +26,8 @@ import {
   ScrollView, 
   Center,
   useToast,
-  Spinner
+  Spinner,
+  Badge
 } from "native-base";
 import { getBaseUrl } from "../../../config/api.config";
 import { fetchWithAuth } from "../../../utils/apiInterceptor";
@@ -1196,51 +1197,63 @@ export default function MenuSelectionScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <Header 
-        title={getHeaderTitle()} 
+        title={params?.orderId ? `Update ${toTitleCase(params.orderType || "Order")}` : "Select Menu Items"}
+        showBack 
         rightComponent={
-          orderType === "dine-in" && tableData ? (
-            <HStack space={2}>
-              {/* Add Table Switch Button */}
-              {tableData.order_id && (
-                <Pressable
-                  onPress={() => {
-                    setShowTableSwitcher(true);
-                    fetchAvailableTables();
-                  }}
-                  bg="cyan.500"
-                  px={3}
-                  py={1.5}
-                  rounded="md"
-                  _pressed={{
-                    bg: "cyan.600"
-                  }}
-                >
-                  <HStack space={1} alignItems="center">
-                    <MaterialIcons name="swap-horiz" size={20} color="white" />
-                    <Text color="white" fontWeight="medium">Switch</Text>
-                  </HStack>
-                </Pressable>
-              )}
-              
-              {tableData && !isReserved && !tableData.is_occupied && !tableData.order_id ? (
-                <Pressable
-                  onPress={handleReserveTable}
-                  bg="green.500"
-                  px={3}
-                  py={1.5}
-                  rounded="md"
-                  _pressed={{
-                    bg: "green.600"
-                  }}
-                >
-                  <HStack space={1} alignItems="center">
-                    <MaterialIcons name="event-available" size={20} color="white" />
-                    <Text color="white" fontWeight="medium">Reserve</Text>
-                  </HStack>
-                </Pressable>
-              ) : null}
-            </HStack>
-          ) : null
+          <HStack alignItems="center" space={2}>
+            {params?.orderId && (
+              <Badge 
+                bg={
+                  params.orderType === "parcel" ? "amber.100" : 
+                  params.orderType === "drive-through" ? "purple.100" : 
+                  params.orderType === "delivery" ? "teal.100" :
+                  params.orderType === "counter" ? "blue.100" : "green.100"
+                }
+                borderWidth={1}
+                borderColor={
+                  params.orderType === "parcel" ? "amber.500" : 
+                  params.orderType === "drive-through" ? "purple.500" : 
+                  params.orderType === "delivery" ? "teal.500" :
+                  params.orderType === "counter" ? "blue.500" : "green.500"
+                }
+                borderStyle="dashed"
+                rounded="md"
+                px={2}
+                py={1}
+              >
+                <VStack alignItems="center">
+                  <Text
+                    color={
+                      params.orderType === "parcel" ? "amber.800" : 
+                      params.orderType === "drive-through" ? "purple.800" : 
+                      params.orderType === "delivery" ? "teal.800" :
+                      params.orderType === "counter" ? "blue.800" : "green.800"
+                    }
+                    fontSize="xs"
+                    fontWeight="medium"
+                  >
+                    {params.orderType === "dine-in" 
+                      ? `Dinning - ${params.tableNumber}` 
+                      : toTitleCase(params.orderType || "")}
+                  </Text>
+                  {params.orderNumber && (
+                    <Text
+                      color={
+                        params.orderType === "parcel" ? "amber.800" : 
+                        params.orderType === "drive-through" ? "purple.800" : 
+                        params.orderType === "delivery" ? "teal.800" :
+                        params.orderType === "counter" ? "blue.800" : "green.800"
+                      }
+                      fontSize="xs"
+                      fontWeight="medium"
+                    >
+                      Bill #{params.orderNumber}
+                    </Text>
+                  )}
+                </VStack>
+              </Badge>
+            )}
+          </HStack>
         }
       />
       

@@ -2379,15 +2379,16 @@ export default function OrderDetailsScreen() {
               onPress={() => router.push({
                 pathname: "/screens/orders/menu-selection",
                 params: {
-                  tableId: orderDetails.table_number?.[0],
-                  tableNumber: orderDetails.table_number?.[0],
-                  sectionId: orderDetails.section_id,
-                  sectionName: orderDetails.section,
+                  tableId: orderDetails.order_type === "dine-in" ? orderDetails.table_number?.[0] : "",
+                  tableNumber: orderDetails.order_type === "dine-in" ? orderDetails.table_number?.[0] : "",
+                  sectionId: orderDetails.order_type === "dine-in" ? orderDetails.section_id : "",
+                  sectionName: orderDetails.order_type === "dine-in" ? orderDetails.section : "",
                   outletId: orderDetails.outlet_id,
                   orderId: orderDetails.order_id,
                   orderNumber: orderDetails.order_number,
                   orderType: orderDetails.order_type || "dine-in",
                   isOccupied: "1",
+                  isSpecialOrder: orderDetails.order_type !== "dine-in" ? "true" : "false",
                   orderDetails: JSON.stringify({
                     order_id: orderDetails.order_id,
                     menu_items: menuItems.map(item => ({
@@ -2404,12 +2405,16 @@ export default function OrderDetailsScreen() {
                       total_price: parseFloat(item.menu_sub_total),
                     })),
                     grand_total: orderDetails.grand_total,
-                    table_id: orderDetails.table_number?.[0],
-                    table_number: orderDetails.table_number?.[0],
-                    section_id: orderDetails.section_id,
-                    section_name: orderDetails.section,
+                    table_id: orderDetails.order_type === "dine-in" ? orderDetails.table_number?.[0] : "",
+                    table_number: orderDetails.order_type === "dine-in" ? orderDetails.table_number?.[0] : "",
+                    section_id: orderDetails.order_type === "dine-in" ? orderDetails.section_id : "",
+                    section_name: orderDetails.order_type === "dine-in" ? orderDetails.section : "",
                     outlet_id: orderDetails.outlet_id,
+                    customer_name: orderDetails.customer_name || "",
+                    customer_mobile: orderDetails.customer_mobile || "",
                   }),
+                  userName: orderDetails.customer_name || "",
+                  userMobile: orderDetails.customer_mobile || "",
                 },
               })}
             >
