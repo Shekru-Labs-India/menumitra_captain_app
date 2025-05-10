@@ -893,6 +893,18 @@ export default function CreateOrderScreen() {
           throw new Error(apiResponse?.msg || "Failed to save order");
         }
 
+        // ADDED: Enhanced debugging for KOT order number issue
+        console.log("API Response for KOT_and_save:", JSON.stringify(apiResponse));
+        console.log("Order number from API KOT response:", 
+          apiResponse?.order_number || 
+          apiResponse?.lists?.order_details?.order_number || 
+          "Not found in KOT API response"
+        );
+        console.log("KOT Params:", {
+          orderIdParam: params?.orderId,
+          orderNumberParam: params?.orderNumber
+        });
+
         // Print KOT
         try {
           setLoadingMessage("Printing KOT...");
@@ -953,6 +965,14 @@ export default function CreateOrderScreen() {
       }
 
       console.log("Generating KOT commands...");
+      
+      // ADDED: Debug log for KOT printing order number
+      console.log("Order Data for KOT printing:", {
+        orderNumber: orderData?.order_number || orderData?.lists?.order_details?.order_number || "not found",
+        paramOrderId: params?.orderId,
+        paramOrderNumber: params?.orderNumber,
+        completeOrderData: JSON.stringify(orderData).substring(0, 500) + "..." // Truncated for readability
+      });
       
       // Generate KOT commands with error handling
       let kotCommands;
@@ -2379,7 +2399,7 @@ const handleSettleOrder = async () => {
       // Calculate totals
       const subtotal = calculateSubtotal(selectedItems);
       const itemDiscountAmount = calculateItemDiscount(selectedItems);
-      const discountPercent = calculateTotalDiscountPercentage(selectedItems);
+      const discountPercent = getDiscountPercentage(); // FIXED: Use getDiscountPercentage instead of calculateTotalDiscountPercentage
       
       // Calculate special discount and extra charges
       const specialDiscountAmount = parseFloat(specialDiscount) || 0;
@@ -2408,15 +2428,23 @@ const handleSettleOrder = async () => {
         `upi://pay?pa=${upiId}&pn=${encodeURIComponent(outletName || "Restaurant")}&am=${total.toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Bill #${params?.orderId || "New"}`)}` : 
         "8459719119-2@ibl";
 
+      // FIXED: Get order number with enhanced fallbacks to match owner app
       // Get order number with fallbacks, adapting to various response formats
       const orderNumber = 
-        orderData?.lists?.order_details?.order_number || // Old format
-        orderData?.order_details?.order_number || // New format
-        orderData?.order_number || // Direct format
-        params?.orderId || // URL param fallback
+        orderData?.lists?.order_details?.order_number || // Old format from API
+        orderData?.order_details?.order_number || // Format from order details
+        orderData?.order_number || // Direct format for new orders
+        params?.orderNumber || // URL param fallback (adds this case)
+        params?.orderId || // Last fallback
         "New"; 
       
-      console.log("Using order number:", orderNumber);
+      console.log("Using order number for receipt:", orderNumber, "Source:", {
+        fromOrderDetails: orderData?.lists?.order_details?.order_number,
+        fromOtherDetails: orderData?.order_details?.order_number,
+        fromDirectProperty: orderData?.order_number,
+        fromParamsOrderNumber: params?.orderNumber,
+        fromParamsOrderId: params?.orderId,
+      });
 
       // Determine order type
       const orderType = params?.orderType || "dine-in";
@@ -2538,12 +2566,16 @@ const handleSettleOrder = async () => {
 
       // Use the top-level getCurrentDateTime function
       
-      // Get order number with fallbacks
+      // FIXED: Get order number with enhanced fallbacks to match owner app
       const orderNumber = 
-        orderData?.lists?.order_details?.order_number || // For existing orders
-        orderData?.order_number || // For new orders
-        params?.orderId || 
+        orderData?.lists?.order_details?.order_number || // Old format from API
+        orderData?.order_details?.order_number || // Format from order details
+        orderData?.order_number || // Direct format for new orders
+        params?.orderNumber || // URL param fallback (adds this case)
+        params?.orderId || // Last fallback
         "New";
+      
+      console.log("Using order number for KOT:", orderNumber);
       
       // Determine order type
       const orderType = params?.orderType || "dine-in";
@@ -3127,6 +3159,18 @@ const handleSettleOrder = async () => {
         if (!apiResponse || apiResponse.st !== 1) {
           throw new Error(apiResponse?.msg || "Failed to save order");
         }
+
+        // ADDED: Enhanced debugging for KOT order number issue
+        console.log("API Response for KOT_and_save:", JSON.stringify(apiResponse));
+        console.log("Order number from API KOT response:", 
+          apiResponse?.order_number || 
+          apiResponse?.lists?.order_details?.order_number || 
+          "Not found in KOT API response"
+        );
+        console.log("KOT Params:", {
+          orderIdParam: params?.orderId,
+          orderNumberParam: params?.orderNumber
+        });
 
         // Print KOT
         try {
@@ -3747,14 +3791,11 @@ const handleSettleOrder = async () => {
 
   // Add this function to match the owner app's calculation
   const getDiscountPercentage = () => {
-    // Calculate total discount percentage
-    const totalDiscount = selectedItems.reduce((total, item) => {
+    // Using the formula provided in the requirements (sum of all offers)
+    return selectedItems.reduce((acc, item) => {
       const offer = parseFloat(item.offer) || 0;
-      return total + offer;
+      return acc + offer; // Simply summing up all offers
     }, 0);
-    
-    // Format to 2 decimal places
-    return parseFloat(totalDiscount.toFixed(2));
   };
 
   // Handler for Print & Save button
@@ -3822,6 +3863,18 @@ const handleSettleOrder = async () => {
       
       // Create order with print_and_save status
       const apiResponse = await createOrder("print_and_save", true);
+      
+      // ADDED: Enhanced debugging for order number issue
+      console.log("API Response for print_and_save:", JSON.stringify(apiResponse));
+      console.log("Order number from API response:", 
+        apiResponse?.order_number || 
+        apiResponse?.lists?.order_details?.order_number || 
+        "Not found in API response"
+      );
+      console.log("Params for order number:", {
+        orderIdParam: params?.orderId,
+        orderNumberParam: params?.orderNumber
+      });
       
       // Print receipt
       try {
