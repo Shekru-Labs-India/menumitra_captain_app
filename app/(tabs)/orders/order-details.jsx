@@ -1057,19 +1057,10 @@ export default function OrderDetailsScreen() {
     setShowCancelModal(true);
   };
 
+  // Update handleCancelOrder function to not require a reason
   const handleCancelOrder = () => {
-    if (!cancelReason.trim()) {
-      toast.show({
-        description: "Please provide a reason for cancellation",
-        status: "warning",
-        duration: 3000,
-        placement: "bottom",
-      });
-      return;
-    }
-    
-    handleStatusUpdate("cancelled", { cancel_reason: cancelReason });
-    setShowCancelModal(false);
+    // Skip the reason check and directly cancel with a default reason
+    handleStatusUpdate("cancelled", { cancel_reason: "Cancelled by captain" });
   };
 
   const StatusActionButton = () => {
@@ -1081,7 +1072,7 @@ export default function OrderDetailsScreen() {
           <Button
             colorScheme="red"
             leftIcon={<Icon as={MaterialIcons} name="cancel" size="sm" />}
-            onPress={showCancelOrderModal}
+            onPress={handleCancelOrder}
             isLoading={isLoading}
             width="100%"
           >
@@ -3015,7 +3006,7 @@ export default function OrderDetailsScreen() {
             <Button
               colorScheme="red"
               leftIcon={<Icon as={MaterialIcons} name="cancel" size="sm" />}
-              onPress={showCancelOrderModal}
+              onPress={handleCancelOrder} // Direct call without showing modal
               isLoading={isLoading}
               width="100%"
               mb={2}
