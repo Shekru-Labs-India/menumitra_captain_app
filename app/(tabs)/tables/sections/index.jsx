@@ -1166,66 +1166,74 @@ export default function TableSectionsScreen() {
                                                 </Box>
                                               )}
 
-                                              {/* QR or Printer icon centered in the table box */}
-                                              {(showEditIcons || (isOccupied && table.order_id)) && (
+                                              {/* Printer icon - always show for occupied tables */}
+                                              {isOccupied && table.order_id && (
                                                 <Box
                                                   position="absolute"
                                                   style={{
                                                     left: '50%',
                                                     bottom: '50%',
-                                                    transform: [{ translateX: -10 }, { translateY: 56 }] // Half of the width/height (8px) for proper centering
+                                                    transform: [{ translateX: -10 }, { translateY: 56 }],
+                                                    zIndex: 2
                                                   }}
+                                                >
+                                                  <Pressable
+                                                    onPress={() => handlePaymentIconPress(table, section)}
+                                                    bg={
+                                                      table.action === "print_and_save"
+                                                        ? "#ff9800" // Print & Save - Orange
+                                                        : table.action === "KOT_and_save"
+                                                          ? "#000000" // KOT & Save - Black
+                                                          : table.action === "create_order"
+                                                            ? "#dc3545" // Create order - Red
+                                                            : "#f97316" // Default orange
+                                                    }
+                                                    w={8}
+                                                    h={8}
+                                                    rounded="full"
+                                                    shadow={2}
+                                                    alignItems="center"
+                                                    justifyContent="center"
+                                                  >
+                                                    <MaterialIcons
+                                                      name="print"
+                                                      size={22}
+                                                      color="white"
+                                                    />
+                                                  </Pressable>
+                                                </Box>
+                                              )}
+
+                                              {/* QR icon - only show when gear is active */}
+                                              {showEditIcons && (
+                                                <Box
+                                                  position="absolute"
+                                                  bottom={1}  // Changed from 8 to 2
+                                                  right={1}   // Changed from 8 to 2
                                                   zIndex={2}
                                                 >
-                                                  {showEditIcons ? (
-                                                    <Pressable
-                                                      onPress={() => handleQRIconPress(table, section)}
-                                                      bg="transparent"
-                                                      rounded="full"
-                                                      size={8}
-                                                      w={8}
-                                                      h={8}
-                                                      shadow={0}
-                                                      alignItems="center"
-                                                      justifyContent="center"
-                                                      style={{
-                                                        shadowOpacity: 0,
-                                                        elevation: 0,
-                                                        backgroundColor: 'transparent'
-                                                      }}
-                                                    >
-                                                      <MaterialIcons
-                                                        name="qr-code"
-                                                        size={22}
-                                                        color="#0891b2"
-                                                      />
-                                                    </Pressable>
-                                                  ) : (
-                                                    <Pressable
-                                                      onPress={() => handlePaymentIconPress(table, section)}
-                                                      bg={
-                                                        table.action === "print_and_save"
-                                                          ? "#ff9800" // Print & Save - Orange
-                                                          : table.action === "KOT_and_save"
-                                                            ? "#000000" // KOT & Save - Black
-                                                            : table.action === "create_order"
-                                                              ? "#dc3545" // Create order - Red
-                                                              : "#f97316" // Default orange
-                                                      }
-                                                      w={8}
-                                                      h={8}
-                                                      rounded="full"
-                                                      shadow={2}
-                                                      alignItems="center"
-                                                      justifyContent="center"
-                                                    >
-                                                      <MaterialIcons
-                                                        name="print"
-                                                        size={22}
-                                                        color="white"
-                                                      />
-                                                    </Pressable>
-                                                  )}
+                                                  <Pressable
+                                                    onPress={() => handleQRIconPress(table, section)}
+                                                    bg="transparent"
+                                                    rounded="full"
+                                                    size={8}
+                                                    w={8}
+                                                    h={8}
+                                                    shadow={0}
+                                                    alignItems="center"
+                                                    justifyContent="center"
+                                                    style={{
+                                                      shadowOpacity: 0,
+                                                      elevation: 0,
+                                                      backgroundColor: 'transparent'
+                                                    }}
+                                                  >
+                                                    <MaterialIcons
+                                                      name="qr-code"
+                                                      size={22}
+                                                      color="#0891b2"
+                                                    />
+                                                  </Pressable>
                                                 </Box>
                                               )}
 
