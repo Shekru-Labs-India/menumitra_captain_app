@@ -2883,10 +2883,14 @@ const handleSettleOrder = async () => {
         orderData.order_id = params.orderId?.toString();
       }
 
-      // Select endpoint based on order type
-      const endpoint = params?.orderId ? 
-        onGetProductionUrl() + "update_order" : 
-        onGetProductionUrl() + "create_order";
+      // Before making the API call
+      const isExistingOrder = Boolean(params?.orderId);
+      const endpoint = isExistingOrder 
+        ? onGetProductionUrl() + "update_order"
+        : onGetProductionUrl() + "create_order";
+
+      console.log('Order operation:', isExistingOrder ? 'Update' : 'Create');
+      console.log('Order ID:', params?.orderId);
 
       // Make API request
       const response = await fetchWithAuth(endpoint, {

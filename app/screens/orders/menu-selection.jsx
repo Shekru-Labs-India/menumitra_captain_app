@@ -140,7 +140,8 @@ export default function MenuSelectionScreen() {
 
   // Fetch existing order details if orderId exists
   useEffect(() => {
-    if (params.orderId, params.orderNumber) {
+    if (params.orderId && params.orderNumber) {
+      console.log("Fetching order with ID:", params.orderId);
       fetchExistingOrder();
     }
   }, [params.orderId, params.orderNumber]);
@@ -244,7 +245,6 @@ export default function MenuSelectionScreen() {
 
   // Function to fetch existing order
   const fetchExistingOrder = async () => {
-    console.log("239:", params.orderId);
     try {
       const response = await fetchWithAuth(`${getBaseUrl()}/order_view`, {
         method: "POST",
@@ -257,27 +257,18 @@ export default function MenuSelectionScreen() {
       });
 
       if (response.st === 1 && response.lists) {
-        setExistingOrderDetails(response.lists.order_details);
+        const orderDetails = response.lists.order_details;
+        console.log("Setting order details:", orderDetails);
         
-        // Store user_name and user_mobile from order details
-        if (response.lists.order_details) {
-          setUserName(response.lists.order_details.user_name || "");
-          setUserMobile(response.lists.order_details.user_mobile || "");
-          // Set special discount, charges, and tip from order details
-          setSpecialDiscount(parseFloat(response.lists.order_details.special_discount) || 0);
-          setCharges(parseFloat(response.lists.order_details.charges) || 0);
-          setTip(parseFloat(response.lists.order_details.tip) || 0);
-          console.log("User data from order:", response.lists.order_details.user_name, response.lists.order_details.user_mobile);
-        }
-        
-        // Create a map of menu_id to quantity from existing order
-        const quantityMap = {};
-        response.lists.menu_details.forEach(item => {
-          quantityMap[item.menu_id] = item.quantity;
-        });
-        setExistingMenuQuantities(quantityMap);
-        
-        // Initialize cart with existing menu items
+        // Set all the states
+        setExistingOrderDetails(orderDetails);
+        setUserName(orderDetails.user_name || "");
+        setUserMobile(orderDetails.user_mobile || "");
+        setSpecialDiscount(parseFloat(orderDetails.special_discount) || 0);
+        setCharges(parseFloat(orderDetails.charges) || 0);
+        setTip(parseFloat(orderDetails.tip) || 0);
+
+        // Create cart items
         const cartItems = response.lists.menu_details.map(item => ({
           menu_id: item.menu_id,
           name: item.menu_name,
@@ -289,13 +280,17 @@ export default function MenuSelectionScreen() {
           isNewItem: false
         }));
         setCart(cartItems);
+
+        return orderDetails; // Return the order details
       }
+      return null;
     } catch (error) {
       console.error("Error fetching order details:", error);
       toast.show({
         description: "Error loading order details",
         status: "error"
       });
+      return null;
     }
   };
 
@@ -450,55 +445,73 @@ export default function MenuSelectionScreen() {
   };
 
   // Navigate to create order screen with cart items
-  const navigateToCreateOrder = () => {
-    // Format cart items with consistent structure to match create-order expectations
-    const formattedCartItems = cart.map(item => ({
-      menu_id: item.menu_id,
-      name: item.name,
-      price: parseFloat(item.price) || 0,
-      quantity: parseInt(item.quantity) || 1,
-      total_price: parseFloat(item.price) * (parseInt(item.quantity) || 1),
-      portion: item.portion || 'full',
-      offer: parseFloat(item.offer) || 0,
-      specialInstructions: item.specialInstructions || "",
-      isNewItem: true,
-      half_price: item.half_price || 0,
-      full_price: item.full_price || item.price,
-      category_name: item.category_name || "",
-      food_type: item.food_type || ""
-    }));
-
-    // Log the data being passed
-    console.log("Navigating to create-order with cart items:", formattedCartItems.length);
-    console.log("Cart items details:", JSON.stringify(formattedCartItems));
-    console.log("New items in cart:", formattedCartItems.filter(item => item.isNewItem).length);
-    console.log("User data being passed:", userName, userMobile);
-
-    router.push({
-      pathname: "/screens/orders/create-order",
-      params: {
-        tableId: tableData?.table_id,
-        tableNumber: tableData?.table_number,
-        sectionId: tableData?.section_id,
-        sectionName: tableData?.section_name,
-        outletId: tableData?.outlet_id,
-        isOccupied: tableData?.is_occupied ? "1" : "0",
-        orderId: tableData?.order_id,
-        orderNumber: tableData?.order_number || params.orderNumber,
-        orderType: orderType,
-        userName: userName,  // Add user name
-        userMobile: userMobile, // Add user mobile
-        orderDetails: JSON.stringify({
-          ...orderDetails,
-          menu_items: formattedCartItems,
-          user_name: userName,
-          user_mobile: userMobile,
-          special_discount: specialDiscount,
-          charges: charges,
-          tip: tip
-        })
+  const navigateToCreateOrder = async () => {
+    try {
+      // If we have an order ID in params, fetch the latest order details
+      let currentOrderDetails = null;
+      if (params.orderId) {
+        currentOrderDetails = await fetchExistingOrder();
       }
-    });
+      
+      // Use the fetched details or existing state
+      const orderInfo = currentOrderDetails || existingOrderDetails;
+      
+      console.log("Navigation - Current Order Details:", orderInfo);
+      console.log("Navigation - Order ID from details:", orderInfo?.order_id);
+
+      // Format cart items
+      const formattedCartItems = cart.map(item => ({
+        menu_id: item.menu_id,
+        name: item.name,
+        price: parseFloat(item.price) || 0,
+        quantity: parseInt(item.quantity) || 1,
+        total_price: parseFloat(item.price) * (parseInt(item.quantity) || 1),
+        portion: item.portion || 'full',
+        offer: parseFloat(item.offer) || 0,
+        specialInstructions: item.specialInstructions || "",
+        isNewItem: item.isNewItem || false,
+        half_price: item.half_price || 0,
+        full_price: item.full_price || item.price,
+        category_name: item.category_name || "",
+        food_type: item.food_type || ""
+      }));
+
+      // Get the order ID from either the API response or params
+      const finalOrderId = orderInfo?.order_id || params.orderId;
+      console.log("Final Order ID for navigation:", finalOrderId);
+
+      router.push({
+        pathname: "/screens/orders/create-order",
+        params: {
+          tableId: tableData?.table_id,
+          tableNumber: tableData?.table_number,
+          sectionId: tableData?.section_id,
+          sectionName: tableData?.section_name,
+          outletId: tableData?.outlet_id,
+          isOccupied: tableData?.is_occupied ? "1" : "0",
+          orderId: finalOrderId?.toString(),
+          orderNumber: orderInfo?.order_number || params.orderNumber,
+          orderType: orderType,
+          userName: userName,
+          userMobile: userMobile,
+          orderDetails: JSON.stringify({
+            menu_items: formattedCartItems,
+            user_name: userName,
+            user_mobile: userMobile,
+            special_discount: specialDiscount,
+            charges: charges,
+            tip: tip,
+            order_id: finalOrderId // Include order ID in details
+          })
+        }
+      });
+    } catch (error) {
+      console.error("Error in navigateToCreateOrder:", error);
+      toast.show({
+        description: "Error preparing order navigation",
+        status: "error"
+      });
+    }
   };
 
   // Get food type color for indicators
