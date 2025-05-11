@@ -484,7 +484,7 @@ export default function MenuSelectionScreen() {
         outletId: tableData?.outlet_id,
         isOccupied: tableData?.is_occupied ? "1" : "0",
         orderId: tableData?.order_id,
-        orderNumber: tableData?.order_number,
+        orderNumber: tableData?.order_number || params.orderNumber,
         orderType: orderType,
         userName: userName,  // Add user name
         userMobile: userMobile, // Add user mobile
