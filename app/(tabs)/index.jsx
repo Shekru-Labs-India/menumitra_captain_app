@@ -748,7 +748,7 @@ export default function HomeScreen() {
             p={2}
           >
             <HStack alignItems="center" space={2}>
-              <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
+              <Icon as={MaterialIcons} name="store" size={5} color="gray.600" />
               <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
             </HStack>
        
