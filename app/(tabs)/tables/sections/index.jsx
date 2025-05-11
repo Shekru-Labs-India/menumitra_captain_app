@@ -2958,85 +2958,83 @@ export default function TableSectionsScreen() {
             />
           </Box>
 
-          {/* Status Filter Buttons (Similar to owner app) */}
-          <Box px={4} py={2} bg="white" borderBottomWidth={1} borderBottomColor="coolGray.200">
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingHorizontal: 2,
-              }}
-            >
-              <HStack space={2} alignItems="center">
+          {/* Status Filter Buttons */}
+          <Box bg="white" py={2} borderBottomWidth={1} borderBottomColor="coolGray.200">
+            <Box px={4} width="100%">
+              <HStack space={2} justifyContent="space-between">
                 <Pressable
                   onPress={() => setFilterStatus("all")}
+                  flex={1}
                   bg={filterStatus === "all" ? "blue.100" : "coolGray.100"}
-                  px={4}
-                  py={2}
-                  rounded="md"
+                  py={2.5}
+                  rounded="lg"
                   borderWidth={1}
                   borderColor={filterStatus === "all" ? "blue.500" : "coolGray.300"}
                 >
-                  <Text
-                    color={filterStatus === "all" ? "blue.700" : "coolGray.700"}
-                    fontWeight={filterStatus === "all" ? "bold" : "medium"}
-                  >
-                    All
-                  </Text>
+                  <HStack space={2} alignItems="center" justifyContent="center">
+                    <MaterialIcons
+                      name="view-list"
+                      size={20}
+                      color={filterStatus === "all" ? "#1e40af" : "#666"}
+                    />
+                    <Text
+                      color={filterStatus === "all" ? "blue.700" : "coolGray.700"}
+                      fontWeight={filterStatus === "all" ? "bold" : "medium"}
+                    >
+                      All
+                    </Text>
+                  </HStack>
                 </Pressable>
                 
                 <Pressable
                   onPress={() => setFilterStatus("occupied")}
+                  flex={1}
                   bg={filterStatus === "occupied" ? "red.100" : "coolGray.100"}
-                  px={4}
-                  py={2}
-                  rounded="md"
+                  py={2.5}
+                  rounded="lg"
                   borderWidth={1}
                   borderColor={filterStatus === "occupied" ? "red.500" : "coolGray.300"}
                 >
-                  <Text
-                    color={filterStatus === "occupied" ? "red.700" : "coolGray.700"}
-                    fontWeight={filterStatus === "occupied" ? "bold" : "medium"}
-                  >
-                    Occupied
-                  </Text>
+                  <HStack space={2} alignItems="center" justifyContent="center">
+                    <MaterialIcons
+                      name="event-seat"
+                      size={20}
+                      color={filterStatus === "occupied" ? "#b91c1c" : "#666"}
+                    />
+                    <Text
+                      color={filterStatus === "occupied" ? "red.700" : "coolGray.700"}
+                      fontWeight={filterStatus === "occupied" ? "bold" : "medium"}
+                    >
+                      Occupied
+                    </Text>
+                  </HStack>
                 </Pressable>
-                
-                {/* <Pressable
-                  onPress={() => setFilterStatus("reserved")}
-                  bg={filterStatus === "reserved" ? "gray.100" : "coolGray.100"}
-                  px={4}
-                  py={2}
-                  rounded="md"
-                  borderWidth={1}
-                  borderColor={filterStatus === "reserved" ? "gray.500" : "coolGray.300"}
-                >
-                  <Text
-                    color={filterStatus === "reserved" ? "gray.700" : "coolGray.700"}
-                    fontWeight={filterStatus === "reserved" ? "bold" : "medium"}
-                  >
-                    Reserved
-                  </Text>
-                </Pressable> */}
                 
                 <Pressable
                   onPress={() => setFilterStatus("available")}
+                  flex={1}
                   bg={filterStatus === "available" ? "green.100" : "coolGray.100"}
-                  px={4}
-                  py={2}
-                  rounded="md"
+                  py={2.5}
+                  rounded="lg"
                   borderWidth={1}
                   borderColor={filterStatus === "available" ? "green.500" : "coolGray.300"}
                 >
-                  <Text
-                    color={filterStatus === "available" ? "green.700" : "coolGray.700"}
-                    fontWeight={filterStatus === "available" ? "bold" : "medium"}
-                  >
-                    Available
-                  </Text>
+                  <HStack space={2} alignItems="center" justifyContent="center">
+                    <MaterialIcons
+                      name="check-circle"
+                      size={20}
+                      color={filterStatus === "available" ? "#15803d" : "#666"}
+                    />
+                    <Text
+                      color={filterStatus === "available" ? "green.700" : "coolGray.700"}
+                      fontWeight={filterStatus === "available" ? "bold" : "medium"}
+                    >
+                      Available
+                    </Text>
+                  </HStack>
                 </Pressable>
               </HStack>
-            </ScrollView>
+            </Box>
           </Box>
 
           {/* Filter Buttons for order types */}
