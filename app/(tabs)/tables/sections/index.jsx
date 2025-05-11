@@ -227,6 +227,9 @@ export default function TableSectionsScreen() {
   // Add this with other state declarations
   const [updatingSections, setUpdatingSections] = useState(new Set());
   
+  // Add this with other state declarations
+  const [deletingSections, setDeletingSections] = useState(new Set());
+  
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
       setFilterStatus("available");
@@ -953,16 +956,24 @@ export default function TableSectionsScreen() {
                             setEditingSectionId(section.id);
                             setEditedSectionName(section.name);
                           }}
+                          isDisabled={deletingSections.has(section.id)}
                         />
                         <IconButton
                           size="sm"
                           variant="ghost"
                           colorScheme="red"
-                          icon={<MaterialIcons name="delete" size={20} color="red.500" />}
+                          icon={
+                            deletingSections.has(section.id) ? (
+                              <Spinner size="sm" color="red.500" />
+                            ) : (
+                              <MaterialIcons name="delete" size={20} color="red.500" />
+                            )
+                          }
                           onPress={() => {
                             setActiveSection(section);
                             setShowDeleteModal(true);
                           }}
+                          isDisabled={deletingSections.has(section.id)}
                         />
                       </HStack>
                     )}
@@ -1586,13 +1597,30 @@ export default function TableSectionsScreen() {
 
   // Add DeleteConfirmationModal component
   const DeleteConfirmationModal = () => {
-    const hasOccupiedTables =
-      activeSection?.tables?.some((table) => table.is_occupied === 1) || false;
+    const hasOccupiedTables = activeSection?.tables?.some((table) => table.is_occupied === 1) || false;
+    const isDeleting = deletingSections.has(activeSection?.id);
+
+    console.log("DeleteConfirmationModal render", {
+      hasOccupiedTables,
+      isDeleting,
+      activeSectionId: activeSection?.id,
+      deletingSections: Array.from(deletingSections)
+    });
 
     return (
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
+      <Modal 
+        isOpen={showDeleteModal} 
+        onClose={() => {
+          if (!isDeleting) {
+            console.log("Closing delete modal");
+            setShowDeleteModal(false);
+            // Clear active section when modal is closed
+            setActiveSection(null);
+          }
+        }}
+      >
         <Modal.Content maxWidth="400px">
-          <Modal.CloseButton />
+          <Modal.CloseButton disabled={isDeleting} />
           <Modal.Header>
             {hasOccupiedTables ? "Cannot Delete Section" : "Delete Section"}
           </Modal.Header>
@@ -1602,15 +1630,14 @@ export default function TableSectionsScreen() {
                 <Box bg="orange.100" p={3} rounded="md">
                   <Text color="orange.800">
                     This section has occupied tables and cannot be deleted.
-                    Please ensure all tables are available before deleting the
-                    section.
+                    Please ensure all tables are available before deleting the section.
                   </Text>
                 </Box>
               </VStack>
             ) : (
               <Text>
-                Are you sure you want to delete "{activeSection?.name}"? This
-                action cannot be undone.
+                Are you sure you want to delete "{activeSection?.name}"?
+                This action cannot be undone.
               </Text>
             )}
           </Modal.Body>
@@ -1629,11 +1656,23 @@ export default function TableSectionsScreen() {
                   variant="outline"
                   colorScheme="coolGray"
                   onPress={() => setShowDeleteModal(false)}
+                  isDisabled={isDeleting}
                 >
                   Cancel
                 </Button>
-                <Button colorScheme="red" onPress={handleDeleteSection}>
-                  Delete
+                <Button 
+                  colorScheme="red" 
+                  onPress={handleDeleteSection}
+                  isDisabled={isDeleting}
+                  leftIcon={
+                    isDeleting ? (
+                      <Spinner size="sm" color="white" />
+                    ) : (
+                      <Icon as={MaterialIcons} name="delete" size="sm" color="white" />
+                    )
+                  }
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
                 </Button>
               </HStack>
             )}
@@ -1646,43 +1685,121 @@ export default function TableSectionsScreen() {
   
 
   const handleDeleteSection = async () => {
+    console.log("Starting delete section process", {
+      activeSection,
+      currentSections: sections
+    });
+
+    // Early validation for occupied tables
+    const hasOccupiedTables = activeSection?.tables?.some((table) => table.is_occupied === 1);
+    if (hasOccupiedTables) {
+      console.log("Blocked deletion - section has occupied tables");
+      toast.show({
+        description: "Cannot delete section with occupied tables",
+        status: "warning",
+      });
+      return;
+    }
+
+    // Store original state for rollback
+    const originalSections = [...sections];
+    const sectionToDelete = { ...activeSection }; // Create a copy of activeSection
+
+    console.log("Starting optimistic update", {
+      sectionToDelete: sectionToDelete?.id,
+      sectionsCount: sections.length
+    });
+
     try {
-      setLoading(true);
+      // Add to deleting set BEFORE UI updates
+      setDeletingSections(prev => {
+        const next = new Set(prev).add(sectionToDelete.id);
+        console.log("Added to deletingSections", {
+          sectionId: sectionToDelete.id,
+          deletingCount: next.size
+        });
+        return next;
+      });
+
+      // Close modal immediately for better UX
+      setShowDeleteModal(false);
+
+      // Optimistically update UI
+      setSections(prevSections => {
+        const updatedSections = prevSections.filter(s => s.id !== sectionToDelete.id);
+        console.log("Optimistically removed section", {
+          beforeCount: prevSections.length,
+          afterCount: updatedSections.length
+        });
+        return updatedSections;
+      });
+
+      // Clear active section
+      setActiveSection(null);
+
+      // Get user ID without showing loading
       const storedUserId = await AsyncStorage.getItem("user_id");
-      
       if (!storedUserId) {
         throw new Error("User ID not found. Please login again.");
       }
 
+      console.log("Making API call to delete section", {
+        sectionId: sectionToDelete.id,
+        outletId
+      });
+
+      // Make API call
       const data = await fetchWithAuth(`${getBaseUrl()}/section_delete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           outlet_id: outletId.toString(),
-          section_id: activeSection.id.toString(),
+          section_id: sectionToDelete.id.toString(),
           user_id: storedUserId.toString()
         }),
       });
+
+      console.log("API Response:", data);
 
       if (data.st === 1) {
         toast.show({
           description: "Section deleted successfully",
           status: "success",
+          duration: 2000,
         });
-        setShowDeleteModal(false);
-        setActiveSection(null);
-        await fetchSections(outletId.toString());
+        
+        // No need to fetch sections again, UI is already updated
       } else {
         throw new Error(data.msg || "Failed to delete section");
       }
     } catch (error) {
-      console.error("Delete Section Error:", error);
+      console.error("Delete Section Error:", error, {
+        sectionId: sectionToDelete?.id,
+        originalSectionsCount: originalSections.length
+      });
+      
+      // Rollback UI changes
+      console.log("Rolling back UI changes");
+      setSections(originalSections);
+      setActiveSection(sectionToDelete); // Restore active section on error
+      setShowDeleteModal(true); // Reopen modal on error
+      
       toast.show({
         description: error.message || "Failed to delete section",
         status: "error",
+        duration: 3000,
       });
     } finally {
-      setLoading(false);
+      // Clear deleting state
+      setDeletingSections(prev => {
+        const next = new Set(prev);
+        next.delete(sectionToDelete?.id);
+        console.log("Cleared deletingSections", {
+          sectionId: sectionToDelete?.id,
+          remainingCount: next.size
+        });
+        return next;
+      });
     }
   };
 
@@ -2917,6 +3034,35 @@ export default function TableSectionsScreen() {
       console.error("Error fetching sections for QR:", error);
     }
   };
+
+  // Update the useEffect that handles section fetching
+  useEffect(() => {
+    const refreshSections = async () => {
+      // Skip refresh if modal is open or deletion is in progress
+      if (showDeleteModal || deletingSections.size > 0) {
+        console.log("Skipping refresh because modal is open or deletion in progress");
+        return;
+      }
+
+      try {
+        const storedOutletId = await AsyncStorage.getItem("outlet_id");
+        if (!storedOutletId) {
+          toast.show({
+            description: "Please login again",
+            status: "error",
+          });
+          router.replace("/login");
+          return;
+        }
+
+        await fetchSections(parseInt(storedOutletId));
+      } catch (error) {
+        console.error("Refresh Sections Error:", error);
+      }
+    };
+
+    refreshSections();
+  }, [showDeleteModal, deletingSections.size]); // Add dependencies
 
   return (
     <Box safeArea flex={1} bg="coolGray.100">
