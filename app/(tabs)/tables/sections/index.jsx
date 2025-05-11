@@ -221,6 +221,9 @@ export default function TableSectionsScreen() {
   const [creatingTableSectionId, setCreatingTableSectionId] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   
+  // Add this state at the component level
+  const [deletingTables, setDeletingTables] = useState(new Set());
+  
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
       setFilterStatus("available");
@@ -688,8 +691,26 @@ export default function TableSectionsScreen() {
 
   // Add handleDeleteTable function
   const handleDeleteTable = async (sectionId, tableId) => {
+    const originalSections = [...sections];
+    
     try {
-      setLoading(true);
+      // Add table to deleting set
+      setDeletingTables(prev => new Set([...prev, tableId]));
+      
+      // Optimistically update the UI
+      setSections(prevSections => 
+        prevSections.map(section => {
+          if (section.id === sectionId) {
+            return {
+              ...section,
+              tables: section.tables.filter(table => table.table_id !== tableId),
+              totalTables: section.totalTables - 1
+            };
+          }
+          return section;
+        })
+      );
+
       const storedUserId = await AsyncStorage.getItem("user_id");
       
       if (!storedUserId) {
@@ -707,25 +728,28 @@ export default function TableSectionsScreen() {
         }),
       });
 
-      console.log("Delete Table Response:", data);
-
       if (data.st === 1) {
         toast.show({
           description: "Table deleted successfully",
           status: "success",
         });
-        await fetchSections(outletId.toString());
       } else {
         throw new Error(data.msg || "Failed to delete table");
       }
     } catch (error) {
       console.error("Delete Table Error:", error);
+      setSections(originalSections);
       toast.show({
         description: error.message || "Failed to delete table",
         status: "error",
       });
     } finally {
-      setLoading(false);
+      // Remove table from deleting set
+      setDeletingTables(prev => {
+        const next = new Set(prev);
+        next.delete(tableId);
+        return next;
+      });
     }
   };
 
@@ -1253,13 +1277,18 @@ export default function TableSectionsScreen() {
                                                   _pressed={{ bg: "gray.100" }}
                                                   _hover={{ bg: "gray.50" }}
                                                   icon={
-                                                    <MaterialIcons
-                                                      name="delete"
-                                                      size={16}
-                                                      color="red"
-                                                    />
+                                                    deletingTables.has(table.table_id) ? (
+                                                      <Spinner size="sm" color="red.500" />
+                                                    ) : (
+                                                      <MaterialIcons
+                                                        name="delete"
+                                                        size={16}
+                                                        color="red"
+                                                      />
+                                                    )
                                                   }
                                                   onPress={() => handleDeleteTable(section.id, table.table_id)}
+                                                  isDisabled={deletingTables.has(table.table_id)}
                                                 />
                                               )}
 
