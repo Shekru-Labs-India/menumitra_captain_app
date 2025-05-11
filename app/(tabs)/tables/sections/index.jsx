@@ -224,6 +224,9 @@ export default function TableSectionsScreen() {
   // Add this state at the component level
   const [deletingTables, setDeletingTables] = useState(new Set());
   
+  // Add this with other state declarations
+  const [updatingSections, setUpdatingSections] = useState(new Set());
+  
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
       setFilterStatus("available");
@@ -810,8 +813,26 @@ export default function TableSectionsScreen() {
       return;
     }
 
+    // Store original sections state for rollback
+    const originalSections = [...sections];
+    const originalEditingId = editingSectionId;
+    
     try {
-      setLoading(true);
+      // Add section to updating set
+      setUpdatingSections(prev => new Set([...prev, section.id]));
+      
+      // Optimistically update the UI
+      setSections(prevSections => 
+        prevSections.map(s => 
+          s.id === section.id 
+            ? { ...s, name: sanitizedText.trim() }
+            : s
+        )
+      );
+      
+      // Optimistically clear editing state
+      setEditingSectionId(null);
+
       const storedUserId = await AsyncStorage.getItem("user_id");
       
       if (!storedUserId) {
@@ -834,19 +855,27 @@ export default function TableSectionsScreen() {
           description: "Section updated successfully",
           status: "success",
         });
-        await fetchSections(outletId);
-        setEditingSectionId(null);
       } else {
         throw new Error(data.msg || "Failed to update section");
       }
     } catch (error) {
       console.error("Edit Section Error:", error);
+      
+      // Rollback on error
+      setSections(originalSections);
+      setEditingSectionId(originalEditingId);
+      
       toast.show({
         description: error.message || "Failed to update section",
         status: "error",
       });
     } finally {
-      setLoading(false);
+      // Remove section from updating set
+      setUpdatingSections(prev => {
+        const next = new Set(prev);
+        next.delete(section.id);
+        return next;
+      });
     }
   };
 
@@ -875,39 +904,43 @@ export default function TableSectionsScreen() {
                     justifyContent="space-between"
                     alignItems="center"
                   >
-                    <HStack space={2} alignItems="center" flex={1}>
-                      {editingSectionId === section.id ? (
-                        <Input
-                          defaultValue={section.name}
-                          onChangeText={(text) => setEditedSectionName(text)}
-                          autoFocus
-                          size="lg"
-                          variant="unstyled"
-                          px={2}
-                          py={1}
-                          bg="coolGray.100"
-                          rounded="md"
-                          onBlur={() => {
-                            if (editedSectionName) {
-                              handleEditSectionNameChange(section);
-                            } else {
-                              setEditingSectionId(null);
-                            }
-                          }}
-                          onSubmitEditing={() => {
-                            if (editedSectionName) {
-                              handleEditSectionNameChange(section);
-                            } else {
-                              setEditingSectionId(null);
-                            }
-                          }}
-                        />
-                      ) : (
+                    {editingSectionId === section.id ? (
+                      <Input
+                        defaultValue={section.name}
+                        onChangeText={(text) => setEditedSectionName(text)}
+                        autoFocus
+                        size="lg"
+                        variant="unstyled"
+                        px={2}
+                        py={1}
+                        bg="coolGray.100"
+                        rounded="md"
+                        onBlur={() => {
+                          if (editedSectionName) {
+                            handleEditSectionNameChange(section);
+                          } else {
+                            setEditingSectionId(null);
+                          }
+                        }}
+                        onSubmitEditing={() => {
+                          if (editedSectionName) {
+                            handleEditSectionNameChange(section);
+                          } else {
+                            setEditingSectionId(null);
+                          }
+                        }}
+                        isDisabled={updatingSections.has(section.id)}
+                      />
+                    ) : (
+                      <HStack space={2} alignItems="center">
                         <Text fontSize="lg" fontWeight="bold">
                           {section.name}
                         </Text>
-                      )}
-                    </HStack>
+                        {updatingSections.has(section.id) && (
+                          <Spinner size="sm" color="blue.500" />
+                        )}
+                      </HStack>
+                    )}
                     
                     {showEditIcons && (
                       <HStack space={2} alignItems="center">
