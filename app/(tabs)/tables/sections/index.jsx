@@ -2513,6 +2513,10 @@ export default function TableSectionsScreen() {
 
           {/* Header */}
           <Box mb={5} mt={2}>
+           
+            <Text fontSize="sm" color="coolGray.600">
+              Order #{selectedTable?.order_number} | ₹{selectedTable?.grand_total?.toFixed(2)}
+            </Text>
             <HStack justifyContent="space-between" alignItems="center" mb={1}>
               <Text 
                 fontSize="md" 
@@ -2529,9 +2533,6 @@ export default function TableSectionsScreen() {
                 {getOrderTypeDisplay()}
               </Badge> */}
             </HStack>
-            <Text fontSize="sm" color="coolGray.600">
-              Order #{selectedTable?.order_number} | ₹{selectedTable?.grand_total?.toFixed(2)}
-            </Text>
           </Box>
 
           {/* Success State */}
