@@ -87,6 +87,10 @@ export default function MenuSelectionScreen() {
   const [existingMenuQuantities, setExistingMenuQuantities] = useState({});
   const [isReserved, setIsReserved] = useState(false);
   const [reserveModalVisible, setReserveModalVisible] = useState(false);
+  // Add new state variables for special discount, charges, and tip
+  const [specialDiscount, setSpecialDiscount] = useState(orderDetails?.special_discount || 0);
+  const [charges, setCharges] = useState(orderDetails?.charges || 0);
+  const [tip, setTip] = useState(orderDetails?.tip || 0);
   // Add new state variables for table switching
   const [showTableSwitcher, setShowTableSwitcher] = useState(false);
   const [availableTables, setAvailableTables] = useState([]);
@@ -259,6 +263,10 @@ export default function MenuSelectionScreen() {
         if (response.lists.order_details) {
           setUserName(response.lists.order_details.user_name || "");
           setUserMobile(response.lists.order_details.user_mobile || "");
+          // Set special discount, charges, and tip from order details
+          setSpecialDiscount(parseFloat(response.lists.order_details.special_discount) || 0);
+          setCharges(parseFloat(response.lists.order_details.charges) || 0);
+          setTip(parseFloat(response.lists.order_details.tip) || 0);
           console.log("User data from order:", response.lists.order_details.user_name, response.lists.order_details.user_mobile);
         }
         
@@ -484,7 +492,10 @@ export default function MenuSelectionScreen() {
           ...orderDetails,
           menu_items: formattedCartItems,
           user_name: userName,
-          user_mobile: userMobile
+          user_mobile: userMobile,
+          special_discount: specialDiscount,
+          charges: charges,
+          tip: tip
         })
       }
     });

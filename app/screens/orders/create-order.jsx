@@ -522,9 +522,9 @@ export default function CreateOrderScreen() {
   });
   
   const [showCustomerDetailsModal, setShowCustomerDetailsModal] = useState(false);
-  const [specialDiscount, setSpecialDiscount] = useState('0');
-  const [extraCharges, setExtraCharges] = useState('0');
-  const [tip, setTip] = useState('0');
+  const [specialDiscount, setSpecialDiscount] = useState("0");
+  const [extraCharges, setExtraCharges] = useState("0");
+  const [tip, setTip] = useState("0");
   const [paymentMethod, setPaymentMethod] = useState('CARD');
   const [isPaid, setIsPaid] = useState(false);
   const [isComplementary, setIsComplementary] = useState(false);
@@ -3931,6 +3931,96 @@ const handleSettleOrder = async () => {
       setLoadingMessage("");
     }
   };
+
+  // Add this useEffect after your state declarations
+  useEffect(() => {
+    // Parse the orderDetails from params
+    if (params.orderDetails) {
+      try {
+        const orderDetailsObj = JSON.parse(params.orderDetails);
+        
+        // Set the values from params, with proper type handling
+        setSpecialDiscount(orderDetailsObj.special_discount?.toString() || "0");
+        setExtraCharges(orderDetailsObj.charges?.toString() || "0");
+        setTip(orderDetailsObj.tip?.toString() || "0");
+
+        console.log("Initialized values from params:", {
+          special_discount: orderDetailsObj.special_discount,
+          charges: orderDetailsObj.charges,
+          tip: orderDetailsObj.tip
+        });
+      } catch (error) {
+        console.error("Error parsing orderDetails:", error);
+      }
+    }
+  }, [params.orderDetails]); // Only run when orderDetails changes
+
+  // Then update the input section to handle the values properly:
+  {showDiscountPanel && (
+    <Box px={4} pb={4}>
+      <HStack space={2} justifyContent="space-between" mb={3}>
+        <VStack flex={1}>
+          <Text fontSize="xs" color="gray.500" mb={1}>Special Discount</Text>
+          <Input
+            keyboardType="numeric"
+            value={specialDiscount}
+            onChangeText={(text) => {
+              // Ensure we handle empty input and non-numeric values
+              const value = text.trim() === "" ? "0" : text;
+              if (/^\d*\.?\d*$/.test(value)) {
+                setSpecialDiscount(value);
+              }
+            }}
+            variant="outline"
+            size="sm"
+            bg="white"
+            placeholder="0"
+            borderColor="gray.300"
+          />
+        </VStack>
+        
+        <VStack flex={1}>
+          <Text fontSize="xs" color="gray.500" mb={1}>Extra Charges</Text>
+          <Input
+            keyboardType="numeric"
+            value={extraCharges}
+            onChangeText={(text) => {
+              const value = text.trim() === "" ? "0" : text;
+              if (/^\d*\.?\d*$/.test(value)) {
+                setExtraCharges(value);
+              }
+            }}
+            variant="outline"
+            size="sm"
+            bg="white"
+            placeholder="0"
+            borderColor="gray.300"
+          />
+        </VStack>
+        
+        <VStack flex={1}>
+          <Text fontSize="xs" color="gray.500" mb={1}>Tip</Text>
+          <Input
+            keyboardType="numeric"
+            value={tip}
+            onChangeText={(text) => {
+              const value = text.trim() === "" ? "0" : text;
+              if (/^\d*\.?\d*$/.test(value)) {
+                setTip(value);
+              }
+            }}
+            variant="outline"
+            size="sm"
+            bg="white"
+            placeholder="0"
+            borderColor="gray.300"
+          />
+        </VStack>
+      </HStack>
+      
+      {/* Rest of your checkbox code remains the same */}
+    </Box>
+  )}
 
   return (
     <Box flex={1} bg="white" safeArea>
