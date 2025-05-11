@@ -1509,12 +1509,12 @@ const OrdersScreen = () => {
             <HStack alignItems="center" space={2}>
               <Icon
                 as={MaterialIcons}
-                name="restaurant"
+                name="store"
                 size={5}
                 color="gray.600"
               />
               <Text fontWeight="medium" fontSize="md">
-                {outletName || "Select Restaurant"}
+                {outletName || ""}
               </Text>
             </HStack>
           </HStack>

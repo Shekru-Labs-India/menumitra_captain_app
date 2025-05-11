@@ -749,7 +749,7 @@ export default function HomeScreen() {
           >
             <HStack alignItems="center" space={2}>
               <Icon as={MaterialIcons} name="store" size={5} color="gray.600" />
-              <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
+              <Text fontWeight="medium" fontSize="md">{restaurantName || ""}</Text>
             </HStack>
        
               <Badge colorScheme="warning" variant="solid" rounded="full" px={3} py={0.5}>

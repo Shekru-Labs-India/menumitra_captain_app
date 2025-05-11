@@ -390,7 +390,7 @@ export default function MenuListView() {
               >
                 <Icon
                   as={MaterialIcons}
-                  name="restaurant"
+                  name="store"
                   size={5}
                   color="coolGray.400"
                 />
@@ -533,8 +533,8 @@ export default function MenuListView() {
             p={2}
           >
             <HStack alignItems="center" space={2}>
-              <Icon as={MaterialIcons} name="restaurant" size={5} color="gray.600" />
-              <Text fontWeight="medium" fontSize="md">{restaurantName || "Select Restaurant"}</Text>
+              <Icon as={MaterialIcons} name="store" size={5} color="gray.600" />
+              <Text fontWeight="medium" fontSize="md">{restaurantName || ""}</Text>
             </HStack>
           </HStack>
         </Pressable>

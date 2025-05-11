@@ -903,7 +903,7 @@ const RestaurantProfile = () => {
         {/* Basic Info Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <MaterialIcons name="restaurant" size={24} color="#4b89dc" />
+            <MaterialIcons name="store" size={24} color="#4b89dc" />
             <Text style={styles.cardTitle}>Restaurant Information</Text>
           </View>
 
