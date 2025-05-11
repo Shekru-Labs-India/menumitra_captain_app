@@ -30,7 +30,15 @@ import {
   Switch,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Platform, StatusBar, ScrollView, RefreshControl, AppState, Animated } from "react-native";
+import {
+  Platform,
+  StatusBar,
+  ScrollView,
+  RefreshControl,
+  AppState,
+  Animated,
+  Easing, // Add this import
+} from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -2513,34 +2521,50 @@ export default function TableSectionsScreen() {
     getRestaurantName();
   }, [getRestaurantName]);
 
-  useEffect(() => {
-    // Reset animation value to 0
+  // Update the animation implementation
+  const startBlinkAnimation = () => {
+    // Reset value before starting animation
     blinkAnimation.setValue(0);
     
-    // Create animation
-    const blinkSequence = Animated.loop(
+    // Create the animation sequence
+    const animate = () => {
       Animated.sequence([
         Animated.timing(blinkAnimation, {
           toValue: 1,
-          duration: 500,
-          useNativeDriver: true
+          duration: 400,
+          useNativeDriver: true,
+          easing: Easing.linear
         }),
         Animated.timing(blinkAnimation, {
           toValue: 0,
-          duration: 500,
-          useNativeDriver: true
+          duration: 400,
+          useNativeDriver: true,
+          easing: Easing.linear
         })
-      ])
-    );
-    
-    // Start animation
-    blinkSequence.start();
-    
-    // Clean up
-    return () => {
-      blinkSequence.reset();
+      ]).start(() => {
+        // Recursively call animate to ensure continuous blinking
+        animate();
+      });
     };
-  }, []);  // Remove blinkAnimation from dependencies to avoid re-triggering
+
+    // Start the animation
+    animate();
+  };
+
+  useEffect(() => {
+    let isSubscribed = true;
+
+    if (isSubscribed) {
+      startBlinkAnimation();
+    }
+
+    return () => {
+      isSubscribed = false;
+      // Ensure proper cleanup
+      blinkAnimation.stopAnimation();
+      blinkAnimation.setValue(0);
+    };
+  }, []); // Empty dependency array to run only once
 
   // Updated payment icon press handler to match RestaurantTables.js pattern
   const handlePaymentIconPress = (table, section) => {
