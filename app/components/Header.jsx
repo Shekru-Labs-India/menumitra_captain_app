@@ -54,7 +54,7 @@ const Header = ({ title, onBackPress, rightComponent }) => {
       bg={colorMode === 'dark' ? 'coolGray.900' : 'white'} 
       pb={2}
       pt={2}
-      px={4}
+      px={0}
       shadow={2}
       borderBottomWidth={1}
       borderBottomColor={colorMode === 'dark' ? 'coolGray.800' : 'coolGray.200'}

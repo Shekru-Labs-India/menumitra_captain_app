@@ -4029,7 +4029,15 @@ const handleSettleOrder = async () => {
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
-        title={params?.orderId ? "Update Order" : "Create Order"}
+        title={params?.orderId 
+          ? "Update Order" 
+          : params?.orderType 
+            ? `Create ${params.orderType === 'drive-through' 
+                ? 'Drive' 
+                : params.orderType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+              } Order`
+            : "Create Order"
+        }
         onBackPress={() => router.replace({
           pathname: "/screens/orders/menu-selection",
           params: {
