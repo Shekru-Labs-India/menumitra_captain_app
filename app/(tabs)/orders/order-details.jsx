@@ -581,6 +581,25 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
             font-weight: bold;
             font-style: normal;
           }
+          .billing-information {
+            margin: 20px 0;
+          }
+          .dotted-line {
+            border-top: 1px dotted #000;
+            margin: 10px 0;
+          }
+          .billing-details {
+            padding: 10px 0;
+          }
+          .billing-row {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #333;
+          }
+          .billing-row span {
+            display: block;
+            line-height: 1.5;
+          }
         </style>
       </head>
       <body>
@@ -606,6 +625,8 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
             <strong>Date:</strong> ${currentDateTime}
           </div>
         </div>
+
+       
 
         <div class="items-section">
           <div class="items-header">
@@ -685,9 +706,24 @@ const generateInvoiceHTML = async (orderDetails, menuItems) => {
           </div>
         </div>
 
-        <div class="payment-section">
-          <span class="payment-label">Payment Method:</span>
-          <span>${getPaymentMethod(orderDetails)}</span>
+        
+         <!-- Add the new billing information section here -->
+        <div class="billing-information">
+          <div class="dotted-line"></div>
+          <div class="billing-details">
+            <div class="billing-row">
+              <span>► ${orderDetails.outlet_name || ''}</span>
+            </div>
+            <div class="billing-row">
+              <span>► ${orderDetails.outlet_address || ''}</span>
+            </div>
+            ${orderDetails.outlet_mobile ? `
+            <div class="billing-row">
+              <span>► Ph: ${orderDetails.outlet_mobile}</span>
+            </div>
+            ` : ''}
+          </div>
+          <div class="dotted-line"></div>
         </div>
 
         <div class="footer">
