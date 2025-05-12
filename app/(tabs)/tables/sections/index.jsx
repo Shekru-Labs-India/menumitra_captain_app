@@ -3560,92 +3560,98 @@ export default function TableSectionsScreen() {
 
   return (
     <Box safeArea flex={1} bg="coolGray.100">
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#0891b2"]} // For Android
-            tintColor="#0891b2" // For iOS
-          />
-        }
-      >
-        <VStack flex={1}>
-          <HStack
-            alignItems="center"
-            bg="white"
-            px={4}
-            py={2}
-            shadow={1}
-            safeAreaTop
+      {/* Fixed Header Parts */}
+      <VStack>
+        <HStack
+          alignItems="center"
+          bg="white"
+          px={4}
+          py={2}
+          shadow={1}
+          safeAreaTop
+        >
+          <Pressable
+            onPress={() => router.back()}
+            p={2}
+            rounded="full"
+            _pressed={{ bg: "coolGray.100" }}
           >
-            <Pressable
-              onPress={() => router.back()}
-              p={2}
-              rounded="full"
-              _pressed={{ bg: "coolGray.100" }}
-            >
-              <Icon
-                as={MaterialIcons}
-                name="arrow-back"
-                size={5}
-                color="gray.800"
-              />
-            </Pressable>
-
-            <Text
-              fontSize="xl"
-              fontWeight="bold"
-              flex={1}
-              textAlign="center"
-              mr={12}
-            >
-              Tables
-            </Text>
-
-            <IconButton
-              variant="ghost"
-              colorScheme="coolGray"
-              icon={<Icon as={MaterialIcons} name="settings" size={5} />}
-              onPress={() => setShowEditIcons(!showEditIcons)}
-              bg={showEditIcons ? "primary.500" : "transparent"}
-              _pressed={{
-                bg: showEditIcons ? "primary.600" : "coolGray.100",
-              }}
-              rounded="full"
-              position="absolute"
-              right={4}
-              size="sm"
+            <Icon
+              as={MaterialIcons}
+              name="arrow-back"
+              size={5}
+              color="gray.800"
             />
-          </HStack>
+          </Pressable>
 
-          {/* Add Restaurant Name Box */}
-          <Box>
-            <Pressable>
-              <HStack
-                alignItems="center"
-                justifyContent="space-between"
-                bg="white"
-                rounded="md"
-                p={2}
-              >
-                <HStack alignItems="center" space={2}>
-                  <Icon
-                    as={MaterialIcons}
-                    name="store"
-                    size={5}
-                    color="gray.600"
-                  />
-                  <Text fontWeight="medium" fontSize="md">
-                    {restaurantName || ""}
-                  </Text>
-                </HStack>
+          <Text
+            fontSize="xl"
+            fontWeight="bold"
+            flex={1}
+            textAlign="center"
+            mr={12}
+          >
+            Tables
+          </Text>
+
+          <IconButton
+            variant="ghost"
+            colorScheme="coolGray"
+            icon={<Icon as={MaterialIcons} name="settings" size={5} />}
+            onPress={() => setShowEditIcons(!showEditIcons)}
+            bg={showEditIcons ? "primary.500" : "transparent"}
+            _pressed={{
+              bg: showEditIcons ? "primary.600" : "coolGray.100",
+            }}
+            rounded="full"
+            position="absolute"
+            right={4}
+            size="sm"
+          />
+        </HStack>
+
+        {/* Restaurant Name Box */}
+        <Box>
+          <Pressable>
+            <HStack
+              alignItems="center"
+              justifyContent="space-between"
+              bg="white"
+              rounded="md"
+              p={2}
+            >
+              <HStack alignItems="center" space={2}>
+                <Icon
+                  as={MaterialIcons}
+                  name="store"
+                  size={5}
+                  color="gray.600"
+                />
+                <Text fontWeight="medium" fontSize="md">
+                  {restaurantName || ""}
+                </Text>
               </HStack>
-            </Pressable>
-          </Box>
+            </HStack>
+          </Pressable>
+        </Box>
+      </VStack>
 
-          {/* Search and Filters */}
+      {/* Main Content Area with Scrollable Content */}
+      <Box flex={1}>
+        {/* This is the scrollable area with stickyHeaderIndices for order type buttons */}
+        <ScrollView
+          stickyHeaderIndices={[3]} // Make the 4th element (OrderTypeButtons at index 3) sticky
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 70 }} // Add padding to bottom for FAB
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#0891b2"]} // For Android
+              tintColor="#0891b2" // For iOS
+            />
+          }
+        >
+          {/* Element 0: Search */}
           <Box px={4} py={2} bg="white">
             <Input
               placeholder="Search section"
@@ -3686,7 +3692,7 @@ export default function TableSectionsScreen() {
             />
           </Box>
 
-          {/* Status Filter Buttons */}
+          {/* Element 1: Status Filter Buttons */}
           <Box
             bg="white"
             py={2}
@@ -3790,7 +3796,7 @@ export default function TableSectionsScreen() {
             </Box>
           </Box>
 
-          {/* Sales Summary Row */}
+          {/* Element 2: Sales Summary Row */}
           <Box 
             bg="white" 
             py={3}
@@ -3838,10 +3844,18 @@ export default function TableSectionsScreen() {
             </HStack>
           </Box>
 
-          {/* Filter Buttons for order types */}
-          <OrderTypeButtons />
+          {/* Element 3: Order Type Buttons - THIS WILL STICK WHEN SCROLLED TO TOP */}
+          <Box
+            bg="white"
+            borderBottomWidth={1}
+            borderBottomColor="coolGray.200"
+            shadow={2}
+            zIndex={10}
+          >
+            <OrderTypeButtons />
+          </Box>
 
-          {/* Content */}
+          {/* Element 4: Content */}
           <Box flex={1} bg="coolGray.100">
             {loading ? (
               <TableSkeletonLoader />
@@ -3850,24 +3864,24 @@ export default function TableSectionsScreen() {
                 {viewType === "grid"
                   ? renderGridView(sortedSections)
                   : renderGridView(sortedSections)}
-
-                {/* FAB */}
-                <Fab
-                  renderInPortal={false}
-                  shadow={2}
-                  size="sm"
-                  colorScheme="green"
-                  icon={<MaterialIcons name="add" size={24} color="white" />}
-                  onPress={() => setShowAddModal(true)}
-                  position="absolute"
-                  bottom={4}
-                  right={4}
-                />
               </>
             )}
           </Box>
-        </VStack>
-      </ScrollView>
+        </ScrollView>
+
+        {/* FAB - Outside ScrollView so it's always visible */}
+        <Fab
+          renderInPortal={false}
+          shadow={2}
+          size="sm"
+          colorScheme="green"
+          icon={<MaterialIcons name="add" size={24} color="white" />}
+          onPress={() => setShowAddModal(true)}
+          position="absolute"
+          bottom={4}
+          right={4}
+        />
+      </Box>
 
       {/* Add Section Modal */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)}>
