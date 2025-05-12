@@ -2567,7 +2567,7 @@ const handleSettleOrder = async () => {
           ...generateQRCode(upiPaymentString),
           ...textToBytes('\n\n'),
           ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n\n`),
-          ...textToBytes("UPI ID: " + upiId + "\n\n")
+          // ...textToBytes("UPI ID: " + upiId + "\n\n")
         );
       // }
 
