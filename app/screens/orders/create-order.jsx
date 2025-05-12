@@ -650,11 +650,14 @@ export default function CreateOrderScreen() {
         console.log("User data from params:", userNameFromParams, userMobileFromParams);
         
         // Update customer details with user data if available
-        if (userNameFromParams || userMobileFromParams) {
+        if (userNameFromParams || userMobileFromParams || params.customer_address || params.customer_alternate_mobile || params.customer_landmark) {
           setCustomerDetails(prev => ({
             ...prev,
             customer_name: userNameFromParams || prev.customer_name,
-            customer_mobile: userMobileFromParams || prev.customer_mobile
+            customer_mobile: userMobileFromParams || prev.customer_mobile,
+            customer_address: params.customer_address || prev.customer_address,
+            customer_alternate_mobile: params.customer_alternate_mobile || prev.customer_alternate_mobile,
+            customer_landmark: params.customer_landmark || prev.customer_landmark
           }));
         }
         
@@ -693,16 +696,14 @@ export default function CreateOrderScreen() {
               parseFloat(orderDetails.order_details.gst_percent || 0)
             );
 
-            // Set customer details
-            if (orderDetails.order_details.customer_name) {
-              setCustomerDetails({
-                customer_name: orderDetails.order_details.customer_name || userNameFromParams || "",
-                customer_mobile: orderDetails.order_details.customer_mobile || userMobileFromParams || "",
-                customer_alternate_mobile: orderDetails.order_details.customer_alternate_mobile || "",
-                customer_address: orderDetails.order_details.customer_address || "",
-                customer_landmark: orderDetails.order_details.customer_landmark || ""
-              });
-            }
+            // Set customer details, preserving params values if API response is empty
+            setCustomerDetails(prev => ({
+              customer_name: orderDetails.order_details.customer_name || userNameFromParams || prev.customer_name,
+              customer_mobile: orderDetails.order_details.customer_mobile || userMobileFromParams || prev.customer_mobile,
+              customer_alternate_mobile: orderDetails.order_details.customer_alternate_mobile || params.customer_alternate_mobile || prev.customer_alternate_mobile,
+              customer_address: orderDetails.order_details.customer_address || params.customer_address || prev.customer_address,
+              customer_landmark: orderDetails.order_details.customer_landmark || params.customer_landmark || prev.customer_landmark
+            }));
 
             // Set additional charges
             setSpecialDiscount(orderDetails.order_details.special_discount?.toString() || "0");
@@ -4096,6 +4097,19 @@ const handleSettleOrder = async () => {
 
     validateOrderTypeAndParams();
   }, [params]);
+
+  // Add this useEffect after the state declarations
+  useEffect(() => {
+    // Initialize customer details from params
+    if (params) {
+      setCustomerDetails(prevDetails => ({
+        ...prevDetails,
+        customer_address: params.customer_address || "",
+        customer_alternate_mobile: params.customer_alternate_mobile || "",
+        customer_landmark: params.customer_landmark || ""
+      }));
+    }
+  }, [params]); // Only run when params change
 
   return (
     <Box flex={1} bg="white" safeArea>

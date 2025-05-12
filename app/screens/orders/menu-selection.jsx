@@ -261,7 +261,13 @@ export default function MenuSelectionScreen() {
         console.log("Setting order details:", orderDetails);
         
         // Set all the states
-        setExistingOrderDetails(orderDetails);
+        setExistingOrderDetails({
+          ...orderDetails,
+          // Ensure customer details are included
+          customer_address: orderDetails.customer_address || "",
+          customer_alternate_mobile: orderDetails.customer_alternate_mobile || "",
+          customer_landmark: orderDetails.customer_landmark || ""
+        });
         setUserName(orderDetails.user_name || "");
         setUserMobile(orderDetails.user_mobile || "");
         setSpecialDiscount(parseFloat(orderDetails.special_discount) || 0);
@@ -281,7 +287,13 @@ export default function MenuSelectionScreen() {
         }));
         setCart(cartItems);
 
-        return orderDetails; // Return the order details
+        return {
+          ...orderDetails,
+          // Ensure customer details are included in the return value
+          customer_address: orderDetails.customer_address || "",
+          customer_alternate_mobile: orderDetails.customer_alternate_mobile || "",
+          customer_landmark: orderDetails.customer_landmark || ""
+        };
       }
       return null;
     } catch (error) {
@@ -494,6 +506,10 @@ export default function MenuSelectionScreen() {
           orderType: orderType,
           userName: userName,
           userMobile: userMobile,
+          // Add customer details from API response
+          customer_address: orderInfo?.customer_address || "",
+          customer_alternate_mobile: orderInfo?.customer_alternate_mobile || "",
+          customer_landmark: orderInfo?.customer_landmark || "",
           orderDetails: JSON.stringify({
             menu_items: formattedCartItems,
             user_name: userName,
@@ -501,7 +517,11 @@ export default function MenuSelectionScreen() {
             special_discount: specialDiscount,
             charges: charges,
             tip: tip,
-            order_id: finalOrderId // Include order ID in details
+            order_id: finalOrderId, // Include order ID in details
+            // Include customer details in orderDetails as well
+            customer_address: orderInfo?.customer_address || "",
+            customer_alternate_mobile: orderInfo?.customer_alternate_mobile || "",
+            customer_landmark: orderInfo?.customer_landmark || ""
           })
         }
       });
