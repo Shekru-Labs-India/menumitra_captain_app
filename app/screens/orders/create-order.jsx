@@ -525,7 +525,7 @@ export default function CreateOrderScreen() {
   const [specialDiscount, setSpecialDiscount] = useState("0");
   const [extraCharges, setExtraCharges] = useState("0");
   const [tip, setTip] = useState("0");
-  const [paymentMethod, setPaymentMethod] = useState('CARD');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [isPaid, setIsPaid] = useState(false);
   const [isComplementary, setIsComplementary] = useState(false);
   const [isAdditionalOptionsOpen, setIsAdditionalOptionsOpen] = useState(false);
@@ -713,7 +713,7 @@ export default function CreateOrderScreen() {
             if (orderDetails.order_details.is_paid === "paid") {
               setIsPaid(true);
               setIsComplementary(false);
-              setPaymentMethod(orderDetails.order_details.payment_method?.toUpperCase() || "CARD");
+              setPaymentMethod(orderDetails.order_details.payment_method?.toUpperCase() || "cash");
             } else if (orderDetails.order_details.is_paid === "complementary") {
               setIsPaid(false);
               setIsComplementary(true);
@@ -755,7 +755,7 @@ export default function CreateOrderScreen() {
   };
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("CASH");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash");
   const [isPaidChecked, setIsPaidChecked] = useState(false);
 
   // Update handleKOT function to check for printer connection properly
@@ -1425,7 +1425,7 @@ const handleSettleOrder = async () => {
           if (orderData.order_details.is_paid === "paid") {
             setIsPaid(true);
             setIsComplementary(false);
-            setPaymentMethod(orderData.order_details.payment_method?.toUpperCase() || "CARD");
+            setPaymentMethod(orderData.order_details.payment_method?.toUpperCase() || "cash");
           } else if (orderData.order_details.is_paid === "complementary") {
             setIsPaid(false);
             setIsComplementary(true);
@@ -1493,7 +1493,7 @@ const handleSettleOrder = async () => {
                 if (orderData.order_details.is_paid === "paid") {
                   setIsPaid(true);
                   setIsComplementary(false);
-                  setPaymentMethod(orderData.order_details.payment_method?.toUpperCase() || "CARD");
+                  setPaymentMethod(orderData.order_details.payment_method?.toUpperCase() || "cash");
                 } else if (orderData.order_details.is_paid === "complementary") {
                   setIsPaid(false);
                   setIsComplementary(true);
@@ -4754,13 +4754,13 @@ const handleSettleOrder = async () => {
                 onChange={setSelectedPaymentMethod}
               >
                 <HStack space={6} flexWrap="wrap">
-                  <Radio value="CASH" size="lg">
+                  <Radio value="cash" size="lg">
                     <Text fontSize="md">CASH</Text>
                   </Radio>
-                  <Radio value="UPI" size="lg">
+                  <Radio value="upi" size="lg">
                     <Text fontSize="md">UPI</Text>
                   </Radio>
-                  <Radio value="CARD" size="lg">
+                  <Radio value="card" size="lg">
                     <Text fontSize="md">CARD</Text>
                   </Radio>
                 </HStack>
