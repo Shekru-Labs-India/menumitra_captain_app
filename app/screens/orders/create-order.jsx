@@ -4666,8 +4666,8 @@ toast.show({
                         
                           w="33%"
                           h={10}
-                          bg="#242424"
-                          _pressed={{ bg: "#333" }}
+                          bg="green.500"
+                          _pressed={{ bg: "green.600" }}
                           
                           borderRadius="md"
                           py={0}
