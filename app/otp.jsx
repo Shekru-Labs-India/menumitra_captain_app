@@ -217,7 +217,7 @@ export default function OtpScreen() {
       };
 
       const response = await fetch(
-        "https://men4u.xyz/captain_api/captain_verify_otp",  // development URL
+        "https://men4u.xyz/1.3/captain_api/captain_verify_otp",  // development URL
         {
           method: "POST",
           headers: {

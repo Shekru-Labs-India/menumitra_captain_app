@@ -24,7 +24,7 @@ import Header from "../../components/Header";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 
-const API_BASE_URL = "https://men4u.xyz/common_api";
+const API_BASE_URL = "https://men4u.xyz/1.3/common_api";
 
 export default function TableDetailsScreen() {
   const router = useRouter();

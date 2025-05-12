@@ -652,7 +652,7 @@ export default function HomeScreen() {
   // Update version check function
   const checkVersion = useCallback(async () => {
     try {
-      const response = await fetchWithAuth('https://men4u.xyz/common_api/check_version', {
+      const response = await fetchWithAuth('https://men4u.xyz/1.3/common_api/check_version', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ app_type: 'captain_app' })
