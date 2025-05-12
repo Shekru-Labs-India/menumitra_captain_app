@@ -43,6 +43,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../../../app/components/Header";
+import PaymentModal from "../../../../app/components/PaymentModal";
 import { getBaseUrl } from "../../../../config/api.config";
 import { fetchWithAuth } from "../../../../utils/apiInterceptor";
 import QRCode from "react-native-qrcode-svg";
@@ -3337,240 +3338,21 @@ export default function TableSectionsScreen() {
     }
   };
 
-  // Updated PaymentModal to match RestaurantTables.js UI - clean, simple design
-  const PaymentModal = () => {
-    // Get order type with proper capitalization
-    const getOrderTypeDisplay = () => {
-      const orderType = selectedTable?.order_type || "dine-in";
-      return orderType
-        .split("-")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join("-");
-    };
-
-    return (
-      <Modal
-        isOpen={isPaymentModalVisible}
-        onClose={() => setIsPaymentModalVisible(false)}
-        closeOnOverlayClick={!paymentLoading}
-      >
-        <Modal.Content maxWidth="350px" p={4} borderRadius="md" bg="white">
-          {/* Close button */}
-          <Pressable
-            position="absolute"
-            right={3}
-            top={2}
-            zIndex={2}
-            onPress={() => setIsPaymentModalVisible(false)}
-          >
-            <Icon
-              as={MaterialIcons}
-              name="close"
-              size="sm"
-              color="coolGray.500"
-            />
-          </Pressable>
-
-          {/* Header */}
-          <Box mb={5} mt={2}>
-            <Text fontSize="sm" color="coolGray.600">
-              {selectedTable?.order_type &&
-              selectedTable.order_type !== "dine-in"
-                ? getOrderTypeDisplay()
-                : `Table ${selectedTable?.table_number}`}{" "}
-              | Order #{selectedTable?.order_number} | ₹
-              {selectedTable?.grand_total?.toFixed(2)}
-            </Text>
-          </Box>
-
-          {/* Success State */}
-          {paymentSuccess ? (
-            <VStack space={4} alignItems="center" py={3}>
-              <Icon
-                as={MaterialIcons}
-                name="check-circle"
-                size="6xl"
-                color="green.500"
-              />
-              <Text
-                fontSize="lg"
-                fontWeight="bold"
-                color="green.500"
-                textAlign="center"
-              >
-                Payment Settled Successfully
-              </Text>
-            </VStack>
-          ) : (
-            <>
-              {/* Payment Method Selection */}
-              <Box mb={4}>
-                <Text
-                  fontSize="sm"
-                  fontWeight="medium"
-                  color="coolGray.700"
-                  mb={3}
-                >
-                  Select Payment Method
-                </Text>
-
-                <HStack space={3} alignItems="center">
-                  {/* CASH Option */}
-                  <HStack alignItems="center" space={1}>
-                    <Pressable
-                      onPress={() => setSelectedPaymentMethod("cash")}
-                      disabled={paymentLoading}
-                    >
-                      <Box
-                        width={5}
-                        height={5}
-                        rounded="full"
-                        borderWidth={1}
-                        borderColor="#0891b2"
-                        justifyContent="center"
-                        alignItems="center"
-                      >
-                        {selectedPaymentMethod === "cash" && (
-                          <Box
-                            width={3}
-                            height={3}
-                            rounded="full"
-                            bg="#0891b2"
-                          />
-                        )}
-                      </Box>
-                    </Pressable>
-                    <Text fontSize="sm" color="coolGray.700">
-                      CASH
-                    </Text>
-                  </HStack>
-
-                  {/* UPI Option */}
-                  <HStack alignItems="center" space={1}>
-                    <Pressable
-                      onPress={() => setSelectedPaymentMethod("upi")}
-                      disabled={paymentLoading}
-                    >
-                      <Box
-                        width={5}
-                        height={5}
-                        rounded="full"
-                        borderWidth={1}
-                        borderColor="#0891b2"
-                        justifyContent="center"
-                        alignItems="center"
-                      >
-                        {selectedPaymentMethod === "upi" && (
-                          <Box
-                            width={3}
-                            height={3}
-                            rounded="full"
-                            bg="#0891b2"
-                          />
-                        )}
-                      </Box>
-                    </Pressable>
-                    <Text fontSize="sm" color="coolGray.700">
-                      UPI
-                    </Text>
-                  </HStack>
-
-                  {/* CARD Option */}
-                  <HStack alignItems="center" space={1}>
-                    <Pressable
-                      onPress={() => setSelectedPaymentMethod("card")}
-                      disabled={paymentLoading}
-                    >
-                      <Box
-                        width={5}
-                        height={5}
-                        rounded="full"
-                        borderWidth={1}
-                        borderColor="#0891b2"
-                        justifyContent="center"
-                        alignItems="center"
-                      >
-                        {selectedPaymentMethod === "card" && (
-                          <Box
-                            width={3}
-                            height={3}
-                            rounded="full"
-                            bg="#0891b2"
-                          />
-                        )}
-                      </Box>
-                    </Pressable>
-                    <Text fontSize="sm" color="coolGray.700">
-                      CARD
-                    </Text>
-                  </HStack>
-
-                  {/* Paid Checkbox - aligned to the right */}
-                  <Pressable
-                    onPress={() => setIsPaid(!isPaid)}
-                    disabled={paymentLoading}
-                    ml="auto"
-                    flexDirection="row"
-                    alignItems="center"
-                  >
-                    <HStack space={1} alignItems="center">
-                      <Box
-                        width={5}
-                        height={5}
-                        rounded="sm"
-                        borderWidth={1}
-                        borderColor="#0891b2"
-                        justifyContent="center"
-                        alignItems="center"
-                        bg={isPaid ? "#0891b2" : "transparent"}
-                      >
-                        {isPaid && (
-                          <Icon
-                            as={MaterialIcons}
-                            name="check"
-                            size="xs"
-                            color="white"
-                          />
-                        )}
-                      </Box>
-                      <Text fontSize="sm" color="coolGray.700">
-                        Paid
-                      </Text>
-                    </HStack>
-                  </Pressable>
-                </HStack>
-              </Box>
-
-              {/* Settle Button */}
-              <Button
-                width="100%"
-                height="45px"
-                bg="#0891b2"
-                _pressed={{ bg: "#0891b2" }}
-                rounded="md"
-                onPress={handleSettlePayment}
-                isLoading={paymentLoading}
-                isLoadingText="Settling..."
-                _text={{ fontWeight: "medium" }}
-                startIcon={
-                  <Icon
-                    as={MaterialIcons}
-                    name="check"
-                    size="sm"
-                    color="white"
-                  />
-                }
-                isDisabled={paymentLoading || !selectedPaymentMethod || !isPaid}
-                opacity={!selectedPaymentMethod || !isPaid ? 0.7 : 1}
-              >
-                Settle
-              </Button>
-            </>
-          )}
-        </Modal.Content>
-      </Modal>
-    );
-  };
+  // Replace the PaymentModal component implementation with the imported one
+  const renderPaymentModal = () => (
+    <PaymentModal 
+      isOpen={isPaymentModalVisible}
+      onClose={() => setIsPaymentModalVisible(false)}
+      tableData={selectedTable}
+      paymentSuccess={paymentSuccess}
+      paymentLoading={paymentLoading}
+      selectedPaymentMethod={selectedPaymentMethod}
+      setSelectedPaymentMethod={setSelectedPaymentMethod}
+      isPaid={isPaid}
+      setIsPaid={setIsPaid}
+      onSettlePayment={handleSettlePayment}
+    />
+  );
 
   const handleToggleStatus = async (sectionId, currentStatus) => {
     try {
@@ -4147,7 +3929,7 @@ export default function TableSectionsScreen() {
       <QRCodeModal />
 
       {/* Add the PaymentModal */}
-      <PaymentModal />
+      {renderPaymentModal()}
     </Box>
   );
 }
