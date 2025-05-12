@@ -2838,6 +2838,9 @@ const handleSettleOrder = async () => {
       const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
       const effectivePaymentMethod = isPaid ? paymentMethod.toLowerCase() : "";
 
+      // Log order type for debugging
+      console.log("Processing order type:", orderType);
+
       // Build order data with all required fields
       const orderData = {
         user_id: storedUserId?.toString(),
@@ -2869,13 +2872,23 @@ const handleSettleOrder = async () => {
         device_token: deviceToken || "" // Include device token
       };
 
-      // Add table info for dine-in orders
+      // Add table info based on order type
       if (orderType === "dine-in") {
         if (!params.tableNumber || !params.sectionId) {
           throw new Error("Missing table or section information for dine-in order");
         }
         orderData.tables = [params.tableNumber?.toString()];
         orderData.section_id = params.sectionId?.toString();
+        console.log("Added table/section info for dine-in order");
+      } else if (orderType === "counter") {
+        // For counter orders, explicitly set no table/section
+        console.log("Processing counter order - no table/section required");
+      } else if (orderType === "delivery" || orderType === "drive-through" || orderType === "parcel") {
+        // For other order types, no table/section needed
+        console.log(`Processing ${orderType} order - no table/section required`);
+      } else {
+        // Invalid order type
+        throw new Error(`Invalid order type: ${orderType}`);
       }
 
       // Add order_id for updates
@@ -2918,14 +2931,19 @@ const handleSettleOrder = async () => {
             device_token: deviceToken || "",
             customer_name: customerDetails.customer_name || "",
             customer_mobile: customerDetails.customer_mobile || "",
-            user_name: customerDetails.customer_name || params.userName || "", // Include user_name
-            user_mobile: customerDetails.customer_mobile || params.userMobile || "", // Include user_mobile
-            tip: tip?.toString(), // Add tip to status update
-            special_discount: specialDiscount?.toString(), // Add special discount
-            charges: extraCharges?.toString(), // Add extra charges
+            user_name: customerDetails.customer_name || params.userName || "",
+            user_mobile: customerDetails.customer_mobile || params.userMobile || "",
+            tip: tip?.toString(),
+            special_discount: specialDiscount?.toString(),
+            charges: extraCharges?.toString(),
+            order_type: orderType // Add order type to status update
           };
           
+          // Only add table/section info for dine-in orders in status update
           if (orderType === "dine-in") {
+            if (!params.tableNumber || !params.sectionId) {
+              throw new Error("Missing table or section information for dine-in order");
+            }
             statusRequestBody.tables = [params.tableNumber?.toString()];
             statusRequestBody.section_id = params.sectionId?.toString();
           }
@@ -3418,10 +3436,13 @@ const handleSettleOrder = async () => {
       // Use the selected payment method and paid status from the modal
       const paymentStatus = effectiveIsPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
   
+      // Log order type for debugging
+      console.log("Processing settlement for order type:", params?.orderType);
+
       const orderData = {
         user_id: storedUserId?.toString(),
         outlet_id: storedOutletId?.toString(),
-        order_type: params?.isSpecialOrder ? params.orderType : "dine-in",
+        order_type: params?.orderType || "dine-in", // Use the actual order type
         order_items: orderItems,
         grand_total: calculateGrandTotal(
           selectedItems,
@@ -3442,15 +3463,26 @@ const handleSettleOrder = async () => {
         customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
         customer_address: customerDetails.customer_address || "",
         customer_landmark: customerDetails.customer_landmark || "",
-        device_token: deviceToken  // Add the device token to the request
+        device_token: deviceToken
       };
   
-      if (!params?.isSpecialOrder) {
+      // Add table info based on order type
+      if (params?.orderType === "dine-in") {
         if (!params.tableNumber || !params.sectionId) {
           throw new Error("Missing table or section information for dine-in order");
         }
         orderData.tables = [params.tableNumber?.toString()];
         orderData.section_id = params.sectionId?.toString();
+        console.log("Added table/section info for dine-in order");
+      } else if (params?.orderType === "counter") {
+        // For counter orders, explicitly set no table/section
+        console.log("Processing counter order - no table/section required");
+      } else if (["delivery", "drive-through", "parcel"].includes(params?.orderType)) {
+        // For other order types, no table/section needed
+        console.log(`Processing ${params?.orderType} order - no table/section required`);
+      } else {
+        // Invalid order type
+        throw new Error(`Invalid order type: ${params?.orderType}`);
       }
   
       const endpoint = params?.orderId ? 
@@ -4025,6 +4057,36 @@ const handleSettleOrder = async () => {
       {/* Rest of your checkbox code remains the same */}
     </Box>
   )}
+
+  // Validate order type and params on mount
+  useEffect(() => {
+    const validateOrderTypeAndParams = () => {
+      // Get the order type from params or default to dine-in
+      const currentOrderType = params.orderType || "dine-in";
+      
+      // Log the validation
+      console.log("Validating order type:", currentOrderType);
+      console.log("Current params:", params);
+      
+      // Set the order type
+      setOrderType(currentOrderType);
+      
+      // Only validate table/section for dine-in orders
+      if (currentOrderType === "dine-in") {
+        if (!params.tableNumber || !params.sectionId) {
+          console.warn("Missing table/section info for dine-in order");
+        }
+      } else if (currentOrderType === "counter") {
+        // For counter orders, clear any table/section info
+        setCurrentTableNumber("");
+        setCurrentSectionId("");
+        setCurrentSectionName("");
+        console.log("Counter order - cleared table/section info");
+      }
+    };
+
+    validateOrderTypeAndParams();
+  }, [params]);
 
   return (
     <Box flex={1} bg="white" safeArea>
