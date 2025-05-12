@@ -15,6 +15,7 @@ import {
   CheckIcon,
   HStack,
   Pressable,
+  Text,
 } from "native-base";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -456,8 +457,11 @@ export default function AddSupplierScreen() {
                 </Heading>
               </HStack>
 
-              <FormControl isRequired isInvalid={"name" in errors}>
-                <FormControl.Label>Name</FormControl.Label>
+              <FormControl isInvalid={"name" in errors}>
+                <FormControl.Label>
+                  <Text color="red.500" mr={1} display="inline">*</Text>
+                  Name
+                </FormControl.Label>
                 <Input
                   value={formData.name}
                   onChangeText={(text) => handleFormChange("name", text)}
@@ -489,8 +493,11 @@ export default function AddSupplierScreen() {
                 </Heading>
               </HStack>
 
-              <FormControl isRequired isInvalid={"mobileNumber1" in errors}>
-                <FormControl.Label>Mobile Number 1</FormControl.Label>
+              <FormControl isInvalid={"mobileNumber1" in errors}>
+                <FormControl.Label>
+                  <Text color="red.500" mr={1} display="inline">*</Text>
+                  Mobile Number 1
+                </FormControl.Label>
                 <Input
                   value={formData.mobileNumber1}
                   onChangeText={(text) =>
@@ -573,8 +580,11 @@ export default function AddSupplierScreen() {
                 </Heading>
               </HStack>
 
-              <FormControl isRequired isInvalid={"creditRating" in errors}>
-                <FormControl.Label>Credit Rating</FormControl.Label>
+              <FormControl isInvalid={"creditRating" in errors}>
+                <FormControl.Label>
+                  <Text color="red.500" mr={1} display="inline">*</Text>
+                  Credit Rating
+                </FormControl.Label>
                 <Pressable
                   onPress={() => {
                     if (creditRatingSelect.current) {
@@ -611,8 +621,11 @@ export default function AddSupplierScreen() {
                 </Pressable>
               </FormControl>
 
-              <FormControl isRequired isInvalid={"creditLimit" in errors}>
-                <FormControl.Label>Credit Limit</FormControl.Label>
+              <FormControl isInvalid={"creditLimit" in errors}>
+                <FormControl.Label>
+                  <Text color="red.500" mr={1} display="inline">*</Text>
+                  Credit Limit
+                </FormControl.Label>
                 <Input
                   value={formData.creditLimit}
                   onChangeText={(text) => handleFormChange("creditLimit", text)}
@@ -675,11 +688,11 @@ export default function AddSupplierScreen() {
               </FormControl>
 
               <FormControl isInvalid={"address" in errors}>
-                <FormControl.Label>Address (Optional)</FormControl.Label>
+                <FormControl.Label>Address</FormControl.Label>
                 <TextArea
                   value={formData.address}
                   onChangeText={(text) => handleFormChange("address", text)}
-                  placeholder="Enter complete address (optional)"
+                  placeholder="Enter complete address"
                   autoCompleteType={undefined}
                   h={20}
                   bg="white"

@@ -16,6 +16,7 @@ import {
   Divider,
   HStack,
   Pressable,
+  Text,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -480,8 +481,11 @@ export default function EditSupplierScreen() {
                 </Heading>
               </HStack>
 
-              <FormControl isRequired isInvalid={"name" in errors}>
-                <FormControl.Label>Name</FormControl.Label>
+              <FormControl isInvalid={"name" in errors}>
+                <FormControl.Label>
+                  <Text color="red.500" mr={1} display="inline">*</Text>
+                  Name
+                </FormControl.Label>
                 <Input
                   value={formData.name}
                   onChangeText={handleNameChange}
@@ -547,8 +551,11 @@ export default function EditSupplierScreen() {
                 </Heading>
               </HStack>
 
-              <FormControl isRequired isInvalid={"mobileNumber1" in errors}>
-                <FormControl.Label>Primary Mobile Number</FormControl.Label>
+              <FormControl isInvalid={"mobileNumber1" in errors}>
+                <FormControl.Label>
+                  <Text color="red.500" mr={1} display="inline">*</Text>
+                  Mobile Number 1
+                </FormControl.Label>
                 <Input
                   value={formData.mobileNumber1}
                   onChangeText={(value) =>
@@ -675,8 +682,11 @@ export default function EditSupplierScreen() {
                 </Pressable>
               </FormControl>
 
-              <FormControl isRequired isInvalid={"creditLimit" in errors}>
-                <FormControl.Label>Credit Limit</FormControl.Label>
+              <FormControl isInvalid={"creditLimit" in errors}>
+                <FormControl.Label>
+                  <Text color="red.500" mr={1} display="inline">*</Text>
+                  Credit Limit
+                </FormControl.Label>
                 <Input
                   value={formData.creditLimit}
                   onChangeText={handleCreditLimitChange}

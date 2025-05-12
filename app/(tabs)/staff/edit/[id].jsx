@@ -847,7 +847,7 @@ export default function EditStaffScreen() {
               <Input
                 value={formData.dob}
                 isReadOnly
-                placeholder="Select date of birth (optional)"
+                placeholder="Select date of birth"
                 borderColor={
                   formData.dob && !errors.dob
                     ? "green.500"
