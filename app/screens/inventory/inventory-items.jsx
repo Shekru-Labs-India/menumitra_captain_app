@@ -133,39 +133,24 @@ export default function InventoryItemsScreen() {
         })
       }
     >
-      <Box bg="white" rounded="lg" shadow={1} mb={3} mx={4} p={4}>
-        <VStack space={2}>
-          <HStack justifyContent="space-between" alignItems="center">
-            <Text fontSize="lg" fontWeight="bold" color="coolGray.800">
-              {item.name}
-            </Text>
-            <Badge
-              colorScheme={item.in_or_out === "in" ? "success" : "danger"}
-              rounded="md"
-            >
-              {item.in_or_out?.toUpperCase()}
-            </Badge>
-          </HStack>
-
-          <HStack space={4} alignItems="center">
-            <VStack flex={1}>
-              <Text fontSize="sm" color="coolGray.600">
-                Quantity
-              </Text>
-              <Text fontSize="md" fontWeight="semibold">
-                {item.quantity} {item.unit_of_measure}
-              </Text>
-            </VStack>
-
-            {/* <VStack flex={1}>
-              <Text fontSize="sm" color="coolGray.600">
-                Brand
-              </Text>
-              <Text fontSize="md" fontWeight="semibold">
-                {item.brand_name}
-              </Text>
-            </VStack> */}
-          </HStack>
+      <Box 
+        bg="white" 
+        shadow={2}
+        rounded="lg"
+        mx={4}
+        mb={2}
+        p={3}
+      >
+        <VStack space={0.5}>
+          <Text fontSize="md" fontWeight="semibold" color="coolGray.800">
+            {item.name}
+          </Text>
+          <Text fontSize="sm" color="coolGray.600">
+            Quantity: {item.quantity} {item.unit_of_measure}
+          </Text>
+          <Text fontSize="sm" color="coolGray.600">
+            Brand: {item.brand_name || '-'}
+          </Text>
         </VStack>
       </Box>
     </Pressable>
