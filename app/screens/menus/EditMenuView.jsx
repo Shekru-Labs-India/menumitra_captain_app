@@ -891,8 +891,11 @@ export default function EditMenuView() {
           {/* Basic Information */}
           <Box bg="white" rounded="lg" shadow={1} p={4}>
             <VStack space={4}>
-              <FormControl isRequired isInvalid={"name" in errors}>
-                <FormControl.Label>Menu Name</FormControl.Label>
+              <FormControl isInvalid={"name" in errors}>
+                <FormControl.Label>
+                  <Text color="red.500" mr={1} display="inline">*</Text>
+                  Menu Name
+                </FormControl.Label>
                 <Input
                   value={menuDetails.name}
                   onChangeText={handleMenuNameChange}
@@ -911,8 +914,11 @@ export default function EditMenuView() {
 
               {/* Category Selector */}
               <Pressable onPress={() => setCategoryModalVisible(true)}>
-                <FormControl isRequired isInvalid={"menu_cat_id" in errors}>
-                  <FormControl.Label>Category</FormControl.Label>
+                <FormControl isInvalid={"menu_cat_id" in errors}>
+                  <FormControl.Label>
+                    <Text color="red.500" mr={1} display="inline">*</Text>
+                    Category
+                  </FormControl.Label>
                   <Input
                     value={menuDetails.category_name || ""}
                     isReadOnly
@@ -933,8 +939,11 @@ export default function EditMenuView() {
 
               {/* Food Type Selector */}
               <Pressable onPress={() => setFoodTypeModalVisible(true)}>
-                <FormControl isRequired isInvalid={"food_type" in errors}>
-                  <FormControl.Label>Food Type</FormControl.Label>
+                <FormControl isInvalid={"food_type" in errors}>
+                  <FormControl.Label>
+                    <Text color="red.500" mr={1} display="inline">*</Text>
+                    Food Type
+                  </FormControl.Label>
                   <Input
                     value={
                       foodTypes.find(
@@ -962,8 +971,11 @@ export default function EditMenuView() {
           {/* Pricing */}
           <Box bg="white" rounded="lg" shadow={1} p={4}>
             <VStack space={4}>
-              <FormControl isRequired isInvalid={"full_price" in errors}>
-                <FormControl.Label>Full Price</FormControl.Label>
+              <FormControl isInvalid={"full_price" in errors}>
+                <FormControl.Label>
+                  <Text color="red.500" mr={1} display="inline">*</Text>
+                  Full Price
+                </FormControl.Label>
                 <Input
                   value={menuDetails.full_price}
                   onChangeText={handleFullPriceChange}
