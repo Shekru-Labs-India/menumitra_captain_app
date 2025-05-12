@@ -6,7 +6,6 @@ import {
   IconButton,
   Text,
   HStack,
-  Avatar,
   ScrollView,
   useToast,
   AlertDialog,
@@ -290,211 +289,140 @@ export default function SupplierDetails() {
         </HStack>
       </Box>
 
-      <ScrollView>
-        <VStack space={6} p={4}>
-          {/* Profile Section */}
-          <VStack space={4} alignItems="center">
-            <Avatar size="2xl" bg="cyan.500">
-              {supplier.name?.charAt(0)}
-            </Avatar>
-            <VStack space={2} alignItems="center">
-              <Heading size="xl">{supplier.name}</Heading>
-              <Badge
-                colorScheme={getStatusColor(supplier.status)}
-                rounded="full"
-                px={3}
-                py={1}
-              >
-                {supplier.status?.charAt(0).toUpperCase() +
-                  supplier.status?.slice(1) || "Not Specified"}
-              </Badge>
-              <Text fontSize="md" color="coolGray.600">
-                Code: {supplier.supplierCode}
-              </Text>
-            </VStack>
-          </VStack>
-
-          <Divider />
-
-          {/* Contact Information */}
-          <VStack space={2}>
-            <Heading size="md">Contact Details</Heading>
-            <VStack space={4} bg="coolGray.50" p={3} rounded="lg">
-              {/* Primary Contact */}
-              <HStack space={3} alignItems="center">
-                <Box p={2} bg="blue.100" rounded="full">
-                  <MaterialIcons name="phone" size={20} color="blue.500" />
-                </Box>
+      <ScrollView bg="coolGray.100">
+        {/* Personal Details Section */}
+        <Box bg="white" mx={4} mt={4} mb={4}>
+          <VStack space={2} p={4}>
+            <Text color="cyan.500" fontSize="md" fontWeight="bold">Personal Details</Text>
+            <VStack space={4}>
+              <HStack justifyContent="space-between">
                 <VStack flex={1}>
-                  <Text color="coolGray.500" fontSize="sm">
-                    Primary Contact
-                  </Text>
-                  <Text fontSize="md">{supplier.mobileNumber1}</Text>
+                  <Text color="coolGray.500">Full Name</Text>
+                  <Text fontSize="md" fontWeight="medium">{supplier.name}</Text>
                 </VStack>
-                <IconButton
-                  icon={
-                    <MaterialIcons name="call" size={20} color="green.500" />
-                  }
-                  onPress={() => handleCall(supplier.mobileNumber1)}
-                  bg="green.100"
-                  rounded="full"
-                />
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Owner Name</Text>
+                  <Text fontSize="md">{supplier.ownerName || "Not Available"}</Text>
+                </VStack>
               </HStack>
 
-              {/* Secondary Contact */}
-              {supplier.mobilleNumber2 && supplier.mobilleNumber2.length > 0 && (
-                <HStack space={3} alignItems="center">
-                  <Box p={2} bg="blue.100" rounded="full">
-                    <MaterialIcons name="phone" size={20} color="blue.500" />
-                  </Box>
-                  <VStack flex={1}>
-                    <Text color="coolGray.500" fontSize="sm">
-                      Secondary Contact
-                    </Text>
-                    <Text fontSize="md">{supplier.mobilleNumber2}</Text>
-                  </VStack>
-                  <IconButton
-                    icon={
-                      <MaterialIcons name="call" size={20} color="green.500" />
-                    }
-                    onPress={() => handleCall(supplier.mobilleNumber2)}
-                    bg="green.100"
-                    rounded="full"
-                  />
-                </HStack>
-              )}
+              <HStack justifyContent="space-between">
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Primary Contact</Text>
+                  <Text fontSize="md">{supplier.mobileNumber1 || "Not Available"}</Text>
+                </VStack>
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Secondary Contact</Text>
+                  <Text fontSize="md">{supplier.mobilleNumber2 || "Not Available"}</Text>
+                </VStack>
+              </HStack>
 
-              {/* Website */}
-              {supplier.website && (
-                <HStack space={3} alignItems="center">
-                  <Box p={2} bg="blue.100" rounded="full">
-                    <MaterialIcons name="language" size={20} color="blue.500" />
-                  </Box>
-                  <VStack flex={1}>
-                    <Text color="coolGray.500" fontSize="sm">
-                      Website
-                    </Text>
-                    <Text
-                      fontSize="md"
-                      color="blue.500"
-                      onPress={() => handleWebsite(supplier.website)}
-                    >
-                      {supplier.website}
-                    </Text>
-                  </VStack>
-                </HStack>
-              )}
-
-              {supplier.address && (
-                <HStack space={3} alignItems="center">
-                  <Box p={2} bg="blue.100" rounded="full">
-                    <MaterialIcons
-                      name="location-on"
-                      size={20}
-                      color="blue.500"
-                    />
-                  </Box>
-                  <VStack flex={1}>
-                    <Text color="coolGray.500" fontSize="sm">
-                      Address
-                    </Text>
-                    <Text fontSize="md">
-                      {supplier.address || "Address not provided"}
-                    </Text>
-                  </VStack>
-                </HStack>
-              )}
-            </VStack>
-          </VStack>
-
-          <Divider />
-
-          {/* Business Information */}
-          <VStack space={4}>
-            <Heading size="md">Business Details</Heading>
-            <VStack space={4} bg="coolGray.50" p={4} rounded="lg">
-              <VStack space={3}>
-                {supplier.ownerName && (
-                  <HStack justifyContent="space-between">
-                    <Text color="coolGray.500">Owner Name</Text>
-                    <Text>{supplier.ownerName || "Not specified"}</Text>
-                  </HStack>
-                )}
-                {supplier.location && (
-                  <>
-                    <HStack justifyContent="space-between">
-                      <Text color="coolGray.500">Location</Text>
-                      <Text>{supplier.location || "Not specified"}</Text>
-                    </HStack>
-
-                    <Divider />
-                  </>
-                )}
-                {supplier.creditRating && (
-                  <HStack justifyContent="space-between">
-                    <Text color="coolGray.500">Credit Rating</Text>
-                    <Badge
-                      colorScheme={getCreditRatingColor(supplier.creditRating)}
-                      variant="subtle"
-                      rounded="full"
-                    >
-                      {supplier.creditRating || "Not Rated"}
-                    </Badge>
-                  </HStack>
-                )}
-                {supplier.creditLimit && (
-                  <HStack justifyContent="space-between">
-                    <Text color="coolGray.500">Credit Limit</Text>
-                    <Text>{supplier.creditLimit || "Not specified"}</Text>
-                  </HStack>
-                )}
+              <VStack>
+                <Text color="coolGray.500">Address</Text>
+                <Text fontSize="md">{supplier.address || "Not Available"}</Text>
               </VStack>
             </VStack>
           </VStack>
+        </Box>
 
-          <VStack space={4} mt={4}>
-            <Heading size="md">Audit Details</Heading>
-            <VStack space={4} bg="coolGray.50" p={4} rounded="lg">
-              <VStack space={3}>
-                {supplier?.createdOn && (
-                  <HStack justifyContent="space-between">
-                    <Text color="coolGray.500">Created On</Text>
-                    <Text>{supplier.createdOn}</Text>
-                  </HStack>
-                )}
-                {supplier?.createdBy && (
-                  <HStack justifyContent="space-between">
-                    <Text color="coolGray.500">Created By</Text>
-                    <Text>{supplier.createdBy}</Text>
-                  </HStack>
-                )}
-                <Divider my={2} />
-                {supplier?.updatedOn && (
-                  <HStack justifyContent="space-between">
-                    <Text color="coolGray.500">Last Updated</Text>
-                    <Text>{supplier.updatedOn}</Text>
-                  </HStack>
-                )}
-                {supplier?.updatedBy && (
-                  <HStack justifyContent="space-between">
-                    <Text color="coolGray.500">Updated By</Text>
-                    <Text>{supplier.updatedBy}</Text>
-                  </HStack>
-                )}
+        {/* Business Details Section */}
+        <Box bg="white" mx={4} mb={4}>
+          <VStack space={2} p={4}>
+            <Text color="cyan.500" fontSize="md" fontWeight="bold">Business Details</Text>
+            <VStack space={4}>
+              <HStack justifyContent="space-between">
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Supplier Code</Text>
+                  <Text fontSize="md">{supplier.supplierCode}</Text>
+                </VStack>
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Status</Text>
+                  <Text fontSize="md" color={supplier.status === "active" ? "green.500" : "red.500"}>
+                    {supplier.status?.toUpperCase()}
+                  </Text>
+                </VStack>
+              </HStack>
+
+              <HStack justifyContent="space-between">
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Credit Rating</Text>
+                  <Text fontSize="md">{supplier.creditRating || "Not Available"}</Text>
+                </VStack>
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Credit Limit</Text>
+                  <Text fontSize="md">₹ {supplier.creditLimit || "0"}</Text>
+                </VStack>
+              </HStack>
+
+              <HStack justifyContent="space-between">
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Location</Text>
+                  <Text fontSize="md">{supplier.location || "Not Available"}</Text>
+                </VStack>
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Website</Text>
+                  <Text fontSize="md">{supplier.website || "Not Available"}</Text>
+                </VStack>
+              </HStack>
+            </VStack>
+          </VStack>
+        </Box>
+
+        {/* Additional Details Section */}
+        <Box bg="white" mx={4} mb={4}>
+          <VStack space={2} p={4}>
+            <Text color="cyan.500" fontSize="md" fontWeight="bold">Additional Details</Text>
+            <VStack space={4}>
+              <HStack justifyContent="space-between">
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Website</Text>
+                  <Text fontSize="md">{supplier.website || "N/A"}</Text>
+                </VStack>
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Owner Name</Text>
+                  <Text fontSize="md">{supplier.ownerName || "N/A"}</Text>
+                </VStack>
+              </HStack>
+
+              <HStack justifyContent="space-between">
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Created By</Text>
+                  <Text fontSize="md">{supplier.createdBy || "N/A"}</Text>
+                </VStack>
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Created On</Text>
+                  <Text fontSize="md">{supplier.createdOn || "N/A"}</Text>
+                </VStack>
+              </HStack>
+
+              <HStack justifyContent="space-between">
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Updated By</Text>
+                  <Text fontSize="md">{supplier.updatedBy || "N/A"}</Text>
+                </VStack>
+                <VStack flex={1}>
+                  <Text color="coolGray.500">Updated On</Text>
+                  <Text fontSize="md">{supplier.updatedOn || "N/A"}</Text>
+                </VStack>
+              </HStack>
+
+              <VStack>
+                <Text color="coolGray.500">Address</Text>
+                <Text fontSize="md">{supplier.address || "N/A"}</Text>
               </VStack>
             </VStack>
           </VStack>
-        </VStack>
+        </Box>
       </ScrollView>
 
       {/* Edit FAB */}
       <Fab
         renderInPortal={false}
-        shadow={3}
+        shadow={2}
         size="sm"
         icon={<MaterialIcons name="edit" size={24} color="white" />}
         onPress={() => router.push(`/screens/suppliers/edit/${id}`)}
-        position="absolute"
+        bg="cyan.500"
         bottom={10}
         right={4}
       />
@@ -509,8 +437,7 @@ export default function SupplierDetails() {
           <AlertDialog.CloseButton />
           <AlertDialog.Header>Delete Supplier</AlertDialog.Header>
           <AlertDialog.Body>
-            Are you sure you want to delete this supplier? This action cannot be
-            undone.
+            Are you sure you want to delete this supplier? This action cannot be undone.
           </AlertDialog.Body>
           <AlertDialog.Footer>
             <HStack space={2} width="full" justifyContent="space-between">
