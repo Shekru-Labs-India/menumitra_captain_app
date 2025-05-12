@@ -203,7 +203,7 @@ export default function EditProfileScreen() {
             </FormControl>
 
             <FormControl isInvalid={"email" in errors}>
-              <FormControl.Label>Email (Optional)</FormControl.Label>
+              <FormControl.Label>Email</FormControl.Label>
               <Input
                 value={formData.email}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, email: value }))}
@@ -217,7 +217,7 @@ export default function EditProfileScreen() {
             </FormControl>
 
             <FormControl isInvalid={"aadhar_number" in errors}>
-              <FormControl.Label>Aadhar Number (Optional)</FormControl.Label>
+              <FormControl.Label>Aadhar Number</FormControl.Label>
               <Input
                 value={formData.aadhar_number}
                 onChangeText={(value) => {
@@ -236,7 +236,7 @@ export default function EditProfileScreen() {
             </FormControl>
 
             <FormControl isInvalid={"dob" in errors}>
-              <FormControl.Label>Date of Birth (Optional)</FormControl.Label>
+              <FormControl.Label>Date of Birth</FormControl.Label>
               <Pressable onPress={() => setShowDatePicker(true)}>
                 <Input
                   value={formData.dob}
