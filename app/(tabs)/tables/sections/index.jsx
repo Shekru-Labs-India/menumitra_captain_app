@@ -1332,6 +1332,7 @@ export default function TableSectionsScreen() {
                                                 >
                                                   <Pressable
                                                     onPress={() => {
+                                                      handleTableReservation(table)
                                                       // Implement reserve functionality
                                                       toast.show({
                                                         description: `Reserve functionality for table ${table.table_number}`,
@@ -2013,6 +2014,80 @@ export default function TableSectionsScreen() {
     const sanitizedText = text.replace(/[^a-zA-Z\s]/g, "");
     setNewSectionName(sanitizedText);
   };
+
+  const handleTableReservation = async (table) => {
+    try {
+      setUpdatingStatus(true);
+      
+      // Get stored outlet ID and user ID
+      const [storedOutletId, storedUserId] = await Promise.all([
+        AsyncStorage.getItem("outlet_id"),
+        AsyncStorage.getItem("user_id")
+      ]);
+      
+      if (!storedOutletId || !table.table_id || !storedUserId) {
+        throw new Error("Missing outlet, user, or table data");
+      }
+      
+      // Call the API to reserve the table
+      const response = await fetchWithAuth(
+        `${getBaseUrl()}/table_is_reserved`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            table_id: table.table_id.toString(),
+            table_number: table.table_number.toString(),
+            outlet_id: storedOutletId.toString(),
+            is_reserved: !table.is_reserved, // Toggle the reservation status
+            user_id: storedUserId.toString()
+          })
+        }
+      );
+      
+      if (response.st === 1) {
+        // Optimistically update the UI
+        setSections(prevSections => 
+          prevSections.map(section => ({
+            ...section,
+            tables: section.tables.map(t => 
+              t.table_id === table.table_id 
+                ? { ...t, is_reserved: !t.is_reserved }
+                : t
+            )
+          }))
+        );
+        
+        toast.show({
+          description: table.is_reserved 
+            ? "Table reservation removed" 
+            : "Table has been reserved",
+          status: "success",
+          duration: 2000
+        });
+        
+        // Refresh the section data
+        fetchSections(parseInt(storedOutletId));
+      } else {
+        toast.show({
+          description: response.msg || "Failed to update table reservation",
+          status: "error",
+          duration: 3000
+        });
+      }
+    } catch (error) {
+      console.error("Error reserving table:", error);
+      toast.show({
+        description: "Failed to update table reservation",
+        status: "error",
+        duration: 3000
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }; 
 
   // Add useEffect to reset editing state when gear icon is disabled
   useEffect(() => {
