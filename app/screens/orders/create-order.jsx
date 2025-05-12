@@ -5231,30 +5231,29 @@ export default function CreateOrderScreen() {
 
                     {/* Middle row - Lock icon and KOT & Save */}
                     <HStack space={1}>
-                      {settings.orderManagement.reserve_table &&
-                        !params?.orderId && (
-                          <Button
-                            w="33%"
-                            h={10}
-                            bg="green.500"
-                            _pressed={{ bg: "green.600" }}
-                            borderRadius="md"
-                            py={0}
-                            onPress={handleSaveOrder}
-                            alignItems="center"
-                            justifyContent="center"
-                            leftIcon={
-                              <Icon
-                                as={MaterialIcons}
-                                name="save"
-                                size="sm"
-                                color="white"
-                              />
-                            }
-                          >
-                            <Text color="white">Save</Text>
-                          </Button>
-                        )}
+                      {settings.orderManagement.reserve_table && (
+                        <Button
+                          w="33%"
+                          h={10}
+                          bg="green.500"
+                          _pressed={{ bg: "green.600" }}
+                          borderRadius="md"
+                          py={0}
+                          onPress={handleSaveOrder}
+                          alignItems="center"
+                          justifyContent="center"
+                          leftIcon={
+                            <Icon
+                              as={MaterialIcons}
+                              name="save"
+                              size="sm"
+                              color="white"
+                            />
+                          }
+                        >
+                          <Text color="white">Save</Text>
+                        </Button>
+                      )}
 
                       {settings.orderManagement.KOT_and_save && (
                         <Button
