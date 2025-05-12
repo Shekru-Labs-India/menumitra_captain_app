@@ -192,8 +192,11 @@ export default function EditProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <Box bg="white" rounded="lg" shadow={1} mx={4} my={4} p={4}>
           <VStack space={4}>
-            <FormControl isRequired isInvalid={"name" in errors}>
-              <FormControl.Label>Full Name</FormControl.Label>
+            <FormControl isInvalid={"name" in errors}>
+              <FormControl.Label>
+                <Text color="red.500" mr={1} display="inline">*</Text>
+                Full Name
+              </FormControl.Label>
               <Input
                 value={formData.name}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, name: value }))}
