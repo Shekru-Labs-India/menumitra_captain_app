@@ -3364,6 +3364,14 @@ const handleSettleOrder = async () => {
     }
   };
 
+  const handleSaveOrder = async () => {
+toast.show({
+  description: "Order saving logic to be implementing!",
+  status: "success",
+  duration: 2000,
+});
+  }
+
   // Add the missing quantity functions if they don't exist
   const decreaseQuantity = (item) => {
     const updatedItems = selectedItems.map(i => {
@@ -4655,17 +4663,24 @@ const handleSettleOrder = async () => {
                     <HStack space={1}>
                       {settings.orderManagement.reserve_table && !params?.orderId && (
                         <Button
-                          w="36px"
+                        
+                          w="33%"
                           h={10}
                           bg="#242424"
                           _pressed={{ bg: "#333" }}
+                          
                           borderRadius="md"
                           py={0}
-                          onPress={handleTableReservation}
+                          onPress={handleSaveOrder}
                           alignItems="center"
                           justifyContent="center"
+                          leftIcon={<Icon as={MaterialIcons} name="save" size="sm" color="white" />}
                         >
-                          <Icon as={MaterialIcons} name="lock" size="sm" color="white" />
+
+                          <Text
+                          
+                          color="white"
+                          >Save</Text>
                         </Button>
                       )}
                       
