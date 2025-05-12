@@ -368,6 +368,172 @@ const TableSkeletonLoader = () => {
   );
 };
 
+// Create a standalone component outside of the main component for order type buttons
+const OrderTypeButtons = () => {
+  const [loading, setLoading] = useState(true);
+  const [orderTypeSettings, setOrderTypeSettings] = useState({
+    counter: false,
+    parcel: false,
+    delivery: false,
+    driveThrough: false,
+  });
+  const router = useRouter();
+
+  // Fetch settings only once when component mounts
+  useEffect(() => {
+    const getOrderTypeSettings = async () => {
+      try {
+        setLoading(true);
+        const storedSettings = await AsyncStorage.getItem("app_settings");
+        if (storedSettings) {
+          const parsedSettings = JSON.parse(storedSettings);
+          setOrderTypeSettings({
+            counter: parsedSettings.has_counter,
+            parcel: parsedSettings.has_parcel,
+            delivery: parsedSettings.has_delivery,
+            driveThrough: parsedSettings.has_drive_through,
+          });
+        }
+      } catch (error) {
+        console.error("Error loading order type settings:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getOrderTypeSettings();
+  }, []);
+
+  // Get outlet_id once
+  const [outletId, setOutletId] = useState(null);
+  useEffect(() => {
+    AsyncStorage.getItem("outlet_id").then(id => {
+      if (id) setOutletId(parseInt(id));
+    });
+  }, []);
+
+  // Calculate active buttons count
+  const activeButtonCount = Object.values(orderTypeSettings).filter(Boolean).length;
+
+  // Calculate width percentage based on active button count
+  // Subtract small gap amount (2%) between buttons from total width
+  const buttonWidthPercent =
+    activeButtonCount > 0
+      ? (100 - (activeButtonCount - 1) * 2) / activeButtonCount
+      : 100;
+
+  // Create array of visible buttons
+  const buttons = [
+    {
+      type: "counter",
+      active: orderTypeSettings.counter,
+      icon: "point-of-sale",
+      label: "Counter",
+      params: {
+        isSpecialOrder: "true",
+        orderType: "counter",
+        clearPrevious: "true",
+        outlet_id: outletId?.toString() || "",
+      },
+    },
+    {
+      type: "parcel",
+      active: orderTypeSettings.parcel,
+      icon: "takeout-dining",
+      label: "Parcel",
+      params: {
+        isSpecialOrder: "true",
+        orderType: "parcel",
+        clearPrevious: "true",
+        outlet_id: outletId?.toString() || "",
+      },
+    },
+    {
+      type: "delivery",
+      active: orderTypeSettings.delivery,
+      icon: "delivery-dining",
+      label: "Delivery",
+      params: {
+        isSpecialOrder: "true",
+        orderType: "delivery",
+        clearPrevious: "true",
+        outlet_id: outletId?.toString() || "",
+      },
+    },
+    {
+      type: "drive-through",
+      active: orderTypeSettings.driveThrough,
+      icon: "drive-eta",
+      label: "Drive",
+      params: {
+        isSpecialOrder: "true",
+        orderType: "drive-through",
+        clearPrevious: "true",
+        outlet_id: outletId?.toString() || "",
+      },
+    },
+  ].filter((button) => button.active);
+
+  if (loading) {
+    return null; // Don't render anything while loading
+  }
+
+  return (
+    <Box
+      bg="white"
+      py={2}
+      borderBottomWidth={1}
+      borderBottomColor="coolGray.200"
+    >
+      <Box px={4} width="100%">
+        <HStack
+          space={2}
+          justifyContent={
+            activeButtonCount === 0 ? "center" : "space-between"
+          }
+        >
+          {buttons.map((button, index) => (
+            <Pressable
+              key={button.type}
+              flex={1}
+              maxWidth={`${buttonWidthPercent}%`}
+              onPress={() =>
+                router.push({
+                  pathname: "/screens/orders/menu-selection",
+                  params: button.params,
+                })
+              }
+            >
+              <Box
+                py={2.5}
+                bg="white"
+                borderWidth={1}
+                borderColor="#0891b2"
+                rounded="lg"
+                shadow={1}
+                flexDirection="row"
+                alignItems="center"
+                justifyContent="center"
+                width="100%"
+              >
+                <MaterialIcons
+                  name={button.icon}
+                  size={20}
+                  color="#0891b2"
+                  style={{ marginRight: 8 }}
+                />
+                <Text color="#0891b2" fontSize="sm" fontWeight="medium">
+                  {button.label}
+                </Text>
+              </Box>
+            </Pressable>
+          ))}
+        </HStack>
+      </Box>
+    </Box>
+  );
+};
+
 export default function TableSectionsScreen() {
   const router = useRouter();
   const toast = useToast();
@@ -1922,162 +2088,6 @@ export default function TableSectionsScreen() {
       })}
     </VStack>
   );
-
-  const FilterButtons = () => {
-    const [loading, setLoading] = useState(true);
-    const [orderTypeSettings, setOrderTypeSettings] = useState({
-      counter: false,
-      parcel: false,
-      delivery: false,
-      driveThrough: false,
-    });
-
-    useEffect(() => {
-      const getOrderTypeSettings = async () => {
-        try {
-          setLoading(true);
-          const storedSettings = await AsyncStorage.getItem("app_settings");
-          if (storedSettings) {
-            const parsedSettings = JSON.parse(storedSettings);
-            setOrderTypeSettings({
-              counter: parsedSettings.has_counter,
-              parcel: parsedSettings.has_parcel,
-              delivery: parsedSettings.has_delivery,
-              driveThrough: parsedSettings.has_drive_through,
-            });
-          }
-        } catch (error) {
-          console.error("Error loading order type settings:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      getOrderTypeSettings();
-    }, []);
-
-    // Calculate active buttons count
-    const activeButtonCount =
-      Object.values(orderTypeSettings).filter(Boolean).length;
-
-    // Calculate width percentage based on active button count
-    // Subtract small gap amount (2%) between buttons from total width
-    const buttonWidthPercent =
-      activeButtonCount > 0
-        ? (100 - (activeButtonCount - 1) * 2) / activeButtonCount
-        : 100;
-
-    // Create array of visible buttons
-    const buttons = [
-      {
-        type: "counter",
-        active: orderTypeSettings.counter,
-        icon: "point-of-sale",
-        label: "Counter",
-        params: {
-          isSpecialOrder: "true",
-          orderType: "counter",
-          clearPrevious: "true",
-          outlet_id: outletId?.toString() || "",
-        },
-      },
-      {
-        type: "parcel",
-        active: orderTypeSettings.parcel,
-        icon: "takeout-dining",
-        label: "Parcel",
-        params: {
-          isSpecialOrder: "true",
-          orderType: "parcel",
-          clearPrevious: "true",
-          outlet_id: outletId?.toString() || "",
-        },
-      },
-      {
-        type: "delivery",
-        active: orderTypeSettings.delivery,
-        icon: "delivery-dining",
-        label: "Delivery",
-        params: {
-          isSpecialOrder: "true",
-          orderType: "delivery",
-          clearPrevious: "true",
-          outlet_id: outletId?.toString() || "",
-        },
-      },
-      {
-        type: "drive-through",
-        active: orderTypeSettings.driveThrough,
-        icon: "drive-eta",
-        label: "Drive",
-        params: {
-          isSpecialOrder: "true",
-          orderType: "drive-through",
-          clearPrevious: "true",
-          outlet_id: outletId?.toString() || "",
-        },
-      },
-    ].filter((button) => button.active);
-
-    if (loading) {
-      return null; // Don't render anything while loading
-    }
-
-    return (
-      <Box
-        bg="white"
-        py={2}
-        borderBottomWidth={1}
-        borderBottomColor="coolGray.200"
-      >
-        <Box px={4} width="100%">
-          <HStack
-            space={2}
-            justifyContent={
-              activeButtonCount === 0 ? "center" : "space-between"
-            }
-          >
-            {buttons.map((button, index) => (
-              <Pressable
-                key={button.type}
-                flex={1}
-                maxWidth={`${buttonWidthPercent}%`}
-                onPress={() =>
-                  router.push({
-                    pathname: "/screens/orders/menu-selection",
-                    params: button.params,
-                  })
-                }
-              >
-                <Box
-                  py={2.5}
-                  bg="white"
-                  borderWidth={1}
-                  borderColor="#0891b2"
-                  rounded="lg"
-                  shadow={1}
-                  flexDirection="row"
-                  alignItems="center"
-                  justifyContent="center"
-                  width="100%"
-                >
-                  <MaterialIcons
-                    name={button.icon}
-                    size={20}
-                    color="#0891b2"
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text color="#0891b2" fontSize="sm" fontWeight="medium">
-                    {button.label}
-                  </Text>
-                </Box>
-              </Pressable>
-            ))}
-          </HStack>
-        </Box>
-      </Box>
-    );
-  };
 
   // Add DeleteConfirmationModal component
   const DeleteConfirmationModal = () => {
@@ -3987,7 +3997,7 @@ export default function TableSectionsScreen() {
           </Box>
 
           {/* Filter Buttons for order types */}
-          <FilterButtons />
+          <OrderTypeButtons />
 
           {/* Content */}
           <Box flex={1} bg="coolGray.100">
