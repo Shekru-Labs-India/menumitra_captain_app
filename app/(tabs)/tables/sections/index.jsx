@@ -1322,6 +1322,41 @@ export default function TableSectionsScreen() {
                                                 </Box>
                                               )}
 
+                                              {/* Reserve button with lock icon - only show when gear is active */}
+                                              {showEditIcons && (
+                                                <Box
+                                                  position="absolute"
+                                                  bottom={1}
+                                                  left={1}
+                                                  zIndex={2}
+                                                >
+                                                  <Pressable
+                                                    onPress={() => {
+                                                      // Implement reserve functionality
+                                                      toast.show({
+                                                        description: `Reserve functionality for table ${table.table_number}`,
+                                                        status: "info",
+                                                        duration: 2000
+                                                      });
+                                                    }}
+                                                    bg="black"
+                                                    rounded="full"
+                                                    size={8}
+                                                    w={8}
+                                                    h={8}
+                                                    shadow={1}
+                                                    alignItems="center"
+                                                    justifyContent="center"
+                                                  >
+                                                    <MaterialIcons
+                                                      name="lock"
+                                                      size={18}
+                                                      color="white"
+                                                    />
+                                                  </Pressable>
+                                                </Box>
+                                              )}
+
                                               {/* Delete icon for last table */}
                                               {showEditIcons && 
                                                 table.table_id === getLastTable(section.tables)?.table_id && 
