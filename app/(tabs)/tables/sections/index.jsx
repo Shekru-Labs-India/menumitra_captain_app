@@ -172,6 +172,202 @@ const isTableInAlarmState = (occupiedTime) => {
   }
 };
 
+// Add after startBlinkAnimation function and before useEffect
+
+// Skeleton loader for the grid view
+const TableSkeletonLoader = () => {
+  // Create animation value for skeleton shimmer effect
+  const shimmerAnim = useRef(new Animated.Value(-100)).current;
+
+  // Run shimmer animation when component mounts
+  useEffect(() => {
+    const startShimmerAnimation = () => {
+      shimmerAnim.setValue(-100);
+      Animated.timing(shimmerAnim, {
+        toValue: 400, // End position well beyond component width
+        duration: 1200,
+        useNativeDriver: true,
+        easing: Easing.linear,
+      }).start(() => startShimmerAnimation()); // Loop animation
+    };
+
+    startShimmerAnimation();
+
+    // Clean up animation on unmount
+    return () => {
+      shimmerAnim.stopAnimation();
+    };
+  }, []);
+
+  // Create a shimmer component
+  const Shimmer = ({ width, height, style }) => {
+    return (
+      <Box 
+        width={width} 
+        height={height} 
+        bg="#E2E8F0" 
+        borderRadius="md" 
+        overflow="hidden"
+        style={style}
+      >
+        <Animated.View
+          style={{
+            width: '60%',
+            height: '100%',
+            backgroundColor: 'rgba(255, 255, 255, 0.5)',
+            transform: [{ translateX: shimmerAnim }],
+          }}
+        />
+      </Box>
+    );
+  };
+
+  // Shimmer table component
+  const ShimmerTable = () => (
+    <Box
+      width="31%"
+      minW="100px"
+      height="100px"
+      mx="1%"
+      my="1.5%"
+      overflow="hidden"
+      position="relative"
+    >
+      <Box
+        p={2}
+        rounded="lg"
+        width="100%"
+        height="100%"
+        bg="#E2E8F0"
+        borderWidth={1}
+        borderStyle="dashed"
+        borderColor="#A0AEC0"
+        position="relative"
+        justifyContent="center"
+        alignItems="center"
+        overflow="hidden"
+      >
+        <Animated.View
+          style={{
+            width: '100%',
+            height: '100%',
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            backgroundColor: 'transparent',
+            opacity: 0.6,
+          }}
+        >
+          <Animated.View
+            style={{
+              width: '50%',
+              height: '200%',
+              backgroundColor: 'rgba(255, 255, 255, 0.8)',
+              transform: [
+  { translateX: shimmerAnim },
+  { translateY: -5 },
+  { rotateZ: '25deg' }
+],
+              position: 'absolute',
+            }}
+          />
+        </Animated.View>
+        <Box width="40%" height="20px" bg="#CBD5E0" alignSelf="center" borderRadius="sm" />
+      </Box>
+    </Box>
+  );
+
+  return (
+    <VStack space={4} p={2} pb={8}>
+      {[1, 2, 3].map((section) => (
+        <Box key={section} mb={2}>
+          <Box bg="white" p={4} rounded="lg" shadow={1}>
+            <VStack space={4}>
+              {/* Section Header Skeleton */}
+              <VStack space={1}>
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Box width="60%" position="relative" overflow="hidden">
+                    <Box height={6} bg="#E2E8F0" rounded="md" width="100%" />
+                    <Animated.View
+                      style={{
+                        width: '50%',
+                        height: '100%',
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        transform: [{ translateX: shimmerAnim }],
+                        position: 'absolute',
+                      }}
+                    />
+                  </Box>
+                  <Box width={10} position="relative" overflow="hidden">
+                    <Box height={6} bg="#E2E8F0" rounded="md" width="100%" />
+                    <Animated.View
+                      style={{
+                        width: '50%',
+                        height: '100%',
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        transform: [{ translateX: shimmerAnim }],
+                        position: 'absolute',
+                      }}
+                    />
+                  </Box>
+                </HStack>
+
+                {/* Section Stats Skeleton */}
+                <HStack space={3} alignItems="center" mt={2}>
+                  {[1, 2, 3].map((statItem) => (
+                    <HStack key={statItem} space={1} alignItems="center">
+                      <Box w={3} h={3} bg="#E2E8F0" rounded="full" overflow="hidden">
+                        <Animated.View
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                            transform: [{ translateX: shimmerAnim }],
+                          }}
+                        />
+                      </Box>
+                      <Box width={16} position="relative" overflow="hidden">
+                        <Box height={4} bg="#E2E8F0" rounded="md" width="100%" />
+                        <Animated.View
+                          style={{
+                            width: '50%',
+                            height: '100%',
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            transform: [{ translateX: shimmerAnim }],
+                            position: 'absolute',
+                          }}
+                        />
+                      </Box>
+                    </HStack>
+                  ))}
+                </HStack>
+              </VStack>
+
+              {/* Divider */}
+              <Box height={0.5} bg="coolGray.200" />
+
+              {/* Tables Grid Skeleton */}
+              <VStack space={2}>
+                {[1, 2].map((row) => (
+                  <HStack 
+                    key={row}
+                    px={0}
+                    py={3}
+                    alignItems="center"
+                    justifyContent="space-evenly"
+                  >
+                    {[1, 2, 3].map((col) => <ShimmerTable key={`${row}-${col}`} />)}
+                  </HStack>
+                ))}
+              </VStack>
+            </VStack>
+          </Box>
+        </Box>
+      ))}
+    </VStack>
+  );
+};
+
 export default function TableSectionsScreen() {
   const router = useRouter();
   const toast = useToast();
@@ -3749,9 +3945,7 @@ export default function TableSectionsScreen() {
           {/* Content */}
           <Box flex={1} bg="coolGray.100">
             {loading ? (
-              <Box flex={1} justifyContent="center" alignItems="center">
-                <Spinner size="lg" />
-              </Box>
+              <TableSkeletonLoader />
             ) : (
               <>
                 {viewType === "grid"
