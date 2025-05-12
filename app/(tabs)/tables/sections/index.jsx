@@ -1239,6 +1239,8 @@ export default function TableSectionsScreen() {
                         py={1}
                         bg="coolGray.100"
                         rounded="md"
+                        flex={1}
+                        maxWidth="70%"
                         onBlur={() => {
                           if (editedSectionName) {
                             handleEditSectionNameChange(section);
@@ -1256,8 +1258,8 @@ export default function TableSectionsScreen() {
                         isDisabled={updatingSections.has(section.id)}
                       />
                     ) : (
-                      <HStack space={2} alignItems="center">
-                        <Text fontSize="lg" fontWeight="bold">
+                      <HStack space={2} alignItems="center" flex={1} maxWidth="70%">
+                        <Text fontSize="lg" fontWeight="bold" numberOfLines={1} ellipsizeMode="tail">
                           {section.name}
                         </Text>
                         {updatingSections.has(section.id) && (
@@ -1267,45 +1269,90 @@ export default function TableSectionsScreen() {
                     )}
 
                     {showEditIcons && (
-                      <HStack space={2} alignItems="center">
-                        <IconButton
-                          size="sm"
-                          variant="ghost"
-                          colorScheme="blue"
-                          icon={
-                            <MaterialIcons
-                              name="edit"
-                              size={20}
-                              color="blue.500"
+                      <HStack space={2} alignItems="center" ml="auto">
+                        {editingSectionId === section.id ? (
+                          // Show confirm and cancel buttons when editing
+                          <>
+                            <IconButton
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="green"
+                              icon={
+                                updatingSections.has(section.id) ? (
+                                  <Spinner size="sm" color="green.500" />
+                                ) : (
+                                  <MaterialIcons
+                                    name="check"
+                                    size={20}
+                                    color="green.500"
+                                  />
+                                )
+                              }
+                              onPress={() => {
+                                if (editedSectionName) {
+                                  handleEditSectionNameChange(section);
+                                }
+                              }}
+                              isDisabled={updatingSections.has(section.id)}
                             />
-                          }
-                          onPress={() => {
-                            setEditingSectionId(section.id);
-                            setEditedSectionName(section.name);
-                          }}
-                          isDisabled={deletingSections.has(section.id)}
-                        />
-                        <IconButton
-                          size="sm"
-                          variant="ghost"
-                          colorScheme="red"
-                          icon={
-                            deletingSections.has(section.id) ? (
-                              <Spinner size="sm" color="red.500" />
-                            ) : (
-                              <MaterialIcons
-                                name="delete"
-                                size={20}
-                                color="red.500"
-                              />
-                            )
-                          }
-                          onPress={() => {
-                            setActiveSection(section);
-                            setShowDeleteModal(true);
-                          }}
-                          isDisabled={deletingSections.has(section.id)}
-                        />
+                            <IconButton
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="coolGray"
+                              icon={
+                                <MaterialIcons
+                                  name="close"
+                                  size={20}
+                                  color="coolGray.500"
+                                />
+                              }
+                              onPress={() => setEditingSectionId(null)}
+                              isDisabled={updatingSections.has(section.id)}
+                            />
+                          </>
+                        ) : (
+                          // Show edit and delete buttons when not editing
+                          <>
+                            <IconButton
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="blue"
+                              icon={
+                                <MaterialIcons
+                                  name="edit"
+                                  size={20}
+                                  color="blue.500"
+                                />
+                              }
+                              onPress={() => {
+                                setEditingSectionId(section.id);
+                                setEditedSectionName(section.name);
+                              }}
+                              isDisabled={deletingSections.has(section.id)}
+                            />
+                            <IconButton
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="red"
+                              icon={
+                                deletingSections.has(section.id) ? (
+                                  <Spinner size="sm" color="red.500" />
+                                ) : (
+                                  <MaterialIcons
+                                    name="delete"
+                                    size={20}
+                                    color="red.500"
+                                  />
+                                )
+                              }
+                              onPress={() => {
+                                setActiveSection(section);
+                                setShowDeleteModal(true);
+                              }}
+                              isDisabled={deletingSections.has(section.id)}
+                            />
+                          </>
+                        )}
                       </HStack>
                     )}
                   </HStack>
