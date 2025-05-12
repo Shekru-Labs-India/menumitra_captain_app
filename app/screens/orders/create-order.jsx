@@ -69,15 +69,15 @@ const onGetProductionUrl = () => {
 const axiosInstance = axios.create({
   timeout: 15000, // 15 seconds timeout
   headers: {
-    'Content-Type': 'application/json',
-  }
+    "Content-Type": "application/json",
+  },
 });
 
 // Add request interceptor to attach auth token
 axiosInstance.interceptors.request.use(
   async (config) => {
     try {
-      const accessToken = await AsyncStorage.getItem('access');
+      const accessToken = await AsyncStorage.getItem("access");
       if (accessToken) {
         config.headers.Authorization = `Bearer ${accessToken}`;
       }
@@ -107,7 +107,7 @@ const COMMANDS = {
   INITIALIZE: [ESC, "@"],
   TEXT_NORMAL: [ESC, "!", 0],
   TEXT_CENTERED: [ESC, "a", 1],
-  LINE_SPACING: [ESC, "3", 24],  //? Reduced from 30 to 24 for tighter line spacing
+  LINE_SPACING: [ESC, "3", 24], //? Reduced from 30 to 24 for tighter line spacing
   LINE_SPACING_TIGHT: [ESC, "3", 18], // Even tighter spacing for itemized sections ?(reduced from 24)
   LINE_SPACING_NORMAL: [ESC, "3", 30], // Normal spacing ?(reduced from 40)
   CUT_PAPER: [GS, "V", 1],
@@ -116,7 +116,7 @@ const COMMANDS = {
 
 const getCurrentDate = () => {
   const date = new Date();
-  
+
   // Get date in DD-MMM-YYYY format
   const formattedDate = date
     .toLocaleDateString("en-GB", {
@@ -125,17 +125,17 @@ const getCurrentDate = () => {
       year: "numeric",
     })
     .replace(/ /g, "-");
-  
+
   // Get time in 12-hour format
   let hours = date.getHours();
-  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const ampm = hours >= 12 ? "PM" : "AM";
   hours = hours % 12;
   hours = hours ? hours : 12; // the hour '0' should be '12'
-  hours = String(hours).padStart(2, '0');
-  
+  hours = String(hours).padStart(2, "0");
+
   // Get minutes
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
   // Return formatted date and time
   return `${formattedDate} ${hours}:${minutes} ${ampm}`;
 };
@@ -143,27 +143,40 @@ const getCurrentDate = () => {
 // Create a top-level function for consistent datetime formatting
 const getCurrentDateTime = () => {
   const now = new Date();
-  
+
   // Get the day as 2-digit
-  const day = String(now.getDate()).padStart(2, '0');
-  
+  const day = String(now.getDate()).padStart(2, "0");
+
   // Get the month name in uppercase
-  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const monthNames = [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+  ];
   const month = monthNames[now.getMonth()];
-  
+
   // Get the year
   const year = now.getFullYear();
-  
+
   // Get hours and format for 12-hour clock
   let hours = now.getHours();
-  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const ampm = hours >= 12 ? "PM" : "AM";
   hours = hours % 12;
   hours = hours ? hours : 12; // the hour '0' should be '12'
-  hours = String(hours).padStart(2, '0');
-  
+  hours = String(hours).padStart(2, "0");
+
   // Get minutes
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+
   // Format the final date string
   return `${day}-${month}-${year} ${hours}:${minutes} ${ampm}`;
 };
@@ -220,14 +233,14 @@ const formatCurrency = (amount) => {
 // Add these helper functions at the top level
 const splitLongText = (text, maxLength) => {
   if (!text) return [""];
-  
+
   // If text fits on one line, return immediately to save paper
   if (text.length <= maxLength) return [text];
-  
+
   const words = text.split(" ");
   const lines = [];
   let currentLine = "";
-  
+
   for (const word of words) {
     // If adding this word would exceed max length
     if (currentLine.length + word.length + 1 <= maxLength) {
@@ -235,7 +248,7 @@ const splitLongText = (text, maxLength) => {
     } else {
       // If current line already has content, push it
       if (currentLine) lines.push(currentLine);
-      
+
       // If the word itself is longer than maxLength, break it up
       if (word.length > maxLength) {
         let remainingWord = word;
@@ -249,12 +262,12 @@ const splitLongText = (text, maxLength) => {
       }
     }
   }
-  
+
   // Don't forget to add the last line if not empty
   if (currentLine) {
     lines.push(currentLine);
   }
-  
+
   return lines;
 };
 
@@ -268,19 +281,21 @@ const formatMenuItem = (item) => {
   // Standard 58mm printer can fit 30-32 characters per line
   // Format: name (12 chars), qty (2 chars), rate (4 chars), total (7 chars)
   // 12 + 2 + 4 + 7 + spaces = approx 28 chars total
-  
+
   // Special handling for long item names
   if (name.length > 12) {
     const lines = splitLongText(name, 12);
     // First line contains the item name, qty, rate, and amount
-    const firstLine = `${lines[0].padEnd(12)} ${qty.padStart(2)} ${rate.padStart(4)} ${total.padStart(7)}\n`;
-    
+    const firstLine = `${lines[0].padEnd(12)} ${qty.padStart(
+      2
+    )} ${rate.padStart(4)} ${total.padStart(7)}\n`;
+
     // If there are additional lines, format them with minimal spacing
     if (lines.length > 1) {
       // Combine all remaining lines where possible to minimize paper usage
       let remainingLines = [];
       let currentLine = "";
-      
+
       for (let i = 1; i < lines.length; i++) {
         if (currentLine.length + lines[i].length + 1 <= 25) {
           currentLine += (currentLine ? " " : "") + lines[i];
@@ -289,40 +304,44 @@ const formatMenuItem = (item) => {
           currentLine = lines[i];
         }
       }
-      
+
       if (currentLine) {
         remainingLines.push(currentLine);
       }
-      
+
       // Join with minimal line breaks
-      const remainingText = remainingLines.map(line => `  ${line}`).join("\n");
+      const remainingText = remainingLines
+        .map((line) => `  ${line}`)
+        .join("\n");
       return firstLine + remainingText + "\n";
     }
     return firstLine;
   }
-  
-  return `${name.padEnd(12)} ${qty.padStart(2)} ${rate.padStart(4)} ${total.padStart(7)}\n`;
+
+  return `${name.padEnd(12)} ${qty.padStart(2)} ${rate.padStart(
+    4
+  )} ${total.padStart(7)}\n`;
 };
 
 const formatAmountLine = (label, amount, symbol = "") => {
   // Format amount to 2 decimal places
   const formattedAmount = parseFloat(parseFloat(amount).toFixed(2));
-  
+
   // FIXED: Use the owner app's approach with spaces instead of dots
   // For 58mm printer (30-32 chars max width)
   const totalWidth = 30; // Max width for 58mm printer
   const amountWidth = 10; // Space for amount with symbols
-  
+
   // Calculate padding needed between label and amount
   const padding = Math.max(2, totalWidth - label.length - amountWidth);
-  
+
   // Format with symbol and proper padding
   const amountWithSymbol = `${symbol}${formattedAmount}`;
   const amountPadded = amountWithSymbol.padStart(amountWidth);
-  
+
   // Create line with spaces instead of dots
   const line = `${label}${" ".repeat(padding)}${amountPadded}`;
-  
+
   return line + "\n";
 };
 
@@ -351,10 +370,10 @@ const textToBytes = (text) => {
 const calculateItemTotal = (price, quantity, offer = 0) => {
   // Calculate the total price without discount
   const rawTotal = price * quantity;
-  
+
   // Apply discount if offer percentage is provided
   const discount = (rawTotal * offer) / 100;
-  
+
   // Return total after discount
   return rawTotal - discount;
 };
@@ -375,7 +394,7 @@ export default function CreateOrderScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const isFocused = useIsFocused();
-  
+
   // Settings state to control button visibility
   const [settings, setSettings] = useState({
     orderManagement: {
@@ -384,9 +403,9 @@ export default function CreateOrderScreen() {
       settle: true,
       reserve_table: true,
       cancel: true,
-    }
+    },
   });
-  
+
   // Use PrinterContext for improved printer management
   const {
     isConnected: printerConnected,
@@ -400,44 +419,46 @@ export default function CreateOrderScreen() {
     disconnectPrinter: contextDisconnectPrinter,
     autoReconnect,
     setAutoReconnect,
-    isPrinting
+    isPrinting,
   } = usePrinter();
 
   // Printer state management
   const [isPrinterModalOpen, setIsPrinterModalOpen] = useState(false);
   const [printerConnectionStatus, setPrinterConnectionStatus] = useState("");
-  const [isDeviceSelectionModalVisible, setIsDeviceSelectionModalVisible] = useState(false);
+  const [isDeviceSelectionModalVisible, setIsDeviceSelectionModalVisible] =
+    useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
-  
-  
+
   // Show printer connection status when focused
   useEffect(() => {
     if (isFocused) {
       if (printerConnected && contextPrinterDevice) {
-      console.log("Printer connected:", contextPrinterDevice?.id);
-      toast.show({
-          description: `Printer connected: ${contextPrinterDevice?.name || "Unknown printer"}`,
-        placement: "top",
-        duration: 2000,
-          status: "success"
+        console.log("Printer connected:", contextPrinterDevice?.id);
+        toast.show({
+          description: `Printer connected: ${
+            contextPrinterDevice?.name || "Unknown printer"
+          }`,
+          placement: "top",
+          duration: 2000,
+          status: "success",
         });
       }
-      
+
       // Auto-reconnect to last printer if available
       if (!printerConnected && autoReconnect && !printerScanning) {
-        reconnectPrinter().catch(error => {
+        reconnectPrinter().catch((error) => {
           console.log("Auto-reconnect error:", error);
         });
       }
     }
   }, [isFocused, printerConnected, contextPrinterDevice]);
-  
+
   // State variables
 
   // Keep all existing states
   const [loading, setLoading] = useState(false);
   const [outletId, setOutletId] = useState(null);
-  
+
   const [menuCategories, setMenuCategories] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
@@ -529,33 +550,35 @@ export default function CreateOrderScreen() {
     customer_mobile: "",
     customer_alternate_mobile: "",
     customer_address: "",
-    customer_landmark: ""
+    customer_landmark: "",
   });
-  
-  const [showCustomerDetailsModal, setShowCustomerDetailsModal] = useState(false);
+
+  const [showCustomerDetailsModal, setShowCustomerDetailsModal] =
+    useState(false);
   const [specialDiscount, setSpecialDiscount] = useState("0");
   const [extraCharges, setExtraCharges] = useState("0");
   const [tip, setTip] = useState("0");
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentMethod, setPaymentMethod] = useState("cash");
   const [isPaid, setIsPaid] = useState(false);
   const [isComplementary, setIsComplementary] = useState(false);
   const [isAdditionalOptionsOpen, setIsAdditionalOptionsOpen] = useState(false);
-  
+
   // Add the missing state variable for discount panel
   const [showDiscountPanel, setShowDiscountPanel] = useState(false);
-  
+
   // Add this validation function near the top of your component
   const validateMobileNumber = (number) => {
     // Only allow digits
     const numberRegex = /^\d*$/;
     if (!numberRegex.test(number)) return false;
-    
+
     // Check if first digit is valid for Indian mobile numbers
-    if (number.length === 1 && !['6', '7', '8', '9'].includes(number)) return false;
-    
+    if (number.length === 1 && !["6", "7", "8", "9"].includes(number))
+      return false;
+
     // Check if length is valid (10 or less)
     if (number.length > 10) return false;
-    
+
     return true;
   };
 
@@ -574,46 +597,45 @@ export default function CreateOrderScreen() {
     if (field === "customer_name") {
       // Only update if the name is valid or empty
       if (validateName(value) || value === "") {
-        setCustomerDetails(prevDetails => ({
+        setCustomerDetails((prevDetails) => ({
           ...prevDetails,
-          [field]: value
+          [field]: value,
         }));
       }
-    } 
-    else if (field === "customer_mobile" || field === "customer_alternate_mobile") {
+    } else if (
+      field === "customer_mobile" ||
+      field === "customer_alternate_mobile"
+    ) {
       // Only update if the mobile number is valid
       if (validateMobileNumber(value)) {
-        setCustomerDetails(prevDetails => ({
+        setCustomerDetails((prevDetails) => ({
           ...prevDetails,
-          [field]: value
+          [field]: value,
         }));
       }
-    } 
-    else if (field === "customer_address") {
+    } else if (field === "customer_address") {
       // Allow alphanumeric, spaces, commas, dots, hyphens, forward slash, hash
       const addressRegex = /^[a-zA-Z0-9\s,.-/#]*$/;
       if (addressRegex.test(value) && value.length <= 200) {
-        setCustomerDetails(prevDetails => ({
+        setCustomerDetails((prevDetails) => ({
           ...prevDetails,
-          [field]: value
+          [field]: value,
         }));
       }
-    } 
-    else if (field === "customer_landmark") {
+    } else if (field === "customer_landmark") {
       // Allow alphanumeric, spaces, commas, dots, hyphens
       const landmarkRegex = /^[a-zA-Z0-9\s,.-]*$/;
       if (landmarkRegex.test(value) && value.length <= 100) {
-        setCustomerDetails(prevDetails => ({
+        setCustomerDetails((prevDetails) => ({
           ...prevDetails,
-          [field]: value
+          [field]: value,
         }));
       }
-    } 
-    else {
+    } else {
       // For other fields, update normally
-      setCustomerDetails(prevDetails => ({
+      setCustomerDetails((prevDetails) => ({
         ...prevDetails,
-        [field]: value
+        [field]: value,
       }));
     }
   };
@@ -625,14 +647,14 @@ export default function CreateOrderScreen() {
     try {
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       const deviceToken = await AsyncStorage.getItem("device_token");
-      
+
       const data = await fetchWithAuth(`${onGetProductionUrl()}order_view`, {
         method: "POST",
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           order_id: orderId,
-          order_number: params.orderNumber || "",       // Add required parameter
+          order_number: params.orderNumber || "", // Add required parameter
           outlet_id: storedOutletId, // Add required parameter
-          device_token: deviceToken  // Keep this
+          device_token: deviceToken, // Keep this
         }),
       });
 
@@ -654,24 +676,37 @@ export default function CreateOrderScreen() {
       try {
         setLoading(true);
         const storedOutletId = await AsyncStorage.getItem("outlet_id");
-        
+
         // Get the userName and userMobile from params, if available
         const userNameFromParams = params.userName || "";
         const userMobileFromParams = params.userMobile || "";
-        console.log("User data from params:", userNameFromParams, userMobileFromParams);
-        
+        console.log(
+          "User data from params:",
+          userNameFromParams,
+          userMobileFromParams
+        );
+
         // Update customer details with user data if available
-        if (userNameFromParams || userMobileFromParams || params.customer_address || params.customer_alternate_mobile || params.customer_landmark) {
-          setCustomerDetails(prev => ({
+        if (
+          userNameFromParams ||
+          userMobileFromParams ||
+          params.customer_address ||
+          params.customer_alternate_mobile ||
+          params.customer_landmark
+        ) {
+          setCustomerDetails((prev) => ({
             ...prev,
             customer_name: userNameFromParams || prev.customer_name,
             customer_mobile: userMobileFromParams || prev.customer_mobile,
             customer_address: params.customer_address || prev.customer_address,
-            customer_alternate_mobile: params.customer_alternate_mobile || prev.customer_alternate_mobile,
-            customer_landmark: params.customer_landmark || prev.customer_landmark
+            customer_alternate_mobile:
+              params.customer_alternate_mobile ||
+              prev.customer_alternate_mobile,
+            customer_landmark:
+              params.customer_landmark || prev.customer_landmark,
           }));
         }
-        
+
         const data = await fetchWithAuth(`${onGetProductionUrl()}order_view`, {
           method: "POST",
           body: JSON.stringify({
@@ -697,35 +732,58 @@ export default function CreateOrderScreen() {
             menu_sub_total: parseFloat(item.menu_sub_total),
           }));
 
-        
           // Set tax details
           if (orderDetails.order_details) {
             setServiceChargePercentage(
-              parseFloat(orderDetails.order_details.service_charges_percent || 0)
+              parseFloat(
+                orderDetails.order_details.service_charges_percent || 0
+              )
             );
             setGstPercentage(
               parseFloat(orderDetails.order_details.gst_percent || 0)
             );
 
             // Set customer details, preserving params values if API response is empty
-            setCustomerDetails(prev => ({
-              customer_name: orderDetails.order_details.customer_name || userNameFromParams || prev.customer_name,
-              customer_mobile: orderDetails.order_details.customer_mobile || userMobileFromParams || prev.customer_mobile,
-              customer_alternate_mobile: orderDetails.order_details.customer_alternate_mobile || params.customer_alternate_mobile || prev.customer_alternate_mobile,
-              customer_address: orderDetails.order_details.customer_address || params.customer_address || prev.customer_address,
-              customer_landmark: orderDetails.order_details.customer_landmark || params.customer_landmark || prev.customer_landmark
+            setCustomerDetails((prev) => ({
+              customer_name:
+                orderDetails.order_details.customer_name ||
+                userNameFromParams ||
+                prev.customer_name,
+              customer_mobile:
+                orderDetails.order_details.customer_mobile ||
+                userMobileFromParams ||
+                prev.customer_mobile,
+              customer_alternate_mobile:
+                orderDetails.order_details.customer_alternate_mobile ||
+                params.customer_alternate_mobile ||
+                prev.customer_alternate_mobile,
+              customer_address:
+                orderDetails.order_details.customer_address ||
+                params.customer_address ||
+                prev.customer_address,
+              customer_landmark:
+                orderDetails.order_details.customer_landmark ||
+                params.customer_landmark ||
+                prev.customer_landmark,
             }));
 
             // Set additional charges
-            setSpecialDiscount(orderDetails.order_details.special_discount?.toString() || "0");
-            setExtraCharges(orderDetails.order_details.charges?.toString() || "0");
+            setSpecialDiscount(
+              orderDetails.order_details.special_discount?.toString() || "0"
+            );
+            setExtraCharges(
+              orderDetails.order_details.charges?.toString() || "0"
+            );
             setTip(orderDetails.order_details.tip?.toString() || "0");
 
             // Set payment information
             if (orderDetails.order_details.is_paid === "paid") {
               setIsPaid(true);
               setIsComplementary(false);
-              setPaymentMethod(orderDetails.order_details.payment_method?.toUpperCase() || "cash");
+              setPaymentMethod(
+                orderDetails.order_details.payment_method?.toUpperCase() ||
+                  "cash"
+              );
             } else if (orderDetails.order_details.is_paid === "complementary") {
               setIsPaid(false);
               setIsComplementary(true);
@@ -744,7 +802,12 @@ export default function CreateOrderScreen() {
     };
 
     initializeOrder();
-  }, [params?.orderId, params?.orderNumber, params.userName, params.userMobile]); // Add proper dependencies
+  }, [
+    params?.orderId,
+    params?.orderNumber,
+    params.userName,
+    params.userMobile,
+  ]); // Add proper dependencies
 
   const handleHold = async () => {
     if (isLoading) return; // Prevent multiple calls
@@ -772,13 +835,16 @@ export default function CreateOrderScreen() {
 
   // Update handleKOT function to check for printer connection properly
 
-
-  const handleKOT = async (modalPaymentMethod = null, modalIsPaidValue = null) => {
+  const handleKOT = async (
+    modalPaymentMethod = null,
+    modalIsPaidValue = null
+  ) => {
     try {
-      // Use modal values if provided 
-      const effectiveIsPaid = modalIsPaidValue !== null ? modalIsPaidValue : isPaid;
+      // Use modal values if provided
+      const effectiveIsPaid =
+        modalIsPaidValue !== null ? modalIsPaidValue : isPaid;
       const effectivePaymentMethod = modalPaymentMethod || paymentMethod;
-      
+
       // Check if we're connected to a printer
       if (!printerConnected || !contextPrinterDevice) {
         Alert.alert(
@@ -787,7 +853,7 @@ export default function CreateOrderScreen() {
           [
             {
               text: "Yes",
-              onPress: () => setIsDeviceSelectionModalVisible(true)
+              onPress: () => setIsDeviceSelectionModalVisible(true),
             },
             {
               text: "Skip Printing",
@@ -797,24 +863,24 @@ export default function CreateOrderScreen() {
                 try {
                   setIsProcessing(true);
                   setLoadingMessage("Saving order...");
-                  
+
                   // Save order without printing
                   const savedOrder = await createOrder("KOT_and_save");
-                  
+
                   if (savedOrder) {
                     toast.show({
                       description: "Order saved successfully",
                       status: "success",
                       duration: 2000,
                     });
-                    
+
                     // Navigate back to tables view
                     router.replace({
                       pathname: "/(tabs)/tables/sections",
-                      params: { 
+                      params: {
                         refresh: Date.now().toString(),
-                        status: "completed"
-                      }
+                        status: "completed",
+                      },
                     });
                   }
                 } catch (error) {
@@ -828,19 +894,21 @@ export default function CreateOrderScreen() {
                   setIsProcessing(false);
                   setLoadingMessage("");
                 }
-              }
-            }
+              },
+            },
           ]
         );
         return;
       }
-      
+
       // Verify printer connection is stable before KOT printing
       try {
         if (contextPrinterDevice.isConnected) {
           const isDeviceConnected = await contextPrinterDevice.isConnected();
           if (!isDeviceConnected) {
-            console.log("Device reports as not connected for KOT despite context state");
+            console.log(
+              "Device reports as not connected for KOT despite context state"
+            );
             throw new Error("Printer connection not stable for KOT");
           }
           console.log("Printer verified as ready for KOT");
@@ -853,7 +921,7 @@ export default function CreateOrderScreen() {
           [
             {
               text: "Reconnect Printer",
-              onPress: () => setIsDeviceSelectionModalVisible(true)
+              onPress: () => setIsDeviceSelectionModalVisible(true),
             },
             {
               text: "Skip Printing and Save",
@@ -863,39 +931,39 @@ export default function CreateOrderScreen() {
                 try {
                   setIsProcessing(true);
                   setLoadingMessage("Saving order...");
-                  
+
                   // Save order without printing
                   const savedOrder = await createOrder("create_order");
-                  
+
                   if (savedOrder) {
-          toast.show({
+                    toast.show({
                       description: "Order saved successfully",
                       status: "success",
-            duration: 2000,
-          });
-                    
+                      duration: 2000,
+                    });
+
                     // Navigate back to tables view
                     router.replace({
                       pathname: "/(tabs)/tables/sections",
-                      params: { 
+                      params: {
                         refresh: Date.now().toString(),
-                        status: "completed"
-                      }
+                        status: "completed",
+                      },
                     });
                   }
                 } catch (error) {
                   console.error("Save order error:", error);
-        toast.show({
+                  toast.show({
                     description: "Error saving order: " + error.message,
                     status: "error",
-          duration: 3000,
-        });
+                    duration: 3000,
+                  });
                 } finally {
                   setIsProcessing(false);
                   setLoadingMessage("");
                 }
-              }
-            }
+              },
+            },
           ]
         );
         return;
@@ -922,23 +990,27 @@ export default function CreateOrderScreen() {
         }
 
         // ADDED: Enhanced debugging for KOT order number issue
-        console.log("API Response for KOT_and_save:", JSON.stringify(apiResponse));
-        console.log("Order number from API KOT response:", 
-          apiResponse?.order_number || 
-          apiResponse?.lists?.order_details?.order_number || 
-          "Not found in KOT API response"
+        console.log(
+          "API Response for KOT_and_save:",
+          JSON.stringify(apiResponse)
+        );
+        console.log(
+          "Order number from API KOT response:",
+          apiResponse?.order_number ||
+            apiResponse?.lists?.order_details?.order_number ||
+            "Not found in KOT API response"
         );
         console.log("KOT Params:", {
           orderIdParam: params?.orderId,
-          orderNumberParam: params?.orderNumber
+          orderNumberParam: params?.orderNumber,
         });
 
         // Print KOT
         try {
           setLoadingMessage("Printing KOT...");
           await printKOT(apiResponse);
-          
-        toast.show({
+
+          toast.show({
             description: "Order saved and KOT printed successfully",
             status: "success",
             duration: 2000,
@@ -947,19 +1019,20 @@ export default function CreateOrderScreen() {
           console.error("KOT print error:", printError);
           // Continue even with print error
           toast.show({
-            description: "Order saved but KOT printing failed: " + printError.message,
+            description:
+              "Order saved but KOT printing failed: " + printError.message,
             status: "warning",
-          duration: 3000,
-        });
-      }
+            duration: 3000,
+          });
+        }
 
         // Navigate back to tables screen
         router.replace({
           pathname: "/(tabs)/tables/sections",
-          params: { 
+          params: {
             refresh: Date.now().toString(),
-            status: "completed"
-          }
+            status: "completed",
+          },
         });
       } catch (error) {
         console.error("KOT and Save error:", error);
@@ -993,15 +1066,18 @@ export default function CreateOrderScreen() {
       }
 
       console.log("Generating KOT commands...");
-      
+
       // ADDED: Debug log for KOT printing order number
       console.log("Order Data for KOT printing:", {
-        orderNumber: orderData?.order_number || orderData?.lists?.order_details?.order_number || "not found",
+        orderNumber:
+          orderData?.order_number ||
+          orderData?.lists?.order_details?.order_number ||
+          "not found",
         paramOrderId: params?.orderId,
         paramOrderNumber: params?.orderNumber,
-        completeOrderData: JSON.stringify(orderData).substring(0, 500) + "..." // Truncated for readability
+        completeOrderData: JSON.stringify(orderData).substring(0, 500) + "...", // Truncated for readability
       });
-      
+
       // Generate KOT commands with error handling
       let kotCommands;
       try {
@@ -1014,36 +1090,40 @@ export default function CreateOrderScreen() {
         console.error("Error generating KOT commands:", genError);
         throw new Error("Failed to prepare KOT data: " + genError.message);
       }
-      
+
       console.log("Sending KOT to printer...");
-      
+
       // Send commands to printer using PrinterContext
       try {
         await sendDataToPrinter(kotCommands);
         console.log("KOT data sent to printer successfully");
       } catch (printError) {
         console.error("Error sending data to printer:", printError);
-        throw new Error("Failed to send KOT data to printer: " + printError.message);
+        throw new Error(
+          "Failed to send KOT data to printer: " + printError.message
+        );
       }
-      
+
       console.log("KOT printed successfully");
       return true;
     } catch (error) {
       console.error("KOT printing error:", error);
-      
+
       // Check if error is related to printer connection
       if (
-        error.message?.includes("connection") || 
+        error.message?.includes("connection") ||
         error.message?.includes("printer") ||
         error.message?.includes("connected")
       ) {
-        throw new Error("Printer connection lost. Please reconnect your printer and try again.");
+        throw new Error(
+          "Printer connection lost. Please reconnect your printer and try again."
+        );
       }
-      
+
       throw error;
     }
   };
-  
+
   // Continue with the rest of the implementation (remove the generateKOTCommands function here)
 
   // Add this function before handleSettle
@@ -1054,33 +1134,30 @@ export default function CreateOrderScreen() {
     }, 0);
   };
 
+  // handle settle order
+  const handleSettleOrder = async () => {
+    if (selectedItems.length === 0) {
+      toast.show({
+        description: "Please add items to the order",
+        status: "warning",
+      });
+      return;
+    }
 
-// handle settle order
-const handleSettleOrder = async () => {
-  if (selectedItems.length === 0) {
-    toast.show({
-      description: "Please add items to the order",
-      status: "warning"
-    });
-    return;
-  }
+    // Set the current action to 'settle'
+    setCurrentAction("settle");
 
-  // Set the current action to 'settle'
-  setCurrentAction('settle');
-    
-  // Set isPaidChecked to false by default for the modal
-  setIsPaidChecked(false);
-  
-  // Set default payment method if not already set
-  if (!selectedPaymentMethod) {
-    setSelectedPaymentMethod("cash");
-  }
-    
-  // Show the payment modal
-  setShowPaymentModal(true);
-};
+    // Set isPaidChecked to false by default for the modal
+    setIsPaidChecked(false);
 
+    // Set default payment method if not already set
+    if (!selectedPaymentMethod) {
+      setSelectedPaymentMethod("cash");
+    }
 
+    // Show the payment modal
+    setShowPaymentModal(true);
+  };
 
   useEffect(() => {
     const keyboardDidHideListener = Keyboard.addListener(
@@ -1154,14 +1231,20 @@ const handleSettleOrder = async () => {
 
   const calculateSubtotal = (items) => {
     return items?.reduce((sum, item) => {
-      const price = item.portionSize === "Half" ? Number(item.half_price || item.price) : Number(item.full_price || item.price);
+      const price =
+        item.portionSize === "Half"
+          ? Number(item.half_price || item.price)
+          : Number(item.full_price || item.price);
       return sum + price * Number(item.quantity);
     }, 0);
   };
 
   const calculateItemDiscount = (items) => {
     return items?.reduce((sum, item) => {
-      const price = item.portionSize === "Half" ? Number(item.half_price || item.price) : Number(item.full_price || item.price);
+      const price =
+        item.portionSize === "Half"
+          ? Number(item.half_price || item.price)
+          : Number(item.full_price || item.price);
       const itemTotal = price * Number(item.quantity);
       return sum + (itemTotal * Number(item.offer)) / 100;
     }, 0);
@@ -1174,7 +1257,10 @@ const handleSettleOrder = async () => {
     return subtotal - itemDiscounts - specialDiscountAmount;
   };
 
-  const calculateTotalAfterExtraCharges = (totalAfterDiscounts, extraCharges) => {
+  const calculateTotalAfterExtraCharges = (
+    totalAfterDiscounts,
+    extraCharges
+  ) => {
     const extraChargesAmount = parseFloat(extraCharges) || 0;
     return totalAfterDiscounts + extraChargesAmount;
   };
@@ -1187,31 +1273,45 @@ const handleSettleOrder = async () => {
     return (amount * gstPercentage) / 100;
   };
 
-  const calculateGrandTotal = (selectedItems, specialDiscount, extraCharges, serviceChargePercentage, gstPercentage, tip) => {
+  const calculateGrandTotal = (
+    selectedItems,
+    specialDiscount,
+    extraCharges,
+    serviceChargePercentage,
+    gstPercentage,
+    tip
+  ) => {
     // 1. Start with items total
     const itemsTotal = calculateSubtotal(selectedItems);
-    
+
     // 2. Subtract item discounts
     const itemDiscounts = calculateItemDiscount(selectedItems);
-    
+
     // 3. Subtract special discount
     const specialDiscountAmount = parseFloat(specialDiscount) || 0;
-    
+
     // 4. Add extra charges
     const extraChargesAmount = parseFloat(extraCharges) || 0;
-    
+
     // 5. Calculate subtotal after discounts and extra charges
-    const subtotalAfterDiscountsAndExtra = itemsTotal - itemDiscounts - specialDiscountAmount + extraChargesAmount;
-    
+    const subtotalAfterDiscountsAndExtra =
+      itemsTotal - itemDiscounts - specialDiscountAmount + extraChargesAmount;
+
     // 6. Calculate and add service charges
-    const serviceCharges = calculateServiceCharges(subtotalAfterDiscountsAndExtra, serviceChargePercentage);
-    
+    const serviceCharges = calculateServiceCharges(
+      subtotalAfterDiscountsAndExtra,
+      serviceChargePercentage
+    );
+
     // 7. Calculate and add GST
-    const gst = calculateGST(subtotalAfterDiscountsAndExtra + serviceCharges, gstPercentage);
-    
+    const gst = calculateGST(
+      subtotalAfterDiscountsAndExtra + serviceCharges,
+      gstPercentage
+    );
+
     // 8. Add tip
     const tipAmount = parseFloat(tip) || 0;
-    
+
     // 9. Return grand total
     return subtotalAfterDiscountsAndExtra + serviceCharges + gst + tipAmount;
   };
@@ -1239,14 +1339,28 @@ const handleSettleOrder = async () => {
   };
 
   const SelectedItemsList = () => {
-    console.log("Rendering SelectedItemsList with items:", selectedItems.length);
-    console.log("Items with isNewlyAdded flag:", selectedItems.filter(item => item.isNewlyAdded).length);
-    
+    console.log(
+      "Rendering SelectedItemsList with items:",
+      selectedItems.length
+    );
+    console.log(
+      "Items with isNewlyAdded flag:",
+      selectedItems.filter((item) => item.isNewlyAdded).length
+    );
+
     return (
-      <Box bg="white" borderWidth={1} borderColor="gray.200" borderRadius="md" p={3}>
+      <Box
+        bg="white"
+        borderWidth={1}
+        borderColor="gray.200"
+        borderRadius="md"
+        p={3}
+      >
         <VStack space={2}>
           <HStack justifyContent="space-between" alignItems="center">
-            <Text fontSize="md" fontWeight="bold">Selected Items</Text>
+            <Text fontSize="md" fontWeight="bold">
+              Selected Items
+            </Text>
             {selectedItems.length > 0 && (
               <Badge rounded="full" colorScheme="cyan">
                 {selectedItems.length}
@@ -1254,31 +1368,52 @@ const handleSettleOrder = async () => {
             )}
           </HStack>
           {selectedItems.map((item, index) => {
-            console.log(`Item ${index} details:`, JSON.stringify({
-              id: item.menu_id,
-              name: item.name, 
-              menu_name: item.menu_name,
-              isNewlyAdded: item.isNewlyAdded,
-              price: item.price,
-              quantity: item.quantity
-            }));
+            console.log(
+              `Item ${index} details:`,
+              JSON.stringify({
+                id: item.menu_id,
+                name: item.name,
+                menu_name: item.menu_name,
+                isNewlyAdded: item.isNewlyAdded,
+                price: item.price,
+                quantity: item.quantity,
+              })
+            );
             return (
-              <Box key={index} borderBottomWidth={1} borderColor="gray.200" pb={2}>
+              <Box
+                key={index}
+                borderBottomWidth={1}
+                borderColor="gray.200"
+                pb={2}
+              >
                 <HStack justifyContent="space-between" alignItems="center">
                   <VStack flex={1}>
                     <Text fontWeight={600} fontSize={16}>
                       {item.menu_name}
-                      {item.offer > 0 && <Text color="green.600"> ({item.offer}% OFF)</Text>}
+                      {item.offer > 0 && (
+                        <Text color="green.600"> ({item.offer}% OFF)</Text>
+                      )}
                     </Text>
                   </VStack>
                   <Pressable
-                    onPress={() => removeFromCart(item.menu_id, item.portion_size)}
+                    onPress={() =>
+                      removeFromCart(item.menu_id, item.portion_size)
+                    }
                     hitSlop={8}
                   >
-                    <Icon as={MaterialIcons} name="close" size="sm" color="gray.500" />
+                    <Icon
+                      as={MaterialIcons}
+                      name="close"
+                      size="sm"
+                      color="gray.500"
+                    />
                   </Pressable>
                 </HStack>
-                <HStack mt={2} justifyContent="space-between" alignItems="center">
+                <HStack
+                  mt={2}
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
                   <HStack space={3} alignItems="center">
                     <IconButton
                       icon={<Icon as={MaterialIcons} name="remove" size="xs" />}
@@ -1292,7 +1427,10 @@ const handleSettleOrder = async () => {
                           decreaseQuantity(item);
                         } else {
                           // When quantity is 1, remove the item completely
-                          removeFromCart(item.menu_id, item.portionSize || item.portion_size);
+                          removeFromCart(
+                            item.menu_id,
+                            item.portionSize || item.portion_size
+                          );
                         }
                       }}
                     />
@@ -1307,7 +1445,14 @@ const handleSettleOrder = async () => {
                       onPress={() => increaseQuantity(item)}
                     />
                   </HStack>
-                  <Text>Full: ₹{calculateItemTotal(item.price, item.quantity, item.offer).toFixed(2)}</Text>
+                  <Text>
+                    Full: ₹
+                    {calculateItemTotal(
+                      item.price,
+                      item.quantity,
+                      item.offer
+                    ).toFixed(2)}
+                  </Text>
                 </HStack>
               </Box>
             );
@@ -1361,7 +1506,6 @@ const handleSettleOrder = async () => {
 
   // Add this function to refresh order details
 
-
   const refreshOrderDetails = async () => {
     if (!params?.orderNumber) return;
 
@@ -1370,8 +1514,10 @@ const handleSettleOrder = async () => {
 
       if (orderData) {
         // Get existing items with isNewlyAdded flag
-        const existingNewItems = selectedItems.filter(item => item.isNewlyAdded);
-        
+        const existingNewItems = selectedItems.filter(
+          (item) => item.isNewlyAdded
+        );
+
         // Transform order data items
         const orderItems = orderData.menu_details.map((item) => ({
           menu_id: item.menu_id?.toString(),
@@ -1386,24 +1532,24 @@ const handleSettleOrder = async () => {
 
         // Merge existing new items with order items
         const mergedItems = [...orderItems];
-        
+
         // Add new items that aren't already in the order
-        existingNewItems.forEach(newItem => {
+        existingNewItems.forEach((newItem) => {
           const existingItemIndex = mergedItems.findIndex(
-            item => item.menu_id === newItem.menu_id
+            (item) => item.menu_id === newItem.menu_id
           );
-          
+
           if (existingItemIndex === -1) {
             // Item doesn't exist in order, add it
             mergedItems.push({
               ...newItem,
-              isNewlyAdded: true
+              isNewlyAdded: true,
             });
           } else {
             // Item exists, update quantity if needed
             mergedItems[existingItemIndex].quantity += newItem.quantity;
-            mergedItems[existingItemIndex].total_price = 
-              parseFloat(mergedItems[existingItemIndex].price) * 
+            mergedItems[existingItemIndex].total_price =
+              parseFloat(mergedItems[existingItemIndex].price) *
               mergedItems[existingItemIndex].quantity;
           }
         });
@@ -1415,21 +1561,27 @@ const handleSettleOrder = async () => {
           setServiceChargePercentage(
             parseFloat(orderData.order_details.service_charges_percent || 0)
           );
-          setGstPercentage(parseFloat(orderData.order_details.gst_percent || 0));
-          
+          setGstPercentage(
+            parseFloat(orderData.order_details.gst_percent || 0)
+          );
+
           // Set customer details
           if (orderData.order_details.customer_name) {
             setCustomerDetails({
               customer_name: orderData.order_details.customer_name || "",
               customer_mobile: orderData.order_details.customer_mobile || "",
-              customer_alternate_mobile: orderData.order_details.customer_alternate_mobile || "",
+              customer_alternate_mobile:
+                orderData.order_details.customer_alternate_mobile || "",
               customer_address: orderData.order_details.customer_address || "",
-              customer_landmark: orderData.order_details.customer_landmark || ""
+              customer_landmark:
+                orderData.order_details.customer_landmark || "",
             });
           }
 
           // Set additional charges
-          setSpecialDiscount(orderData.order_details.special_discount?.toString() || "0");
+          setSpecialDiscount(
+            orderData.order_details.special_discount?.toString() || "0"
+          );
           setExtraCharges(orderData.order_details.charges?.toString() || "0");
           setTip(orderData.order_details.tip?.toString() || "0");
 
@@ -1437,7 +1589,9 @@ const handleSettleOrder = async () => {
           if (orderData.order_details.is_paid === "paid") {
             setIsPaid(true);
             setIsComplementary(false);
-            setPaymentMethod(orderData.order_details.payment_method?.toUpperCase() || "cash");
+            setPaymentMethod(
+              orderData.order_details.payment_method?.toUpperCase() || "cash"
+            );
           } else if (orderData.order_details.is_paid === "complementary") {
             setIsPaid(false);
             setIsComplementary(true);
@@ -1458,18 +1612,19 @@ const handleSettleOrder = async () => {
     React.useCallback(() => {
       const initializeScreen = async () => {
         setIsLoadingOrder(true);
-        
-        const hasExistingOrder = params?.isOccupied === "1" && params?.orderNumber;
+
+        const hasExistingOrder =
+          params?.isOccupied === "1" && params?.orderNumber;
         const hasNewItems = params?.orderDetails ? true : false;
-        
+
         try {
           // Clear the selectedItems first
           setSelectedItems([]);
-          
+
           // Load existing order if needed
           if (hasExistingOrder && userData?.outlet_id) {
             const orderData = await fetchOrderDetails(params.orderNumber);
-            
+
             if (orderData) {
               const existingItems = orderData.menu_details.map((item) => ({
                 menu_id: item.menu_id?.toString(),
@@ -1481,70 +1636,91 @@ const handleSettleOrder = async () => {
                 offer: parseFloat(item.offer || 0),
                 specialInstructions: item.comment || "",
               }));
-              
+
               setSelectedItems(existingItems);
-              
+
               if (orderData.order_details) {
-                setServiceChargePercentage(parseFloat(orderData.order_details.service_charges_percent || 0));
-                setGstPercentage(parseFloat(orderData.order_details.gst_percent || 0));
-                
+                setServiceChargePercentage(
+                  parseFloat(
+                    orderData.order_details.service_charges_percent || 0
+                  )
+                );
+                setGstPercentage(
+                  parseFloat(orderData.order_details.gst_percent || 0)
+                );
+
                 if (orderData.order_details.customer_name) {
                   setCustomerDetails({
                     customer_name: orderData.order_details.customer_name || "",
-                    customer_mobile: orderData.order_details.customer_mobile || "",
-                    customer_alternate_mobile: orderData.order_details.customer_alternate_mobile || "",
-                    customer_address: orderData.order_details.customer_address || "",
-                    customer_landmark: orderData.order_details.customer_landmark || ""
+                    customer_mobile:
+                      orderData.order_details.customer_mobile || "",
+                    customer_alternate_mobile:
+                      orderData.order_details.customer_alternate_mobile || "",
+                    customer_address:
+                      orderData.order_details.customer_address || "",
+                    customer_landmark:
+                      orderData.order_details.customer_landmark || "",
                   });
                 }
 
-                setSpecialDiscount(orderData.order_details.special_discount?.toString() || "0");
-                setExtraCharges(orderData.order_details.charges?.toString() || "0");
+                setSpecialDiscount(
+                  orderData.order_details.special_discount?.toString() || "0"
+                );
+                setExtraCharges(
+                  orderData.order_details.charges?.toString() || "0"
+                );
                 setTip(orderData.order_details.tip?.toString() || "0");
 
                 if (orderData.order_details.is_paid === "paid") {
                   setIsPaid(true);
                   setIsComplementary(false);
-                  setPaymentMethod(orderData.order_details.payment_method?.toUpperCase() || "cash");
-                } else if (orderData.order_details.is_paid === "complementary") {
+                  setPaymentMethod(
+                    orderData.order_details.payment_method?.toUpperCase() ||
+                      "cash"
+                  );
+                } else if (
+                  orderData.order_details.is_paid === "complementary"
+                ) {
                   setIsPaid(false);
                   setIsComplementary(true);
                 }
               }
             }
           }
-          
+
           // Process new items if they exist
           if (hasNewItems && params.orderDetails) {
             try {
               const orderDetailsObj = JSON.parse(params.orderDetails);
-              
+
               if (orderDetailsObj.menu_items?.length > 0) {
-                const newItems = orderDetailsObj.menu_items.map(item => ({
+                const newItems = orderDetailsObj.menu_items.map((item) => ({
                   menu_id: item.menu_id,
                   menu_name: item.name,
                   name: item.name,
                   price: parseFloat(item.price),
                   quantity: parseInt(item.quantity) || 1,
-                  total_price: parseFloat(item.price) * (parseInt(item.quantity) || 1),
-                  portionSize: item.portion === 'half' ? 'Half' : 'Full',
+                  total_price:
+                    parseFloat(item.price) * (parseInt(item.quantity) || 1),
+                  portionSize: item.portion === "half" ? "Half" : "Full",
                   offer: parseFloat(item.offer) || 0,
                   specialInstructions: item.specialInstructions || "",
                   isNewlyAdded: true,
                   half_price: parseFloat(item.half_price) || 0,
-                  full_price: parseFloat(item.full_price) || parseFloat(item.price),
+                  full_price:
+                    parseFloat(item.full_price) || parseFloat(item.price),
                 }));
-                
-                setSelectedItems(prevItems => {
+
+                setSelectedItems((prevItems) => {
                   if (!hasExistingOrder) return newItems;
-                  
+
                   const existingItemsMap = {};
-                  prevItems.forEach(item => {
+                  prevItems.forEach((item) => {
                     existingItemsMap[item.menu_id] = item;
                   });
-                  
+
                   const mergedItems = [...prevItems];
-                  newItems.forEach(newItem => {
+                  newItems.forEach((newItem) => {
                     const existingItem = existingItemsMap[newItem.menu_id];
                     if (existingItem) {
                       existingItem.quantity += newItem.quantity;
@@ -1557,7 +1733,7 @@ const handleSettleOrder = async () => {
                       mergedItems.push(newItem);
                     }
                   });
-                  
+
                   return mergedItems;
                 });
               }
@@ -1591,17 +1767,24 @@ const handleSettleOrder = async () => {
           const userSession = await AsyncStorage.getItem("userSession");
           if (userSession) {
             const sessionData = JSON.parse(userSession);
-            if (sessionData.gst) await AsyncStorage.setItem("gst", sessionData.gst?.toString());
-            if (sessionData.service_charges) await AsyncStorage.setItem("service_charges", sessionData.service_charges?.toString());
-            
+            if (sessionData.gst)
+              await AsyncStorage.setItem("gst", sessionData.gst?.toString());
+            if (sessionData.service_charges)
+              await AsyncStorage.setItem(
+                "service_charges",
+                sessionData.service_charges?.toString()
+              );
+
             setGstPercentage(parseFloat(sessionData.gst || 0));
-            setServiceChargePercentage(parseFloat(sessionData.service_charges || 0));
+            setServiceChargePercentage(
+              parseFloat(sessionData.service_charges || 0)
+            );
           }
         } else {
           setGstPercentage(parseFloat(gst));
           setServiceChargePercentage(parseFloat(serviceCharges));
         }
-        
+
         setChargesFetched(true);
       } catch (error) {
         console.error("Error fetching charges:", error);
@@ -1614,16 +1797,16 @@ const handleSettleOrder = async () => {
   // Update handleAddItem to use the calculateItemTotal helper
   const handleAddItem = (item, selectedPortion) => {
     const portionSize = "Full"; // Always use "Full" as default
-    
-    setSelectedItems(prevItems => {
+
+    setSelectedItems((prevItems) => {
       const existingItemIndex = prevItems.findIndex(
-        prevItem => String(prevItem.menu_id) === String(item.menu_id)
+        (prevItem) => String(prevItem.menu_id) === String(item.menu_id)
       );
 
       if (existingItemIndex !== -1) {
         const updatedItems = [...prevItems];
         const existingItem = updatedItems[existingItemIndex];
-        
+
         if (existingItem.quantity < 20) {
           existingItem.quantity += 1;
           existingItem.total_price = calculateItemTotal(
@@ -1632,7 +1815,7 @@ const handleSettleOrder = async () => {
             Number(item.offer || 0)
           );
         }
-        
+
         return updatedItems;
       }
 
@@ -1648,7 +1831,11 @@ const handleSettleOrder = async () => {
         offer: Number(item.offer || 0),
         specialInstructions: "",
         isNewlyAdded: true,
-        total_price: calculateItemTotal(Number(item.full_price), 1, Number(item.offer || 0))
+        total_price: calculateItemTotal(
+          Number(item.full_price),
+          1,
+          Number(item.offer || 0)
+        ),
       };
 
       return [...prevItems, newItem];
@@ -1669,8 +1856,11 @@ const handleSettleOrder = async () => {
       const filteredItems = prevItems.filter((item) => {
         // Remove the item completely if it matches the menu_id and portionSize
         // Regardless of whether it's newly added or not
-        return !(item.menu_id === menuId && 
-                (item.portionSize === portionSize || item.portion_size === portionSize));
+        return !(
+          item.menu_id === menuId &&
+          (item.portionSize === portionSize ||
+            item.portion_size === portionSize)
+        );
       });
       console.log("Items remaining after removal:", filteredItems.length);
       return filteredItems;
@@ -1739,7 +1929,8 @@ const handleSettleOrder = async () => {
       borderWidth={1}
       borderStyle="dashed"
       borderColor={
-        params?.isSpecialOrder || (params?.orderType && params?.orderType !== "dine-in")
+        params?.isSpecialOrder ||
+        (params?.orderType && params?.orderType !== "dine-in")
           ? params.orderType === "parcel"
             ? "amber.500"
             : params.orderType === "drive-through"
@@ -1758,7 +1949,8 @@ const handleSettleOrder = async () => {
     >
       <Badge
         bg={
-          params?.isSpecialOrder || (params?.orderType && params?.orderType !== "dine-in")
+          params?.isSpecialOrder ||
+          (params?.orderType && params?.orderType !== "dine-in")
             ? params.orderType === "parcel"
               ? "amber.100"
               : params.orderType === "drive-through"
@@ -1777,7 +1969,8 @@ const handleSettleOrder = async () => {
         py={1}
       >
         <VStack alignItems="center">
-          {params?.isSpecialOrder || (params?.orderType && params?.orderType !== "dine-in") ? (
+          {params?.isSpecialOrder ||
+          (params?.orderType && params?.orderType !== "dine-in") ? (
             <>
               <Text
                 color={
@@ -1816,7 +2009,7 @@ const handleSettleOrder = async () => {
                       : params.orderType === "delivery"
                       ? "teal.800"
                       : params.orderType === "counter"
-                      ? "blue.800" 
+                      ? "blue.800"
                       : "indigo.800"
                   }
                   fontSize="xs"
@@ -1856,26 +2049,25 @@ const handleSettleOrder = async () => {
 
   const calculateTotalDiscountPercentage = (items) => {
     if (items.length === 0) return 0;
-    
+
     // Check if we have a Poha item with 25% discount
     let totalDiscount = 0;
     let totalAmount = 0;
-    
+
     for (const item of items) {
       // Get the original price (before discount) per unit
-      const originalUnitPrice = item.offer > 0 
-        ? item.price / (1 - item.offer/100) 
-        : item.price;
-      
+      const originalUnitPrice =
+        item.offer > 0 ? item.price / (1 - item.offer / 100) : item.price;
+
       // Calculate total original amount
       const originalAmount = originalUnitPrice * item.quantity;
       totalAmount += originalAmount;
-      
+
       // Calculate discount amount
       const discountAmount = (originalAmount * item.offer) / 100;
       totalDiscount += discountAmount;
     }
-    
+
     // Return the weighted average discount percentage
     return totalAmount > 0 ? (totalDiscount / totalAmount) * 100 : 0;
   };
@@ -1891,7 +2083,7 @@ const handleSettleOrder = async () => {
           [
             {
               text: "Yes",
-              onPress: () => setIsDeviceSelectionModalVisible(true)
+              onPress: () => setIsDeviceSelectionModalVisible(true),
             },
             {
               text: "Skip Printing",
@@ -1903,32 +2095,36 @@ const handleSettleOrder = async () => {
                   setLoadingMessage("Placing order...");
 
                   // Verify authentication token is present
-                  const token = await AsyncStorage.getItem('access');
+                  const token = await AsyncStorage.getItem("access");
                   if (!token) {
-                    throw new Error("Authentication token missing. Please log in again.");
+                    throw new Error(
+                      "Authentication token missing. Please log in again."
+                    );
                   }
-                  
+
                   // Create order without printing
                   const apiResponse = await createOrder("print_and_save", true);
-                  
+
                   if (!apiResponse || apiResponse.st !== 1) {
-                    throw new Error(apiResponse?.msg || "Failed to place order");
+                    throw new Error(
+                      apiResponse?.msg || "Failed to place order"
+                    );
                   }
-                  
+
                   // Show success message
                   toast.show({
                     description: "Order placed successfully (printing skipped)",
                     status: "success",
                     duration: 2000,
                   });
-                  
+
                   // Navigate back to tables screen using the standard pattern
                   router.replace({
                     pathname: "/(tabs)/tables/sections",
-                    params: { 
+                    params: {
                       refresh: Date.now().toString(),
-                      status: "completed"
-                    }
+                      status: "completed",
+                    },
                   });
                 } catch (error) {
                   console.error("Order placement error:", error);
@@ -1941,8 +2137,8 @@ const handleSettleOrder = async () => {
                   setIsProcessing(false);
                   setLoadingMessage("");
                 }
-              }
-            }
+              },
+            },
           ]
         );
         return;
@@ -1953,7 +2149,9 @@ const handleSettleOrder = async () => {
         if (contextPrinterDevice.isConnected) {
           const isDeviceConnected = await contextPrinterDevice.isConnected();
           if (!isDeviceConnected) {
-            console.log("Device reports as not connected for receipt despite context state");
+            console.log(
+              "Device reports as not connected for receipt despite context state"
+            );
             throw new Error("Printer connection not stable for receipt");
           }
           console.log("Printer verified as ready for receipt");
@@ -1966,7 +2164,7 @@ const handleSettleOrder = async () => {
           [
             {
               text: "Reconnect Printer",
-              onPress: () => setIsDeviceSelectionModalVisible(true)
+              onPress: () => setIsDeviceSelectionModalVisible(true),
             },
             {
               text: "Skip Printing",
@@ -1978,32 +2176,36 @@ const handleSettleOrder = async () => {
                   setLoadingMessage("Placing order...");
 
                   // Verify authentication token is present
-                  const token = await AsyncStorage.getItem('access');
+                  const token = await AsyncStorage.getItem("access");
                   if (!token) {
-                    throw new Error("Authentication token missing. Please log in again.");
+                    throw new Error(
+                      "Authentication token missing. Please log in again."
+                    );
                   }
-                  
+
                   // Create order without printing
                   const apiResponse = await createOrder("print_and_save", true);
-                  
+
                   if (!apiResponse || apiResponse.st !== 1) {
-                    throw new Error(apiResponse?.msg || "Failed to place order");
+                    throw new Error(
+                      apiResponse?.msg || "Failed to place order"
+                    );
                   }
-                  
+
                   // Show success message
                   toast.show({
                     description: "Order placed successfully (printing skipped)",
                     status: "success",
                     duration: 2000,
                   });
-                  
+
                   // Navigate back to tables screen using the standard pattern
                   router.replace({
                     pathname: "/(tabs)/tables/sections",
-                    params: { 
+                    params: {
                       refresh: Date.now().toString(),
-                      status: "completed"
-                    }
+                      status: "completed",
+                    },
                   });
                 } catch (error) {
                   console.error("Order placement error:", error);
@@ -2016,8 +2218,8 @@ const handleSettleOrder = async () => {
                   setIsProcessing(false);
                   setLoadingMessage("");
                 }
-              }
-            }
+              },
+            },
           ]
         );
         return;
@@ -2030,43 +2232,46 @@ const handleSettleOrder = async () => {
       let apiResponse;
       try {
         console.log("Starting print process - verifying authentication");
-        
+
         // Verify authentication token is present
-        const token = await AsyncStorage.getItem('access');
+        const token = await AsyncStorage.getItem("access");
         if (!token) {
           throw new Error("Authentication token missing. Please log in again.");
         }
-        
+
         // First save the order data if not already saved
         // IMPORTANT: Using "print_and_save" action type - matches owner app (OrderCreate.js)
         apiResponse = await createOrder("print_and_save", true);
-        
+
         if (!apiResponse || apiResponse.st !== 1) {
           throw new Error(apiResponse?.msg || "Failed to save order data");
         }
-        
-        console.log("Order saved successfully for printing, response:", JSON.stringify(apiResponse));
-        
+
+        console.log(
+          "Order saved successfully for printing, response:",
+          JSON.stringify(apiResponse)
+        );
+
         // Set to printing state
         setLoadingMessage("Printing receipt...");
 
-      // Print the receipt
+        // Print the receipt
         await printReceipt(apiResponse);
-        
+
         // Success
         toast.show({
           description: "Receipt printed successfully",
           status: "success",
           duration: 2000,
         });
-        
+
         // Navigate back to tables screen using the standard pattern
         router.replace({
           pathname: "/(tabs)/tables/sections",
-          params: { 
+          params: {
             refresh: Date.now().toString(),
-            status: "completed"
-          }
+            status: "completed",
+          },
         });
       } catch (error) {
         console.error("Print and save error:", error);
@@ -2104,10 +2309,10 @@ const handleSettleOrder = async () => {
         );
         return;
       }
-  
+
       setPrinterConnectionStatus("Checking Bluetooth...");
       setIsProcessing(true);
-  
+
       const state = await bleManager.state();
       if (state !== "PoweredOn") {
         Alert.alert(
@@ -2125,14 +2330,13 @@ const handleSettleOrder = async () => {
         setPrinterConnectionStatus("");
         return;
       }
-  
+
       // Use the context scanner function instead of local implementation
       contextScanForPrinters();
-      
+
       // Show the device selection modal
       setIsDeviceSelectionModalVisible(true);
       setPrinterConnectionStatus("Scanning for printers...");
-      
     } catch (error) {
       console.error("Scan error:", error);
       toast.show({
@@ -2148,19 +2352,21 @@ const handleSettleOrder = async () => {
   const handleDeviceSelection = async (device) => {
     try {
       setPrinterConnectionStatus("Connecting to printer...");
-      
+
       // Use the context's connectToPrinter function instead of localConnectToPrinter
       const success = await connectToPrinter(device);
-      
+
       if (success) {
         setPrinterConnectionStatus("Connected successfully!");
         toast.show({
-          description: `Connected to printer: ${device.name || "Unknown device"}`,
+          description: `Connected to printer: ${
+            device.name || "Unknown device"
+          }`,
           status: "success",
           duration: 3000,
           placement: "top",
         });
-        
+
         // Close the modal after successful connection
         setTimeout(() => {
           setIsDeviceSelectionModalVisible(false);
@@ -2196,7 +2402,7 @@ const handleSettleOrder = async () => {
 
       // Get all services
       const services = await device.services();
-      
+
       // Find the printer service
       const service = services.find((s) =>
         PRINTER_SERVICE_UUIDS.includes(s.uuid.toUpperCase())
@@ -2208,7 +2414,7 @@ const handleSettleOrder = async () => {
 
       // Get all characteristics
       const characteristics = await service.characteristics();
-      
+
       // Find the print characteristic
       const printCharacteristic = characteristics.find((c) =>
         PRINTER_CHARACTERISTIC_UUIDS.includes(c.uuid.toUpperCase())
@@ -2222,15 +2428,15 @@ const handleSettleOrder = async () => {
       // This ensures the printer buffer is clear and ready for data
       try {
         // ESC @ command to initialize printer
-        const initCommand = [0x1B, 0x40]; // ESC @
-        
+        const initCommand = [0x1b, 0x40]; // ESC @
+
         // Send initialization command and wait for printer to process
         await printCharacteristic.writeWithoutResponse(
           base64.encode(String.fromCharCode(...initCommand))
         );
-        
+
         // Allow printer to process init command
-        await new Promise(resolve => setTimeout(resolve, 120));
+        await new Promise((resolve) => setTimeout(resolve, 120));
       } catch (initError) {
         console.log("Printer init warning:", initError);
         // Continue even if init fails
@@ -2239,9 +2445,12 @@ const handleSettleOrder = async () => {
       // Increased chunk size for efficiency
       const CHUNK_SIZE = 200; // Increased from 150 for faster printing
       for (let i = 0; i < commands.length; i += CHUNK_SIZE) {
-        const chunk = commands.slice(i, Math.min(i + CHUNK_SIZE, commands.length));
+        const chunk = commands.slice(
+          i,
+          Math.min(i + CHUNK_SIZE, commands.length)
+        );
         const base64Data = base64.encode(String.fromCharCode(...chunk));
-        
+
         // Add retry logic
         let retries = 3;
         while (retries > 0) {
@@ -2254,14 +2463,14 @@ const handleSettleOrder = async () => {
             await new Promise((resolve) => setTimeout(resolve, 100));
           }
         }
-        
+
         //? Reduced wait time between chunks for faster printing
         await new Promise((resolve) => setTimeout(resolve, 80));
       }
-      
+
       //? Reduced final delay while still ensuring all data is processed
       await new Promise((resolve) => setTimeout(resolve, 250));
-      
+
       console.log("All data sent successfully");
       return true;
     } catch (error) {
@@ -2318,14 +2527,12 @@ const handleSettleOrder = async () => {
       return false;
     }
   };
-  
-  
 
   // Update the printReceipt function
   const printReceipt = async (orderData) => {
-      if (!printerConnected || !contextPrinterDevice) {
-        throw new Error("No printer connected");
-      }
+    if (!printerConnected || !contextPrinterDevice) {
+      throw new Error("No printer connected");
+    }
 
     try {
       // Set processing indicator
@@ -2334,26 +2541,28 @@ const handleSettleOrder = async () => {
 
       // Generate printer commands for the receipt
       const commands = await generatePrinterCommands(orderData);
-      
+
       // Set to printing state
       setLoadingMessage("Printing receipt...");
-      
+
       // Use the context's sendDataToPrinter function
       await sendDataToPrinter(commands);
-      
+
       return true;
     } catch (error) {
       console.error("Receipt printing error:", error);
-      
+
       // Check if error is related to printer connection
       if (
-        error.message?.includes("connection") || 
+        error.message?.includes("connection") ||
         error.message?.includes("printer") ||
         error.message?.includes("connected")
       ) {
-        throw new Error("Printer connection lost. Please reconnect your printer and try again.");
+        throw new Error(
+          "Printer connection lost. Please reconnect your printer and try again."
+        );
       }
-      
+
       throw error;
     } finally {
       setIsProcessing(false);
@@ -2367,7 +2576,9 @@ const handleSettleOrder = async () => {
     if (printerConnected && contextPrinterDevice) {
       Alert.alert(
         "Printer Connected",
-        `You are connected to ${contextPrinterDevice.name || "Unknown printer"}`,
+        `You are connected to ${
+          contextPrinterDevice.name || "Unknown printer"
+        }`,
         [
           {
             text: "Disconnect",
@@ -2411,8 +2622,11 @@ const handleSettleOrder = async () => {
   // Update the generatePrinterCommands function
   const generatePrinterCommands = async (orderData) => {
     try {
-      console.log("Generating printer commands with data:", JSON.stringify(orderData));
-      
+      console.log(
+        "Generating printer commands with data:",
+        JSON.stringify(orderData)
+      );
+
       // Initialize commands with printer reset
       let commands = [...COMMANDS.INITIALIZE];
 
@@ -2424,49 +2638,61 @@ const handleSettleOrder = async () => {
         // AsyncStorage.getItem("upi_id"),
       ]);
 
-      const upiId = await AsyncStorage.getItem("upi_id")
+      const upiId = await AsyncStorage.getItem("upi_id");
 
       // Calculate totals
       const subtotal = calculateSubtotal(selectedItems);
       const itemDiscountAmount = calculateItemDiscount(selectedItems);
       const discountPercent = getDiscountPercentage(); // FIXED: Use getDiscountPercentage instead of calculateTotalDiscountPercentage
-      
+
       // Calculate special discount and extra charges
       const specialDiscountAmount = parseFloat(specialDiscount) || 0;
       const extraChargesAmount = parseFloat(extraCharges) || 0;
-      
+
       // Calculate subtotal after all discounts and extra charges
-      const subtotalAfterDiscounts = subtotal - itemDiscountAmount - specialDiscountAmount;
+      const subtotalAfterDiscounts =
+        subtotal - itemDiscountAmount - specialDiscountAmount;
       const subtotalAfterExtra = subtotalAfterDiscounts + extraChargesAmount;
-      
+
       // Calculate service charge and GST
-      const serviceAmount = calculateServiceCharges(subtotalAfterExtra, serviceChargePercentage);
-      const gstAmount = calculateGST(subtotalAfterExtra + serviceAmount, gstPercentage);
-      
+      const serviceAmount = calculateServiceCharges(
+        subtotalAfterExtra,
+        serviceChargePercentage
+      );
+      const gstAmount = calculateGST(
+        subtotalAfterExtra + serviceAmount,
+        gstPercentage
+      );
+
       // Add tip amount
       const tipAmount = parseFloat(tip) || 0;
-      
+
       // Calculate final total
       const total = subtotalAfterExtra + serviceAmount + gstAmount + tipAmount;
 
       // Format date
       const now = new Date();
-      const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}, ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+      const formattedDate = `${now.getDate()}/${
+        now.getMonth() + 1
+      }/${now.getFullYear()}, ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
 
       // Create UPI payment string
-      const upiPaymentString = upiId ? 
-        `upi://pay?pa=${upiId}&pn=${encodeURIComponent(outletName || "Restaurant")}&am=${total.toFixed(2)}&cu=INR` : ``;
+      const upiPaymentString = upiId
+        ? `upi://pay?pa=${upiId}&pn=${encodeURIComponent(
+            outletName || "Restaurant"
+          )}&am=${total.toFixed(2)}&cu=INR`
+        : ``;
 
       // FIXED: Get order number with enhanced fallbacks to match owner app
       // Get order number with fallbacks, adapting to various response formats
-      const orderNumber = 
+      const orderNumber =
         orderData?.lists?.order_details?.order_number || // Old format from API
         orderData?.order_details?.order_number || // Format from order details
         orderData?.order_number || // Direct format for new orders
         params?.orderNumber || // URL param fallback (adds this case)
         params?.orderId || // Last fallback
-        "New"; 
-      
+        "New";
+
       console.log("Using order number for receipt:", orderNumber, "Source:", {
         fromOrderDetails: orderData?.lists?.order_details?.order_number,
         fromOtherDetails: orderData?.order_details?.order_number,
@@ -2477,7 +2703,9 @@ const handleSettleOrder = async () => {
 
       // Determine order type
       const orderType = params?.orderType || "dine-in";
-      const orderTypeFormatted = orderTypeMap[orderType] || orderType.charAt(0).toUpperCase() + orderType.slice(1);
+      const orderTypeFormatted =
+        orderTypeMap[orderType] ||
+        orderType.charAt(0).toUpperCase() + orderType.slice(1);
 
       // Create header
       commands.push(
@@ -2492,22 +2720,30 @@ const handleSettleOrder = async () => {
         ...textToBytes("\x1B\x61\x00"), // Left align
         ...textToBytes(`Bill No: ${orderNumber}\n`)
       );
-      
+
       // Show different order information based on order type
       if (orderType === "dine-in") {
         // For dine-in orders, show section and table number
         commands.push(
-          ...textToBytes(`Table: ${params?.sectionName || "Dining"}${params?.tableNumber ? ` - ${params.tableNumber}` : ''}\n`)
+          ...textToBytes(
+            `Table: ${params?.sectionName || "Dining"}${
+              params?.tableNumber ? ` - ${params.tableNumber}` : ""
+            }\n`
+          )
         );
       } else {
         // For other order types (parcel, counter, delivery, drive-through), show the type
-        commands.push(
-          ...textToBytes(`Type: ${orderTypeFormatted}\n`)
-        );
+        commands.push(...textToBytes(`Type: ${orderTypeFormatted}\n`));
       }
-      
+
       commands.push(
-        ...textToBytes(`DateTime: ${orderData?.datetime ? formatTime(orderData.datetime) : getCurrentDateTime()}\n`),
+        ...textToBytes(
+          `DateTime: ${
+            orderData?.datetime
+              ? formatTime(orderData.datetime)
+              : getCurrentDateTime()
+          }\n`
+        ),
         ...textToBytes("------------------------------\n"),
         ...textToBytes("Item         Qty Rate    Amt\n"),
         ...textToBytes("------------------------------\n")
@@ -2519,23 +2755,37 @@ const handleSettleOrder = async () => {
       });
 
       // Add totals and footer
-      commands.push(
-        ...textToBytes("------------------------------\n")
-      );
+      commands.push(...textToBytes("------------------------------\n"));
 
       // Only add discount line if discount amount is not zero
       if (itemDiscountAmount > 0) {
-        commands.push(...textToBytes(formatAmountLine(`Discount(${discountPercent}%)`, itemDiscountAmount, "-")));
+        commands.push(
+          ...textToBytes(
+            formatAmountLine(
+              `Discount(${discountPercent}%)`,
+              itemDiscountAmount,
+              "-"
+            )
+          )
+        );
       }
 
       // Only add special discount if amount is greater than zero - MOVED UP
       if (specialDiscountAmount > 0) {
-        commands.push(...textToBytes(formatAmountLine("Special Discount", specialDiscountAmount, "-")));
+        commands.push(
+          ...textToBytes(
+            formatAmountLine("Special Discount", specialDiscountAmount, "-")
+          )
+        );
       }
 
       // Only add extra charges if amount is greater than zero - MOVED UP
       if (extraChargesAmount > 0) {
-        commands.push(...textToBytes(formatAmountLine("Extra Charges", extraChargesAmount, "+")));
+        commands.push(
+          ...textToBytes(
+            formatAmountLine("Extra Charges", extraChargesAmount, "+")
+          )
+        );
       }
 
       // Subtotal MOVED AFTER special discount and extra charges
@@ -2543,12 +2793,24 @@ const handleSettleOrder = async () => {
 
       // Only add service charge if percentage or amount is greater than zero
       if (serviceChargePercentage > 0 && serviceAmount > 0) {
-        commands.push(...textToBytes(formatAmountLine(`Service(${serviceChargePercentage}%)`, serviceAmount, "+")));
+        commands.push(
+          ...textToBytes(
+            formatAmountLine(
+              `Service(${serviceChargePercentage}%)`,
+              serviceAmount,
+              "+"
+            )
+          )
+        );
       }
 
       // Only add GST if percentage or amount is greater than zero
       if (gstPercentage > 0 && gstAmount > 0) {
-        commands.push(...textToBytes(formatAmountLine(`GST(${gstPercentage}%)`, gstAmount, "+")));
+        commands.push(
+          ...textToBytes(
+            formatAmountLine(`GST(${gstPercentage}%)`, gstAmount, "+")
+          )
+        );
       }
 
       // Only add tip if amount is greater than zero - MOVED TO END
@@ -2558,17 +2820,17 @@ const handleSettleOrder = async () => {
 
       // Add QR code for UPI payment
       // if (upiPaymentString) {
-        commands.push(
-          ...textToBytes("\x1B\x61\x01"), // Center align
-          ...textToBytes("------ Payment Options ------\n\n"),
-          ...textToBytes("\x1B\x21\x00"), // Normal text
-          ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
-          ...textToBytes("------------------------\n"),
-          ...generateQRCode(upiPaymentString),
-          ...textToBytes('\n\n'),
-          ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n\n`),
-          // ...textToBytes("UPI ID: " + upiId + "\n\n")
-        );
+      commands.push(
+        ...textToBytes("\x1B\x61\x01"), // Center align
+        ...textToBytes("------ Payment Options ------\n\n"),
+        ...textToBytes("\x1B\x21\x00"), // Normal text
+        ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
+        ...textToBytes("------------------------\n"),
+        ...generateQRCode(upiPaymentString),
+        ...textToBytes("\n\n"),
+        ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n\n`)
+        // ...textToBytes("UPI ID: " + upiId + "\n\n")
+      );
       // }
 
       // Add footer
@@ -2587,14 +2849,13 @@ const handleSettleOrder = async () => {
   };
 
   // Add this function for thermal printing
- 
 
   // Add KOT-specific command generator
   const generateKOTCommands = async (orderData) => {
     try {
       // Initialize with printer reset
       let commands = [...COMMANDS.INITIALIZE];
-      
+
       // Get restaurant name and current date/time
       const [outletName, outletAddress, outletMobile] = await Promise.all([
         AsyncStorage.getItem("outlet_name"),
@@ -2603,22 +2864,24 @@ const handleSettleOrder = async () => {
       ]);
 
       // Use the top-level getCurrentDateTime function
-      
+
       // FIXED: Get order number with enhanced fallbacks to match owner app
-      const orderNumber = 
+      const orderNumber =
         orderData?.lists?.order_details?.order_number || // Old format from API
         orderData?.order_details?.order_number || // Format from order details
         orderData?.order_number || // Direct format for new orders
         params?.orderNumber || // URL param fallback (adds this case)
         params?.orderId || // Last fallback
         "New";
-      
+
       console.log("Using order number for KOT:", orderNumber);
-      
+
       // Determine order type
       const orderType = params?.orderType || "dine-in";
-      const orderTypeFormatted = orderTypeMap[orderType] || orderType.charAt(0).toUpperCase() + orderType.slice(1);
-      
+      const orderTypeFormatted =
+        orderTypeMap[orderType] ||
+        orderType.charAt(0).toUpperCase() + orderType.slice(1);
+
       const getDottedLine = () => "------------------------------\n";
 
       // Create header
@@ -2630,7 +2893,7 @@ const handleSettleOrder = async () => {
         ...textToBytes(`${outletName || "Restaurant"}\n`),
         ...textToBytes(`${outletAddress || ""}\n`),
         ...textToBytes(`${outletMobile || ""}\n\n`),
-        
+
         ...textToBytes("\x1B\x61\x00"), // Left align
         ...textToBytes(`Bill no: ${orderNumber}\n`)
       );
@@ -2639,69 +2902,77 @@ const handleSettleOrder = async () => {
       if (orderType === "dine-in") {
         // For dine-in orders, show table information
         commands.push(
-          ...textToBytes(`Table: ${params?.sectionName || ""}${params?.tableNumber ? ` - ${params.tableNumber}` : ""}\n`)
+          ...textToBytes(
+            `Table: ${params?.sectionName || ""}${
+              params?.tableNumber ? ` - ${params.tableNumber}` : ""
+            }\n`
+          )
         );
       } else {
         // For other order types, show the order type
-        commands.push(
-          ...textToBytes(`Type: ${orderTypeFormatted}\n`)
-        );
+        commands.push(...textToBytes(`Type: ${orderTypeFormatted}\n`));
       }
-      
+
       commands.push(
-        ...textToBytes(`DateTime: ${orderData?.datetime ? formatTime(orderData.datetime) : getCurrentDateTime()}\n`), 
-        
-        ...(customerDetails?.customer_name ? [textToBytes(`Name: ${customerDetails.customer_name}\n`)] : []),
-        
+        ...textToBytes(
+          `DateTime: ${
+            orderData?.datetime
+              ? formatTime(orderData.datetime)
+              : getCurrentDateTime()
+          }\n`
+        ),
+
+        ...(customerDetails?.customer_name
+          ? [textToBytes(`Name: ${customerDetails.customer_name}\n`)]
+          : []),
+
         ...textToBytes(getDottedLine()),
         ...textToBytes("Item                    Qty\n"),
         ...textToBytes(getDottedLine())
       );
-      
+
       // Add menu items
       let totalQty = 0;
-      
+
       // Use the items from the order, if available
       const items = selectedItems || [];
-      
+
       // Make sure items exist and handle safely
       if (items && items.length > 0) {
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
           if (!item) continue;
-          
+
           try {
             const itemName = item.menu_name || item.name || "Unknown Item";
             const quantity = parseInt(item.quantity) || 0;
             totalQty += quantity;
-            
+
             // Format item line (left-aligned item name, right-aligned quantity)
             let line = itemName;
-            
+
             // Append portion size if applicable
             if (item.portionSize && item.portionSize.toLowerCase() !== "full") {
               line += ` (${item.portionSize})`;
             }
-            
+
             // Add instructions if available
             let instructions = "";
             if (item.specialInstructions) {
               instructions = `  * ${item.specialInstructions}`;
             }
-            
+
             // Truncate and pad the line
             if (line.length > 22) {
               line = line.substring(0, 19) + "...";
             }
-            
+
             // Pad with spaces to align quantity
             const padding = 22 - line.length;
             line += " ".repeat(padding > 0 ? padding : 1) + quantity.toString();
-            
-            commands.push(
-              ...textToBytes(line + "\n")
-            );
-            
+
+            commands.push(...textToBytes(line + "\n"));
+
             // Add instructions on next line if present
             if (instructions) {
               commands.push(
@@ -2716,25 +2987,26 @@ const handleSettleOrder = async () => {
           }
         }
       }
-      
+
       // Add footer
       commands.push(
         ...textToBytes(getDottedLine()),
         ...textToBytes(`Total Items: ${totalQty}\n\n`),
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         ...textToBytes("*** KITCHEN COPY ***\n\n\n"),
-        ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
+        ...textToBytes("\x1D\x56\x42\x40") // Cut paper
       );
-      
+
       return commands;
     } catch (error) {
       console.error("Error generating KOT commands:", error);
-      throw new Error("Failed to generate KOT data: " + (error.message || "Unknown error"));
+      throw new Error(
+        "Failed to generate KOT data: " + (error.message || "Unknown error")
+      );
     }
   };
 
   // Add this function to generate receipt HTML
-  
 
   // Add this function to generate KOT HTML
 
@@ -2749,7 +3021,12 @@ const handleSettleOrder = async () => {
           <Modal.Header>Select Printer</Modal.Header>
           <Modal.Body>
             {printerScanning ? (
-              <HStack space={2} justifyContent="center" alignItems="center" my={4}>
+              <HStack
+                space={2}
+                justifyContent="center"
+                alignItems="center"
+                my={4}
+              >
                 <Spinner size="sm" color="blue.500" />
                 <Text>Scanning for printers...</Text>
               </HStack>
@@ -2757,7 +3034,9 @@ const handleSettleOrder = async () => {
               <VStack space={4} alignItems="center">
                 <Text>No printers found.</Text>
                 <Button
-                  leftIcon={<Icon as={MaterialIcons} name="refresh" size="sm" />}
+                  leftIcon={
+                    <Icon as={MaterialIcons} name="refresh" size="sm" />
+                  }
                   onPress={() => {
                     scanForPrinters();
                   }}
@@ -2770,31 +3049,43 @@ const handleSettleOrder = async () => {
                 <Text mb={2}>Available Printers:</Text>
                 <ScrollView maxH="300px">
                   {printerDevices.map((device) => (
-                      <Pressable
-                        key={device.id}
+                    <Pressable
+                      key={device.id}
                       onPress={() => handleDeviceSelection(device)}
                       bg="coolGray.100"
                       _pressed={{ bg: "coolGray.200" }}
                       px={4}
                       py={3}
-                          borderRadius="md"
+                      borderRadius="md"
                       mb={2}
-                        >
-                      <HStack justifyContent="space-between" alignItems="center">
-                          <VStack>
-                          <Text fontWeight="500">{device.name || "Unknown Device"}</Text>
+                    >
+                      <HStack
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <VStack>
+                          <Text fontWeight="500">
+                            {device.name || "Unknown Device"}
+                          </Text>
                           <Text fontSize="xs" color="coolGray.500">
-                              {device.id}
-                            </Text>
-                          </VStack>
-                        <Icon as={MaterialIcons} name="print" size="sm" color="blue.500" />
+                            {device.id}
+                          </Text>
+                        </VStack>
+                        <Icon
+                          as={MaterialIcons}
+                          name="print"
+                          size="sm"
+                          color="blue.500"
+                        />
                       </HStack>
-                      </Pressable>
+                    </Pressable>
                   ))}
-              </ScrollView>
+                </ScrollView>
                 <Button
                   mt={2}
-                  leftIcon={<Icon as={MaterialIcons} name="refresh" size="sm" />}
+                  leftIcon={
+                    <Icon as={MaterialIcons} name="refresh" size="sm" />
+                  }
                   variant="outline"
                   onPress={() => {
                     scanForPrinters();
@@ -2802,18 +3093,14 @@ const handleSettleOrder = async () => {
                 >
                   Scan Again
                 </Button>
-            </VStack>
+              </VStack>
             )}
           </Modal.Body>
           <Modal.Footer>
             <Button.Group space={2}>
-            <Button
-                variant="ghost"
-                colorScheme="blueGray"
-              onPress={onClose}
-            >
+              <Button variant="ghost" colorScheme="blueGray" onPress={onClose}>
                 Cancel
-            </Button>
+              </Button>
             </Button.Group>
           </Modal.Footer>
         </Modal.Content>
@@ -2833,21 +3120,26 @@ const handleSettleOrder = async () => {
       if (selectedItems.length === 0) {
         toast.show({
           description: "Please add items to the order",
-          status: "warning"
+          status: "warning",
         });
         return;
       }
 
       // Standard action check - determine if status update needed
-      const shouldUpdateStatus = ["KOT_and_save", "print_and_save", "settle"].includes(orderStatus);
-      
+      const shouldUpdateStatus = [
+        "KOT_and_save",
+        "print_and_save",
+        "settle",
+      ].includes(orderStatus);
+
       // Get required authentication and device info
-      const [accessToken, storedUserId, storedOutletId, deviceToken] = await Promise.all([
-        AsyncStorage.getItem('access'),
-        AsyncStorage.getItem("user_id"),
-        AsyncStorage.getItem("outlet_id"),
-        AsyncStorage.getItem("device_token")
-      ]);
+      const [accessToken, storedUserId, storedOutletId, deviceToken] =
+        await Promise.all([
+          AsyncStorage.getItem("access"),
+          AsyncStorage.getItem("user_id"),
+          AsyncStorage.getItem("outlet_id"),
+          AsyncStorage.getItem("device_token"),
+        ]);
 
       // Standard validation
       if (!storedUserId || !storedOutletId) {
@@ -2855,7 +3147,11 @@ const handleSettleOrder = async () => {
       }
 
       // Payment status handling matching Owner App
-      const paymentStatus = isPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
+      const paymentStatus = isPaid
+        ? "paid"
+        : isComplementary
+        ? "complementary"
+        : "unpaid";
       const effectivePaymentMethod = isPaid ? paymentMethod.toLowerCase() : "";
 
       // Log order type for debugging
@@ -2866,7 +3162,7 @@ const handleSettleOrder = async () => {
         user_id: storedUserId?.toString(),
         outlet_id: storedOutletId?.toString(),
         order_type: orderType,
-        order_items: selectedItems.map(item => ({
+        order_items: selectedItems.map((item) => ({
           menu_id: item.menu_id?.toString(),
           quantity: parseInt(item.quantity) || 1,
           comment: item.specialInstructions || "",
@@ -2875,8 +3171,12 @@ const handleSettleOrder = async () => {
           total_price: parseFloat(item.total_price) || 0,
         })),
         grand_total: calculateGrandTotal(
-          selectedItems, specialDiscount, extraCharges,
-          serviceChargePercentage, gstPercentage, tip
+          selectedItems,
+          specialDiscount,
+          extraCharges,
+          serviceChargePercentage,
+          gstPercentage,
+          tip
         )?.toString(),
         action: orderStatus,
         is_paid: paymentStatus,
@@ -2886,16 +3186,19 @@ const handleSettleOrder = async () => {
         tip: tip?.toString(),
         customer_name: customerDetails.customer_name || "",
         customer_mobile: customerDetails.customer_mobile || "",
-        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+        customer_alternate_mobile:
+          customerDetails.customer_alternate_mobile || "",
         customer_address: customerDetails.customer_address || "",
         customer_landmark: customerDetails.customer_landmark || "",
-        device_token: deviceToken || "" // Include device token
+        device_token: deviceToken || "", // Include device token
       };
 
       // Add table info based on order type
       if (orderType === "dine-in") {
         if (!params.tableNumber || !params.sectionId) {
-          throw new Error("Missing table or section information for dine-in order");
+          throw new Error(
+            "Missing table or section information for dine-in order"
+          );
         }
         orderData.tables = [params.tableNumber?.toString()];
         orderData.section_id = params.sectionId?.toString();
@@ -2903,9 +3206,15 @@ const handleSettleOrder = async () => {
       } else if (orderType === "counter") {
         // For counter orders, explicitly set no table/section
         console.log("Processing counter order - no table/section required");
-      } else if (orderType === "delivery" || orderType === "drive-through" || orderType === "parcel") {
+      } else if (
+        orderType === "delivery" ||
+        orderType === "drive-through" ||
+        orderType === "parcel"
+      ) {
         // For other order types, no table/section needed
-        console.log(`Processing ${orderType} order - no table/section required`);
+        console.log(
+          `Processing ${orderType} order - no table/section required`
+        );
       } else {
         // Invalid order type
         throw new Error(`Invalid order type: ${orderType}`);
@@ -2918,18 +3227,18 @@ const handleSettleOrder = async () => {
 
       // Before making the API call
       const isExistingOrder = Boolean(params?.orderId);
-      const endpoint = isExistingOrder 
+      const endpoint = isExistingOrder
         ? onGetProductionUrl() + "update_order"
         : onGetProductionUrl() + "create_order";
 
-      console.log('Order operation:', isExistingOrder ? 'Update' : 'Create');
-      console.log('Order ID:', params?.orderId);
+      console.log("Order operation:", isExistingOrder ? "Update" : "Create");
+      console.log("Order ID:", params?.orderId);
 
       // Make API request
       const response = await fetchWithAuth(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
       });
 
       // Error handling
@@ -2943,49 +3252,59 @@ const handleSettleOrder = async () => {
           const statusRequestBody = {
             outlet_id: storedOutletId?.toString(),
             order_id: params?.orderId || response.order_id,
-            order_status: orderStatus === "KOT_and_save" ? "placed" : 
-                         (isPaid ? "paid" : (orderStatus === "settle" ? "paid" : "placed")),
+            order_status:
+              orderStatus === "KOT_and_save"
+                ? "placed"
+                : isPaid
+                ? "paid"
+                : orderStatus === "settle"
+                ? "paid"
+                : "placed",
             user_id: storedUserId?.toString(),
             action: orderStatus,
             // For KOT orders, don't change payment status
             is_paid: orderStatus === "KOT_and_save" ? null : paymentStatus,
-            payment_method: orderStatus === "KOT_and_save" ? "" : effectivePaymentMethod,
+            payment_method:
+              orderStatus === "KOT_and_save" ? "" : effectivePaymentMethod,
             device_token: deviceToken || "",
             customer_name: customerDetails.customer_name || "",
             customer_mobile: customerDetails.customer_mobile || "",
             user_name: customerDetails.customer_name || params.userName || "",
-            user_mobile: customerDetails.customer_mobile || params.userMobile || "",
+            user_mobile:
+              customerDetails.customer_mobile || params.userMobile || "",
             tip: tip?.toString(),
             special_discount: specialDiscount?.toString(),
             charges: extraCharges?.toString(),
-            order_type: orderType // Add order type to status update
+            order_type: orderType, // Add order type to status update
           };
-          
+
           // Only add table/section info for dine-in orders in status update
           if (orderType === "dine-in") {
             if (!params.tableNumber || !params.sectionId) {
-              throw new Error("Missing table or section information for dine-in order");
+              throw new Error(
+                "Missing table or section information for dine-in order"
+              );
             }
             statusRequestBody.tables = [params.tableNumber?.toString()];
             statusRequestBody.section_id = params.sectionId?.toString();
           }
-          
+
           console.log("Updating order status with:", {
             orderStatus,
             isPaid,
             paymentStatus: statusRequestBody.is_paid,
-            orderType
+            orderType,
           });
-          
+
           const statusResponse = await fetchWithAuth(
-            onGetProductionUrl() + "update_order_status", 
+            onGetProductionUrl() + "update_order_status",
             {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(statusRequestBody)
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(statusRequestBody),
             }
           );
-          
+
           if (statusResponse.st !== 1) {
             console.warn("Order status update warning:", statusResponse.msg);
           }
@@ -3001,15 +3320,18 @@ const handleSettleOrder = async () => {
 
       // Success message
       const actionMessages = {
-        "create_order": `Order ${params?.orderId ? "updated" : "created"} successfully`,
-        "saved": "Order saved successfully",
-        "settle": "Order settled successfully",
-        "KOT_and_save": "Order saved with KOT successfully",
-        "print_and_save": "Order saved for printing successfully"
+        create_order: `Order ${
+          params?.orderId ? "updated" : "created"
+        } successfully`,
+        saved: "Order saved successfully",
+        settle: "Order settled successfully",
+        KOT_and_save: "Order saved with KOT successfully",
+        print_and_save: "Order saved for printing successfully",
       };
-      
+
       toast.show({
-        description: actionMessages[orderStatus] || "Order processed successfully",
+        description:
+          actionMessages[orderStatus] || "Order processed successfully",
         status: "success",
         duration: 3000,
       });
@@ -3023,9 +3345,15 @@ const handleSettleOrder = async () => {
 
   // Add a useEffect to track selectedItems changes
   useEffect(() => {
-    console.log("selectedItems state changed - new count:", selectedItems.length);
+    console.log(
+      "selectedItems state changed - new count:",
+      selectedItems.length
+    );
     if (selectedItems.length > 0) {
-      console.log("First few items:", JSON.stringify(selectedItems.slice(0, 3)));
+      console.log(
+        "First few items:",
+        JSON.stringify(selectedItems.slice(0, 3))
+      );
     }
   }, [selectedItems]);
 
@@ -3034,7 +3362,7 @@ const handleSettleOrder = async () => {
       if (!params?.orderId) {
         toast.show({
           description: "No order to cancel",
-          status: "warning"
+          status: "warning",
         });
         return;
       }
@@ -3043,43 +3371,46 @@ const handleSettleOrder = async () => {
       if (!storedUserId) {
         toast.show({
           description: "User ID not found",
-          status: "error"
+          status: "error",
         });
         return;
       }
 
-      const response = await fetchWithAuth(`${onGetProductionUrl()}force_cancel_order`, {
-        method: "POST",
-        body: JSON.stringify({
-          order_id: params.orderId,
-          user_id: storedUserId
-        })
-      });
+      const response = await fetchWithAuth(
+        `${onGetProductionUrl()}force_cancel_order`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            order_id: params.orderId,
+            user_id: storedUserId,
+          }),
+        }
+      );
 
       if (response.st === 1) {
         toast.show({
           description: "Order cancelled successfully",
-          status: "success"
+          status: "success",
         });
         router.replace("/(tabs)/tables/sections");
       } else {
         toast.show({
           description: response.msg || "Failed to cancel order",
-          status: "error"
+          status: "error",
         });
       }
     } catch (error) {
       console.error("Error cancelling order:", error);
       toast.show({
         description: "Failed to cancel order",
-        status: "error"
+        status: "error",
       });
     }
   };
 
   // Add Printer Status Indicator component
   const PrinterStatusIndicator = () => (
-    <Pressable 
+    <Pressable
       onPress={openPrinterSelectionModal}
       position="absolute"
       top={4}
@@ -3092,16 +3423,21 @@ const handleSettleOrder = async () => {
       borderRadius="full"
       zIndex={999}
     >
-      <Icon 
-        as={MaterialIcons} 
-        name="print" 
-        size="sm" 
-        color={printerConnected ? "success.600" : "coolGray.500"} 
+      <Icon
+        as={MaterialIcons}
+        name="print"
+        size="sm"
+        color={printerConnected ? "success.600" : "coolGray.500"}
         mr={1}
       />
-      <Text fontSize="xs" color={printerConnected ? "success.600" : "coolGray.500"}>
-        {printerConnected 
-          ? `Printer: ${contextPrinterDevice?.name?.substring(0, 15) || "Connected"}` 
+      <Text
+        fontSize="xs"
+        color={printerConnected ? "success.600" : "coolGray.500"}
+      >
+        {printerConnected
+          ? `Printer: ${
+              contextPrinterDevice?.name?.substring(0, 15) || "Connected"
+            }`
           : "Connect Printer"}
       </Text>
     </Pressable>
@@ -3112,11 +3448,11 @@ const handleSettleOrder = async () => {
   const centerText = (text) => {
     // For standard 58mm receipt printers (32 characters per line)
     const maxLength = 32;
-    
+
     if (text.length >= maxLength) {
       return text;
     }
-    
+
     const padLength = Math.floor((maxLength - text.length) / 2);
     return " ".repeat(padLength) + text + "\n";
   };
@@ -3132,7 +3468,7 @@ const handleSettleOrder = async () => {
           [
             {
               text: "Yes",
-              onPress: () => setIsDeviceSelectionModalVisible(true)
+              onPress: () => setIsDeviceSelectionModalVisible(true),
             },
             {
               text: "Skip Printing",
@@ -3142,50 +3478,52 @@ const handleSettleOrder = async () => {
                 try {
                   setIsProcessing(true);
                   setLoadingMessage("Saving order...");
-                  
+
                   // Save order without printing
                   const savedOrder = await createOrder("KOT_and_save");
-                  
+
                   if (savedOrder) {
-        toast.show({
+                    toast.show({
                       description: "Order saved successfully",
                       status: "success",
                       duration: 2000,
                     });
-                    
+
                     // Navigate back to tables view
                     router.replace({
                       pathname: "/(tabs)/tables/sections",
-                      params: { 
+                      params: {
                         refresh: Date.now().toString(),
-                        status: "completed"
-                      }
+                        status: "completed",
+                      },
                     });
                   }
                 } catch (error) {
                   console.error("Save order error:", error);
                   toast.show({
                     description: "Error saving order: " + error.message,
-          status: "error",
-          duration: 3000,
-        });
+                    status: "error",
+                    duration: 3000,
+                  });
                 } finally {
                   setIsProcessing(false);
                   setLoadingMessage("");
                 }
-              }
-            }
+              },
+            },
           ]
         );
         return;
       }
-      
+
       // Verify printer connection is stable before KOT printing
       try {
         if (contextPrinterDevice.isConnected) {
           const isDeviceConnected = await contextPrinterDevice.isConnected();
           if (!isDeviceConnected) {
-            console.log("Device reports as not connected for KOT despite context state");
+            console.log(
+              "Device reports as not connected for KOT despite context state"
+            );
             throw new Error("Printer connection not stable for KOT");
           }
           console.log("Printer verified as ready for KOT");
@@ -3198,15 +3536,15 @@ const handleSettleOrder = async () => {
           [
             {
               text: "Reconnect Printer",
-              onPress: () => setIsDeviceSelectionModalVisible(true)
+              onPress: () => setIsDeviceSelectionModalVisible(true),
             },
             {
               text: "Skip Printing and Save",
               style: "cancel",
               onPress: async () => {
                 // Continue with just saving logic...
-              }
-            }
+              },
+            },
           ]
         );
         return;
@@ -3233,23 +3571,27 @@ const handleSettleOrder = async () => {
         }
 
         // ADDED: Enhanced debugging for KOT order number issue
-        console.log("API Response for KOT_and_save:", JSON.stringify(apiResponse));
-        console.log("Order number from API KOT response:", 
-          apiResponse?.order_number || 
-          apiResponse?.lists?.order_details?.order_number || 
-          "Not found in KOT API response"
+        console.log(
+          "API Response for KOT_and_save:",
+          JSON.stringify(apiResponse)
+        );
+        console.log(
+          "Order number from API KOT response:",
+          apiResponse?.order_number ||
+            apiResponse?.lists?.order_details?.order_number ||
+            "Not found in KOT API response"
         );
         console.log("KOT Params:", {
           orderIdParam: params?.orderId,
-          orderNumberParam: params?.orderNumber
+          orderNumberParam: params?.orderNumber,
         });
 
         // Print KOT
         try {
           setLoadingMessage("Printing KOT...");
           await printKOT(apiResponse);
-          
-        toast.show({
+
+          toast.show({
             description: "Order saved and KOT printed successfully",
             status: "success",
             duration: 2000,
@@ -3258,19 +3600,20 @@ const handleSettleOrder = async () => {
           console.error("KOT print error:", printError);
           // Continue even with print error
           toast.show({
-            description: "Order saved but KOT printing failed: " + printError.message,
+            description:
+              "Order saved but KOT printing failed: " + printError.message,
             status: "warning",
-          duration: 3000,
-        });
-      }
+            duration: 3000,
+          });
+        }
 
         // Navigate back to tables screen
         router.replace({
           pathname: "/(tabs)/tables/sections",
-          params: { 
+          params: {
             refresh: Date.now().toString(),
-            status: "completed"
-          }
+            status: "completed",
+          },
         });
       } catch (error) {
         console.error("KOT and Save error:", error);
@@ -3300,55 +3643,55 @@ const handleSettleOrder = async () => {
     try {
       setIsLoading(true);
       setLoadingMessage("Reserving table...");
-      
+
       // Get stored outlet ID and user ID
       const [storedOutletId, storedUserId] = await Promise.all([
         AsyncStorage.getItem("outlet_id"),
-        AsyncStorage.getItem("user_id")
+        AsyncStorage.getItem("user_id"),
       ]);
-      
+
       if (!storedOutletId || !params.tableId || !storedUserId) {
         throw new Error("Missing outlet, user, or table data");
       }
-      
+
       // Call the API to reserve the table
       const response = await fetchWithAuth(
         onGetProductionUrl() + "table_is_reserved",
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             table_id: params.tableId.toString(),
             table_number: params.tableNumber.toString(),
             outlet_id: storedOutletId.toString(),
             is_reserved: true,
-            user_id: storedUserId.toString()
-          })
+            user_id: storedUserId.toString(),
+          }),
         }
       );
-      
+
       if (response.st === 1) {
         toast.show({
           description: "Table has been reserved",
           status: "success",
-          duration: 2000
+          duration: 2000,
         });
-        
+
         // Navigate to tables screen to refresh
         router.replace({
           pathname: "/(tabs)/tables",
-          params: { 
+          params: {
             refresh: Date.now().toString(),
-            status: "completed"
-          }
+            status: "completed",
+          },
         });
       } else {
         toast.show({
           description: response.msg || "Failed to reserve table",
           status: "error",
-          duration: 3000
+          duration: 3000,
         });
       }
     } catch (error) {
@@ -3356,7 +3699,7 @@ const handleSettleOrder = async () => {
       toast.show({
         description: "Failed to reserve table",
         status: "error",
-        duration: 3000
+        duration: 3000,
       });
     } finally {
       setIsLoading(false);
@@ -3365,22 +3708,66 @@ const handleSettleOrder = async () => {
   };
 
   const handleSaveOrder = async () => {
-toast.show({
-  description: "Order saving logic to be implementing!",
-  status: "success",
-  duration: 2000,
-});
-  }
+    try {
+      if (selectedItems.length === 0) {
+        toast.show({
+          description: "Please add items to the order",
+          status: "warning",
+          duration: 2000,
+        });
+        return;
+      }
+
+      setIsProcessing(true);
+      setLoadingMessage("Saving order...");
+
+      // Create order with "save" status
+      const apiResponse = await createOrder("save", true);
+
+      if (!apiResponse || apiResponse.st !== 1) {
+        throw new Error(apiResponse?.msg || "Failed to save order");
+      }
+
+      toast.show({
+        description: "Order saved successfully",
+        status: "success",
+        duration: 2000,
+      });
+
+      // Navigate back to tables screen
+      router.replace({
+        pathname: "/(tabs)/tables/sections",
+        params: {
+          refresh: Date.now().toString(),
+          status: "completed",
+        },
+      });
+    } catch (error) {
+      console.error("Save order error:", error);
+      toast.show({
+        description: "Error saving order: " + error.message,
+        status: "error",
+        duration: 3000,
+      });
+    } finally {
+      setIsProcessing(false);
+      setLoadingMessage("");
+    }
+  };
 
   // Add the missing quantity functions if they don't exist
   const decreaseQuantity = (item) => {
-    const updatedItems = selectedItems.map(i => {
-      if (i.menu_id === item.menu_id && (i.portionSize === item.portionSize || i.portion_size === item.portion_size)) {
+    const updatedItems = selectedItems.map((i) => {
+      if (
+        i.menu_id === item.menu_id &&
+        (i.portionSize === item.portionSize ||
+          i.portion_size === item.portion_size)
+      ) {
         if (i.quantity > 1) {
           return {
             ...i,
             quantity: i.quantity - 1,
-            total_price: calculateItemTotal(i.price, i.quantity - 1, i.offer)
+            total_price: calculateItemTotal(i.price, i.quantity - 1, i.offer),
           };
         } else {
           // Return null when quantity is 1 to remove the item
@@ -3389,20 +3776,23 @@ toast.show({
       }
       return i;
     });
-    
+
     // Filter out null values (removed items)
-    const filteredItems = updatedItems.filter(item => item !== null);
+    const filteredItems = updatedItems.filter((item) => item !== null);
     setSelectedItems(filteredItems);
   };
-  
+
   const increaseQuantity = (item) => {
     if (item.quantity < 20) {
-      const updatedItems = selectedItems.map(i => {
-        if (i.menu_id === item.menu_id && i.portion_size === item.portion_size) {
+      const updatedItems = selectedItems.map((i) => {
+        if (
+          i.menu_id === item.menu_id &&
+          i.portion_size === item.portion_size
+        ) {
           return {
             ...i,
             quantity: i.quantity + 1,
-            total_price: calculateItemTotal(i.price, i.quantity + 1, i.offer)
+            total_price: calculateItemTotal(i.price, i.quantity + 1, i.offer),
           };
         }
         return i;
@@ -3420,12 +3810,12 @@ toast.show({
         [
           {
             text: "Stay",
-            style: "cancel"
+            style: "cancel",
           },
           {
             text: "Leave",
-            onPress: () => router.replace("/screens/tables")
-          }
+            onPress: () => router.replace("/screens/tables"),
+          },
         ]
       );
     } else {
@@ -3437,22 +3827,26 @@ toast.show({
   const [currentAction, setCurrentAction] = useState(""); // "kot" or "settle"
 
   // Add the handleSettlePaymentConfirm function inside the component
-  const handleSettlePaymentConfirm = async (modalPaymentMethod = null, modalIsPaidValue = null) => {
+  const handleSettlePaymentConfirm = async (
+    modalPaymentMethod = null,
+    modalIsPaidValue = null
+  ) => {
     try {
       // Use modal values if provided
-      const effectiveIsPaid = modalIsPaidValue !== null ? modalIsPaidValue : isPaid;
+      const effectiveIsPaid =
+        modalIsPaidValue !== null ? modalIsPaidValue : isPaid;
       const effectivePaymentMethod = modalPaymentMethod || paymentMethod;
-      
+
       setIsLoading(true);
       setLoadingMessage("Processing settlement...");
       setShowPaymentModal(false);
-  
+
       const [storedUserId, storedOutletId, deviceToken] = await Promise.all([
         AsyncStorage.getItem("user_id"),
         AsyncStorage.getItem("outlet_id"),
-        AsyncStorage.getItem("device_token")
+        AsyncStorage.getItem("device_token"),
       ]);
-  
+
       if (!storedUserId || !storedOutletId) {
         throw new Error("Missing required information");
       }
@@ -3460,7 +3854,7 @@ toast.show({
       if (!deviceToken) {
         throw new Error("Device token is required. Please restart the app.");
       }
-  
+
       const orderItems = selectedItems.map((item) => ({
         menu_id: item.menu_id?.toString(),
         quantity: parseInt(item.quantity) || 1,
@@ -3469,10 +3863,14 @@ toast.show({
         price: parseFloat(item.price) || 0,
         total_price: parseFloat(item.total_price) || 0,
       }));
-  
+
       // Use the selected payment method and paid status from the modal
-      const paymentStatus = effectiveIsPaid ? "paid" : (isComplementary ? "complementary" : "unpaid");
-  
+      const paymentStatus = effectiveIsPaid
+        ? "paid"
+        : isComplementary
+        ? "complementary"
+        : "unpaid";
+
       // Log order type for debugging
       console.log("Processing settlement for order type:", params?.orderType);
 
@@ -3497,16 +3895,19 @@ toast.show({
         tip: tip?.toString(),
         customer_name: customerDetails.customer_name || "",
         customer_mobile: customerDetails.customer_mobile || "",
-        customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+        customer_alternate_mobile:
+          customerDetails.customer_alternate_mobile || "",
         customer_address: customerDetails.customer_address || "",
         customer_landmark: customerDetails.customer_landmark || "",
-        device_token: deviceToken
+        device_token: deviceToken,
       };
-  
+
       // Add table info based on order type
       if (params?.orderType === "dine-in") {
         if (!params.tableNumber || !params.sectionId) {
-          throw new Error("Missing table or section information for dine-in order");
+          throw new Error(
+            "Missing table or section information for dine-in order"
+          );
         }
         orderData.tables = [params.tableNumber?.toString()];
         orderData.section_id = params.sectionId?.toString();
@@ -3514,55 +3915,67 @@ toast.show({
       } else if (params?.orderType === "counter") {
         // For counter orders, explicitly set no table/section
         console.log("Processing counter order - no table/section required");
-      } else if (["delivery", "drive-through", "parcel"].includes(params?.orderType)) {
+      } else if (
+        ["delivery", "drive-through", "parcel"].includes(params?.orderType)
+      ) {
         // For other order types, no table/section needed
-        console.log(`Processing ${params?.orderType} order - no table/section required`);
+        console.log(
+          `Processing ${params?.orderType} order - no table/section required`
+        );
       } else {
         // Invalid order type
         throw new Error(`Invalid order type: ${params?.orderType}`);
       }
-  
-      const endpoint = params?.orderId ? 
-        `${onGetProductionUrl()}update_order` : 
-        `${onGetProductionUrl()}create_order`;
-  
+
+      const endpoint = params?.orderId
+        ? `${onGetProductionUrl()}update_order`
+        : `${onGetProductionUrl()}create_order`;
+
       if (params?.orderId) {
         orderData.order_id = params.orderId?.toString();
       }
-  
-      console.log(`Making request to ${endpoint} with device_token: ${deviceToken.substring(0, 10)}...`);
+
+      console.log(
+        `Making request to ${endpoint} with device_token: ${deviceToken.substring(
+          0,
+          10
+        )}...`
+      );
       // Use fetchWithAuth instead of axiosInstance to ensure proper token handling
       const response = await fetchWithAuth(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData)
+        body: JSON.stringify(orderData),
       });
-      
+
       if (response.st !== 1) {
         throw new Error(response.msg || "Failed to settle order");
       }
-  
+
       toast.show({
         description: "Order settled successfully",
         status: "success",
         duration: 3000,
       });
-  
+
       // Refresh order details
       await refreshOrderDetails();
-  
+
       // Navigate back to tables
       router.replace({
         pathname: "/(tabs)/tables/sections",
-        params: { 
+        params: {
           refresh: Date.now().toString(),
-          status: "completed"
-        }
+          status: "completed",
+        },
       });
     } catch (error) {
       console.error("Error settling order:", error);
       toast.show({
-        description: error.response?.data?.msg || error.message || "Failed to settle order",
+        description:
+          error.response?.data?.msg ||
+          error.message ||
+          "Failed to settle order",
         status: "error",
         duration: 3000,
       });
@@ -3587,17 +4000,17 @@ toast.show({
     // Store values before closing modal
     const modalIsPaid = isPaidChecked;
     const modalPaymentMethod = selectedPaymentMethod;
-    
+
     // Close the modal
     setShowPaymentModal(false);
-    
+
     // Update isPaid state
     setIsPaid(modalIsPaid);
-    
+
     // Call appropriate handler with modal values (matching Owner App)
-    if (currentAction === 'kot') {
+    if (currentAction === "kot") {
       handleKOT(modalPaymentMethod, modalIsPaid);
-    } else if (currentAction === 'settle') {
+    } else if (currentAction === "settle") {
       handleSettlePaymentConfirm(modalPaymentMethod, modalIsPaid);
     }
     // Note: Print & Save doesn't use the payment modal in Owner App
@@ -3608,17 +4021,17 @@ toast.show({
     if (selectedItems.length === 0) {
       toast.show({
         description: "Please add items to the order",
-        status: "warning"
+        status: "warning",
       });
       return;
     }
-    
+
     // Set the current action to 'kot'
-    setCurrentAction('kot');
-    
+    setCurrentAction("kot");
+
     // Set isPaidChecked to false by default for the modal
     setIsPaidChecked(false);
-    
+
     // Show the payment modal
     setShowPaymentModal(true);
   };
@@ -3633,13 +4046,13 @@ toast.show({
       });
       return;
     }
-    
+
     // Set the current action to 'settle'
-    setCurrentAction('settle');
-    
+    setCurrentAction("settle");
+
     // Set isPaidChecked to true by default for the modal
     setIsPaidChecked(true);
-    
+
     // Show the payment modal
     setShowPaymentModal(true);
   };
@@ -3647,97 +4060,98 @@ toast.show({
   // Add handleCancelOrder function after handleKOTAndSave
   const handleCancelOrder = async () => {
     // Show confirmation dialog
-    Alert.alert(
-      "Cancel Order",
-      "Are you sure you want to cancel this order?",
-      [
-        {
-          text: "No",
-          style: "cancel"
-        },
-        {
-          text: "Yes",
-          onPress: async () => {
-            try {
-              setIsLoading(true);
-              setLoadingMessage("Cancelling order...");
-              
-              // Check if there's a valid order_id to cancel
-              const orderIdToCancel = params?.orderId;
-              
-              if (orderIdToCancel) {
-                const [userId, accessToken] = await Promise.all([
-                  AsyncStorage.getItem("user_id"),
-                  AsyncStorage.getItem("access")
-                ]);
-                
-                // Use force_cancel_order API
-                const response = await fetchWithAuth(
-                  onGetProductionUrl() + "force_cancel_order",
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                      order_id: orderIdToCancel.toString(),
-                      user_id: userId.toString()
-                    })
-                  }
-                );
-                
-                if (response.st === 1) {
-                  toast.show({
-                    description: "Order has been cancelled",
-                    status: "success",
-                    duration: 3000
-                  });
-                  
-                  // Navigate to tables screen
-                  router.replace({
-                    pathname: "/(tabs)/tables/sections",
-                    params: { 
-                      refresh: Date.now().toString()
-                    }
-                  });
-                } else {
-                  toast.show({
-                    description: response.msg || "Failed to cancel order",
-                    status: "error",
-                    duration: 3000
-                  });
+    Alert.alert("Cancel Order", "Are you sure you want to cancel this order?", [
+      {
+        text: "No",
+        style: "cancel",
+      },
+      {
+        text: "Yes",
+        onPress: async () => {
+          try {
+            setIsLoading(true);
+            setLoadingMessage("Cancelling order...");
+
+            // Check if there's a valid order_id to cancel
+            const orderIdToCancel = params?.orderId;
+
+            if (orderIdToCancel) {
+              const [userId, accessToken] = await Promise.all([
+                AsyncStorage.getItem("user_id"),
+                AsyncStorage.getItem("access"),
+              ]);
+
+              // Use force_cancel_order API
+              const response = await fetchWithAuth(
+                onGetProductionUrl() + "force_cancel_order",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    order_id: orderIdToCancel.toString(),
+                    user_id: userId.toString(),
+                  }),
                 }
-              } else {
-                // If no existing order, just go back
+              );
+
+              if (response.st === 1) {
                 toast.show({
-                  description: "No valid order ID found to cancel",
-                  status: "warning",
-                  duration: 3000
+                  description: "Order has been cancelled",
+                  status: "success",
+                  duration: 3000,
                 });
-                router.back();
+
+                // Navigate to tables screen
+                router.replace({
+                  pathname: "/(tabs)/tables/sections",
+                  params: {
+                    refresh: Date.now().toString(),
+                  },
+                });
+              } else {
+                toast.show({
+                  description: response.msg || "Failed to cancel order",
+                  status: "error",
+                  duration: 3000,
+                });
               }
-            } catch (error) {
-              console.error("Error cancelling order:", error);
+            } else {
+              // If no existing order, just go back
               toast.show({
-                description: error.response?.data?.msg || error.message || "Failed to cancel the order",
-                status: "error",
-                duration: 3000
+                description: "No valid order ID found to cancel",
+                status: "warning",
+                duration: 3000,
               });
-            } finally {
-              setIsLoading(false);
-              setLoadingMessage("");
+              router.back();
             }
+          } catch (error) {
+            console.error("Error cancelling order:", error);
+            toast.show({
+              description:
+                error.response?.data?.msg ||
+                error.message ||
+                "Failed to cancel the order",
+              status: "error",
+              duration: 3000,
+            });
+          } finally {
+            setIsLoading(false);
+            setLoadingMessage("");
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   // Add after scanForPrinters function
   const localConnectToPrinter = async (device) => {
     try {
       console.log("Attempting to connect to:", device.name || "Unknown device");
-      setPrinterConnectionStatus(`Connecting to ${device.name || "printer"}...`);
+      setPrinterConnectionStatus(
+        `Connecting to ${device.name || "printer"}...`
+      );
       setIsProcessing(true);
 
       const connectedDevice = await device.connect({
@@ -3756,7 +4170,7 @@ toast.show({
             status: "warning",
             duration: 3000,
           });
-          
+
           // Attempt to reconnect
           localConnectToPrinter(device).catch(console.error);
         }
@@ -3766,25 +4180,25 @@ toast.show({
       setPrinterConnectionStatus("Discovering services...");
       const discoveredDevice =
         await connectedDevice.discoverAllServicesAndCharacteristics();
-      
+
       // Update state with connected device
       setContextPrinterDevice(discoveredDevice);
       setPrinterConnected(true);
       setIsProcessing(false);
       setPrinterConnectionStatus("Connected");
-      
+
       return true;
     } catch (error) {
       console.error("Connection error:", error);
       setIsProcessing(false);
       setPrinterConnectionStatus("");
-      
+
       toast.show({
         description: `Failed to connect to printer: ${error.message}`,
         status: "error",
         duration: 3000,
       });
-      
+
       return false;
     }
   };
@@ -3794,21 +4208,21 @@ toast.show({
       if (!contextPrinterDevice) {
         return false;
       }
-      
+
       setIsDisconnecting(true);
       setPrinterConnectionStatus("Disconnecting...");
-      
+
       // Use the context's disconnect function
       await contextDisconnectPrinter();
-      
+
       setPrinterConnectionStatus("");
-      
+
       toast.show({
         description: "Printer disconnected",
         status: "info",
         duration: 2000,
       });
-      
+
       return true;
     } catch (error) {
       console.error("Disconnect error:", error);
@@ -3828,21 +4242,21 @@ toast.show({
       if (!contextPrinterDevice) {
         return false;
       }
-      
+
       setIsDisconnecting(true);
       setPrinterConnectionStatus("Disconnecting...");
-      
+
       // Use the context's disconnect function
       await contextDisconnectPrinter();
-      
+
       setPrinterConnectionStatus("");
-      
+
       toast.show({
         description: "Printer disconnected",
         status: "info",
         duration: 2000,
       });
-      
+
       return true;
     } catch (error) {
       console.error("Disconnect error:", error);
@@ -3871,14 +4285,14 @@ toast.show({
               settle: parsedSettings.settle,
               reserve_table: parsedSettings.reserve_table,
               cancel: parsedSettings.cancel,
-            }
+            },
           });
         }
       } catch (error) {
         console.error("Error loading settings:", error);
       }
     };
-    
+
     loadSettings();
   }, []);
 
@@ -3901,7 +4315,7 @@ toast.show({
       });
       return;
     }
-    
+
     // Direct call matching Owner App - no payment modal
     handlePrintAndSave();
   };
@@ -3911,16 +4325,19 @@ toast.show({
     try {
       setIsProcessing(true);
       setLoadingMessage("Processing print and save...");
-      
+
       // Check printer - could be extracted to a util function
       if (!printerConnected || !contextPrinterDevice) {
         Alert.alert(
           "Printer Not Connected",
           "Do you want to connect a printer?",
           [
-            { text: "Yes", onPress: () => setIsDeviceSelectionModalVisible(true) },
-            { 
-              text: "Skip Printing", 
+            {
+              text: "Yes",
+              onPress: () => setIsDeviceSelectionModalVisible(true),
+            },
+            {
+              text: "Skip Printing",
               style: "cancel",
               onPress: async () => {
                 try {
@@ -3933,7 +4350,10 @@ toast.show({
                     });
                     router.replace({
                       pathname: "/(tabs)/tables/sections",
-                      params: { refresh: Date.now().toString(), status: "completed" }
+                      params: {
+                        refresh: Date.now().toString(),
+                        status: "completed",
+                      },
                     });
                   }
                 } catch (error) {
@@ -3947,28 +4367,32 @@ toast.show({
                   setIsProcessing(false);
                   setLoadingMessage("");
                 }
-              }
-            }
+              },
+            },
           ]
         );
         return;
       }
-      
+
       // Create order with print_and_save status
       const apiResponse = await createOrder("print_and_save", true);
-      
+
       // ADDED: Enhanced debugging for order number issue
-      console.log("API Response for print_and_save:", JSON.stringify(apiResponse));
-      console.log("Order number from API response:", 
-        apiResponse?.order_number || 
-        apiResponse?.lists?.order_details?.order_number || 
-        "Not found in API response"
+      console.log(
+        "API Response for print_and_save:",
+        JSON.stringify(apiResponse)
+      );
+      console.log(
+        "Order number from API response:",
+        apiResponse?.order_number ||
+          apiResponse?.lists?.order_details?.order_number ||
+          "Not found in API response"
       );
       console.log("Params for order number:", {
         orderIdParam: params?.orderId,
-        orderNumberParam: params?.orderNumber
+        orderNumberParam: params?.orderNumber,
       });
-      
+
       // Print receipt
       try {
         setLoadingMessage("Printing receipt...");
@@ -3986,11 +4410,11 @@ toast.show({
           duration: 3000,
         });
       }
-      
+
       // Navigate back to tables
       router.replace({
         pathname: "/(tabs)/tables/sections",
-        params: { refresh: Date.now().toString(), status: "completed" }
+        params: { refresh: Date.now().toString(), status: "completed" },
       });
     } catch (error) {
       console.error("Print and Save error:", error);
@@ -4011,7 +4435,7 @@ toast.show({
     if (params.orderDetails) {
       try {
         const orderDetailsObj = JSON.parse(params.orderDetails);
-        
+
         // Set the values from params, with proper type handling
         setSpecialDiscount(orderDetailsObj.special_discount?.toString() || "0");
         setExtraCharges(orderDetailsObj.charges?.toString() || "0");
@@ -4020,7 +4444,7 @@ toast.show({
         console.log("Initialized values from params:", {
           special_discount: orderDetailsObj.special_discount,
           charges: orderDetailsObj.charges,
-          tip: orderDetailsObj.tip
+          tip: orderDetailsObj.tip,
         });
       } catch (error) {
         console.error("Error parsing orderDetails:", error);
@@ -4029,85 +4453,93 @@ toast.show({
   }, [params.orderDetails]); // Only run when orderDetails changes
 
   // Then update the input section to handle the values properly:
-  {showDiscountPanel && (
-    <Box px={4} pb={4}>
-      <HStack space={2} justifyContent="space-between" mb={3}>
-        <VStack flex={1}>
-          <Text fontSize="xs" color="gray.500" mb={1}>Special Discount</Text>
-          <Input
-            keyboardType="numeric"
-            value={specialDiscount}
-            onChangeText={(text) => {
-              // Ensure we handle empty input and non-numeric values
-              const value = text.trim() === "" ? "0" : text;
-              if (/^\d*\.?\d*$/.test(value)) {
-                setSpecialDiscount(value);
-              }
-            }}
-            variant="outline"
-            size="sm"
-            bg="white"
-            placeholder="0"
-            borderColor="gray.300"
-          />
-        </VStack>
-        
-        <VStack flex={1}>
-          <Text fontSize="xs" color="gray.500" mb={1}>Extra Charges</Text>
-          <Input
-            keyboardType="numeric"
-            value={extraCharges}
-            onChangeText={(text) => {
-              const value = text.trim() === "" ? "0" : text;
-              if (/^\d*\.?\d*$/.test(value)) {
-                setExtraCharges(value);
-              }
-            }}
-            variant="outline"
-            size="sm"
-            bg="white"
-            placeholder="0"
-            borderColor="gray.300"
-          />
-        </VStack>
-        
-        <VStack flex={1}>
-          <Text fontSize="xs" color="gray.500" mb={1}>Tip</Text>
-          <Input
-            keyboardType="numeric"
-            value={tip}
-            onChangeText={(text) => {
-              const value = text.trim() === "" ? "0" : text;
-              if (/^\d*\.?\d*$/.test(value)) {
-                setTip(value);
-              }
-            }}
-            variant="outline"
-            size="sm"
-            bg="white"
-            placeholder="0"
-            borderColor="gray.300"
-          />
-        </VStack>
-      </HStack>
-      
-      {/* Rest of your checkbox code remains the same */}
-    </Box>
-  )}
+  {
+    showDiscountPanel && (
+      <Box px={4} pb={4}>
+        <HStack space={2} justifyContent="space-between" mb={3}>
+          <VStack flex={1}>
+            <Text fontSize="xs" color="gray.500" mb={1}>
+              Special Discount
+            </Text>
+            <Input
+              keyboardType="numeric"
+              value={specialDiscount}
+              onChangeText={(text) => {
+                // Ensure we handle empty input and non-numeric values
+                const value = text.trim() === "" ? "0" : text;
+                if (/^\d*\.?\d*$/.test(value)) {
+                  setSpecialDiscount(value);
+                }
+              }}
+              variant="outline"
+              size="sm"
+              bg="white"
+              placeholder="0"
+              borderColor="gray.300"
+            />
+          </VStack>
+
+          <VStack flex={1}>
+            <Text fontSize="xs" color="gray.500" mb={1}>
+              Extra Charges
+            </Text>
+            <Input
+              keyboardType="numeric"
+              value={extraCharges}
+              onChangeText={(text) => {
+                const value = text.trim() === "" ? "0" : text;
+                if (/^\d*\.?\d*$/.test(value)) {
+                  setExtraCharges(value);
+                }
+              }}
+              variant="outline"
+              size="sm"
+              bg="white"
+              placeholder="0"
+              borderColor="gray.300"
+            />
+          </VStack>
+
+          <VStack flex={1}>
+            <Text fontSize="xs" color="gray.500" mb={1}>
+              Tip
+            </Text>
+            <Input
+              keyboardType="numeric"
+              value={tip}
+              onChangeText={(text) => {
+                const value = text.trim() === "" ? "0" : text;
+                if (/^\d*\.?\d*$/.test(value)) {
+                  setTip(value);
+                }
+              }}
+              variant="outline"
+              size="sm"
+              bg="white"
+              placeholder="0"
+              borderColor="gray.300"
+            />
+          </VStack>
+        </HStack>
+
+        {/* Rest of your checkbox code remains the same */}
+      </Box>
+    );
+  }
 
   // Validate order type and params on mount
   useEffect(() => {
     // Get the order type from params or default to dine-in
     const currentOrderType = params.orderType || "dine-in";
-    
+
     // Log the validation (once)
     console.log("Validating order type:", currentOrderType);
-    
+
     // Only update state if the order type has changed
     if (orderType !== currentOrderType) {
       setOrderType(currentOrderType);
     }
-    
+
     // Only validate table/section for dine-in orders
     if (currentOrderType === "dine-in") {
       if (!params.tableNumber || !params.sectionId) {
@@ -4116,14 +4548,18 @@ toast.show({
     } else if (currentOrderType === "counter") {
       // For counter orders, clear any table/section info
       // Only update if current values don't match
-      if (currentTableNumber !== "" || currentSectionId !== "" || currentSectionName !== "") {
+      if (
+        currentTableNumber !== "" ||
+        currentSectionId !== "" ||
+        currentSectionName !== ""
+      ) {
         setCurrentTableNumber("");
         setCurrentSectionId("");
         setCurrentSectionName("");
       }
       console.log("Counter order - cleared table/section info");
     }
-    
+
     // This function doesn't need to be recreated on every render
   }, [params?.orderType, orderType, params?.tableNumber, params?.sectionId]); // Specific dependencies
 
@@ -4131,70 +4567,83 @@ toast.show({
   useEffect(() => {
     // Initialize customer details from params
     if (params) {
-      setCustomerDetails(prevDetails => ({
+      setCustomerDetails((prevDetails) => ({
         ...prevDetails,
         customer_address: params.customer_address || "",
         customer_alternate_mobile: params.customer_alternate_mobile || "",
-        customer_landmark: params.customer_landmark || ""
+        customer_landmark: params.customer_landmark || "",
       }));
     }
   }, [params]); // Only run when params change
 
   // Add this state for UPI ID after other state declarations
   const [displayUpiId, setDisplayUpiId] = useState("Loading UPI ID...");
-  
+
   // Add this useEffect to fetch and display UPI ID
   useEffect(() => {
     const fetchUpiId = async () => {
       const upiId = await getUpiId();
       setDisplayUpiId(upiId);
     };
-    
+
     fetchUpiId();
   }, []);
 
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
-        title={params?.orderId 
-          ? "Update Order" 
-          : params?.orderType 
-            ? `Create ${params.orderType === 'drive-through' 
-                ? 'Drive' 
-                : params.orderType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+        title={
+          params?.orderId
+            ? "Update Order"
+            : params?.orderType
+            ? `Create ${
+                params.orderType === "drive-through"
+                  ? "Drive"
+                  : params.orderType
+                      .split("-")
+                      .map(
+                        (word) => word.charAt(0).toUpperCase() + word.slice(1)
+                      )
+                      .join(" ")
               } Order`
             : "Create Order"
         }
-        onBackPress={() => router.replace({
-          pathname: "/screens/orders/menu-selection",
-          params: {
-            tableId: params.tableId,
-            tableNumber: params.tableNumber,
-            sectionId: params.sectionId,
-            sectionName: params.sectionName,
-            outletId: params.outletId,  
-            orderId: params.orderId,
-            orderNumber: params.orderNumber,
-            orderType: params.orderType || "dine-in",
-            orderDetails: JSON.stringify({
-              order_id: params.orderId,
-              menu_items: selectedItems,
-              grand_total: calculateTotal(selectedItems, serviceChargePercentage, gstPercentage),
-              table_id: params.tableId,
-              table_number: params.tableNumber,
-              section_id: params.sectionId,
-              section_name: params.sectionName,
-              outlet_id: params.outletId,
-            }),
-          },
-        })}
+        onBackPress={() =>
+          router.replace({
+            pathname: "/screens/orders/menu-selection",
+            params: {
+              tableId: params.tableId,
+              tableNumber: params.tableNumber,
+              sectionId: params.sectionId,
+              sectionName: params.sectionName,
+              outletId: params.outletId,
+              orderId: params.orderId,
+              orderNumber: params.orderNumber,
+              orderType: params.orderType || "dine-in",
+              orderDetails: JSON.stringify({
+                order_id: params.orderId,
+                menu_items: selectedItems,
+                grand_total: calculateTotal(
+                  selectedItems,
+                  serviceChargePercentage,
+                  gstPercentage
+                ),
+                table_id: params.tableId,
+                table_number: params.tableNumber,
+                section_id: params.sectionId,
+                section_name: params.sectionName,
+                outlet_id: params.outletId,
+              }),
+            },
+          })
+        }
         rightComponent={
           <Box position="relative">
-            <OrderBadge />    
+            <OrderBadge />
           </Box>
         }
       />
-      
+
       {/* Display UPI ID for testing purposes */}
       {/* <Box bg="coolGray.100" px={4} py={2} mb={2}>
         <HStack alignItems="center" space={2}>
@@ -4202,9 +4651,9 @@ toast.show({
           <Text fontWeight="medium">UPI ID: <Text color="blue.600">{displayUpiId}</Text></Text>
         </HStack>
       </Box> */}
-      
+
       {/* <PrinterStatusIndicator /> */}
-      
+
       {isLoadingOrder ? (
         <Center flex={1} bg="coolGray.100">
           <VStack space={3} alignItems="center">
@@ -4219,53 +4668,64 @@ toast.show({
         >
           <VStack flex={1} bg="coolGray.100" px={4}>
             {isOccupied === "1" && orderNumber && <OrderSummary />}
-            
+
             {/* Add More Items Button - make it blue and full-width */}
             <Button
               mb={2}
-              leftIcon={<Icon as={MaterialIcons} name="add" size="sm" color="white" />}
+              leftIcon={
+                <Icon as={MaterialIcons} name="add" size="sm" color="white" />
+              }
               bg="#00B0F0"
               _text={{ color: "white", fontWeight: "semibold" }}
               _pressed={{ bg: "#00A0E0" }}
-              onPress={() => router.replace({
-                pathname: "/screens/orders/menu-selection",
-                params: {
-                  tableId: params.tableId,
-                  tableNumber: params.tableNumber,
-                  sectionId: params.sectionId,
-                  sectionName: params.sectionName,
-                  outletId: params.outletId,
-                  orderId: params.orderId,
-                  orderNumber: params.orderNumber,
-                  orderType: params.orderType || "dine-in",
-                  orderDetails: JSON.stringify({
-                    order_id: params.orderId,
-                    menu_items: selectedItems,
-                    grand_total: calculateTotal(selectedItems, serviceChargePercentage, gstPercentage),
-                    table_id: params.tableId,
-                    table_number: params.tableNumber,
-                    section_id: params.sectionId,
-                    section_name: params.sectionName,
-                    outlet_id: params.outletId,
-                  }),
-                },
-              })}
+              onPress={() =>
+                router.replace({
+                  pathname: "/screens/orders/menu-selection",
+                  params: {
+                    tableId: params.tableId,
+                    tableNumber: params.tableNumber,
+                    sectionId: params.sectionId,
+                    sectionName: params.sectionName,
+                    outletId: params.outletId,
+                    orderId: params.orderId,
+                    orderNumber: params.orderNumber,
+                    orderType: params.orderType || "dine-in",
+                    orderDetails: JSON.stringify({
+                      order_id: params.orderId,
+                      menu_items: selectedItems,
+                      grand_total: calculateTotal(
+                        selectedItems,
+                        serviceChargePercentage,
+                        gstPercentage
+                      ),
+                      table_id: params.tableId,
+                      table_number: params.tableNumber,
+                      section_id: params.sectionId,
+                      section_name: params.sectionName,
+                      outlet_id: params.outletId,
+                    }),
+                  },
+                })
+              }
               borderRadius="md"
               height={12}
               w="100%"
             >
               Add More Items
             </Button>
-            
+
             {/* Customer Details Section - adjust to match screenshot */}
             <HStack space={2} mt={1} mb={3}>
               <Input
                 flex={1}
                 placeholder="Customer Name"
                 value={customerDetails.customer_name}
-                onChangeText={(text) => handleCustomerDetailsChange("customer_name", text)}
+                onChangeText={(text) =>
+                  handleCustomerDetailsChange("customer_name", text)
+                }
                 borderColor={
-                  customerDetails.customer_name && !validateName(customerDetails.customer_name)
+                  customerDetails.customer_name &&
+                  !validateName(customerDetails.customer_name)
                     ? "red.500"
                     : "gray.300"
                 }
@@ -4284,15 +4744,15 @@ toast.show({
                     // Clear the entire input if it starts with 0-5
                     text = "";
                     // Set validation error message
-                    setValidationErrors(prev => ({
+                    setValidationErrors((prev) => ({
                       ...prev,
-                      invalidMobileStart: true
+                      invalidMobileStart: true,
                     }));
                   } else if (text.length > 0) {
                     // Clear the validation error when valid digit entered
-                    setValidationErrors(prev => ({
+                    setValidationErrors((prev) => ({
                       ...prev,
-                      invalidMobileStart: false
+                      invalidMobileStart: false,
                     }));
                   }
                   handleCustomerDetailsChange("customer_mobile", text);
@@ -4300,11 +4760,10 @@ toast.show({
                 keyboardType="numeric"
                 maxLength={10}
                 borderColor={
-                  customerDetails.customer_mobile && (
-                    !validateMobileNumber(customerDetails.customer_mobile) || 
+                  customerDetails.customer_mobile &&
+                  (!validateMobileNumber(customerDetails.customer_mobile) ||
                     customerDetails.customer_mobile.length !== 10 ||
-                    validationErrors?.invalidMobileStart
-                  )
+                    validationErrors?.invalidMobileStart)
                     ? "red.500"
                     : "gray.300"
                 }
@@ -4314,7 +4773,14 @@ toast.show({
                 borderRadius="md"
               />
               <IconButton
-                icon={<Icon as={MaterialIcons} name="add" size="sm" color="gray.600" />}
+                icon={
+                  <Icon
+                    as={MaterialIcons}
+                    name="add"
+                    size="sm"
+                    color="gray.600"
+                  />
+                }
                 borderRadius="md"
                 bg="gray.100"
                 borderWidth={1}
@@ -4341,8 +4807,16 @@ toast.show({
               >
                 <VStack space={2} mb={0}>
                   {/* Add Items Count and Clear All row */}
-                  <HStack justifyContent="space-between" alignItems="center" pb={2} pt={2}>
-                    <Text color="gray.700">{selectedItems.length} {selectedItems.length === 1 ? "Item" : "Items"}</Text>
+                  <HStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    pb={2}
+                    pt={2}
+                  >
+                    <Text color="gray.700">
+                      {selectedItems.length}{" "}
+                      {selectedItems.length === 1 ? "Item" : "Items"}
+                    </Text>
                     {!isExistingOrder && selectedItems.length > 0 && (
                       <Pressable
                         onPress={() => {
@@ -4379,71 +4853,92 @@ toast.show({
                     <>
                       {/* Simplified item display */}
                       {selectedItems.map((item, index) => (
-  <Box
-    key={index}
-    bg="white"
-    px={4}
-    py={3}
-    mb={1}
-    borderBottomWidth={1}
-    borderBottomColor="gray.200"
-  >
-    <HStack justifyContent="space-between" alignItems="center">
-      <VStack flex={1}>
-        <Text fontWeight="bold" fontSize={16}>{item.menu_name || item.name}</Text>
-        {item.offer > 0 && (
-          <Text color="green.600" fontSize="xs" ml={1}>
-            ({item.offer}% OFF)
-          </Text>
-        )}
-        <HStack alignItems="center" mt={2}>
-          <Pressable
-            onPress={() => decreaseQuantity(item)}
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 14,
-              backgroundColor: "#f0f0f0",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 8,
-            }}
-          >
-            <Text fontSize={18}>-</Text>
-          </Pressable>
-          <Text fontSize={16} fontWeight="bold" mx={1}>
-            {item.quantity}
-          </Text>
-          <Pressable
-            onPress={() => increaseQuantity(item)}
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 14,
-              backgroundColor: "#f0f0f0",
-              alignItems: "center",
-              justifyContent: "center",
-              marginLeft: 8,
-            }}
-          >
-            <Text fontSize={18}>+</Text>
-          </Pressable>
-        </HStack>
-      </VStack>
-      <VStack alignItems="flex-end" ml={4}>
-        <Text color="gray.500" fontSize="sm">
-          Price : <Text color="blue.600" fontWeight="bold">₹{item.price.toFixed(2)}</Text>
-        </Text>
-        <Text color="gray.500" fontSize="sm">
-          Total : <Text color="blue.600" fontWeight="bold">₹{(item.price * item.quantity).toFixed(2)}</Text>
-        </Text>
-      </VStack>
-      <Pressable onPress={() => removeFromCart(item.menu_id, item.portion_size)} ml={2}>
-        <Icon as={MaterialIcons} name="close" size="sm" color="red.500" />
-      </Pressable>
-    </HStack>
-  </Box>
-))}
+                        <Box
+                          key={index}
+                          bg="white"
+                          px={4}
+                          py={3}
+                          mb={1}
+                          borderBottomWidth={1}
+                          borderBottomColor="gray.200"
+                        >
+                          <HStack
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <VStack flex={1}>
+                              <Text fontWeight="bold" fontSize={16}>
+                                {item.menu_name || item.name}
+                              </Text>
+                              {item.offer > 0 && (
+                                <Text color="green.600" fontSize="xs" ml={1}>
+                                  ({item.offer}% OFF)
+                                </Text>
+                              )}
+                              <HStack alignItems="center" mt={2}>
+                                <Pressable
+                                  onPress={() => decreaseQuantity(item)}
+                                  style={{
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: 14,
+                                    backgroundColor: "#f0f0f0",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    marginRight: 8,
+                                  }}
+                                >
+                                  <Text fontSize={18}>-</Text>
+                                </Pressable>
+                                <Text fontSize={16} fontWeight="bold" mx={1}>
+                                  {item.quantity}
+                                </Text>
+                                <Pressable
+                                  onPress={() => increaseQuantity(item)}
+                                  style={{
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: 14,
+                                    backgroundColor: "#f0f0f0",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    marginLeft: 8,
+                                  }}
+                                >
+                                  <Text fontSize={18}>+</Text>
+                                </Pressable>
+                              </HStack>
+                            </VStack>
+                            <VStack alignItems="flex-end" ml={4}>
+                              <Text color="gray.500" fontSize="sm">
+                                Price :{" "}
+                                <Text color="blue.600" fontWeight="bold">
+                                  ₹{item.price.toFixed(2)}
+                                </Text>
+                              </Text>
+                              <Text color="gray.500" fontSize="sm">
+                                Total :{" "}
+                                <Text color="blue.600" fontWeight="bold">
+                                  ₹{(item.price * item.quantity).toFixed(2)}
+                                </Text>
+                              </Text>
+                            </VStack>
+                            <Pressable
+                              onPress={() =>
+                                removeFromCart(item.menu_id, item.portion_size)
+                              }
+                              ml={2}
+                            >
+                              <Icon
+                                as={MaterialIcons}
+                                name="close"
+                                size="sm"
+                                color="red.500"
+                              />
+                            </Pressable>
+                          </HStack>
+                        </Box>
+                      ))}
                     </>
                   )}
                 </VStack>
@@ -4461,28 +4956,36 @@ toast.show({
                   shadow={2}
                   mb={2}
                 >
-                  <Pressable 
+                  <Pressable
                     onPress={() => setShowDiscountPanel(!showDiscountPanel)}
                     py={2}
                     alignItems="center"
                   >
                     <Icon
                       as={MaterialIcons}
-                      name={showDiscountPanel ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                      name={
+                        showDiscountPanel
+                          ? "keyboard-arrow-up"
+                          : "keyboard-arrow-down"
+                      }
                       size="md"
                       color="gray.500"
                     />
                   </Pressable>
-                  
+
                   {showDiscountPanel && (
                     <Box px={4} pb={4}>
                       <HStack space={2} justifyContent="space-between" mb={3}>
                         <VStack flex={1}>
-                          <Text fontSize="xs" color="gray.500" mb={1}>Special Discount</Text>
+                          <Text fontSize="xs" color="gray.500" mb={1}>
+                            Special Discount
+                          </Text>
                           <Input
                             keyboardType="numeric"
                             value={specialDiscount?.toString()}
-                            onChangeText={(text) => setSpecialDiscount(text ? parseFloat(text) : 0)}
+                            onChangeText={(text) =>
+                              setSpecialDiscount(text ? parseFloat(text) : 0)
+                            }
                             variant="outline"
                             size="sm"
                             bg="white"
@@ -4490,13 +4993,17 @@ toast.show({
                             borderColor="gray.300"
                           />
                         </VStack>
-                        
+
                         <VStack flex={1}>
-                          <Text fontSize="xs" color="gray.500" mb={1}>Extra Charges</Text>
+                          <Text fontSize="xs" color="gray.500" mb={1}>
+                            Extra Charges
+                          </Text>
                           <Input
                             keyboardType="numeric"
                             value={extraCharges?.toString()}
-                            onChangeText={(text) => setExtraCharges(text ? parseFloat(text) : 0)}
+                            onChangeText={(text) =>
+                              setExtraCharges(text ? parseFloat(text) : 0)
+                            }
                             variant="outline"
                             size="sm"
                             bg="white"
@@ -4504,13 +5011,17 @@ toast.show({
                             borderColor="gray.300"
                           />
                         </VStack>
-                        
+
                         <VStack flex={1}>
-                          <Text fontSize="xs" color="gray.500" mb={1}>Tip</Text>
+                          <Text fontSize="xs" color="gray.500" mb={1}>
+                            Tip
+                          </Text>
                           <Input
                             keyboardType="numeric"
                             value={tip?.toString()}
-                            onChangeText={(text) => setTip(text ? parseFloat(text) : 0)}
+                            onChangeText={(text) =>
+                              setTip(text ? parseFloat(text) : 0)
+                            }
                             variant="outline"
                             size="sm"
                             bg="white"
@@ -4519,8 +5030,11 @@ toast.show({
                           />
                         </VStack>
                       </HStack>
-                      
-                      <HStack justifyContent="space-between" alignItems="center">
+
+                      <HStack
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
                         <Checkbox
                           value="complementary"
                           isChecked={isComplementary}
@@ -4535,7 +5049,7 @@ toast.show({
                         >
                           <Text fontSize="sm">Complementary</Text>
                         </Checkbox>
-                        
+
                         <Checkbox
                           value="paid"
                           isChecked={isPaid}
@@ -4569,46 +5083,82 @@ toast.show({
                   {/* Price summary row */}
                   <HStack justifyContent="space-between" mb={2} p={2}>
                     <VStack alignItems="center">
-                      <Text fontWeight="semibold" fontSize="xs">₹{calculateSubtotal(selectedItems).toFixed(2)}</Text>
-                      <Text fontSize="2xs" color="gray.500">Total</Text>
+                      <Text fontWeight="semibold" fontSize="xs">
+                        ₹{calculateSubtotal(selectedItems).toFixed(2)}
+                      </Text>
+                      <Text fontSize="2xs" color="gray.500">
+                        Total
+                      </Text>
                     </VStack>
 
                     <VStack alignItems="center">
-                      <Text fontWeight="semibold" fontSize="xs" color="red.500">-₹{calculateItemDiscount(selectedItems).toFixed(2)}</Text>
-                      <Text fontSize="2xs" color="gray.500">Disc ({formatCurrency(getDiscountPercentage())}%)</Text>
+                      <Text fontWeight="semibold" fontSize="xs" color="red.500">
+                        -₹{calculateItemDiscount(selectedItems).toFixed(2)}
+                      </Text>
+                      <Text fontSize="2xs" color="gray.500">
+                        Disc ({formatCurrency(getDiscountPercentage())}%)
+                      </Text>
                     </VStack>
 
                     <VStack alignItems="center">
-                      <Text fontWeight="semibold" fontSize="xs">+₹{calculateServiceCharges(
-                        calculateTotalAfterDiscounts(selectedItems, specialDiscount) + parseFloat(extraCharges || 0),
-                        serviceChargePercentage
-                      ).toFixed(2)}</Text>
-                      <Text fontSize="2xs" color="gray.500">Service ({Math.round(serviceChargePercentage)}%)</Text>
-                    </VStack>
-
-                    <VStack alignItems="center">
-                      <Text fontWeight="semibold" fontSize="xs">+₹{calculateGST(
-                        calculateTotalAfterDiscounts(selectedItems, specialDiscount) + 
-                        parseFloat(extraCharges || 0) + 
-                        calculateServiceCharges(
-                          calculateTotalAfterDiscounts(selectedItems, specialDiscount) + parseFloat(extraCharges || 0),
+                      <Text fontWeight="semibold" fontSize="xs">
+                        +₹
+                        {calculateServiceCharges(
+                          calculateTotalAfterDiscounts(
+                            selectedItems,
+                            specialDiscount
+                          ) + parseFloat(extraCharges || 0),
                           serviceChargePercentage
-                        ),
-                        gstPercentage
-                      ).toFixed(2)}</Text>
-                      <Text fontSize="2xs" color="gray.500">GST ({Math.round(gstPercentage)}%)</Text>
+                        ).toFixed(2)}
+                      </Text>
+                      <Text fontSize="2xs" color="gray.500">
+                        Service ({Math.round(serviceChargePercentage)}%)
+                      </Text>
                     </VStack>
 
                     <VStack alignItems="center">
-                      <Text fontWeight="semibold" fontSize="xs" color="green.500">₹{calculateGrandTotal(
-                        selectedItems,
-                        specialDiscount,
-                        extraCharges,
-                        serviceChargePercentage,
-                        gstPercentage,
-                        tip
-                      ).toFixed(2)}</Text>
-                      <Text fontSize="2xs" color="gray.500">Grand Total</Text>
+                      <Text fontWeight="semibold" fontSize="xs">
+                        +₹
+                        {calculateGST(
+                          calculateTotalAfterDiscounts(
+                            selectedItems,
+                            specialDiscount
+                          ) +
+                            parseFloat(extraCharges || 0) +
+                            calculateServiceCharges(
+                              calculateTotalAfterDiscounts(
+                                selectedItems,
+                                specialDiscount
+                              ) + parseFloat(extraCharges || 0),
+                              serviceChargePercentage
+                            ),
+                          gstPercentage
+                        ).toFixed(2)}
+                      </Text>
+                      <Text fontSize="2xs" color="gray.500">
+                        GST ({Math.round(gstPercentage)}%)
+                      </Text>
+                    </VStack>
+
+                    <VStack alignItems="center">
+                      <Text
+                        fontWeight="semibold"
+                        fontSize="xs"
+                        color="green.500"
+                      >
+                        ₹
+                        {calculateGrandTotal(
+                          selectedItems,
+                          specialDiscount,
+                          extraCharges,
+                          serviceChargePercentage,
+                          gstPercentage,
+                          tip
+                        ).toFixed(2)}
+                      </Text>
+                      <Text fontSize="2xs" color="gray.500">
+                        Grand Total
+                      </Text>
                     </VStack>
                   </HStack>
 
@@ -4623,27 +5173,45 @@ toast.show({
                           bg="#FF9800"
                           _pressed={{ bg: "#F57C00" }}
                           borderRadius="md"
-                          leftIcon={<Icon as={MaterialIcons} name="print" size="sm" color="white" />}
+                          leftIcon={
+                            <Icon
+                              as={MaterialIcons}
+                              name="print"
+                              size="sm"
+                              color="white"
+                            />
+                          }
                           onPress={onPrintAndSavePress}
                           py={0}
                         >
-                          <Text color="white" fontSize="xs">Print & Save</Text>
+                          <Text color="white" fontSize="xs">
+                            Print & Save
+                          </Text>
                         </Button>
                       )}
-                      
+
                       <Button
                         flex={1}
                         h={10}
                         bg="black"
                         _pressed={{ bg: "#333" }}
                         borderRadius="md"
-                        leftIcon={<Icon as={MaterialIcons} name="receipt" size="sm" color="white" />}
+                        leftIcon={
+                          <Icon
+                            as={MaterialIcons}
+                            name="receipt"
+                            size="sm"
+                            color="white"
+                          />
+                        }
                         onPress={onKOTPress}
                         py={0}
                       >
-                        <Text color="white" fontSize="xs">KOT</Text>
+                        <Text color="white" fontSize="xs">
+                          KOT
+                        </Text>
                       </Button>
-                      
+
                       {settings.orderManagement.settle && (
                         <Button
                           flex={1}
@@ -4654,36 +5222,40 @@ toast.show({
                           onPress={handleSettleOrder}
                           py={0}
                         >
-                          <Text color="white" fontSize="xs">Settle</Text>
+                          <Text color="white" fontSize="xs">
+                            Settle
+                          </Text>
                         </Button>
                       )}
                     </HStack>
-                    
+
                     {/* Middle row - Lock icon and KOT & Save */}
                     <HStack space={1}>
-                      {settings.orderManagement.reserve_table && !params?.orderId && (
-                        <Button
-                        
-                          w="33%"
-                          h={10}
-                          bg="green.500"
-                          _pressed={{ bg: "green.600" }}
-                          
-                          borderRadius="md"
-                          py={0}
-                          onPress={handleSaveOrder}
-                          alignItems="center"
-                          justifyContent="center"
-                          leftIcon={<Icon as={MaterialIcons} name="save" size="sm" color="white" />}
-                        >
+                      {settings.orderManagement.reserve_table &&
+                        !params?.orderId && (
+                          <Button
+                            w="33%"
+                            h={10}
+                            bg="green.500"
+                            _pressed={{ bg: "green.600" }}
+                            borderRadius="md"
+                            py={0}
+                            onPress={handleSaveOrder}
+                            alignItems="center"
+                            justifyContent="center"
+                            leftIcon={
+                              <Icon
+                                as={MaterialIcons}
+                                name="save"
+                                size="sm"
+                                color="white"
+                              />
+                            }
+                          >
+                            <Text color="white">Save</Text>
+                          </Button>
+                        )}
 
-                          <Text
-                          
-                          color="white"
-                          >Save</Text>
-                        </Button>
-                      )}
-                      
                       {settings.orderManagement.KOT_and_save && (
                         <Button
                           flex={1}
@@ -4691,14 +5263,23 @@ toast.show({
                           bg="black"
                           _pressed={{ bg: "#333" }}
                           borderRadius="md"
-                          leftIcon={<Icon as={MaterialIcons} name="receipt" size="sm" color="white" />}
+                          leftIcon={
+                            <Icon
+                              as={MaterialIcons}
+                              name="receipt"
+                              size="sm"
+                              color="white"
+                            />
+                          }
                           onPress={handleKOTAndSave}
                           py={0}
                         >
-                          <Text color="white" fontSize="xs">KOT & Save</Text>
+                          <Text color="white" fontSize="xs">
+                            KOT & Save
+                          </Text>
                         </Button>
                       )}
-                      
+
                       {/* Add Cancel Order button for existing orders */}
                       {params?.orderId && settings.orderManagement.cancel && (
                         <Button
@@ -4713,11 +5294,16 @@ toast.show({
                           alignItems="center"
                           justifyContent="center"
                         >
-                          <Icon as={MaterialIcons} name="close" size="sm" color="white" />
+                          <Icon
+                            as={MaterialIcons}
+                            name="close"
+                            size="sm"
+                            color="white"
+                          />
                         </Button>
                       )}
                     </HStack>
-                    
+
                     {/* Reserve Table Button - conditional */}
                     {/* {params?.orderType === "dine-in" && params?.isOccupied !== "1" && (
                       <Button
@@ -4743,13 +5329,25 @@ toast.show({
       )}
 
       {/* Customer Details Modal */}
-      <Modal isOpen={showCustomerDetailsModal} onClose={() => setShowCustomerDetailsModal(false)}>
+      <Modal
+        isOpen={showCustomerDetailsModal}
+        onClose={() => setShowCustomerDetailsModal(false)}
+      >
         <Modal.Content maxW="90%">
           <Modal.Header>
             <HStack justifyContent="space-between" alignItems="center">
-              <Text fontSize="lg" fontWeight="bold">Additional Customer Details</Text>
-              <IconButton 
-                icon={<Icon as={MaterialIcons} name="close" size="sm" color="gray.500" />} 
+              <Text fontSize="lg" fontWeight="bold">
+                Additional Customer Details
+              </Text>
+              <IconButton
+                icon={
+                  <Icon
+                    as={MaterialIcons}
+                    name="close"
+                    size="sm"
+                    color="gray.500"
+                  />
+                }
                 onPress={() => setShowCustomerDetailsModal(false)}
               />
             </HStack>
@@ -4760,16 +5358,22 @@ toast.show({
                 <FormControl.Label>Alternate Mobile</FormControl.Label>
                 <Input
                   value={customerDetails.customer_alternate_mobile}
-                  onChangeText={(text) => handleCustomerDetailsChange("customer_alternate_mobile", text)}
+                  onChangeText={(text) =>
+                    handleCustomerDetailsChange(
+                      "customer_alternate_mobile",
+                      text
+                    )
+                  }
                   keyboardType="numeric"
                   maxLength={10}
                   borderColor={
-                    customerDetails.customer_alternate_mobile && 
-                    customerDetails.customer_alternate_mobile.length !== 10 ? 
-                    "red.500" : "gray.300"
+                    customerDetails.customer_alternate_mobile &&
+                    customerDetails.customer_alternate_mobile.length !== 10
+                      ? "red.500"
+                      : "gray.300"
                   }
                   InputRightElement={
-                    customerDetails.customer_alternate_mobile && 
+                    customerDetails.customer_alternate_mobile &&
                     customerDetails.customer_alternate_mobile.length !== 10 ? (
                       <Icon
                         as={MaterialIcons}
@@ -4781,46 +5385,50 @@ toast.show({
                     ) : null
                   }
                 />
-                {customerDetails.customer_alternate_mobile && 
-                 customerDetails.customer_alternate_mobile.length !== 10 && (
-                  <FormControl.HelperText color="red.500">
-                    Mobile number must be 10 digits
-                  </FormControl.HelperText>
-                )}
+                {customerDetails.customer_alternate_mobile &&
+                  customerDetails.customer_alternate_mobile.length !== 10 && (
+                    <FormControl.HelperText color="red.500">
+                      Mobile number must be 10 digits
+                    </FormControl.HelperText>
+                  )}
               </FormControl>
-              
+
               <FormControl>
                 <FormControl.Label>Address</FormControl.Label>
                 <Input
                   value={customerDetails.customer_address}
-                  onChangeText={(text) => handleCustomerDetailsChange("customer_address", text)}
+                  onChangeText={(text) =>
+                    handleCustomerDetailsChange("customer_address", text)
+                  }
                   multiline
                   numberOfLines={3}
                   h={20}
                   textAlignVertical="top"
                 />
               </FormControl>
-              
+
               <FormControl>
                 <FormControl.Label>Landmark</FormControl.Label>
                 <Input
                   value={customerDetails.customer_landmark}
-                  onChangeText={(text) => handleCustomerDetailsChange("customer_landmark", text)}
+                  onChangeText={(text) =>
+                    handleCustomerDetailsChange("customer_landmark", text)
+                  }
                 />
               </FormControl>
             </VStack>
           </Modal.Body>
           <Modal.Footer>
             <Button.Group space={2}>
-              <Button 
-                variant="ghost" 
-                colorScheme="blueGray" 
+              <Button
+                variant="ghost"
+                colorScheme="blueGray"
                 onPress={() => setShowCustomerDetailsModal(false)}
               >
                 Cancel
               </Button>
-              <Button 
-                colorScheme="blue" 
+              <Button
+                colorScheme="blue"
                 onPress={() => setShowCustomerDetailsModal(false)}
               >
                 Save
@@ -4832,24 +5440,24 @@ toast.show({
 
       {isProcessing && (
         <>
-        <Box
-          position="absolute"
-          top={0}
-          left={0}
-          right={0}
-          bottom={0}
-          bg="rgba(0,0,0,0.3)"
-          zIndex={999}
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Box bg="white" p={4} rounded="lg" minW="200">
-            <VStack space={3} alignItems="center">
-              <Spinner size="lg" color="blue.500" />
-              <Text fontWeight="medium">{loadingMessage}</Text>
-            </VStack>
+          <Box
+            position="absolute"
+            top={0}
+            left={0}
+            right={0}
+            bottom={0}
+            bg="rgba(0,0,0,0.3)"
+            zIndex={999}
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Box bg="white" p={4} rounded="lg" minW="200">
+              <VStack space={3} alignItems="center">
+                <Spinner size="lg" color="blue.500" />
+                <Text fontWeight="medium">{loadingMessage}</Text>
+              </VStack>
+            </Box>
           </Box>
-        </Box>
         </>
       )}
 
@@ -4859,12 +5467,16 @@ toast.show({
       />
 
       {/* Payment Selection Modal */}
-      <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} size="lg">
+      <Modal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        size="lg"
+      >
         <Modal.Content maxW="400px">
           <Modal.CloseButton />
           <Modal.Body py={6}>
             <VStack space={4}>
-            <Text fontSize="lg" fontWeight="semibold">
+              <Text fontSize="lg" fontWeight="semibold">
                 Select Payment Method
               </Text>
               <HStack justifyContent="space-between" alignItems="center">
@@ -4878,7 +5490,8 @@ toast.show({
                   </Text>
                 ) : null}
                 <Text fontSize="lg" fontWeight="bold" color="green.500">
-                  ₹{calculateGrandTotal(
+                  ₹
+                  {calculateGrandTotal(
                     selectedItems,
                     specialDiscount,
                     extraCharges,
@@ -4888,8 +5501,6 @@ toast.show({
                   ).toFixed(2)}
                 </Text>
               </HStack>
-
-              
 
               <Radio.Group
                 name="paymentMethod"
@@ -4937,7 +5548,7 @@ toast.show({
                 // Only enable the button when isPaidChecked is true
                 isDisabled={!isPaidChecked}
               >
-                {currentAction === 'kot' ? 'Generate KOT' : 'Settle'}
+                {currentAction === "kot" ? "Generate KOT" : "Settle"}
               </Button>
             </VStack>
           </Modal.Body>
