@@ -1061,7 +1061,7 @@ const handleSettleOrder = async () => {
   
   // Set default payment method if not already set
   if (!selectedPaymentMethod) {
-    setSelectedPaymentMethod("CASH");
+    setSelectedPaymentMethod("cash");
   }
     
   // Show the payment modal
@@ -4838,7 +4838,7 @@ const handleSettleOrder = async () => {
                     setIsPaidChecked(isChecked);
                     // Reset payment method if unchecking paid
                     if (!isChecked) {
-                      setSelectedPaymentMethod("CASH");
+                      setSelectedPaymentMethod("cash");
                     }
                   }}
                   size="lg"
