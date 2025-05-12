@@ -3364,7 +3364,7 @@ export default function OrderDetailsScreen() {
       )}
 
       {/* Print Button - Only show for cancelled orders */}
-      {orderDetails.order_status?.toLowerCase() === "cancelled" && (
+      {/* {orderDetails.order_status?.toLowerCase() === "cancelled" && (
         <Button
           mx={4}
           mb={4}
@@ -3375,7 +3375,7 @@ export default function OrderDetailsScreen() {
         >
           Print Cancelled Receipt
         </Button>
-      )}
+      )} */}
     </Box>
   );
 }
