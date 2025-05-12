@@ -1472,8 +1472,8 @@ export default function TableSectionsScreen() {
                                             </Box>
                                           )}
 
-                                          {/* Reserve button with lock icon - only show when gear is active */}
-                                          {showEditIcons && (
+                                          {/* Reserve button with lock icon - only show when gear is active and table is NOT occupied */}
+                                          {showEditIcons && table.is_occupied !== 1 && (
                                             <Box
                                               position="absolute"
                                               bottom={1}
@@ -1484,12 +1484,10 @@ export default function TableSectionsScreen() {
                                                 onPress={() => {
                                                   handleTableReservation(table);
                                                 }}
-                                                // bg={table.is_reserved ? "red.600" : "black"}
                                                 rounded="full"
                                                 size={8}
                                                 w={8}
                                                 h={8}
-                                                // shadow={1}
                                                 alignItems="center"
                                                 justifyContent="center"
                                               >
