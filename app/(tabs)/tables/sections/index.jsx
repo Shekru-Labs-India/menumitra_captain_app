@@ -1333,14 +1333,9 @@ export default function TableSectionsScreen() {
                                                   <Pressable
                                                     onPress={() => {
                                                       handleTableReservation(table)
-                                                      // Implement reserve functionality
-                                                      toast.show({
-                                                        description: `Reserve functionality for table ${table.table_number}`,
-                                                        status: "info",
-                                                        duration: 2000
-                                                      });
+                                                      // Remove toast notification since the handleTableReservation already shows one
                                                     }}
-                                                    bg="black"
+                                                    bg={table.is_reserved ? "red.600" : "black"}
                                                     rounded="full"
                                                     size={8}
                                                     w={8}
@@ -1350,7 +1345,7 @@ export default function TableSectionsScreen() {
                                                     justifyContent="center"
                                                   >
                                                     <MaterialIcons
-                                                      name="lock-outline"
+                                                      name={table.is_reserved ? "lock-open" : "lock-outline"}
                                                       size={18}
                                                       color="white"
                                                     />
