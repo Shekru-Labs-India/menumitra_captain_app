@@ -7,8 +7,8 @@ const ENV = {
 const CURRENT_ENV = ENV.dev;
 
 // Base URLs
-const DEVELOPMENT_API = "https://men4u.xyz/common_api";
-const PRODUCTION_API = "https://menusmitra.xyz/common_api";
+const DEVELOPMENT_API = "https://men4u.xyz/1.3/common_api";
+const PRODUCTION_API = "https://menusmitra.xyz/1.3/common_api";
 
 // API Configuration
 const API_CONFIG = {
