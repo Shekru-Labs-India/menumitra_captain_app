@@ -2442,8 +2442,7 @@ const handleSettleOrder = async () => {
 
       // Create UPI payment string
       const upiPaymentString = upiId ? 
-        `upi://pay?pa=${upiId}&pn=${encodeURIComponent(outletName || "Restaurant")}&am=${total.toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Bill #${params?.orderId || "New"}`)}` : 
-        "8459719119-2@ibl";
+        `upi://pay?pa=${upiId}&pn=${encodeURIComponent(outletName || "Restaurant")}&am=${total.toFixed(2)}&cu=INR` : ``;
 
       // FIXED: Get order number with enhanced fallbacks to match owner app
       // Get order number with fallbacks, adapting to various response formats
@@ -2544,19 +2543,26 @@ const handleSettleOrder = async () => {
         commands.push(...textToBytes(formatAmountLine("Tip", tipAmount, "+")));
       }
 
+      // Add QR code for UPI payment
+      if (upiPaymentString) {
+        commands.push(
+          ...textToBytes("\x1B\x61\x01"), // Center align
+          ...textToBytes("------ Payment Options ------\n\n"),
+          ...textToBytes("\x1B\x21\x00"), // Normal text
+          ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
+          ...textToBytes("------------------------\n"),
+          ...generateQRCode(upiPaymentString),
+          ...textToBytes('\n\n'),
+          ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n\n`),
+          ...textToBytes("UPI ID: " + upiId + "\n\n")
+        );
+      }
+
+      // Add footer
       commands.push(
-        ...textToBytes("------------------------------\n"),
-        ...textToBytes(formatAmountLine("Total", total)),
-        ...textToBytes("\n"),
-        ...textToBytes("\x1B\x61\x01"), // Center alignment
-        ...textToBytes("---- Payment Options ----\n"),
-        ...textToBytes("\x1B\x21\x00"), // Normal text
-        ...textToBytes("PhonePe GPay Paytm UPI\n"),
-        ...generateQRCode(upiPaymentString),
-        ...textToBytes("\n"),
-        ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n`),
-        ...textToBytes("----Thank You Visit Again!----\n"),
-        ...textToBytes("https://menumitra.com/\n"),
+        ...textToBytes("\x1B\x61\x01"), // Center align
+        ...textToBytes("-----Thank You Visit Again!-----\n"),
+        ...textToBytes("https://menumitra.com\n"),
         ...textToBytes("\x1D\x56\x42\x40") // Cut paper
       );
 
