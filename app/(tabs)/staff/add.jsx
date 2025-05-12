@@ -538,8 +538,11 @@ export default function AddStaffScreen() {
             </Pressable>
           </Center>
 
-          <FormControl isRequired isInvalid={"name" in errors}>
-            <FormControl.Label>Full Name</FormControl.Label>
+          <FormControl isInvalid={"name" in errors}>
+            <FormControl.Label>
+              <Text color="red.500" mr={1} display="inline">*</Text>
+              Full Name
+            </FormControl.Label>
             <Input
               value={formData.name}
               onChangeText={handleNameChange}
@@ -565,8 +568,11 @@ export default function AddStaffScreen() {
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl isRequired isInvalid={"role" in errors}>
-            <FormControl.Label>Role</FormControl.Label>
+          <FormControl isInvalid={"role" in errors}>
+            <FormControl.Label>
+              <Text color="red.500" mr={1} display="inline">*</Text>
+              Role
+            </FormControl.Label>
             <Pressable
               onPress={() => {
                 // Ensure dropdown opens on pressing anywhere in the input area
@@ -625,8 +631,11 @@ export default function AddStaffScreen() {
             <FormControl.ErrorMessage>{errors.role}</FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl isRequired isInvalid={"phone" in errors}>
-            <FormControl.Label>Mobile Number</FormControl.Label>
+          <FormControl isInvalid={"phone" in errors}>
+            <FormControl.Label>
+              <Text color="red.500" mr={1} display="inline">*</Text>
+              Mobile Number
+            </FormControl.Label>
             <Input
               value={formData.phone}
               onChangeText={handlePhoneChange}
@@ -653,7 +662,9 @@ export default function AddStaffScreen() {
           </FormControl>
 
           <FormControl isInvalid={"dob" in errors}>
-            <FormControl.Label>Date of Birth (Optional)</FormControl.Label>
+            <FormControl.Label>
+              Date of Birth (Optional)
+            </FormControl.Label>
             <Pressable onPress={() => setShowDatePicker(true)}>
               <Input
                 value={formData.dob || ""}
@@ -711,8 +722,11 @@ export default function AddStaffScreen() {
             )}
           </FormControl>
 
-          <FormControl isRequired isInvalid={"aadharNo" in errors}>
-            <FormControl.Label>Aadhar Number</FormControl.Label>
+          <FormControl isInvalid={"aadharNo" in errors}>
+            <FormControl.Label>
+              <Text color="red.500" mr={1} display="inline">*</Text>
+              Aadhar Number
+            </FormControl.Label>
             <Input
               value={formData.aadharNo}
               onChangeText={(text) => {
@@ -760,7 +774,9 @@ export default function AddStaffScreen() {
           </FormControl>
 
           <FormControl isInvalid={"address" in errors}>
-            <FormControl.Label>Address (Optional)</FormControl.Label>
+            <FormControl.Label>
+              Address (Optional)
+            </FormControl.Label>
             <TextArea
               value={formData.address}
               onChangeText={handleAddressChange}
