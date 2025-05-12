@@ -2727,24 +2727,13 @@ export default function TableSectionsScreen() {
           <Box mb={5} mt={2}>
            
             <Text fontSize="sm" color="coolGray.600">
-              Order #{selectedTable?.order_number} | ₹{selectedTable?.grand_total?.toFixed(2)}
-            </Text>
-            <HStack justifyContent="space-between" alignItems="center" mb={1}>
-              <Text 
-                fontSize="md" 
-                fontWeight="medium" 
-                color="coolGray.800"
-              >
-                {selectedTable?.order_type && selectedTable.order_type !== "dine-in" ? (
+            {selectedTable?.order_type && selectedTable.order_type !== "dine-in" ? (
                   getOrderTypeDisplay()
                 ) : (
                   `Table ${selectedTable?.table_number}`
-                )}
-              </Text>
-              {/* <Badge colorScheme="cyan" rounded="md" px={2}>
-                {getOrderTypeDisplay()}
-              </Badge> */}
-            </HStack>
+                )} |
+              Order #{selectedTable?.order_number} | ₹{selectedTable?.grand_total?.toFixed(2)}
+            </Text>
           </Box>
 
           {/* Success State */}
