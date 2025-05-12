@@ -243,10 +243,19 @@ export default function EditProfileScreen() {
                   placeholder="Select date of birth"
                   isReadOnly
                   rightElement={
-                    <IconButton
-                      icon={<MaterialIcons name="calendar-today" size={24} color="gray" />}
-                      onPress={() => setShowDatePicker(true)}
-                    />
+                    <HStack space={1}>
+                      {formData.dob ? (
+                        <IconButton
+                          icon={<MaterialIcons name="clear" size={20} color="gray" />}
+                          onPress={() => setFormData(prev => ({ ...prev, dob: "" }))}
+                          size="sm"
+                        />
+                      ) : null}
+                      <IconButton
+                        icon={<MaterialIcons name="calendar-today" size={24} color="gray" />}
+                        onPress={() => setShowDatePicker(true)}
+                      />
+                    </HStack>
                   }
                 />
               </Pressable>
