@@ -719,8 +719,11 @@ export default function CreateMenuView() {
         <VStack space={2} p={2}>
           {/* Initial Form Fields */}
           <VStack space={3} bg="white" p={3} rounded="lg">
-            <FormControl isRequired isInvalid={"name" in errors}>
-              <FormControl.Label>Menu Name</FormControl.Label>
+            <FormControl isInvalid={"name" in errors}>
+              <FormControl.Label>
+                <Text color="red.500" mr={1} display="inline">*</Text>
+                Menu Name
+              </FormControl.Label>
               <Input
                 value={menuDetails.name}
                 onChangeText={handleMenuNameChange}
@@ -737,8 +740,11 @@ export default function CreateMenuView() {
               <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
             </FormControl>
 
-            <FormControl flex={1} isRequired isInvalid={"full_price" in errors}>
-              <FormControl.Label>Price</FormControl.Label>
+            <FormControl flex={1} isInvalid={"full_price" in errors}>
+              <FormControl.Label>
+                <Text color="red.500" mr={1} display="inline">*</Text>
+                Price
+              </FormControl.Label>
               <Input
                 value={menuDetails.full_price}
                 onChangeText={handleFullPriceChange}
@@ -756,8 +762,11 @@ export default function CreateMenuView() {
               <FormControl.ErrorMessage>{errors.full_price}</FormControl.ErrorMessage>
             </FormControl>
 
-            <FormControl isRequired isInvalid={"menu_cat_id" in errors}>
-              <FormControl.Label>Category</FormControl.Label>
+            <FormControl isInvalid={"menu_cat_id" in errors}>
+              <FormControl.Label>
+                <Text color="red.500" mr={1} display="inline">*</Text>
+                Category
+              </FormControl.Label>
               <Pressable onPress={() => setModalVisible(true)}>
                 <Input
                   value={categories.find((cat) => cat.menu_cat_id === menuDetails.menu_cat_id)?.category_name || ""}
@@ -928,8 +937,11 @@ export default function CreateMenuView() {
                     </Pressable>
                   </FormControl>
 
-                  <FormControl isRequired isInvalid={"food_type" in errors} flex={1}>
-                    <FormControl.Label>Food Type</FormControl.Label>
+                  <FormControl isInvalid={"food_type" in errors} flex={1}>
+                    <FormControl.Label>
+                      <Text color="red.500" mr={1} display="inline">*</Text>
+                      Food Type
+                    </FormControl.Label>
                     <Pressable onPress={() => setFoodTypeModalVisible(true)}>
                       <Input
                         value={foodTypes.find((type) => type.id === menuDetails.food_type)?.name || ""}
