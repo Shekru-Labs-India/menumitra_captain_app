@@ -238,6 +238,9 @@ export default function TableSectionsScreen() {
   // Add this with other state declarations
   const [deletingSections, setDeletingSections] = useState(new Set());
 
+  // Add this state to track background refresh status (near your other state declarations)
+  const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
+
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
       setFilterStatus("available");
@@ -367,6 +370,7 @@ export default function TableSectionsScreen() {
   // Update the fetchSections function to add the alarm state flag to each table
   const fetchSections = async (outletId) => {
     try {
+      // Only set loading state for user-initiated fetches
       setLoading(true);
 
       const data = await fetchWithAuth(`${getBaseUrl()}/table_listview`, {
@@ -817,25 +821,118 @@ export default function TableSectionsScreen() {
     }
   }, [isQRModalOpen, showQRModal]);
 
-  // Add automatic refresh every minute
+  // Replace the auto-refresh useEffect with this optimized version
   useEffect(() => {
     refreshInterval.current = setInterval(async () => {
       try {
+        // Only refresh if no modal is open and we're not already doing something
+        if (isQRModalOpen || showQRModal || showDeleteModal || deletingSections.size > 0) {
+          console.log("Skipping auto-refresh because of active UI state");
+          return;
+        }
+        
+        // Set background refreshing flag (won't show spinner)
+        setBackgroundRefreshing(true);
+        
         const storedOutletId = await AsyncStorage.getItem("outlet_id");
         if (storedOutletId) {
-          await fetchSections(parseInt(storedOutletId));
+          // Use the silent refresh function instead
+          await silentRefreshSections(parseInt(storedOutletId));
         }
       } catch (error) {
         console.error("Auto Refresh Error:", error);
+      } finally {
+        setBackgroundRefreshing(false);
       }
-    }, 60000);
+    }, 60000); // Every minute
 
     return () => {
       if (refreshInterval.current) {
         clearInterval(refreshInterval.current);
       }
     };
-  }, []);
+  }, [isQRModalOpen, showQRModal, showDeleteModal, deletingSections.size]);
+
+  // Add a new function for silent refresh without global loading state
+  const silentRefreshSections = async (outletId) => {
+    try {
+      // Don't set loading state here - that's the key difference
+      
+      // Create a timestamp to track this specific refresh
+      const refreshTimestamp = Date.now();
+      console.log(`Starting background refresh ${refreshTimestamp}`);
+      
+      // Make the API call
+      const data = await fetchWithAuth(`${getBaseUrl()}/table_listview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: outletId.toString(),
+        }),
+      });
+
+      console.log(`Background refresh ${refreshTimestamp} received response:`, data.st);
+
+      if (data.st === 1) {
+        // Process the data (same as in fetchSections)
+        const processedSections = data.data.map((section) => ({
+          id: section.section_id,
+          name: section.section_name,
+          tables: section.tables.map((table) => ({
+            ...table,
+            timeSinceOccupied: calculateTimeDifference(table.occupied_time),
+            isInAlarmState: isTableInAlarmState(table.occupied_time),
+            action: table.action || (table.is_occupied === 1 ? "placed" : null),
+          })),
+          totalTables: section.tables.length,
+          engagedTables: section.tables.filter(
+            (table) => table.is_occupied === 1
+          ).length,
+        }));
+
+        // Use a functional state update to ensure we're working with fresh state
+        setSections(currentSections => {
+          // Compare and merge data (for a smoother update)
+          const mergedSections = processedSections.map(newSection => {
+            // Find this section in current state (if it exists)
+            const existingSection = currentSections.find(s => s.id === newSection.id);
+            
+            if (!existingSection) return newSection;
+            
+            // Merge tables data to preserve any local UI state
+            const mergedTables = newSection.tables.map(newTable => {
+              const existingTable = existingSection.tables.find(t => 
+                t.table_id === newTable.table_id
+              );
+              
+              if (!existingTable) return newTable;
+              
+              // Preserve UI states like deletingTables, updatingStatus, etc.
+              return {
+                ...newTable,
+                isLoading: existingTable.isLoading || false,
+              };
+            });
+            
+            return {
+              ...newSection,
+              tables: mergedTables,
+            };
+          });
+          
+          return mergedSections;
+        });
+        
+        // Update active section if needed
+        if (processedSections.length > 0 && !activeSection) {
+          setActiveSection(processedSections[0]);
+        }
+      }
+    } catch (error) {
+      console.error("Silent Refresh Error:", error);
+      // No toast notification for background refresh errors
+    }
+  };
 
   // Update the section name change handler
   const handleEditSectionNameChange = async (section) => {
