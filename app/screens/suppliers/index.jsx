@@ -294,10 +294,10 @@ export default function SuppliersScreen() {
 
         {/* Search and Filter Bar */}
         <Box bg="white" px={4} py={2} shadow={1}>
-          <HStack space={2} alignItems="center" mb={2}>
+          <HStack space={2} alignItems="center">
             <Input
-              flex={1}
-              placeholder="Search..."
+              flex={2}
+              placeholder="Search supplier"
               value={searchQuery}
               onChangeText={setSearchQuery}
               bg="coolGray.50"
@@ -309,16 +309,13 @@ export default function SuppliersScreen() {
                 </Box>
               }
             />
-          </HStack>
-          
-          <HStack space={2} alignItems="center">
             <Select
               flex={1}
               selectedValue={statusFilter}
               onValueChange={setStatusFilter}
               bg="coolGray.50"
               borderRadius="lg"
-              placeholder="Filter by status"
+              placeholder="All"
               _selectedItem={{
                 endIcon: (
                   <MaterialIcons name="check" size={16} color="coolGray.600" />
@@ -329,18 +326,6 @@ export default function SuppliersScreen() {
               <Select.Item label="Active" value="active" />
               <Select.Item label="Inactive" value="inactive" />
             </Select>
-            
-            <IconButton
-              icon={
-                <MaterialIcons
-                  name={sortOrder === "asc" ? "arrow-upward" : "arrow-downward"}
-                  size={24}
-                  color="coolGray.600"
-                />
-              }
-              onPress={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-              variant="ghost"
-            />
           </HStack>
         </Box>
 
