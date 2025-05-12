@@ -1349,7 +1349,7 @@ export default function TableSectionsScreen() {
                                                     justifyContent="center"
                                                   >
                                                     <MaterialIcons
-                                                      name="lock"
+                                                      name="lock-outline"
                                                       size={18}
                                                       color="white"
                                                     />
