@@ -2550,7 +2550,7 @@ export default function OrderDetailsScreen() {
                   leftIcon={
                     <Icon 
                       as={MaterialIcons} 
-                      name="timeline" 
+                      name="query-builder" 
                       size="xs" 
                       color={orderDetails.order_status?.toLowerCase() === "paid" ? "#16803B" : "white"} 
                     />
