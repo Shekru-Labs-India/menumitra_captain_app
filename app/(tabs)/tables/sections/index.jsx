@@ -603,6 +603,12 @@ export default function TableSectionsScreen() {
   // Add this state to track background refresh status (near your other state declarations)
   const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
 
+  // Add with other state variables
+  const [salesData, setSalesData] = useState({
+    liveSales: 0,
+    todayTotalSales: 0,
+  });
+
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
       setFilterStatus("available");
@@ -766,6 +772,12 @@ export default function TableSectionsScreen() {
         if (processedSections.length > 0 && !activeSection) {
           setActiveSection(processedSections[0]);
         }
+        
+        // Add this to store the sales data
+        setSalesData({
+          liveSales: data.live_sales || 0,
+          todayTotalSales: data.today_total_sales || 0,
+        });
       }
     } catch (error) {
       console.error("Fetch Sections Error:", error);
@@ -3994,6 +4006,54 @@ export default function TableSectionsScreen() {
                 </Pressable>
               </HStack>
             </Box>
+          </Box>
+
+          {/* Sales Summary Row */}
+          <Box 
+            bg="white" 
+            py={3}
+            borderBottomWidth={1}
+            borderBottomColor="coolGray.200"
+          >
+            <HStack mx={4} justifyContent="space-between">
+              <Box 
+                flex={1} 
+                bg="coolGray.50" 
+                rounded="lg" 
+                p={3} 
+                borderWidth={1}
+                borderColor="coolGray.200"
+                mr={2}
+              >
+                <VStack alignItems="center">
+                  <Text fontSize="lg" fontWeight="bold">
+                    ₹{Number(salesData?.liveSales || 0).toFixed(2)}
+                  </Text>
+                  <Text mt={1} color="coolGray.500" fontSize="sm">
+                    Live Sales
+                  </Text>
+                </VStack>
+              </Box>
+              
+              <Box 
+                flex={1} 
+                bg="coolGray.50" 
+                rounded="lg" 
+                p={3} 
+                borderWidth={1}
+                borderColor="coolGray.200"
+                ml={2}
+              >
+                <VStack alignItems="center">
+                  <Text fontSize="lg" fontWeight="bold">
+                    ₹{Number(salesData?.todayTotalSales || 0).toFixed(2)}
+                  </Text>
+                  <Text mt={1} color="coolGray.500" fontSize="sm">
+                    Today's Sales
+                  </Text>
+                </VStack>
+              </Box>
+            </HStack>
           </Box>
 
           {/* Filter Buttons for order types */}
