@@ -148,7 +148,8 @@ export default function EditProfileScreen() {
 
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
-    if (selectedDate) {
+    // Only update the date if a valid date was selected
+    if (event.type === 'set' && selectedDate) {
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const month = selectedDate.toLocaleString('default', { month: 'short' });
       const year = selectedDate.getFullYear();
