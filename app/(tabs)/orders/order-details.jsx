@@ -815,6 +815,7 @@ export default function OrderDetailsScreen() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const [isTimerExpired, setIsTimerExpired] = useState(false);
 
   // Update the handleDownloadInvoice function with better error handling
   const handleDownloadInvoice = async () => {
@@ -1146,13 +1147,18 @@ export default function OrderDetailsScreen() {
 
   const handleTimerEnd = async () => {
     try {
-      // After successful status update, navigate back to orders screen with refresh param
+      // Instead of navigating away, set a state to show a warning message
+      setIsTimerExpired(true);
+      
+      // We'll keep the original navigation code commented out for reference
+      /*
       router.replace({
         pathname: "/(tabs)/orders",
         params: {
           refresh: Date.now().toString(),
         },
       });
+      */
     } catch (error) {
       console.error("Error handling timer end:", error);
       toast.show({
@@ -2452,7 +2458,7 @@ export default function OrderDetailsScreen() {
         }
       />
 
-      {/* Add Timeline Modal */}
+      {/* Timeline Modal */}
       <TimelineModal
         isOpen={isTimelineModalVisible}
         onClose={() => setIsTimelineModalVisible(false)}
@@ -2460,7 +2466,37 @@ export default function OrderDetailsScreen() {
       />
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Order Summary Card - Enhanced styling like owner app */}
+        {/* Warning for expired placed orders - MOVED HERE before the blue container */}
+        {orderDetails?.order_status?.toLowerCase() === "placed" && isTimerExpired && (
+          <Box 
+            bg="orange.100" 
+            p={3} 
+            mx={10}
+            mt={4}
+            rounded="md" 
+            borderWidth={1}
+            borderColor="orange.300"
+          >
+            <HStack space={2} alignItems="center">
+              <Icon
+                as={MaterialIcons}
+                name="warning"
+                size="sm"
+                color="orange.600"
+              />
+              <Text
+                fontSize="sm"
+                color="orange.800"
+                fontWeight="medium"
+              >
+                Order has been in "Placed" status for more than 90 seconds. 
+                It may need attention.
+              </Text>
+            </HStack>
+          </Box>
+        )}
+        
+        {/* Order Summary Card - Blue container */}
         <Box 
           mx={4} 
           mt={4} 
@@ -2469,21 +2505,21 @@ export default function OrderDetailsScreen() {
           borderWidth={0}
           shadow={1}
         >
-          {/* Colored header section like the owner app */}
+          {/* Colored header section */}
           <Box 
-                  bg={
-                    orderDetails.order_status?.toLowerCase() === "cooking"
-                      ? ORDER_STATUS_COLORS.COOKING
-                      : orderDetails.order_status?.toLowerCase() === "served"
-                      ? ORDER_STATUS_COLORS.SERVED
-                      : orderDetails.order_status?.toLowerCase() === "paid"
-                      ? ORDER_STATUS_COLORS.PAID
-                      : orderDetails.order_status?.toLowerCase() === "placed"
-                      ? ORDER_STATUS_COLORS.PLACED
-                      : orderDetails.order_status?.toLowerCase() === "cancelled"
-                      ? ORDER_STATUS_COLORS.CANCELLED
-                      : ORDER_STATUS_COLORS.DEFAULT
-                  }
+            bg={
+              orderDetails.order_status?.toLowerCase() === "cooking"
+                ? ORDER_STATUS_COLORS.COOKING
+                : orderDetails.order_status?.toLowerCase() === "served"
+                ? ORDER_STATUS_COLORS.SERVED
+                : orderDetails.order_status?.toLowerCase() === "paid"
+                ? ORDER_STATUS_COLORS.PAID
+                : orderDetails.order_status?.toLowerCase() === "placed"
+                ? ORDER_STATUS_COLORS.PLACED
+                : orderDetails.order_status?.toLowerCase() === "cancelled"
+                ? ORDER_STATUS_COLORS.CANCELLED
+                : ORDER_STATUS_COLORS.DEFAULT
+            }
             p={4}
           >
             <HStack justifyContent="space-between" alignItems="flex-start">
@@ -2573,17 +2609,16 @@ export default function OrderDetailsScreen() {
             
           {/* Table information section */}
           <Box bg="white" p={3} borderBottomWidth={1} borderBottomColor="gray.100">
-          {/* Timer Badge for Placed orders - inline with header */}
+          {/* Timer Badge for Placed orders - keep this here */}
           {orderDetails.order_status?.toLowerCase() === "placed" && timeRemaining > 0 && (
             <Badge
               bg="#F44336"
               rounded="full"
-              // mt={3}
               py={1}
               px={3}
               alignSelf="flex-start"
             >
-                <HStack space={2} alignItems="center">
+              <HStack space={2} alignItems="center">
                 <Icon
                   as={MaterialIcons}
                   name="timer"
@@ -2596,27 +2631,30 @@ export default function OrderDetailsScreen() {
                   fontWeight="bold"
                 >
                   {timeRemaining}s remaining
-                  </Text>
-                </HStack>
-            </Badge>
-            )}
-              <HStack space={2} alignItems="center">
-              <Icon 
-                as={MaterialIcons} 
-                name={
-                  orderDetails.order_type?.toLowerCase() === "dine-in"
-                    ? "table-restaurant"
-                    : "receipt-long"
-                } 
-                size="sm" 
-                color="gray.600" 
-              />
-              <Text fontSize="md" color="gray.700">
-                {orderDetails.order_type?.toLowerCase() === "dine-in"
-                  ? `${orderDetails.section || ""} - Table ${orderDetails.table_number?.join(", ") || "N/A"}`
-                  : orderDetails.order_type?.charAt(0).toUpperCase() + orderDetails.order_type?.slice(1).toLowerCase()}
-                    </Text>
+                </Text>
               </HStack>
+            </Badge>
+          )}
+          
+          {/* REMOVE the warning from here since we moved it above */}
+          
+          <HStack space={2} alignItems="center">
+            <Icon 
+              as={MaterialIcons} 
+              name={
+                orderDetails.order_type?.toLowerCase() === "dine-in"
+                  ? "table-restaurant"
+                  : "receipt-long"
+              } 
+              size="sm" 
+              color="gray.600" 
+            />
+            <Text fontSize="md" color="gray.700">
+              {orderDetails.order_type?.toLowerCase() === "dine-in"
+                ? `${orderDetails.section || ""} - Table ${orderDetails.table_number?.join(", ") || "N/A"}`
+                : orderDetails.order_type?.charAt(0).toUpperCase() + orderDetails.order_type?.slice(1).toLowerCase()}
+                  </Text>
+          </HStack>
         </Box>
 
           {/* Menu count section */}
