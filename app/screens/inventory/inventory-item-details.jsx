@@ -208,154 +208,155 @@ export default function InventoryItemDetailsScreen() {
       {/* Content */}
       <ScrollView flex={1} showsVerticalScrollIndicator={false}>
         {/* Basic Information Section */}
-        <Box bg="white" m={4} rounded="lg" shadow={1} p={4}>
-          <Text fontSize="xl" color="#38bdf8" fontWeight="bold" mb={2}>
+        <Box bg="white" m={4} rounded="lg" shadow={2} p={4}>
+          <Text fontSize="lg" color="#219ebc" fontWeight="bold" mb={2}>
             Basic Information
           </Text>
           <Divider mb={4} />
           
-          <VStack space={6}>
+          <VStack space={3}>
             <HStack justifyContent="space-between">
-              <VStack space={1}>
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.name || "-"}
+              <Box flex={1}>
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.name || "Not Available"}
                 </Text>
-                <Text color="gray.500">Item Name</Text>
-              </VStack>
-              <VStack space={1} alignItems="flex-end">
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.category || "Furniture"}
+                <Text fontSize="sm" color="coolGray.600">Item Name</Text>
+              </Box>
+              <Box flex={1} alignItems="flex-end">
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.category || "Not Available"}
                 </Text>
-                <Text color="gray.500">Category</Text>
-              </VStack>
+                <Text fontSize="sm" color="coolGray.600">Category</Text>
+              </Box>
             </HStack>
 
             <HStack justifyContent="space-between">
-              <VStack space={1}>
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.quantity || "-"} {item?.unit_of_measure || "-"}
+              <Box flex={1}>
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.quantity} {item?.unit_of_measure || "Not Available"}
                 </Text>
-                <Text color="gray.500">Quantity</Text>
-              </VStack>
-              <VStack space={1} alignItems="flex-end">
-                <Text fontSize="xl" fontWeight="bold">
-                  ₹{item?.unit_price || "-"}
+                <Text fontSize="sm" color="coolGray.600">Quantity</Text>
+              </Box>
+              <Box flex={1} alignItems="flex-end">
+                <Text fontSize="md" fontWeight="bold">
+                  ₹{item?.unit_price || "Not Available"}
                 </Text>
-                <Text color="gray.500">Unit Price</Text>
-              </VStack>
+                <Text fontSize="sm" color="coolGray.600">Unit Price</Text>
+              </Box>
             </HStack>
 
             <HStack justifyContent="space-between">
-              <VStack space={1}>
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.reorder_level || "-"}
+              <Box flex={1}>
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.reorder_level || "Not Available"}
                 </Text>
-                <Text color="gray.500">Reorder Level</Text>
-              </VStack>
-              <VStack space={1} alignItems="flex-end">
-                <Text fontSize="xl" fontWeight="bold" color={item?.in_or_out === "in" ? "green.500" : "blue.500"}>
-                  {item?.in_or_out?.toUpperCase() || "-"}
+                <Text fontSize="sm" color="coolGray.600">Reorder Level</Text>
+              </Box>
+              <Box flex={1} alignItems="flex-end">
+                <Text fontSize="md" fontWeight="bold" color={item?.in_or_out === "in" ? "green.500" : "red.500"}>
+                  {item?.in_or_out?.toUpperCase() || "Not Available"}
                 </Text>
-                <Text color="gray.500">Status</Text>
-              </VStack>
+                <Text fontSize="sm" color="coolGray.600">Status</Text>
+              </Box>
             </HStack>
           </VStack>
         </Box>
 
         {/* Additional Details Section */}
-        <Box bg="white" mx={4} mb={6} rounded="lg" shadow={1} p={4}>
-          <Text fontSize="xl" color="#38bdf8" fontWeight="bold" mb={2}>
+        <Box bg="white" mx={4} mb={6} rounded="lg" shadow={2} p={4}>
+          <Text fontSize="lg" color="#219ebc" fontWeight="bold" mb={2}>
             Additional Details
           </Text>
           <Divider mb={4} />
           
-          <VStack space={6}>
+          <VStack space={4}>
+            {/* Tax Rate and Brand Name */}
             <HStack justifyContent="space-between">
-              <VStack space={1}>
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.tax_rate || "-"}%
+              <Box flex={1}>
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.tax_rate || "Not Available"}%
                 </Text>
-                <Text color="gray.500">Tax Rate</Text>
-              </VStack>
-              <VStack space={1} alignItems="flex-end">
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.brand_name || "-"}
-                </Text>
-                <Text color="gray.500">Brand Name</Text>
-              </VStack>
-            </HStack>
-
-            <HStack justifyContent="space-between">
-              <VStack space={1}>
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.supplier_name || "-"}
-                </Text>
-                <Text color="gray.500">Supplier Name</Text>
-              </VStack>
-              <VStack space={1} alignItems="flex-end">
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.expiration_date || "-"}
-                </Text>
-                <Text color="gray.500">Expiration Date</Text>
-              </VStack>
-            </HStack>
-
-            <HStack justifyContent="space-between">
-              <VStack space={1}>
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.in_date || "-"}
-                </Text>
-                <Text color="gray.500">In Date</Text>
-              </VStack>
-              <VStack space={1} alignItems="flex-end">
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.out_date || "-"}
-                </Text>
-                <Text color="gray.500">Out Date</Text>
-              </VStack>
-            </HStack>
-
-            <HStack justifyContent="space-between">
-              <VStack space={1}>
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.createdBy?.toUpperCase() || "-"}
-                </Text>
-                <Text color="gray.500">Created By</Text>
-              </VStack>
-              <VStack space={1} alignItems="flex-end">
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.updatedBy?.toUpperCase() || "-"}
-                </Text>
-                <Text color="gray.500">Updated By</Text>
-              </VStack>
-            </HStack>
-
-            <VStack space={2}>
-              <Box>
-                <Text color="gray.500" mb={1}>Created On</Text>
-                <Text fontSize="md" fontWeight="bold" isTruncated numberOfLines={2}>
-                  {item?.createdOn || "-"}
-                </Text>
+                <Text fontSize="sm" color="coolGray.500">Tax Rate</Text>
               </Box>
-              
-              <Box mt={2}>
-                <Text color="gray.500" mb={1}>Updated On</Text>
-                <Text fontSize="md" fontWeight="bold" isTruncated numberOfLines={2}>
-                  {item?.updatedOn && item?.updatedOn !== item?.createdOn 
-                    ? item.updatedOn 
-                    : "Not updated yet"}
+              <Box flex={1} alignItems="flex-end">
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.brand_name || "Not Available"}
                 </Text>
+                <Text fontSize="sm" color="coolGray.500">Brand Name</Text>
               </Box>
-            </VStack>
-
-            <HStack justifyContent="flex-start">
-              <VStack space={1}>
-                <Text fontSize="xl" fontWeight="bold">
-                  {item?.description || "-"}
-                </Text>
-                <Text color="gray.500">Description</Text>
-              </VStack>
             </HStack>
+
+            {/* Supplier Name and Expiration Date */}
+            <HStack justifyContent="space-between">
+              <Box flex={1}>
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.supplier_name || "Not Available"}
+                </Text>
+                <Text fontSize="sm" color="coolGray.500">Supplier Name</Text>
+              </Box>
+              <Box flex={1} alignItems="flex-end">
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.expiration_date || "Not Available"}
+                </Text>
+                <Text fontSize="sm" color="coolGray.500">Expiration Date</Text>
+              </Box>
+            </HStack>
+
+            {/* In Date and Out Date */}
+            <HStack justifyContent="space-between">
+              <Box flex={1}>
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.in_date || "Not Available"}
+                </Text>
+                <Text fontSize="sm" color="coolGray.500">In Date</Text>
+              </Box>
+              <Box flex={1} alignItems="flex-end">
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.out_date || "Not Available"}
+                </Text>
+                <Text fontSize="sm" color="coolGray.500">Out Date</Text>
+              </Box>
+            </HStack>
+
+            {/* Created By and Updated By */}
+            <HStack justifyContent="space-between">
+              <Box flex={1}>
+                <Text fontSize="md" fontWeight="bold" textTransform="lowercase">
+                  {item?.createdBy || "Not Available"}
+                </Text>
+                <Text fontSize="sm" color="coolGray.500">Created By</Text>
+              </Box>
+              <Box flex={1} alignItems="flex-end">
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.updatedBy || "N/A"}
+                </Text>
+                <Text fontSize="sm" color="coolGray.500">Updated By</Text>
+              </Box>
+            </HStack>
+
+            {/* Created On */}
+            <HStack justifyContent="space-between">
+              <Box flex={1}>
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.createdOn || "Not Available"}
+                </Text>
+                <Text fontSize="sm" color="coolGray.500">Created On</Text>
+              </Box>
+              <Box flex={1} alignItems="flex-end">
+                <Text fontSize="md" fontWeight="bold">
+                  {item?.updatedOn || "N/A"}
+                </Text>
+                <Text fontSize="sm" color="coolGray.500">Updated On</Text>
+              </Box>
+            </HStack>
+
+            {/* Description at the bottom */}
+            <Box>
+              <Text fontSize="md" fontWeight="bold">
+                {item?.description || "Not Available"}
+              </Text>
+              <Text fontSize="sm" color="coolGray.500">Description</Text>
+            </Box>
           </VStack>
         </Box>
       </ScrollView>
