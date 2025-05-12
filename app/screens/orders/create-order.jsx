@@ -362,7 +362,7 @@ const calculateItemTotal = (price, quantity, offer = 0) => {
 // Add this helper function after other helper functions (around line 350)
 const getUpiId = async () => {
   try {
-    const upiId = await AsyncStorage.getItem("upi");
+    const upiId = await AsyncStorage.getItem("upi_id");
     return upiId || "No UPI ID found";
   } catch (error) {
     console.error("Error fetching UPI ID:", error);
@@ -2417,12 +2417,14 @@ const handleSettleOrder = async () => {
       let commands = [...COMMANDS.INITIALIZE];
 
       // Get outlet details
-      const [outletName, outletAddress, outletMobile, upiId] = await Promise.all([
+      const [outletName, outletAddress, outletMobile] = await Promise.all([
         AsyncStorage.getItem("outlet_name"),
         AsyncStorage.getItem("outlet_address"),
         AsyncStorage.getItem("outlet_mobile"),
-        AsyncStorage.getItem("upi_id"),
+        // AsyncStorage.getItem("upi_id"),
       ]);
+
+      const upiId = await AsyncStorage.getItem("upi_id")
 
       // Calculate totals
       const subtotal = calculateSubtotal(selectedItems);
@@ -2555,7 +2557,7 @@ const handleSettleOrder = async () => {
       }
 
       // Add QR code for UPI payment
-      if (upiPaymentString) {
+      // if (upiPaymentString) {
         commands.push(
           ...textToBytes("\x1B\x61\x01"), // Center align
           ...textToBytes("------ Payment Options ------\n\n"),
@@ -2567,7 +2569,7 @@ const handleSettleOrder = async () => {
           ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n\n`),
           ...textToBytes("UPI ID: " + upiId + "\n\n")
         );
-      }
+      // }
 
       // Add footer
       commands.push(
