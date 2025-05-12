@@ -4089,33 +4089,35 @@ const handleSettleOrder = async () => {
 
   // Validate order type and params on mount
   useEffect(() => {
-    const validateOrderTypeAndParams = () => {
-      // Get the order type from params or default to dine-in
-      const currentOrderType = params.orderType || "dine-in";
-      
-      // Log the validation
-      console.log("Validating order type:", currentOrderType);
-      console.log("Current params:", params);
-      
-      // Set the order type
+    // Get the order type from params or default to dine-in
+    const currentOrderType = params.orderType || "dine-in";
+    
+    // Log the validation (once)
+    console.log("Validating order type:", currentOrderType);
+    
+    // Only update state if the order type has changed
+    if (orderType !== currentOrderType) {
       setOrderType(currentOrderType);
-      
-      // Only validate table/section for dine-in orders
-      if (currentOrderType === "dine-in") {
-        if (!params.tableNumber || !params.sectionId) {
-          console.warn("Missing table/section info for dine-in order");
-        }
-      } else if (currentOrderType === "counter") {
-        // For counter orders, clear any table/section info
+    }
+    
+    // Only validate table/section for dine-in orders
+    if (currentOrderType === "dine-in") {
+      if (!params.tableNumber || !params.sectionId) {
+        console.warn("Missing table/section info for dine-in order");
+      }
+    } else if (currentOrderType === "counter") {
+      // For counter orders, clear any table/section info
+      // Only update if current values don't match
+      if (currentTableNumber !== "" || currentSectionId !== "" || currentSectionName !== "") {
         setCurrentTableNumber("");
         setCurrentSectionId("");
         setCurrentSectionName("");
-        console.log("Counter order - cleared table/section info");
       }
-    };
-
-    validateOrderTypeAndParams();
-  }, [params]);
+      console.log("Counter order - cleared table/section info");
+    }
+    
+    // This function doesn't need to be recreated on every render
+  }, [params?.orderType, orderType, params?.tableNumber, params?.sectionId]); // Specific dependencies
 
   // Add this useEffect after the state declarations
   useEffect(() => {
