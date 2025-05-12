@@ -775,22 +775,31 @@ export default function TableSectionsScreen() {
 
   // Add this function for pull to refresh
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
+    if (isQRModalOpen || showQRModal) {
+      console.log("Skipping refresh because QR modal is open");
+      return;
+    }
     try {
+      setRefreshing(true);
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       if (storedOutletId) {
         await fetchSections(parseInt(storedOutletId));
+        toast.show({
+          description: "Tables refreshed",
+          status: "success",
+          duration: 1000,
+        });
       }
     } catch (error) {
       console.error("Refresh Error:", error);
       toast.show({
-        description: "Failed to refresh",
+        description: "Failed to refresh tables",
         status: "error",
       });
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [isQRModalOpen, showQRModal]);
 
   // Add automatic refresh every minute
   useEffect(() => {
@@ -2959,7 +2968,28 @@ export default function TableSectionsScreen() {
   const renderListView = (sections) => (
     <ScrollView
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl 
+          refreshing={refreshing} 
+          onRefresh={async () => {
+            try {
+              setRefreshing(true);
+              const storedOutletId = await AsyncStorage.getItem("outlet_id");
+              if (storedOutletId) {
+                await fetchSections(parseInt(storedOutletId));
+              }
+            } catch (error) {
+              console.error("Pull to refresh error:", error);
+              toast.show({
+                description: "Failed to refresh tables",
+                status: "error",
+              });
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+          colors={["#0891b2"]} // For Android
+          tintColor="#0891b2" // For iOS
+        />
       }
     >
       <VStack space={3} p={4}>
@@ -3092,6 +3122,14 @@ export default function TableSectionsScreen() {
     <Box safeArea flex={1} bg="coolGray.100">
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={["#0891b2"]} // For Android
+            tintColor="#0891b2" // For iOS
+          />
+        }
       >
         <VStack flex={1}>
           <HStack
