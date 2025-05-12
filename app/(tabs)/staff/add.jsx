@@ -663,7 +663,7 @@ export default function AddStaffScreen() {
 
           <FormControl isInvalid={"dob" in errors}>
             <FormControl.Label>
-              Date of Birth (Optional)
+              Date of Birth
             </FormControl.Label>
             <Pressable onPress={() => setShowDatePicker(true)}>
               <Input
@@ -775,7 +775,7 @@ export default function AddStaffScreen() {
 
           <FormControl isInvalid={"address" in errors}>
             <FormControl.Label>
-              Address (Optional)
+              Addres
             </FormControl.Label>
             <TextArea
               value={formData.address}
