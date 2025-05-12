@@ -371,8 +371,11 @@ export default function EditCategoryView() {
           {/* Category Details Form */}
           <Box bg="white" rounded="lg" p={4} shadow={1}>
             <VStack space={4}>
-              <FormControl isRequired isInvalid={"category_name" in errors}>
-                <FormControl.Label>Category Name</FormControl.Label>
+              <FormControl isInvalid={"category_name" in errors}>
+                <FormControl.Label>
+                  <Text color="red.500" mr={1} display="inline">*</Text>
+                  Category Name
+                </FormControl.Label>
                 <Input
                   value={categoryDetails.category_name}
                   onChangeText={handleCategoryNameChange}
