@@ -4025,14 +4025,14 @@ export default function TableSectionsScreen() {
                 borderColor="coolGray.200"
                 mr={2}
               >
-                <VStack alignItems="center">
-                  <Text fontSize="lg" fontWeight="bold">
+                <HStack space={2} alignItems="center" justifyContent="center">
+                  <Text color="coolGray.500" fontSize="sm">
+                    Live Sales:
+                  </Text>
+                  <Text fontSize="md" fontWeight="bold">
                     ₹{Number(salesData?.liveSales || 0).toFixed(2)}
                   </Text>
-                  <Text mt={1} color="coolGray.500" fontSize="sm">
-                    Live Sales
-                  </Text>
-                </VStack>
+                </HStack>
               </Box>
               
               <Box 
@@ -4044,14 +4044,14 @@ export default function TableSectionsScreen() {
                 borderColor="coolGray.200"
                 ml={2}
               >
-                <VStack alignItems="center">
-                  <Text fontSize="lg" fontWeight="bold">
+                <HStack space={2} alignItems="center" justifyContent="center">
+                  <Text color="coolGray.500" fontSize="sm">
+                    Today's Sales:
+                  </Text>
+                  <Text fontSize="md" fontWeight="bold">
                     ₹{Number(salesData?.todayTotalSales || 0).toFixed(2)}
                   </Text>
-                  <Text mt={1} color="coolGray.500" fontSize="sm">
-                    Today's Sales
-                  </Text>
-                </VStack>
+                </HStack>
               </Box>
             </HStack>
           </Box>
