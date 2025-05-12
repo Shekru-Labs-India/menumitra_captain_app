@@ -1387,19 +1387,19 @@ export default function TableSectionsScreen() {
                                                 onPress={() => {
                                                   handleTableReservation(table);
                                                 }}
-                                                bg={table.is_reserved ? "red.600" : "black"}
+                                                // bg={table.is_reserved ? "red.600" : "black"}
                                                 rounded="full"
                                                 size={8}
                                                 w={8}
                                                 h={8}
-                                                shadow={1}
+                                                // shadow={1}
                                                 alignItems="center"
                                                 justifyContent="center"
                                               >
                                                 <MaterialIcons
                                                   name={table.is_reserved ? "lock-open" : "lock-outline"}
                                                   size={18}
-                                                  color="white"
+                                                  color={table.is_reserved ? "#000" : "#ef4444"}
                                                 />
                                               </Pressable>
                                             </Box>
