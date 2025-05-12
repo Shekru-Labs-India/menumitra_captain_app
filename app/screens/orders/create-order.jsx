@@ -2923,11 +2923,13 @@ const handleSettleOrder = async () => {
           const statusRequestBody = {
             outlet_id: storedOutletId?.toString(),
             order_id: params?.orderId || response.order_id,
-            order_status: isPaid ? "paid" : (orderStatus === "settle" ? "paid" : "placed"),
+            order_status: orderStatus === "KOT_and_save" ? "placed" : 
+                         (isPaid ? "paid" : (orderStatus === "settle" ? "paid" : "placed")),
             user_id: storedUserId?.toString(),
             action: orderStatus,
-            is_paid: paymentStatus,
-            payment_method: effectivePaymentMethod,
+            // For KOT orders, don't change payment status
+            is_paid: orderStatus === "KOT_and_save" ? null : paymentStatus,
+            payment_method: orderStatus === "KOT_and_save" ? "" : effectivePaymentMethod,
             device_token: deviceToken || "",
             customer_name: customerDetails.customer_name || "",
             customer_mobile: customerDetails.customer_mobile || "",
@@ -2947,6 +2949,13 @@ const handleSettleOrder = async () => {
             statusRequestBody.tables = [params.tableNumber?.toString()];
             statusRequestBody.section_id = params.sectionId?.toString();
           }
+          
+          console.log("Updating order status with:", {
+            orderStatus,
+            isPaid,
+            paymentStatus: statusRequestBody.is_paid,
+            orderType
+          });
           
           const statusResponse = await fetchWithAuth(
             onGetProductionUrl() + "update_order_status", 
