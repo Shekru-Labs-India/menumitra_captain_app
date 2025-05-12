@@ -3341,8 +3341,8 @@ export default function TableSectionsScreen() {
   // Replace the PaymentModal component implementation with the imported one
   const renderPaymentModal = () => (
     <PaymentModal 
-      isOpen={isPaymentModalVisible}
-      onClose={() => setIsPaymentModalVisible(false)}
+        isOpen={isPaymentModalVisible}
+        onClose={() => setIsPaymentModalVisible(false)}
       tableData={selectedTable}
       paymentSuccess={paymentSuccess}
       paymentLoading={paymentLoading}
