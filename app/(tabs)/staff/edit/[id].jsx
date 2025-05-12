@@ -18,7 +18,6 @@ import {
   CheckIcon,
   Icon,
   Factory,
-  useFormControlContext,
 } from "native-base";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Platform, StatusBar, Image, Keyboard } from "react-native";
@@ -652,12 +651,6 @@ export default function EditStaffScreen() {
     }
   };
 
-  // Custom component to show asterisk on the left side
-  const RequiredAsterisk = () => {
-    const { isRequired } = useFormControlContext();
-    return isRequired ? <Text color="red.500">* </Text> : null;
-  };
-
   return (
     <Box flex={1} bg="white" safeArea>
       <Header title="Edit Staff Details" />
@@ -665,7 +658,10 @@ export default function EditStaffScreen() {
       <ScrollView px={4} py={4}>
         <VStack space={4}>
           <FormControl>
-            <FormControl.Label><RequiredAsterisk />Photo</FormControl.Label>
+            <FormControl.Label>
+              <Text color="red.500" mr={1} display="inline">*</Text>
+              Photo
+            </FormControl.Label>
             <VStack space={2}>
               {(formData.photo ||
                 (formData.existing_photo &&
@@ -733,8 +729,11 @@ export default function EditStaffScreen() {
             </VStack>
           </FormControl>
 
-          <FormControl isRequired isInvalid={"name" in errors}>
-            <FormControl.Label><RequiredAsterisk />Name</FormControl.Label>
+          <FormControl isInvalid={"name" in errors}>
+            <FormControl.Label>
+              <Text color="red.500" mr={1} display="inline">*</Text>
+              Name
+            </FormControl.Label>
             <Input
               value={formData.name}
               onChangeText={handleNameChange}
@@ -759,8 +758,11 @@ export default function EditStaffScreen() {
             <FormControl.ErrorMessage>{errors.name}</FormControl.ErrorMessage>
           </FormControl>
 
-          <FormControl isRequired isInvalid={"role" in errors}>
-            <FormControl.Label><RequiredAsterisk />Role</FormControl.Label>
+          <FormControl isInvalid={"role" in errors}>
+            <FormControl.Label>
+              <Text color="red.500" mr={1} display="inline">*</Text>
+              Role
+            </FormControl.Label>
             <Select
               selectedValue={formData.role}
               onValueChange={(value) => {
@@ -807,8 +809,11 @@ export default function EditStaffScreen() {
             </Select>
           </FormControl>
 
-          <FormControl isRequired isInvalid={"mobile" in errors}>
-            <FormControl.Label><RequiredAsterisk />Phone</FormControl.Label>
+          <FormControl isInvalid={"mobile" in errors}>
+            <FormControl.Label>
+              <Text color="red.500" mr={1} display="inline">*</Text>
+              Phone
+            </FormControl.Label>
             <Input
               value={formData.mobile}
               onChangeText={handleMobileChange}
@@ -835,7 +840,9 @@ export default function EditStaffScreen() {
           </FormControl>
 
           <FormControl>
-            <FormControl.Label><RequiredAsterisk />Date of Birth (Optional)</FormControl.Label>
+            <FormControl.Label>
+              Date of Birth
+            </FormControl.Label>
             <Pressable onPress={() => setShowDatePicker(true)}>
               <Input
                 value={formData.dob}
@@ -900,8 +907,11 @@ export default function EditStaffScreen() {
             />
           )}
 
-          <FormControl isRequired isInvalid={"aadhar_number" in errors}>
-            <FormControl.Label><RequiredAsterisk />Aadhar Number</FormControl.Label>
+          <FormControl isInvalid={"aadhar_number" in errors}>
+            <FormControl.Label>
+              <Text color="red.500" mr={1} display="inline">*</Text>
+              Aadhar Number
+            </FormControl.Label>
             <Input
               value={formData.aadhar_number}
               onChangeText={handleAadharChange}
@@ -930,7 +940,9 @@ export default function EditStaffScreen() {
           </FormControl>
 
           <FormControl isInvalid={"address" in errors}>
-            <FormControl.Label><RequiredAsterisk />Address</FormControl.Label>
+            <FormControl.Label>
+              Address
+            </FormControl.Label>
             <TextArea
               value={formData.address}
               onChangeText={handleAddressChange}
