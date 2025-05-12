@@ -220,6 +220,7 @@ const RestaurantProfile = () => {
           await AsyncStorage.setItem("outlet_name", response.data.name || "");
           await AsyncStorage.setItem("outlet_address", response.data.address || "");
           await AsyncStorage.setItem("outlet_mobile", response.data.mobile || "");
+          await AsyncStorage.setItem("upi", response.data.upi_id || "")
         } catch (storageError) {
           console.error("Error saving to AsyncStorage:", storageError);
         }

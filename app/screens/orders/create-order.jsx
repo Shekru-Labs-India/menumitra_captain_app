@@ -359,6 +359,17 @@ const calculateItemTotal = (price, quantity, offer = 0) => {
   return rawTotal - discount;
 };
 
+// Add this helper function after other helper functions (around line 350)
+const getUpiId = async () => {
+  try {
+    const upiId = await AsyncStorage.getItem("upi");
+    return upiId || "No UPI ID found";
+  } catch (error) {
+    console.error("Error fetching UPI ID:", error);
+    return "Error fetching UPI ID";
+  }
+};
+
 export default function CreateOrderScreen() {
   const toast = useToast();
   const router = useRouter();
@@ -4117,6 +4128,19 @@ const handleSettleOrder = async () => {
     }
   }, [params]); // Only run when params change
 
+  // Add this state for UPI ID after other state declarations
+  const [displayUpiId, setDisplayUpiId] = useState("Loading UPI ID...");
+  
+  // Add this useEffect to fetch and display UPI ID
+  useEffect(() => {
+    const fetchUpiId = async () => {
+      const upiId = await getUpiId();
+      setDisplayUpiId(upiId);
+    };
+    
+    fetchUpiId();
+  }, []);
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -4158,6 +4182,15 @@ const handleSettleOrder = async () => {
           </Box>
         }
       />
+      
+      {/* Display UPI ID for testing purposes */}
+      {/* <Box bg="coolGray.100" px={4} py={2} mb={2}>
+        <HStack alignItems="center" space={2}>
+          <Icon as={MaterialIcons} name="account-balance-wallet" size="sm" color="blue.500" />
+          <Text fontWeight="medium">UPI ID: <Text color="blue.600">{displayUpiId}</Text></Text>
+        </HStack>
+      </Box> */}
+      
       {/* <PrinterStatusIndicator /> */}
       
       {isLoadingOrder ? (
