@@ -1206,7 +1206,7 @@ export default function TableSectionsScreen() {
                                                           ? "#dc3545" // Create order - Red
                                                           : table.action === "placed"
                                                             ? "#dc3545" // Placed - Red
-                                                            : "#2196f3" // Regular occupied - Blue
+                                                            : "#dc3545" // Regular occupied - Blue
                                                   }
                                                   py={1}
                                                   px={1}
@@ -1271,7 +1271,7 @@ export default function TableSectionsScreen() {
                                                           ? "#000000" // KOT & Save - Black
                                                           : table.action === "create_order"
                                                             ? "#dc3545" // Create order - Red
-                                                            : "#f97316" // Default orange
+                                                            : "#dc3545" // Default orange
                                                     }
                                                     w={8}
                                                     h={8}
