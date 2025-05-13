@@ -4065,7 +4065,13 @@ export default function CreateOrderScreen() {
 
     // Call appropriate handler with modal values (matching Owner App)
     if (currentAction === "kot") {
-      handleKOT(modalPaymentMethod, modalIsPaid);
+      if (modalIsPaid) {
+        // If the order is marked as paid, use "settle" action instead of "KOT_and_save"
+        handleSettlePaymentConfirm(modalPaymentMethod, modalIsPaid);
+      } else {
+        // If not marked as paid, continue with normal KOT flow
+        handleKOT(modalPaymentMethod, modalIsPaid);
+      }
     } else if (currentAction === "settle") {
       handleSettlePaymentConfirm(modalPaymentMethod, modalIsPaid);
     }
@@ -4085,7 +4091,8 @@ export default function CreateOrderScreen() {
     // Set the current action to 'kot'
     setCurrentAction("kot");
 
-    // Set isPaidChecked to false by default for the modal
+    // Set isPaidChecked to FALSE by default for the modal
+    // Let the user decide if they want to make it "paid"
     setIsPaidChecked(false);
 
     // Show the payment modal
@@ -5528,7 +5535,8 @@ export default function CreateOrderScreen() {
         tableData={{
           order_type: params?.orderType || "dine-in",
           table_number: params?.tableNumber || "",
-          order_number: params?.orderNumber || "",
+          // Only include order_number if it exists
+          ...(params?.orderNumber && { order_number: params.orderNumber }), 
           grand_total: calculateGrandTotal(
             selectedItems,
             specialDiscount,

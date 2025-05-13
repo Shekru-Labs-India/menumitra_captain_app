@@ -56,7 +56,8 @@ const PaymentModal = ({
             {tableData?.order_type && tableData.order_type !== "dine-in"
               ? getOrderTypeDisplay()
               : `Table ${tableData?.table_number}`}{" "}
-            | Order #{tableData?.order_number} | ₹
+            {/* Only show order number if it exists */}
+            {tableData?.order_number && `| Order #${tableData?.order_number}`} | ₹
             {tableData?.grand_total?.toFixed(2)}
           </Text>
         </Box>
