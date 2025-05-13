@@ -2481,7 +2481,7 @@ export default function CreateOrderScreen() {
       }
 
       //? Reduced final delay while still ensuring all data is processed
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       console.log("All data sent successfully");
       return true;
