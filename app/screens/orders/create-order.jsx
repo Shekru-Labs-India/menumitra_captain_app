@@ -3308,18 +3308,7 @@ export default function CreateOrderScreen() {
             orderType,
           });
 
-          const statusResponse = await fetchWithAuth(
-            onGetProductionUrl() + "update_order_status",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(statusRequestBody),
-            }
-          );
-
-          if (statusResponse.st !== 1) {
-            console.warn("Order status update warning:", statusResponse.msg);
-          }
+          
         } catch (statusError) {
           console.error("Failed to update order status:", statusError);
         }
