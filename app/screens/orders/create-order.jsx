@@ -57,6 +57,7 @@ import { usePrinter } from "../../../context/PrinterContext";
 import axios from "axios";
 import Toast from "react-native-toast-message";
 import { Ionicons } from "@expo/vector-icons";
+import PaymentModal from "../../components/PaymentModal";
 
 // Helper function to get the API base URL with trailing slash
 const onGetProductionUrl = () => {
@@ -969,7 +970,7 @@ export default function CreateOrderScreen() {
         return;
       }
 
-      // Continue with original KOT and Save logic
+      // Continue with KOT and Save logic
       if (selectedItems.length === 0) {
         toast.show({
           description: "Please add items to the order",
@@ -983,13 +984,12 @@ export default function CreateOrderScreen() {
       setLoadingMessage("Processing KOT and saving order...");
 
       try {
-        // Create order with "save" status
+        // Create order with "KOT_and_save" status
         const apiResponse = await createOrder("KOT_and_save", true);
         if (!apiResponse || apiResponse.st !== 1) {
           throw new Error(apiResponse?.msg || "Failed to save order");
         }
 
-        // ADDED: Enhanced debugging for KOT order number issue
         console.log(
           "API Response for KOT_and_save:",
           JSON.stringify(apiResponse)
@@ -1000,27 +1000,39 @@ export default function CreateOrderScreen() {
             apiResponse?.lists?.order_details?.order_number ||
             "Not found in KOT API response"
         );
-        console.log("KOT Params:", {
-          orderIdParam: params?.orderId,
-          orderNumberParam: params?.orderNumber,
-        });
 
-        // Print KOT
+        // First print KOT
         try {
           setLoadingMessage("Printing KOT...");
           await printKOT(apiResponse);
 
           toast.show({
-            description: "Order saved and KOT printed successfully",
+            description: "KOT printed successfully, please cut the paper...",
             status: "success",
             duration: 2000,
           });
+
+          // Only proceed with bill printing if payment is confirmed
+          if (effectiveIsPaid) {
+            setLoadingMessage("Waiting to print receipt... Please cut the paper");
+            
+            // Wait for 3 seconds to allow user to cut the paper
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Now print the receipt
+            setLoadingMessage("Printing receipt...");
+            await printReceipt(apiResponse);
+            
+            toast.show({
+              description: "Order paid and receipt printed successfully",
+              status: "success",
+              duration: 2000,
+            });
+          }
         } catch (printError) {
-          console.error("KOT print error:", printError);
-          // Continue even with print error
+          console.error("Print error:", printError);
           toast.show({
-            description:
-              "Order saved but KOT printing failed: " + printError.message,
+            description: "Order saved but printing failed: " + printError.message,
             status: "warning",
             duration: 3000,
           });
@@ -5510,93 +5522,30 @@ export default function CreateOrderScreen() {
       />
 
       {/* Payment Selection Modal */}
-      <Modal
+      <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
-        size="lg"
-      >
-        <Modal.Content maxW="400px">
-          <Modal.CloseButton />
-          <Modal.Body py={6}>
-            <VStack space={4}>
-              <Text fontSize="lg" fontWeight="semibold">
-                Select Payment Method
-              </Text>
-              <HStack justifyContent="space-between" alignItems="center">
-                <Text fontSize="lg" fontWeight="bold">
-                  Table: {params?.tableNumber || "4"}
-                </Text>
-                {/* Only show bill number if orderNumber exists */}
-                {params?.orderNumber ? (
-                  <Text fontSize="lg" fontWeight="bold">
-                    Bill no: #{params?.orderNumber}
-                  </Text>
-                ) : null}
-                <Text fontSize="lg" fontWeight="bold" color="green.500">
-                  ₹
-                  {calculateGrandTotal(
-                    selectedItems,
-                    specialDiscount,
-                    extraCharges,
-                    serviceChargePercentage,
-                    gstPercentage,
-                    tip
-                  ).toFixed(2)}
-                </Text>
-              </HStack>
-
-              <Radio.Group
-                name="paymentMethod"
-                value={selectedPaymentMethod}
-                onChange={setSelectedPaymentMethod}
-              >
-                <HStack space={6} flexWrap="wrap">
-                  <Radio value="cash" size="lg">
-                    <Text fontSize="md">CASH</Text>
-                  </Radio>
-                  <Radio value="upi" size="lg">
-                    <Text fontSize="md">UPI</Text>
-                  </Radio>
-                  <Radio value="card" size="lg">
-                    <Text fontSize="md">CARD</Text>
-                  </Radio>
-                </HStack>
-              </Radio.Group>
-
-              <Divider my={2} />
-
-              <HStack alignItems="center" space={2}>
-                <Checkbox
-                  value="paid"
-                  isChecked={isPaidChecked}
-                  onChange={(isChecked) => {
-                    setIsPaidChecked(isChecked);
-                    // Reset payment method if unchecking paid
-                    if (!isChecked) {
-                      setSelectedPaymentMethod("cash");
-                    }
-                  }}
-                  size="lg"
-                >
-                  <Text fontSize="md">Paid</Text>
-                </Checkbox>
-              </HStack>
-
-              <Button
-                mt={4}
-                size="lg"
-                bg="blue.500"
-                _pressed={{ bg: "blue.600" }}
-                onPress={handlePaymentModalConfirm}
-                // Only enable the button when isPaidChecked is true
-                isDisabled={!isPaidChecked}
-              >
-                {currentAction === "kot" ? "Generate KOT" : "Settle"}
-              </Button>
-            </VStack>
-          </Modal.Body>
-        </Modal.Content>
-      </Modal>
+        tableData={{
+          order_type: params?.orderType || "dine-in",
+          table_number: params?.tableNumber || "",
+          order_number: params?.orderNumber || "",
+          grand_total: calculateGrandTotal(
+            selectedItems,
+            specialDiscount,
+            extraCharges,
+            serviceChargePercentage,
+            gstPercentage,
+            tip
+          ),
+        }}
+        paymentSuccess={false}
+        paymentLoading={isLoading}
+        selectedPaymentMethod={selectedPaymentMethod}
+        setSelectedPaymentMethod={setSelectedPaymentMethod}
+        isPaid={isPaidChecked}
+        setIsPaid={setIsPaidChecked}
+        onSettlePayment={handlePaymentModalConfirm}
+      />
       <Toast />
     </Box>
   );
