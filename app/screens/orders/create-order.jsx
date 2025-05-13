@@ -4818,7 +4818,7 @@ export default function CreateOrderScreen() {
       <Header
         title={
           params?.orderId
-            ? "Update Order"
+            ? `Update ${params.orderType.split("-").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")} Order`
             : params?.orderType
             ? `Create ${
                 params.orderType === "drive-through"

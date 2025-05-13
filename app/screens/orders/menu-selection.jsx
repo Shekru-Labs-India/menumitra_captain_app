@@ -1241,7 +1241,7 @@ export default function MenuSelectionScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <Header 
-        title={params?.orderId ? `Update ${toTitleCase(params.orderType || "Order")}` : "Select Menu Items"}
+        title={params?.orderId ? `Update ${toTitleCase(params.orderType || "Order")} order` : "Select Menu Items"}
         showBack 
         rightComponent={
           <HStack alignItems="center" space={2}>
