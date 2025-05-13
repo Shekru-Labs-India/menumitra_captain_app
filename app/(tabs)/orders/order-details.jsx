@@ -55,6 +55,9 @@ import { fetchWithAuth } from "../../../utils/apiInterceptor";
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Asset } from 'expo-asset';
+import PaymentModal from "../../components/PaymentModal";
+import { usePrinter } from "../../../context/PrinterContext";
+import { useIsFocused } from "@react-navigation/native";
 
 // Add order status colors from owner app
 const ORDER_STATUS_COLORS = {
@@ -816,6 +819,23 @@ export default function OrderDetailsScreen() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
+  const isFocused = useIsFocused();
+  const [isDeviceSelectionModalVisible, setIsDeviceSelectionModalVisible] = useState(false);
+
+  const {
+    isConnected: printerConnected,
+    printerDevice: contextPrinterDevice,
+    connectToPrinter,
+    isScanning: printerScanning,
+    scanForPrinters: contextScanForPrinters,
+    availableDevices: printerDevices,
+    sendDataToPrinter,  // Use this imported version
+    reconnectPrinter,
+    disconnectPrinter: contextDisconnectPrinter,
+    autoReconnect,
+    setAutoReconnect,
+    isPrinting,
+  } = usePrinter();
 
   // Update the handleDownloadInvoice function with better error handling
   const handleDownloadInvoice = async () => {
@@ -1535,34 +1555,34 @@ export default function OrderDetailsScreen() {
       setIsLoading(true);
       setLoadingMessage(`Preparing to print ${type}...`);
 
-      // Check for Bluetooth permissions first
-      const hasPermissions = await requestPermissions();
-      if (!hasPermissions) {
-        throw new Error("Bluetooth permission is required to print");
-      }
-
-      // Check if printer is connected
-      if (!isConnected || !printerDevice) {
+      // Check if we're connected to a printer using context variables
+      if (!printerConnected || !contextPrinterDevice) {
         console.log("No printer connected. Opening printer selection...");
         setLoadingMessage("No printer connected. Scanning for printers...");
         
-        // Show modal and scan for printers
-        setIsModalVisible(true);
-        await scanForPrinters();
+        // Use context scanning function
+        contextScanForPrinters();
+        
+        // Show device selection modal
+        setIsDeviceSelectionModalVisible(true);
         
         // Return early since we're showing the selection modal
-        // The user will need to select a printer first
         setIsLoading(false);
         setLoadingMessage("");
-        return;
+        return false;
       }
 
-      // Print based on type - directly print without additional prompts
+      // Print based on type
       const printType = type.toLowerCase();
       setLoadingMessage(`Printing ${printType}...`);
       
       if (printType === "receipt") {
-        await printReceipt();
+        // Generate commands using your existing code
+        const commands = await generateReceiptCommands();
+        
+        // Send to printer using context function
+        await sendDataToPrinter(commands);
+        
         toast.show({
           description: "Receipt printed successfully",
           status: "success",
@@ -1570,13 +1590,18 @@ export default function OrderDetailsScreen() {
           placement: "bottom"
         });
       } else if (printType === "kot") {
-        await printKOT();
-      toast.show({
+        // Generate KOT commands
+        const commands = await generateKOTCommands();
+        
+        // Send to printer using context function
+        await sendDataToPrinter(commands);
+        
+        toast.show({
           description: "KOT printed successfully",
-        status: "success",
-        duration: 3000,
+          status: "success",
+          duration: 3000,
           placement: "bottom"
-      });
+        });
       } else {
         throw new Error(`Unknown print type: ${type}`);
       }
@@ -1586,29 +1611,12 @@ export default function OrderDetailsScreen() {
       console.error(`${type} printing error:`, error);
       
       // Handle different error scenarios
-      if (error.message.includes("Bluetooth permission")) {
-        toast.show({
-          description: "Bluetooth permission is required to print",
-          status: "error",
-          duration: 3000,
-          placement: "bottom"
-        });
-      } else if (error.message.includes("No printer connected")) {
-        // This should not happen since we check and show the modal above
-        toast.show({
-          description: "Please connect a printer first",
-          status: "error",
-          duration: 3000,
-          placement: "bottom"
-        });
-      } else {
-        toast.show({
-          description: `Failed to print ${type}: ${error.message}`,
-          status: "error",
-          duration: 3000,
-          placement: "bottom"
-        });
-      }
+      toast.show({
+        description: `Failed to print ${type}: ${error.message}`,
+        status: "error",
+        duration: 3000,
+        placement: "bottom"
+      });
       
       return false;
     } finally {
@@ -1617,88 +1625,9 @@ export default function OrderDetailsScreen() {
     }
   };
 
-  const sendDataToPrinter = async (commands) => {
+  // Convert your existing printReceipt function to just generate commands
+  const generateReceiptCommands = async () => {
     try {
-      if (!printerDevice || !isConnected) {
-        console.error("Cannot send data: Printer not connected");
-        throw new Error("No printer connected");
-      }
-
-      // Find the appropriate service and characteristic
-      const services = await printerDevice.services();
-      
-      // Find a compatible service
-      const service = services.find((svc) =>
-        PRINTER_SERVICE_UUIDS.some((uuid) =>
-          svc.uuid.toLowerCase().includes(uuid.toLowerCase())
-        )
-      );
-      
-      if (!service) {
-        throw new Error("Printer service not found");
-      }
-      
-      // Find a compatible characteristic
-      const characteristics = await service.characteristics();
-      const writeCharacteristic = characteristics.find((char) =>
-        PRINTER_CHARACTERISTIC_UUIDS.some((uuid) =>
-          char.uuid.toLowerCase().includes(uuid.toLowerCase())
-        )
-      );
-      
-      if (!writeCharacteristic) {
-        throw new Error("Printer characteristic not found");
-      }
-
-      // Use very small chunks for better reliability
-      const CHUNK_SIZE = 20; // Even smaller chunks for reliability
-      
-      console.log(`Sending ${commands.length} bytes to printer in chunks of ${CHUNK_SIZE}`);
-      
-      // Try different writing methods based on what's available
-      const writeMethod = writeCharacteristic.isWritableWithResponse ? 
-                        'writeWithResponse' : 'writeWithoutResponse';
-      
-      for (let i = 0; i < commands.length; i += CHUNK_SIZE) {
-        const chunk = commands.slice(i, i + CHUNK_SIZE);
-        const encodedData = base64.encode(String.fromCharCode(...chunk));
-        
-        try {
-          await writeCharacteristic[writeMethod](encodedData);
-          // Delay between chunks for better reliability
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (err) {
-          console.log(`Error sending chunk ${i}:`, err);
-          // Try alternative method if available
-          if (writeMethod === 'writeWithResponse' && writeCharacteristic.isWritableWithoutResponse) {
-            await writeCharacteristic.writeWithoutResponse(encodedData);
-          } else if (writeMethod === 'writeWithoutResponse' && writeCharacteristic.isWritableWithResponse) {
-            await writeCharacteristic.writeWithResponse(encodedData);
-          } else {
-            throw err;
-          }
-          // Longer delay after error
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
-      }
-      
-      // Final delay to ensure all data is processed by printer
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      console.log("Print data sent successfully");
-      return true;
-    } catch (error) {
-      console.error("Send to printer error:", error);
-      throw error;
-    }
-  };
-
-  const printReceipt = async () => {
-    try {
-      if (!printerDevice || !isConnected) {
-        throw new Error("No printer connected");
-      }
-
       // Get UPI ID from AsyncStorage or use a default
       const upiId = await AsyncStorage.getItem("upi_id") || "merchant@upi";
       
@@ -1826,7 +1755,7 @@ export default function OrderDetailsScreen() {
           []),
         
         ...textToBytes(getDottedLine()),
-        ...textToBytes("Item            Qty  Rate    Amount\n"),
+        ...textToBytes("Item            Qty  Rate    Amt\n"),
         ...textToBytes(getDottedLine()),
         
         // Menu items
@@ -1888,135 +1817,17 @@ export default function OrderDetailsScreen() {
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
       ];
 
-      console.log("Sending receipt commands:", commands.length, "bytes");
-      await sendDataToPrinter(commands);
-      return true;
+      console.log("Generated receipt commands:", commands.length, "bytes");
+      return commands;
     } catch (error) {
-      console.error("Receipt printing error:", error);
+      console.error("Receipt command generation error:", error);
       throw error;
     }
   };
 
-  const generateKOTHTML = (orderDetails, menuItems) => {
+  // Convert your existing printKOT function to just generate commands
+  const generateKOTCommands = async () => {
     try {
-      const isCancelled = orderDetails.order_status?.toLowerCase() === "cancelled";
-      
-      const items = menuItems
-        .map(
-          (item) => `
-      <tr>
-        <td style="text-align: left; ${isCancelled ? 'text-decoration: line-through;' : ''}">${item.menu_name}${item.half_or_full ? ` (${item.half_or_full})` : ''}</td>
-        <td style="text-align: center; ${isCancelled ? 'text-decoration: line-through;' : ''}">${item.quantity}</td>
-        ${item.comment ? `<td style="text-align: left; font-style: italic; color: #666; ${isCancelled ? 'text-decoration: line-through;' : ''}">Note: ${item.comment}</td>` : '<td></td>'}
-      </tr>
-    `
-        )
-        .join("");
-
-      return `
-    <html>
-      <head>
-        <style>
-          @page {
-            margin: 0;
-            size: 80mm 297mm;
-          }
-          body { 
-            font-family: monospace;
-            padding: 10px;
-            width: 80mm;
-            margin: 0 auto;
-            position: relative;
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 10px;
-          }
-          .restaurant-name {
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 5px;
-          }
-          .kot-title {
-            font-size: 24px;
-            font-weight: bold;
-            text-align: center;
-            margin: 10px 0;
-            border: 2px solid black;
-            padding: 5px;
-          }
-          .order-info {
-            margin-bottom: 10px;
-            font-size: 14px;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
-            font-size: 14px;
-          }
-          th, td {
-            padding: 3px 0;
-          }
-          .dotted-line {
-            border-top: 1px dotted black;
-            margin: 5px 0;
-          }
-          .cancelled-watermark {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-45deg);
-            font-size: 40px;
-            font-weight: bold;
-            color: rgba(255, 0, 0, 0.2);
-            z-index: 1000;
-            text-transform: uppercase;
-          }
-        </style>
-      </head>
-      <body>
-        ${isCancelled ? '<div class="cancelled-watermark">CANCELLED</div>' : ''}
-        
-        <div class="kot-title">${orderDetails.outlet_name}</div>
-
-        <div class="order-info">
-          <strong>Order:</strong> #${orderDetails.order_number}<br>
-          <strong>Table:</strong> ${orderDetails.section} - ${orderDetails.table_number[0]}<br>
-          <strong>Time:</strong> ${orderDetails.datetime}<br>
-          <strong>Items:</strong> ${menuItems.length}
-          ${orderDetails.order_status ? `<br><strong>Status:</strong> ${orderDetails.order_status.toUpperCase()}` : ''}
-        </div>
-
-        <div class="dotted-line"></div>
-
-        <table>
-          <tr>
-            <th style="text-align: left;">Item</th>
-            <th style="text-align: center;">Qty</th>
-            <th style="text-align: left;">Notes</th>
-          </tr>
-          ${items}
-        </table>
-
-        <div class="dotted-line"></div>
-        
-        ${isCancelled ? '<div style="text-align: center; margin-top: 15px; font-weight: bold; color: red;">*** ORDER CANCELLED ***</div>' : ''}
-      </body>
-    </html>
-    `;
-    } catch (error) {
-      console.error("Error generating KOT HTML:", error);
-      throw error;
-    }
-  };
-
-  const printKOT = async () => {
-    try {
-      if (!printerDevice || !isConnected) {
-        throw new Error("No printer connected");
-      }
-
       // Calculate total quantity of all items
       const totalQuantity = menuItems.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
 
@@ -2081,55 +1892,65 @@ export default function OrderDetailsScreen() {
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper with specific command matching owner app
       ];
 
-      // Send to printer
-      console.log("Sending KOT commands:", commands.length, "bytes");
-      await sendDataToPrinter(commands);
-      
-      return true;
+      console.log("Generated KOT commands:", commands.length, "bytes");
+      return commands;
     } catch (error) {
-      console.error("KOT printing error:", error);
+      console.error("KOT command generation error:", error);
       throw error;
     }
   };
 
-  const DeviceSelectionModal = ({ visible, devices, onSelect, onClose }) => (
+  const DeviceSelectionModal = ({ visible, onClose }) => (
     <Modal isOpen={visible} onClose={onClose}>
       <Modal.Content maxWidth="90%" maxHeight="80%">
         <Modal.Header>Select a Bluetooth Printer</Modal.Header>
         <Modal.Body>
-          {isScanning && (
+          {printerScanning ? (
             <Center p={4}>
               <Spinner size="lg" color="blue.500" />
               <Text mt={2} color="gray.600">
                 Scanning for devices...
               </Text>
             </Center>
+          ) : (
+            <ScrollView maxH="300">
+              {printerDevices.map((device, index) => (
+                <Pressable
+                  key={device.id || index}
+                  p={4}
+                  borderBottomWidth={1}
+                  borderBottomColor="gray.200"
+                  onPress={() => {
+                    connectToPrinter(device).then(success => {
+                      if (success) {
+                        onClose();
+                        toast.show({
+                          description: `Connected to ${device.name || 'printer'} successfully`,
+                          status: "success",
+                          duration: 3000,
+                          placement: "bottom",
+                          isClosable: true,
+                        });
+                      }
+                    });
+                  }}
+                >
+                  <Text fontSize="md" fontWeight="500">
+                    {device.name || "Unknown Device"}
+                  </Text>
+                  <Text fontSize="sm" color="gray.500" mt={1}>
+                    {device.id}
+                  </Text>
+                </Pressable>
+              ))}
+              {!printerScanning && printerDevices.length === 0 && (
+                <Text textAlign="center" color="gray.500" p={4}>
+                  No printers found. Make sure your printer is turned on and
+                  nearby.
+                </Text>
+              )}
+            </ScrollView>
           )}
-
-          <ScrollView maxH="300">
-            {devices.map((device, index) => (
-              <Pressable
-                key={device.id || index}
-                p={4}
-                borderBottomWidth={1}
-                borderBottomColor="gray.200"
-                onPress={() => onSelect(device)}
-              >
-                <Text fontSize="md" fontWeight="500">
-                  {device.name || "Unknown Device"}
-                </Text>
-                <Text fontSize="sm" color="gray.500" mt={1}>
-                  {device.id}
-                </Text>
-              </Pressable>
-            ))}
-            {!isScanning && devices.length === 0 && (
-              <Text textAlign="center" color="gray.500" p={4}>
-                No printers found. Make sure your printer is turned on and
-                nearby.
-              </Text>
-            )}
-          </ScrollView>
         </Modal.Body>
 
         <Modal.Footer>
@@ -2138,8 +1959,7 @@ export default function OrderDetailsScreen() {
               variant="ghost"
               colorScheme="blueGray"
               onPress={() => {
-                setAvailableDevices([]);
-                scanForPrinters();
+                contextScanForPrinters();
               }}
             >
               Scan Again
@@ -2336,17 +2156,48 @@ export default function OrderDetailsScreen() {
   const handleSettlePayment = async () => {
     try {
       setPaymentLoading(true);
-      // Add your payment settlement logic here
-      // This is a placeholder and should be replaced with actual payment processing logic
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Call API to update the order status to paid
+      await handleStatusUpdate("paid", { payment_method: selectedPaymentMethod });
+      
+      // Update local order details with paid status
+      setOrderDetails({
+        ...orderDetails,
+        order_status: "paid",
+        payment_method: selectedPaymentMethod,
+        is_paid: 1,
+        payment_status: "paid"
+      });
+      
+      // Show success UI
       setPaymentSuccess(true);
-      setPaymentLoading(false);
+      
+      toast.show({
+        description: "Payment settled successfully",
+        status: "success",
+        duration: 2000,
+        placement: "bottom",
+      });
+      
+      // Print receipt using the same function as the original button
+      await handlePrint("receipt");
+      
+      // Close modal and navigate back
       setShowPaymentModal(false);
-      handleStatusUpdate("paid", { payment_method: selectedPaymentMethod });
+      
+      // Navigate back to orders screen with refresh
+      router.replace({
+        pathname: "/(tabs)/orders",
+        params: {
+          refresh: Date.now().toString(),
+        },
+      });
+      
     } catch (error) {
       console.error("Error settling payment:", error);
       setPaymentLoading(false);
       setPaymentSuccess(false);
+      
       toast.show({
         description: "Failed to settle payment. Please try again.",
         status: "error",
@@ -2354,6 +2205,8 @@ export default function OrderDetailsScreen() {
         placement: "bottom",
         isClosable: true,
       });
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -2371,6 +2224,33 @@ export default function OrderDetailsScreen() {
     
     return "help-outline";
   };
+
+  const handlePrintAndSettle = () => {
+    setShowPaymentModal(true);
+  };
+
+  useEffect(() => {
+    if (isFocused) {
+      if (printerConnected && contextPrinterDevice) {
+        console.log("Printer connected:", contextPrinterDevice?.id);
+        toast.show({
+          description: `Printer connected: ${
+            contextPrinterDevice?.name || "Unknown printer"
+          }`,
+          placement: "top",
+          duration: 2000,
+          status: "success",
+        });
+      }
+
+      // Auto-reconnect to last printer if available
+      if (!printerConnected && autoReconnect && !printerScanning) {
+        reconnectPrinter().catch((error) => {
+          console.log("Auto-reconnect error:", error);
+        });
+      }
+    }
+  }, [isFocused, printerConnected, contextPrinterDevice]);
 
   if (isLoading) {
     return (
@@ -3127,9 +3007,10 @@ export default function OrderDetailsScreen() {
           {/* Print Buttons */}
           <HStack space={2} mt={2}>
             <Button
+            bg="black"
               flex={1}
-              variant="outline"
-              leftIcon={<Icon as={MaterialIcons} name="receipt-long" size="sm" />}
+              // variant="outline"
+              leftIcon={<Icon as={MaterialIcons} name="receipt-long" size="sm" color="white" />}
               onPress={() => handlePrint("KOT")}
               isLoading={loadingMessage === "Printing KOT..."}
               isDisabled={isLoading}
@@ -3138,15 +3019,13 @@ export default function OrderDetailsScreen() {
             </Button>
             <Button
               flex={1}
-              variant="outline"
               colorScheme="white"
               bg="#0099CC"
-              // borderColor="blue.500"
               _text={{ color: "white" }}
               leftIcon={<Icon as={MaterialIcons} name="save" size="sm" color="white" />}
-              onPress={() => handlePrint("receipt")}
-              isLoading={loadingMessage === "Printing receipt..."}
-              isDisabled={isLoading}
+              onPress={handlePrintAndSettle}
+              isLoading={loadingMessage === "Printing receipt..." || paymentLoading}
+              isDisabled={isLoading || paymentLoading}
             >
               Print & Settle
             </Button>
@@ -3157,8 +3036,6 @@ export default function OrderDetailsScreen() {
       {/* All other modals remain unchanged */}
       <DeviceSelectionModal
         visible={isModalVisible}
-        devices={availableDevices}
-        onSelect={handleDeviceSelection}
         onClose={() => {
           setIsModalVisible(false);
           setIsScanning(false);
@@ -3201,196 +3078,18 @@ export default function OrderDetailsScreen() {
       </Modal>
 
       {/* Payment Method Selection Modal */}
-      <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} closeOnOverlayClick={!paymentLoading}>
-        <Modal.Content maxWidth="350px" p={4} borderRadius="md" bg="white">
-          {/* Close button */}
-          <Pressable 
-            position="absolute" 
-            right={3} 
-            top={2}
-            zIndex={2}
-            onPress={() => setShowPaymentModal(false)}
-          >
-            <Icon as={MaterialIcons} name="close" size="sm" color="coolGray.500" />
-          </Pressable>
-
-          {/* Header */}
-          <Box mb={5} mt={2}>
-            <Text 
-              fontSize="md" 
-              fontWeight="medium" 
-              color="coolGray.800"
-            >
-              Table {orderDetails?.table_number?.[0] || ''} | Order No: {orderDetails?.order_number} | ₹{orderDetails?.final_grand_total?.toFixed(2) || orderDetails?.total_bill_amount?.toFixed(2)}
-            </Text>
-          </Box>
-
-          {/* Success State */}
-          {paymentSuccess ? (
-            <VStack space={4} alignItems="center" py={3}>
-              <Icon 
-                as={MaterialIcons} 
-                name="check-circle" 
-                size="6xl" 
-                color="green.500" 
-              />
-              <Text 
-                fontSize="lg" 
-                fontWeight="bold" 
-                color="green.500" 
-                textAlign="center"
-              >
-                Payment Settled Successfully
-              </Text>
-            </VStack>
-          ) : (
-            <>
-              {/* Payment Method Selection */}
-              <Box mb={4}>
-                <Text 
-                  fontSize="sm" 
-                  fontWeight="medium" 
-                  color="coolGray.700" 
-                  mb={3}
-                >
-                  Select Payment Method
-                </Text>
-                <HStack space={3} alignItems="center">
-                  {/* CASH Option */}
-                  <HStack alignItems="center" space={1}>
-                    <Pressable 
-                      onPress={() => setSelectedPaymentMethod('cash')}
-                      disabled={paymentLoading}
-                    >
-                      <Box 
-                        width={5} 
-                        height={5} 
-                        rounded="full" 
-                        borderWidth={1}
-                        borderColor="#0891b2"
-                        justifyContent="center"
-                        alignItems="center"
-                      >
-                        {selectedPaymentMethod === 'cash' && (
-                          <Box 
-                            width={3} 
-                            height={3} 
-                            rounded="full" 
-                            bg="#0891b2" 
-                          />
-                        )}
-                      </Box>
-                    </Pressable>
-                    <Text fontSize="sm" color="coolGray.700">CASH</Text>
-                  </HStack>
-                  {/* UPI Option */}
-                  <HStack alignItems="center" space={1}>
-                    <Pressable 
-                      onPress={() => setSelectedPaymentMethod('upi')}
-                      disabled={paymentLoading}
-                    >
-                      <Box 
-                        width={5} 
-                        height={5} 
-                        rounded="full" 
-                        borderWidth={1}
-                        borderColor="#0891b2"
-                        justifyContent="center"
-                        alignItems="center"
-                      >
-                        {selectedPaymentMethod === 'upi' && (
-                          <Box 
-                            width={3} 
-                            height={3} 
-                            rounded="full" 
-                            bg="#0891b2" 
-                          />
-                        )}
-                      </Box>
-                    </Pressable>
-                    <Text fontSize="sm" color="coolGray.700">UPI</Text>
-                  </HStack>
-                  {/* CARD Option */}
-                  <HStack alignItems="center" space={1}>
-                    <Pressable 
-                      onPress={() => setSelectedPaymentMethod('card')}
-                      disabled={paymentLoading}
-                    >
-                      <Box 
-                        width={5} 
-                        height={5} 
-                        rounded="full" 
-                        borderWidth={1}
-                        borderColor="#0891b2"
-                        justifyContent="center"
-                        alignItems="center"
-                      >
-                        {selectedPaymentMethod === 'card' && (
-                          <Box 
-                            width={3} 
-                            height={3} 
-                            rounded="full" 
-                            bg="#0891b2" 
-                          />
-                        )}
-                      </Box>
-                    </Pressable>
-                    <Text fontSize="sm" color="coolGray.700">CARD</Text>
-                  </HStack>
-                  {/* Paid Checkbox - aligned to the right */}
-                  <Pressable 
-                    onPress={() => setIsPaid(!isPaid)}
-                    disabled={paymentLoading}
-                    ml="auto"
-                    flexDirection="row"
-                    alignItems="center"
-                  >
-                    <HStack space={1} alignItems="center">
-                      <Box
-                        width={5}
-                        height={5}
-                        rounded="sm"
-                        borderWidth={1}
-                        borderColor="#0891b2"
-                        justifyContent="center"
-                        alignItems="center"
-                        bg={isPaid ? "#0891b2" : "transparent"}
-                      >
-                        {isPaid && (
-                          <Icon 
-                            as={MaterialIcons} 
-                            name="check" 
-                            size="xs" 
-                            color="white" 
-                          />
-                        )}
-                      </Box>
-                      <Text fontSize="sm" color="coolGray.700">Paid</Text>
-                    </HStack>
-                  </Pressable>
-                </HStack>
-              </Box>
-              {/* Settle Button */}
-              <Button
-                width="100%"
-                height="45px"
-                bg="#0891b2"
-                _pressed={{ bg: "#0891b2" }}
-                rounded="md"
-                onPress={handleSettlePayment}
-                isLoading={paymentLoading}
-                isLoadingText="Settling..."
-                _text={{ fontWeight: "medium" }}
-                startIcon={<Icon as={MaterialIcons} name="check" size="sm" color="white" />}
-                disabled={paymentLoading || !selectedPaymentMethod || !isPaid}
-                opacity={(!selectedPaymentMethod || !isPaid) ? 0.5 : 1}
-              >
-                Settle
-              </Button>
-            </>
-          )}
-        </Modal.Content>
-      </Modal>
+      <PaymentModal 
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        tableData={orderDetails}
+        paymentSuccess={paymentSuccess}
+        paymentLoading={paymentLoading}
+        selectedPaymentMethod={selectedPaymentMethod}
+        setSelectedPaymentMethod={setSelectedPaymentMethod}
+        isPaid={isPaid}
+        setIsPaid={setIsPaid}
+        onSettlePayment={handleSettlePayment}
+      />
 
       {/* Cancellation reason section - if available */}
       {orderDetails.order_status?.toLowerCase() === "cancelled" && orderDetails.cancel_reason && (
