@@ -148,9 +148,9 @@ export default function InventoryItemsScreen() {
           <Text fontSize="sm" color="coolGray.600">
             Quantity: {item.quantity} {item.unit_of_measure}
           </Text>
-          <Text fontSize="sm" color="coolGray.600">
+          {/* <Text fontSize="sm" color="coolGray.600">
             Brand: {item.brand_name || '-'}
-          </Text>
+          </Text> */}
         </VStack>
       </Box>
     </Pressable>
