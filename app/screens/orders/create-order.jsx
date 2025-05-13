@@ -108,11 +108,14 @@ const COMMANDS = {
   INITIALIZE: [ESC, "@"],
   TEXT_NORMAL: [ESC, "!", 0],
   TEXT_CENTERED: [ESC, "a", 1],
-  LINE_SPACING: [ESC, "3", 24], //? Reduced from 30 to 24 for tighter line spacing
-  LINE_SPACING_TIGHT: [ESC, "3", 18], // Even tighter spacing for itemized sections ?(reduced from 24)
-  LINE_SPACING_NORMAL: [ESC, "3", 30], // Normal spacing ?(reduced from 40)
+  TEXT_LEFT: [ESC, "a", 0],
+  TEXT_RIGHT: [ESC, "a", 2],
+  DOUBLE_HEIGHT: [ESC, "!", 16],
+  DOUBLE_WIDTH: [ESC, "!", 32],
+  DOUBLE_BOTH: [ESC, "!", 48],
+  LINE_SPACING_TIGHT: [ESC, "3", 18],
+  LINE_SPACING_NORMAL: [ESC, "3", 30],
   CUT_PAPER: [GS, "V", 1],
-  MARGIN_BOTTOM: [ESC, "O", 1], //? Reduced bottom margin from 3 to 1
 };
 
 const getCurrentDate = () => {
@@ -276,73 +279,40 @@ const formatMenuItem = (item) => {
   const name = item?.menu_name || item?.name || "";
   const qty = item?.quantity?.toString() || "0";
   const rate = Math.floor(item?.price || 0)?.toString();
-  const total = (item?.quantity * item?.price || 0).toFixed(2);
+  const total = (item?.quantity * item?.price || 0).toFixed(2); // Ensure 2 decimal places
 
-  // FIXED: Adjust column widths for 58mm printer (max 30-32 chars per line)
-  // Standard 58mm printer can fit 30-32 characters per line
-  // Format: name (12 chars), qty (2 chars), rate (4 chars), total (7 chars)
-  // 12 + 2 + 4 + 7 + spaces = approx 28 chars total
-
-  // Special handling for long item names
-  if (name.length > 12) {
-    const lines = splitLongText(name, 12);
-    // First line contains the item name, qty, rate, and amount
-    const firstLine = `${lines[0].padEnd(12)} ${qty.padStart(
-      2
-    )} ${rate.padStart(4)} ${total.padStart(7)}\n`;
-
-    // If there are additional lines, format them with minimal spacing
-    if (lines.length > 1) {
-      // Combine all remaining lines where possible to minimize paper usage
-      let remainingLines = [];
-      let currentLine = "";
-
-      for (let i = 1; i < lines.length; i++) {
-        if (currentLine.length + lines[i].length + 1 <= 25) {
-          currentLine += (currentLine ? " " : "") + lines[i];
-        } else {
-          remainingLines.push(currentLine);
-          currentLine = lines[i];
-        }
-      }
-
-      if (currentLine) {
-        remainingLines.push(currentLine);
-      }
-
-      // Join with minimal line breaks
-      const remainingText = remainingLines
-        .map((line) => `  ${line}`)
-        .join("\n");
-      return firstLine + remainingText + "\n";
+  // For item names that are too long to fit on one line
+  if (name.length > 18) {
+    // Using regex split to ensure clean breaks
+    const lines = name.match(/.{1,18}/g) || [name];
+    let result = "";
+    
+    // First line gets quantity, rate and amount
+    result += `${lines[0].padEnd(18)} ${qty.padStart(2)} ${rate.padStart(4)} ${total.padStart(6).padEnd(6, '0')}\n`;
+    
+    // Subsequent lines are indented and aligned
+    for (let i = 1; i < lines.length; i++) {
+      result += `${lines[i].padEnd(30)}\n`;
     }
-    return firstLine;
+    
+    return result;
   }
-
-  return `${name.padEnd(12)} ${qty.padStart(2)} ${rate.padStart(
-    4
-  )} ${total.padStart(7)}\n`;
+  
+  // For short item names, ensure proper decimal formatting
+  return `${name.padEnd(18)} ${qty.padStart(2)} ${rate.padStart(4)} ${total.padStart(6).padEnd(6, '0')}\n`;
 };
 
 const formatAmountLine = (label, amount, symbol = "") => {
-  // Format amount to 2 decimal places
-  const formattedAmount = parseFloat(parseFloat(amount).toFixed(2));
-
-  // FIXED: Use the owner app's approach with spaces instead of dots
-  // For 58mm printer (30-32 chars max width)
-  const totalWidth = 30; // Max width for 58mm printer
-  const amountWidth = 10; // Space for amount with symbols
-
-  // Calculate padding needed between label and amount
-  const padding = Math.max(2, totalWidth - label.length - amountWidth);
-
-  // Format with symbol and proper padding
+  // Ensure 2 decimal places always
+  const formattedAmount = parseFloat(amount).toFixed(2);
   const amountWithSymbol = `${symbol}${formattedAmount}`;
-  const amountPadded = amountWithSymbol.padStart(amountWidth);
-
-  // Create line with spaces instead of dots
-  const line = `${label}${" ".repeat(padding)}${amountPadded}`;
-
+  
+  // Calculate padding (matching owner app's approach)
+  const padding = Math.max(2, 30 - label.length - amountWithSymbol.length);
+  
+  // Create line with spaces for alignment
+  const line = `${label}${' '.repeat(padding)}${amountWithSymbol}`;
+  
   return line + "\n";
 };
 
@@ -2727,7 +2697,7 @@ export default function CreateOrderScreen() {
         ...textToBytes(`${outletName || "Restaurant"}\n`),
         ...textToBytes("\x1B\x21\x00"), // Normal text
         ...textToBytes(`${outletAddress || "Address"}\n`),
-        ...textToBytes(`${outletMobile ? `+91 ${outletMobile}\n` : ""}`),
+        ...textToBytes(`${outletMobile || ""}\n`), // Remove +91 prefix
 
         ...textToBytes("\x1B\x61\x00"), // Left align
         ...textToBytes(`Bill No: ${orderNumber}\n`)
@@ -2766,8 +2736,12 @@ export default function CreateOrderScreen() {
         commands.push(...textToBytes(formatMenuItem(item)));
       });
 
-      // Add totals and footer
+      // Add dotted line after items
       commands.push(...textToBytes("------------------------------\n"));
+
+      // Add Total field (matching owner app)
+      const itemsTotal = calculateSubtotal(selectedItems);
+      commands.push(...textToBytes(formatAmountLine("Total", itemsTotal)));
 
       // Only add discount line if discount amount is not zero
       if (itemDiscountAmount > 0) {
@@ -2782,7 +2756,7 @@ export default function CreateOrderScreen() {
         );
       }
 
-      // Only add special discount if amount is greater than zero - MOVED UP
+      // Only add special discount if amount is greater than zero
       if (specialDiscountAmount > 0) {
         commands.push(
           ...textToBytes(
@@ -2790,6 +2764,9 @@ export default function CreateOrderScreen() {
           )
         );
       }
+
+      // Subtotal after discounts
+      commands.push(...textToBytes(formatAmountLine("Subtotal", subtotalAfterDiscounts)));
 
       // Only add extra charges if amount is greater than zero - MOVED UP
       if (extraChargesAmount > 0) {
@@ -2799,9 +2776,6 @@ export default function CreateOrderScreen() {
           )
         );
       }
-
-      // Subtotal MOVED AFTER special discount and extra charges
-      commands.push(...textToBytes(formatAmountLine("Subtotal", subtotal)));
 
       // Only add service charge if percentage or amount is greater than zero
       if (serviceChargePercentage > 0 && serviceAmount > 0) {
@@ -2830,25 +2804,31 @@ export default function CreateOrderScreen() {
         commands.push(...textToBytes(formatAmountLine("Tip", tipAmount, "+")));
       }
 
+      // Add dotted line before payment options
+      commands.push(...textToBytes("------------------------------\n"));
+
+      // Add total including all charges
+      commands.push(...textToBytes(formatAmountLine("Total", total.toFixed(2))));
+
       // Add QR code for UPI payment
-      // if (upiPaymentString) {
-      commands.push(
-        ...textToBytes("\x1B\x61\x01"), // Center align
-        ...textToBytes("------ Payment Options ------\n\n"),
-        ...textToBytes("\x1B\x21\x00"), // Normal text
-        ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
-        ...textToBytes("------------------------\n"),
-        ...generateQRCode(upiPaymentString),
-        ...textToBytes("\n\n"),
-        ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n\n`)
-        // ...textToBytes("UPI ID: " + upiId + "\n\n")
-      );
-      // }
+      if (upiPaymentString) {
+        commands.push(
+          ...textToBytes("\x1B\x61\x01"), // Center align
+          ...textToBytes("------ Payment Options ------\n\n"),
+          ...textToBytes("\x1B\x21\x00"), // Normal text
+          ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
+          ...textToBytes("------------------------\n"),
+          ...generateQRCode(upiPaymentString),
+          ...textToBytes("\n\n"),
+          ...textToBytes(`Scan to Pay ${total.toFixed(2)}\n\n`)
+        );
+      }
 
       // Add footer
       commands.push(
         ...textToBytes("\x1B\x61\x01"), // Center align
-        ...textToBytes("-----Thank You Visit Again!-----\n"),
+        ...textToBytes("------------------------------\n"),
+        ...textToBytes("----- Thank You Visit Again! -----\n"),
         ...textToBytes("https://menumitra.com\n"),
         ...textToBytes("\x1D\x56\x42\x40") // Cut paper
       );
@@ -4830,6 +4810,112 @@ export default function CreateOrderScreen() {
     }
   };
 
+  const verifyPrinterConnection = async () => {
+    try {
+      if (!printerConnected || !contextPrinterDevice) {
+        throw new Error("No printer connected");
+      }
+      
+      // Check if the connection is still active
+      if (contextPrinterDevice.isConnected) {
+        try {
+          const isDeviceConnected = await contextPrinterDevice.isConnected();
+          if (!isDeviceConnected) {
+            console.log("Device reports as not connected despite context state");
+            throw new Error("Printer connection lost");
+          }
+          console.log("Printer connection verified");
+          return true;
+        } catch (connectionError) {
+          console.error("Printer connection verification error:", connectionError);
+          
+          // Show reconnection dialog
+          Alert.alert(
+            "Printer Disconnected",
+            "Would you like to reconnect to the printer?",
+            [
+              {
+                text: "Yes",
+                onPress: () => {
+                  setIsDeviceSelectionModalVisible(true);
+                  contextScanForPrinters();
+                },
+              },
+              {
+                text: "No",
+                style: "cancel",
+              },
+            ]
+          );
+          return false;
+        }
+      }
+    } catch (error) {
+      console.error("Error verifying printer connection:", error);
+      return false;
+    }
+  };
+
+  // Use this function before any print operation
+  const printWithConnectionCheck = async (printFunction) => {
+    try {
+      const isConnected = await verifyPrinterConnection();
+      if (!isConnected) {
+        throw new Error("Printer not connected or connection unstable");
+      }
+      
+      return await printFunction();
+    } catch (error) {
+      console.error("Print operation failed:", error);
+      throw error;
+    }
+  };
+
+  // Add these state variables
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const MAX_RECONNECT_ATTEMPTS = 3;
+
+  // Add this function
+  const attemptReconnect = async (device) => {
+    try {
+      setIsReconnecting(true);
+      
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        console.log("Max reconnect attempts reached");
+        setIsReconnecting(false);
+        setReconnectAttempts(0);
+        return false;
+      }
+      
+      // Exponential backoff
+      const currentAttempt = reconnectAttempts + 1;
+      setReconnectAttempts(currentAttempt);
+      
+      const delay = Math.pow(2, currentAttempt) * 1000;
+      console.log(`Reconnect attempt ${currentAttempt}, waiting ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+      // Use the context's connect function
+      const success = await connectToPrinter(device);
+      
+      if (success) {
+        console.log("Reconnection successful");
+        setReconnectAttempts(0);
+        setIsReconnecting(false);
+        return true;
+      } else {
+        // Try again recursively
+        return attemptReconnect(device);
+      }
+    } catch (error) {
+      console.error("Reconnection error:", error);
+      setIsReconnecting(false);
+      setReconnectAttempts(0);
+      return false;
+    }
+  };
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -5703,7 +5789,31 @@ export default function CreateOrderScreen() {
 
       <DeviceSelectionModal
         visible={isDeviceSelectionModalVisible}
-        onClose={() => setIsDeviceSelectionModalVisible(false)}
+        onClose={() => {
+          setIsDeviceSelectionModalVisible(false);
+          setIsScanning(false);
+          
+          // If we were attempting to print, offer to continue without printing
+          if (currentPrintOperation) {
+            Alert.alert(
+              "Continue Without Printing?",
+              "Do you want to continue the operation without printing?",
+              [
+                {
+                  text: "Yes",
+                  onPress: currentPrintOperation.continueWithoutPrinting,
+                },
+                {
+                  text: "No",
+                  style: "cancel",
+                },
+              ]
+            );
+          }
+          
+          // Always make sure scanning stops
+          bleManager?.stopDeviceScan();
+        }}
       />
 
       {/* Payment Selection Modal */}
