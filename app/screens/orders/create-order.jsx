@@ -4066,8 +4066,8 @@ export default function CreateOrderScreen() {
     // Call appropriate handler with modal values (matching Owner App)
     if (currentAction === "kot") {
       if (modalIsPaid) {
-        // If the order is marked as paid, use "settle" action instead of "KOT_and_save"
-        handleSettlePaymentConfirm(modalPaymentMethod, modalIsPaid);
+        // If the order is marked as paid, use the combined KOT and settle function
+        handleKOTAndSettle(modalPaymentMethod, modalIsPaid);
       } else {
         // If not marked as paid, continue with normal KOT flow
         handleKOT(modalPaymentMethod, modalIsPaid);
@@ -4075,7 +4075,6 @@ export default function CreateOrderScreen() {
     } else if (currentAction === "settle") {
       handleSettlePaymentConfirm(modalPaymentMethod, modalIsPaid);
     }
-    // Note: Print & Save doesn't use the payment modal in Owner App
   };
 
   // Add handler for KOT button press
@@ -4651,6 +4650,179 @@ export default function CreateOrderScreen() {
 
     fetchUpiId();
   }, []);
+
+  // Add a new function to handle both KOT and settlement when user selects both
+  const handleKOTAndSettle = async (
+    modalPaymentMethod = null,
+    modalIsPaidValue = null
+  ) => {
+    try {
+      // Use modal values if provided
+      const effectiveIsPaid =
+        modalIsPaidValue !== null ? modalIsPaidValue : isPaid;
+      const effectivePaymentMethod = modalPaymentMethod || paymentMethod;
+
+      // Check if we're connected to a printer
+      if (!printerConnected || !contextPrinterDevice) {
+        Alert.alert(
+          "Printer Not Connected",
+          "Do you want to connect a printer?",
+          [
+            {
+              text: "Yes",
+              onPress: () => setIsDeviceSelectionModalVisible(true),
+            },
+            {
+              text: "Skip Printing",
+              style: "cancel",
+              onPress: async () => {
+                // Just settle without printing
+                await handleSettlePaymentConfirm(
+                  effectivePaymentMethod,
+                  effectiveIsPaid
+                );
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // Verify printer connection is stable before printing
+      try {
+        if (contextPrinterDevice.isConnected) {
+          const isDeviceConnected = await contextPrinterDevice.isConnected();
+          if (!isDeviceConnected) {
+            console.log(
+              "Device reports as not connected despite context state"
+            );
+            throw new Error("Printer connection not stable");
+          }
+          console.log("Printer verified as ready");
+        }
+      } catch (connectionError) {
+        console.error("Printer verification error:", connectionError);
+        Alert.alert(
+          "Printer Connection Error",
+          "Please disconnect and reconnect your printer before printing",
+          [
+            {
+              text: "Reconnect Printer",
+              onPress: () => setIsDeviceSelectionModalVisible(true),
+            },
+            {
+              text: "Skip Printing and Settle",
+              style: "cancel",
+              onPress: async () => {
+                // Just settle without printing
+                await handleSettlePaymentConfirm(
+                  effectivePaymentMethod, 
+                  effectiveIsPaid
+                );
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // Continue with KOT + Settle logic
+      if (selectedItems.length === 0) {
+        toast.show({
+          description: "Please add items to the order",
+          status: "warning",
+          duration: 2000,
+        });
+        return;
+      }
+
+      setIsProcessing(true);
+      setLoadingMessage("Processing order...");
+
+      try {
+        // First create order with "KOT_and_save" status
+        const apiResponse = await createOrder("KOT_and_save", true);
+        if (!apiResponse || apiResponse.st !== 1) {
+          throw new Error(apiResponse?.msg || "Failed to save order");
+        }
+
+        console.log(
+          "API Response for KOT_and_save:",
+          JSON.stringify(apiResponse)
+        );
+
+        // First print KOT
+        try {
+          setLoadingMessage("Printing KOT...");
+          await printKOT(apiResponse);
+
+          toast.show({
+            description: "KOT printed successfully, please cut the paper...",
+            status: "success",
+            duration: 2000,
+          });
+
+          // Wait for 3 seconds to allow user to cut the paper
+          setLoadingMessage("Waiting to print receipt... Please cut the paper");
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          // Now update to settle the order
+          setLoadingMessage("Settling order and printing receipt...");
+          
+          // Update the order status to settle
+          const settleResponse = await createOrder("settle", true);
+          
+          if (!settleResponse || settleResponse.st !== 1) {
+            throw new Error(settleResponse?.msg || "Failed to settle order");
+          }
+          
+          // Print the receipt
+          await printReceipt(settleResponse);
+          
+          toast.show({
+            description: "Order settled and receipt printed successfully",
+            status: "success",
+            duration: 2000,
+          });
+        } catch (printError) {
+          console.error("Print error:", printError);
+          toast.show({
+            description: "Order saved but printing failed: " + printError.message,
+            status: "warning",
+            duration: 3000,
+          });
+        }
+
+        // Navigate back to tables screen
+        router.replace({
+          pathname: "/(tabs)/tables/sections",
+          params: {
+            refresh: Date.now().toString(),
+            status: "completed",
+          },
+        });
+      } catch (error) {
+        console.error("KOT and Settle error:", error);
+        toast.show({
+          description: "Error processing order: " + error.message,
+          status: "error",
+          duration: 3000,
+        });
+      } finally {
+        setIsProcessing(false);
+        setLoadingMessage("");
+      }
+    } catch (error) {
+      console.error("KOT and Settle error:", error);
+      toast.show({
+        description: "Error: " + error.message,
+        status: "error",
+        duration: 3000,
+      });
+      setIsProcessing(false);
+      setLoadingMessage("");
+    }
+  };
 
   return (
     <Box flex={1} bg="white" safeArea>
