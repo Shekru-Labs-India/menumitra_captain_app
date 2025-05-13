@@ -2874,8 +2874,25 @@ export default function CreateOrderScreen() {
         AsyncStorage.getItem("outlet_address"),
         AsyncStorage.getItem("outlet_mobile"),
       ]);
-
-      // Use the top-level getCurrentDateTime function
+      
+      // Determine if this is an existing order
+      const isExistingOrder = Boolean(params?.orderId);
+      
+      // Determine if any items need to be reprinted
+      // This requires tracking which items are reprints vs. new additions
+      const hasNewItems = selectedItems.some(item => item.isNewlyAdded);
+      
+      // Determine appropriate KOT header
+      let kotHeader;
+      if (isExistingOrder) {
+        // For existing orders, check if we're just reprinting or adding items
+        kotHeader = hasNewItems 
+          ? "*** ADDITIONAL KOT ***\n\n"
+          : "*** REPRINT KOT ***\n\n";
+      } else {
+        // For new orders, use the standard header
+        kotHeader = "*** KOT ***\n\n";
+      }
 
       // FIXED: Get order number with enhanced fallbacks to match owner app
       const orderNumber =
@@ -2900,7 +2917,7 @@ export default function CreateOrderScreen() {
       commands.push(
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         ...textToBytes("\x1B\x21\x10"), // Double height
-        ...textToBytes("*** KOT ***\n\n"),
+        ...textToBytes(kotHeader), // Use dynamic KOT header based on order state
         ...textToBytes("\x1B\x21\x00"), // Normal text
         ...textToBytes(`${outletName || "Restaurant"}\n`),
         ...textToBytes(`${outletAddress || ""}\n`),
