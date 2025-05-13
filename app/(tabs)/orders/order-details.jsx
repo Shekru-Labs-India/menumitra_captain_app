@@ -3134,17 +3134,21 @@ export default function OrderDetailsScreen() {
               isLoading={loadingMessage === "Printing KOT..."}
               isDisabled={isLoading}
             >
-              Print KOT
+              KOT
             </Button>
             <Button
               flex={1}
               variant="outline"
-              leftIcon={<Icon as={MaterialIcons} name="print" size="sm" />}
+              colorScheme="white"
+              bg="#0099CC"
+              // borderColor="blue.500"
+              _text={{ color: "white" }}
+              leftIcon={<Icon as={MaterialIcons} name="save" size="sm" color="white" />}
               onPress={() => handlePrint("receipt")}
               isLoading={loadingMessage === "Printing receipt..."}
               isDisabled={isLoading}
             >
-              Print Receipt
+              Print & Settle
             </Button>
           </HStack>
         </Box>
