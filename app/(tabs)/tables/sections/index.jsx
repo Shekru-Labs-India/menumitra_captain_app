@@ -3640,7 +3640,7 @@ export default function TableSectionsScreen() {
       <Box flex={1}>
         {/* This is the scrollable area with stickyHeaderIndices for order type buttons */}
         <ScrollView
-          stickyHeaderIndices={[3]} // Make the 4th element (OrderTypeButtons at index 3) sticky
+          stickyHeaderIndices={[2]} // Make the 4th element (OrderTypeButtons at index 3) sticky
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 70 }} // Add padding to bottom for FAB
           refreshControl={
             <RefreshControl
@@ -3796,8 +3796,21 @@ export default function TableSectionsScreen() {
             </Box>
           </Box>
 
-          {/* Element 2: Sales Summary Row */}
-          <Box 
+         
+
+          {/* Element 3: Order Type Buttons - THIS WILL STICK WHEN SCROLLED TO TOP */}
+          <Box
+            bg="white"
+            borderBottomWidth={1}
+            borderBottomColor="coolGray.200"
+            shadow={2}
+            zIndex={10}
+          >
+            <OrderTypeButtons />
+          </Box>
+
+           {/* Element 2: Sales Summary Row */}
+           <Box 
             bg="white" 
             py={3}
             borderBottomWidth={1}
@@ -3842,17 +3855,6 @@ export default function TableSectionsScreen() {
                 </HStack>
               </Box>
             </HStack>
-          </Box>
-
-          {/* Element 3: Order Type Buttons - THIS WILL STICK WHEN SCROLLED TO TOP */}
-          <Box
-            bg="white"
-            borderBottomWidth={1}
-            borderBottomColor="coolGray.200"
-            shadow={2}
-            zIndex={10}
-          >
-            <OrderTypeButtons />
           </Box>
 
           {/* Element 4: Content */}
