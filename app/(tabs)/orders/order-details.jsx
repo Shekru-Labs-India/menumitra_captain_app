@@ -1786,7 +1786,7 @@ export default function OrderDetailsScreen() {
 
         // Service charges if they exist
         ...(serviceCharges > 0 ? 
-          textToBytes(formatAmountLine(`Service Charges (${serviceChargesPercent}%)`, serviceCharges, "+"))
+          textToBytes(formatAmountLine(`Service (${serviceChargesPercent}%)`, serviceCharges, "+"))
           : []),
 
         // GST if it exists
