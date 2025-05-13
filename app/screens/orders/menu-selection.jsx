@@ -783,9 +783,13 @@ export default function MenuSelectionScreen() {
     );
   };
 
-  // Get header title
+  // Get header title with improved logic
   const getHeaderTitle = () => {
     if (orderType === "dine-in" && tableData) {
+      // Only show switch button for occupied tables with orders
+      const showSwitchButton = tableData.is_occupied && tableData.order_id;
+      const showReserveButton = settings?.reserve_table && !tableData.is_occupied && !isReserved;
+      
       return `Table ${tableData.table_number} - ${tableData.section_name}`;
     }
     return `New ${toTitleCase(orderType)} Order`;
@@ -1241,61 +1245,55 @@ export default function MenuSelectionScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <Header 
-        title={params?.orderId ? `Update ${toTitleCase(params.orderType || "Order")} order` : "Select Menu Items"}
+        title={getHeaderTitle()}
         showBack 
         rightComponent={
           <HStack alignItems="center" space={2}>
-            {params?.orderId && (
-              <Badge 
-                bg={
-                  params.orderType === "parcel" ? "amber.100" : 
-                  params.orderType === "drive-through" ? "purple.100" : 
-                  params.orderType === "delivery" ? "teal.100" :
-                  params.orderType === "counter" ? "blue.100" : "green.100"
-                }
+            {/* Only show the Switch button for dine-in orders with an order ID */}
+            {params.orderType === "dine-in" && tableData?.is_occupied && tableData?.order_id && (
+              <Pressable
+                onPress={() => {
+                  fetchAvailableTables();
+                  setShowTableSwitcher(true);
+                }}
+                bg="transparent"
                 borderWidth={1}
-                borderColor={
-                  params.orderType === "parcel" ? "amber.500" : 
-                  params.orderType === "drive-through" ? "purple.500" : 
-                  params.orderType === "delivery" ? "teal.500" :
-                  params.orderType === "counter" ? "blue.500" : "green.500"
-                }
-                borderStyle="dashed"
-                rounded="md"
+                borderColor="cyan.500"
                 px={2}
                 py={1}
+                rounded="full"
+                _pressed={{ bg: "cyan.50" }}
               >
-                <VStack alignItems="center">
-                  <Text
-                    color={
-                      params.orderType === "parcel" ? "amber.800" : 
-                      params.orderType === "drive-through" ? "purple.800" : 
-                      params.orderType === "delivery" ? "teal.800" :
-                      params.orderType === "counter" ? "blue.800" : "green.800"
-                    }
-                    fontSize="xs"
-                    fontWeight="medium"
-                  >
-                    {params.orderType === "dine-in" 
-                      ? `Dinning - ${params.tableNumber}` 
-                      : toTitleCase(params.orderType || "")}
+                <HStack alignItems="center" space={1}>
+                  <MaterialIcons name="swap-horiz" size={16} color="#0dcaf0" />
+                  <Text color="cyan.500" fontSize="xs" fontWeight="medium">
+                    Switch
                   </Text>
-                  {params.orderNumber && (
-                    <Text
-                      color={
-                        params.orderType === "parcel" ? "amber.800" : 
-                        params.orderType === "drive-through" ? "purple.800" : 
-                        params.orderType === "delivery" ? "teal.800" :
-                        params.orderType === "counter" ? "blue.800" : "green.800"
-                      }
-                      fontSize="xs"
-                      fontWeight="medium"
-                    >
-                      Bill #{params.orderNumber}
-                    </Text>
-                  )}
-                </VStack>
-              </Badge>
+                </HStack>
+              </Pressable>
+            )}
+            
+            {/* Reserve button for non-occupied, non-reserved tables when reservation is enabled */}
+            {params.orderType === "dine-in" && tableData && 
+             !tableData.is_occupied && !isReserved && settings.reserve_table && (
+              <Pressable
+                onPress={handleReserveTable}
+                bg="transparent"
+                borderWidth={1}
+                borderColor="#666"
+                px={2}
+                py={1}
+                m={2}
+                rounded="full"
+                _pressed={{ bg: "green.50" }}
+              >
+                <HStack alignItems="center" space={1}>
+                  <MaterialIcons name="lock" size={16} color="#666" />
+                  <Text color="#666" fontSize="xs" fontWeight="medium">
+                    Reserve
+                  </Text>
+                </HStack>
+              </Pressable>
             )}
           </HStack>
         }
