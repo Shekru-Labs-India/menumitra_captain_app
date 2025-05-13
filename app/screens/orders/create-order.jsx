@@ -3728,8 +3728,52 @@ export default function CreateOrderScreen() {
         throw new Error(apiResponse?.msg || "Failed to save order");
       }
 
+      // Update the order status to "cooking" via a separate call
+      try {
+        const [storedUserId, storedOutletId, deviceToken] = await Promise.all([
+          AsyncStorage.getItem("user_id"),
+          AsyncStorage.getItem("outlet_id"),
+          AsyncStorage.getItem("device_token"),
+        ]);
+
+        // Prepare status update body
+        const statusRequestBody = {
+          outlet_id: storedOutletId?.toString(),
+          order_id: params?.orderId || apiResponse.order_id,
+          order_status: "cooking", // Set status to cooking
+          user_id: storedUserId?.toString(),
+          action: "save",
+          device_token: deviceToken || "",
+          customer_name: customerDetails.customer_name || "",
+          customer_mobile: customerDetails.customer_mobile || "",
+          user_name: customerDetails.customer_name || params.userName || "",
+          user_mobile: customerDetails.customer_mobile || params.userMobile || "",
+          tip: tip?.toString(),
+          special_discount: specialDiscount?.toString(),
+          charges: extraCharges?.toString(),
+          order_type: params?.orderType || "dine-in",
+        };
+
+        // Add table/section info for dine-in orders
+        if ((params?.orderType === "dine-in" || !params?.orderType) && params.tableNumber && params.sectionId) {
+          statusRequestBody.tables = [params.tableNumber?.toString()];
+          statusRequestBody.section_id = params.sectionId?.toString();
+        }
+
+        await fetchWithAuth(onGetProductionUrl() + "update_order_status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(statusRequestBody),
+        });
+
+        console.log("Order status updated to cooking");
+      } catch (statusError) {
+        console.error("Failed to update order status to cooking:", statusError);
+        // Continue even if status update fails
+      }
+
       toast.show({
-        description: "Order saved successfully",
+        description: "Order saved and set to cooking",
         status: "success",
         duration: 2000,
       });
