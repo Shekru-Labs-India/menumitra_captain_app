@@ -17,6 +17,7 @@ import {
   useToast,
   Spinner,
   useColorModeValue,
+  Skeleton,
 } from "native-base";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColorMode } from "native-base";
@@ -34,6 +35,7 @@ export default function SettingsScreen() {
   const [loadingSettings, setLoadingSettings] = useState({});
   const [appState, setAppState] = useState(AppState.currentState);
   const fadeAnim = useState(new Animated.Value(0))[0];
+  const [initialLoad, setInitialLoad] = useState(true);
   
   const { 
     printerDevice, 
@@ -86,10 +88,6 @@ export default function SettingsScreen() {
 
   const fetchLatestSettings = useCallback(async (showToast = false) => {
     try {
-      if (!refreshing) {
-        setIsLoading(true);
-      }
-      
       const outlet_id = await AsyncStorage.getItem("outlet_id");
       const device_token = await AsyncStorage.getItem("device_token");
       
@@ -105,7 +103,6 @@ export default function SettingsScreen() {
       if (response.st === 1 && response.data) {
         const data = response.data;
         
-        // Ensure all toggle values are explicitly boolean
         const newSettings = {
           theme: data.theme,
           style: data.style,
@@ -139,6 +136,7 @@ export default function SettingsScreen() {
           });
         }
       } else {
+        // Try to load from local storage if API fails
         const storedSettings = await AsyncStorage.getItem("app_settings");
         if (storedSettings) {
           const parsedSettings = JSON.parse(storedSettings);
@@ -183,6 +181,7 @@ export default function SettingsScreen() {
         });
       }
     } finally {
+      setInitialLoad(false);
       setIsLoading(false);
       setRefreshing(false);
     }
@@ -213,9 +212,15 @@ export default function SettingsScreen() {
   // Reset to default settings
   const resetToDefaultSettings = async () => {
     try {
-      setIsLoading(true);
-      const outlet_id = await AsyncStorage.getItem("outlet_id");
+      // Show a temporary toast instead of full-screen loading
+      toast.show({
+        description: "Resetting settings...",
+        status: "info",
+        placement: "bottom",
+        duration: 2000
+      });
       
+      const outlet_id = await AsyncStorage.getItem("outlet_id");
       const response = await fetchWithAuth(`${getBaseUrl()}/default_settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -223,10 +228,34 @@ export default function SettingsScreen() {
       });
 
       if (response.st === 1 && response.data) {
-        await fetchLatestSettings(true);
+        // Directly update state with the response data
+        const data = response.data;
+        
+        setSettings({
+          theme: data.theme,
+          style: data.style,
+          showMenuImages: Boolean(data.POS_show_menu_image),
+          orderTypes: {
+            dine_in: Boolean(data.has_dine_in),
+            parcel: Boolean(data.has_parcel),
+            counter: Boolean(data.has_counter),
+            delivery: Boolean(data.has_delivery),
+            driveThrough: Boolean(data.has_drive_through),
+          },
+          orderManagement: {
+            print_and_save: Boolean(data.print_and_save),
+            KOT_and_save: Boolean(data.KOT_and_save),
+            has_save: Boolean(data.has_save),
+            settle: Boolean(data.settle),
+            reserve_table: Boolean(data.reserve_table),
+            cancel: Boolean(data.cancel),
+          }
+        });
+        
+        await AsyncStorage.setItem("app_settings", JSON.stringify(data));
         
         toast.show({
-          description: "Default settings applied successfully",
+          description: "Default settings applied",
           status: "success",
           placement: "bottom",
           duration: 2000
@@ -246,80 +275,52 @@ export default function SettingsScreen() {
         placement: "bottom",
         duration: 2000
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const updateSetting = async (type, value) => {
-    setLoadingSettings(prev => ({ ...prev, [type]: true }));
+    // Immediately update UI state (optimistic)
+    const updatedSettings = { ...settings };
+    
+    if (type === 'has_dine_in') {
+      updatedSettings.orderTypes.dine_in = Boolean(value);
+    } else if (type === 'has_parcel') {
+      updatedSettings.orderTypes.parcel = Boolean(value);
+    } else if (type === 'has_counter') {
+      updatedSettings.orderTypes.counter = Boolean(value);
+    } else if (type === 'has_delivery') {
+      updatedSettings.orderTypes.delivery = Boolean(value);
+    } else if (type === 'has_drive_through') {
+      updatedSettings.orderTypes.driveThrough = Boolean(value);
+    } else if (type === 'POS_show_menu_image') {
+      updatedSettings.showMenuImages = Boolean(value);
+    } else if (['print_and_save', 'KOT_and_save', 'has_save', 'settle', 'reserve_table', 'cancel'].includes(type)) {
+      updatedSettings.orderManagement[type] = Boolean(value);
+    } else if (type === 'theme' || type === 'style') {
+      updatedSettings[type] = value;
+    }
+    
+    setSettings(updatedSettings);
     
     try {
       const outlet_id = await AsyncStorage.getItem("outlet_id");
       const user_id = await AsyncStorage.getItem("captain_id");
       
-      const updatedSettings = { ...settings };
-      
-      if (type === 'has_dine_in') {
-        updatedSettings.orderTypes.dine_in = Boolean(value);
-      } else if (type === 'has_parcel') {
-        updatedSettings.orderTypes.parcel = Boolean(value);
-      } else if (type === 'has_counter') {
-        updatedSettings.orderTypes.counter = Boolean(value);
-      } else if (type === 'has_delivery') {
-        updatedSettings.orderTypes.delivery = Boolean(value);
-      } else if (type === 'has_drive_through') {
-        updatedSettings.orderTypes.driveThrough = Boolean(value);
-      } else if (type === 'POS_show_menu_image') {
-        updatedSettings.showMenuImages = Boolean(value);
-      } else if (type === 'print_and_save' || type === 'KOT_and_save' || type === 'has_save' || 
-                type === 'settle' || type === 'reserve_table' || type === 'cancel') {
-        updatedSettings.orderManagement[type] = Boolean(value);
-      } else if (type === 'theme' || type === 'style') {
-        updatedSettings[type] = value;
-      }
-      
-      setSettings(updatedSettings);
-      
       const response = await fetchWithAuth(`${getBaseUrl()}/change_settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          outlet_id: outlet_id,
-          type: type,
-          value: value,
-          user_id: user_id
+          outlet_id,
+          type,
+          value,
+          user_id
         })
       });
 
-      if (response.st === 1) {
-        toast.show({
-          description: "Setting updated successfully",
-          status: "success",
-          placement: "bottom",
-          duration: 2000
-        });
-      } else {
-        // Revert change on failure
-        const revertedSettings = { ...settings };
-        if (type === 'has_dine_in') {
-          revertedSettings.orderTypes.dine_in = !Boolean(value);
-        } else if (type === 'has_parcel') {
-          revertedSettings.orderTypes.parcel = !Boolean(value);
-        } else if (type === 'has_counter') {
-          revertedSettings.orderTypes.counter = !Boolean(value);
-        } else if (type === 'has_delivery') {
-          revertedSettings.orderTypes.delivery = !Boolean(value);
-        } else if (type === 'has_drive_through') {
-          revertedSettings.orderTypes.driveThrough = !Boolean(value);
-        } else if (type === 'POS_show_menu_image') {
-          revertedSettings.showMenuImages = !Boolean(value);
-        } else if (type === 'print_and_save' || type === 'KOT_and_save' || type === 'has_save' || 
-                  type === 'settle' || type === 'reserve_table' || type === 'cancel') {
-          revertedSettings.orderManagement[type] = !Boolean(value);
-        }
-        
-        setSettings(revertedSettings);
+      if (response.st !== 1) {
+        // Revert on failure 
+        const originalSettings = { ...settings };
+        setSettings(originalSettings);
         
         toast.show({
           description: "Failed to update setting",
@@ -329,14 +330,16 @@ export default function SettingsScreen() {
         });
       }
     } catch (error) {
+      // Revert on error
+      const originalSettings = { ...settings };
+      setSettings(originalSettings);
+      
       toast.show({
         description: "Error updating setting",
         status: "error",
         placement: "bottom",
         duration: 2000
       });
-    } finally {
-      setLoadingSettings(prev => ({ ...prev, [type]: false }));
     }
   };
 
@@ -504,9 +507,7 @@ export default function SettingsScreen() {
               </Text>
             </HStack>
             
-            {loadingSettings[type] ? (
-              <Spinner size="sm" color="blue.500" />
-            ) : isDropdown ? (
+            {isDropdown ? (
               <Select
                 selectedValue={value}
                 minWidth="120"
@@ -551,7 +552,6 @@ export default function SettingsScreen() {
                       true: getTrackColor()
                     }}
                     thumbColor="white"
-                    isDisabled={loadingSettings[type]}
                   />
                 )}
                 {showChevron && (
@@ -570,11 +570,255 @@ export default function SettingsScreen() {
     );
   };
 
-  if (isLoading) {
+  if (initialLoad) {
     return (
-      <Box flex={1} bg="coolGray.50" justifyContent="center" alignItems="center">
-        <Spinner size="lg" color="blue.500" />
-        <Text mt={4} color="coolGray.500">Loading settings...</Text>
+      <Box flex={1} bg="coolGray.50" safeArea>
+        <HStack
+          px={4}
+          py={3}
+          justifyContent="space-between"
+          alignItems="center"
+          bg={bgColor}
+          shadow={1}
+        >
+          <IconButton
+            icon={<MaterialIcons name="arrow-back" size={24} color="gray" />}
+            onPress={() => router.back()}
+            variant="ghost"
+            _pressed={{ bg: "coolGray.100" }}
+            borderRadius="full"
+          />
+          <Heading size="md" flex={1} textAlign="center" color={textColor}>
+            Settings
+          </Heading>
+          <Pressable 
+            onPress={resetToDefaultSettings}
+            bg="blue.500"
+            px={3}
+            py={1.5}
+            rounded="full"
+            _pressed={{ bg: "blue.600" }}
+          >
+            <HStack alignItems="center" space={1}>
+              <Text color="white" fontWeight="medium" fontSize="sm">
+                Reset
+              </Text>
+              <Icon as={MaterialIcons} name="refresh" size={4} color="white" />
+            </HStack>
+          </Pressable>
+        </HStack>
+
+        <ScrollView>
+          {/* Printer section skeleton */}
+          <Box bg="white" rounded="xl" shadow={1} mx={4} my={4}>
+            <HStack space={4} p={4} alignItems="center">
+              <Box bg="coolGray.100" p={3} rounded="full">
+                <Skeleton size="6" rounded="full" />
+              </Box>
+              <VStack flex={1}>
+                <Skeleton.Text lines={2} />
+              </VStack>
+              <Skeleton h={4} w={4} rounded="full" />
+            </HStack>
+          </Box>
+
+          {/* Appearance section skeleton */}
+          <HStack space={3} p={4} alignItems="center" mx={4} mb={2}>
+            <Box bg="#E1F5FE" p={2} rounded="lg">
+              <Skeleton size="6" rounded="full" />
+            </Box>
+            <VStack flex={1}>
+              <Skeleton.Text lines={2} />
+            </VStack>
+          </HStack>
+
+          {/* Theme selector skeleton */}
+          <Box mx={4} mb={4}>
+            <Box 
+              bg="#E1F5FE" 
+              borderLeftWidth={4}
+              borderLeftColor="#2196F3"
+              rounded="lg"
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={8} w={24} rounded="sm" />
+              </HStack>
+            </Box>
+          </Box>
+
+          {/* Order Types section skeleton */}
+          <HStack space={3} p={4} alignItems="center" mx={4} mb={2}>
+            <Box bg="#F3E5F5" p={2} rounded="lg">
+              <Skeleton size="6" rounded="full" />
+            </Box>
+            <VStack flex={1}>
+              <Skeleton.Text lines={2} />
+            </VStack>
+          </HStack>
+
+          {/* Order type toggles skeleton */}
+          <Box mx={4} mb={4}>
+            {/* Dine In skeleton */}
+            <Box 
+              bg="#E3F2FD" 
+              borderLeftWidth={4}
+              borderLeftColor="#2196F3"
+              rounded="lg"
+              mb={2}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+            
+            {/* Parcel skeleton */}
+            <Box 
+              bg="#FFF3E0" 
+              borderLeftWidth={4}
+              borderLeftColor="#FF9800"
+              rounded="lg"
+              mb={2}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+            
+            {/* Counter skeleton */}
+            <Box 
+              bg="#E8F5E9" 
+              borderLeftWidth={4}
+              borderLeftColor="#4CAF50"
+              rounded="lg"
+              mb={2}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+            
+            {/* Delivery skeleton */}
+            <Box 
+              bg="#E3F2FD" 
+              borderLeftWidth={4}
+              borderLeftColor="#2196F3"
+              rounded="lg"
+              mb={2}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+            
+            {/* Drive Through skeleton */}
+            <Box 
+              bg="#F3E5F5" 
+              borderLeftWidth={4}
+              borderLeftColor="#9C27B0"
+              rounded="lg"
+              mb={2}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+          </Box>
+
+          {/* Menu Settings skeleton */}
+          <HStack space={3} p={4} alignItems="center" mx={4} mb={2} mt={2}>
+            <Box bg="#E8F5E9" p={2} rounded="lg">
+              <Skeleton size="6" rounded="full" />
+            </Box>
+            <VStack flex={1}>
+              <Skeleton.Text lines={2} />
+            </VStack>
+          </HStack>
+
+          {/* Menu toggle skeleton */}
+          <Box mx={4} mb={4}>
+            <Box 
+              bg="white" 
+              borderLeftWidth={4}
+              borderLeftColor="#666666"
+              rounded="lg"
+              shadow={1}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+          </Box>
+        </ScrollView>
       </Box>
     );
   }
@@ -771,21 +1015,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['has_dine_in'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.orderTypes.dine_in}
-                    onToggle={() => handleOrderTypeToggle('dine_in')}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#2196F3"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['has_dine_in']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.orderTypes.dine_in}
+                  onToggle={() => handleOrderTypeToggle('dine_in')}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#2196F3"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
@@ -822,21 +1061,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['has_parcel'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.orderTypes.parcel}
-                    onToggle={() => handleOrderTypeToggle('parcel')}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#FF9800"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['has_parcel']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.orderTypes.parcel}
+                  onToggle={() => handleOrderTypeToggle('parcel')}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#FF9800"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
@@ -873,21 +1107,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['has_counter'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.orderTypes.counter}
-                    onToggle={() => handleOrderTypeToggle('counter')}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#4CAF50"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['has_counter']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.orderTypes.counter}
+                  onToggle={() => handleOrderTypeToggle('counter')}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#4CAF50"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
@@ -924,21 +1153,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['has_delivery'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.orderTypes.delivery}
-                    onToggle={() => handleOrderTypeToggle('delivery')}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#2196F3"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['has_delivery']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.orderTypes.delivery}
+                  onToggle={() => handleOrderTypeToggle('delivery')}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#2196F3"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
@@ -975,21 +1199,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['has_drive_through'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.orderTypes.driveThrough}
-                    onToggle={() => handleOrderTypeToggle('driveThrough')}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#9C27B0"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['has_drive_through']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.orderTypes.driveThrough}
+                  onToggle={() => handleOrderTypeToggle('driveThrough')}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#9C27B0"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
@@ -1041,21 +1260,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['POS_show_menu_image'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.showMenuImages}
-                    onToggle={() => updateSetting('POS_show_menu_image', !settings.showMenuImages)}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#666666"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['POS_show_menu_image']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.showMenuImages}
+                  onToggle={() => updateSetting('POS_show_menu_image', !settings.showMenuImages)}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#666666"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
@@ -1108,21 +1322,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['print_and_save'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.orderManagement.print_and_save}
-                    onToggle={() => handleOrderManagementToggle('print_and_save')}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#FF9800"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['print_and_save']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.orderManagement.print_and_save}
+                  onToggle={() => handleOrderManagementToggle('print_and_save')}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#FF9800"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
@@ -1159,21 +1368,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['KOT_and_save'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.orderManagement.KOT_and_save}
-                    onToggle={() => handleOrderManagementToggle('KOT_and_save')}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#000000"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['KOT_and_save']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.orderManagement.KOT_and_save}
+                  onToggle={() => handleOrderManagementToggle('KOT_and_save')}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#000000"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
@@ -1210,21 +1414,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['has_save'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.orderManagement.has_save}
-                    onToggle={() => handleOrderManagementToggle('has_save')}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#4CAF50"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['has_save']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.orderManagement.has_save}
+                  onToggle={() => handleOrderManagementToggle('has_save')}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#4CAF50"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
@@ -1261,21 +1460,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['settle'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.orderManagement.settle}
-                    onToggle={() => handleOrderManagementToggle('settle')}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#87CEEB"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['settle']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.orderManagement.settle}
+                  onToggle={() => handleOrderManagementToggle('settle')}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#87CEEB"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
@@ -1312,21 +1506,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['reserve_table'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.orderManagement.reserve_table}
-                    onToggle={() => handleOrderManagementToggle('reserve_table')}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#808080"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['reserve_table']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.orderManagement.reserve_table}
+                  onToggle={() => handleOrderManagementToggle('reserve_table')}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#808080"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
@@ -1363,21 +1552,16 @@ export default function SettingsScreen() {
                   </Text>
                 </HStack>
                 
-                {loadingSettings['cancel'] ? (
-                  <Spinner size="sm" color="blue.500" />
-                ) : (
-                  <Switch
-                    size="md"
-                    isChecked={settings.orderManagement.cancel}
-                    onToggle={() => handleOrderManagementToggle('cancel')}
-                    trackColor={{
-                      false: "#E0E0E0",
-                      true: "#F44336"
-                    }}
-                    thumbColor="white"
-                    isDisabled={loadingSettings['cancel']}
-                  />
-                )}
+                <Switch
+                  size="md"
+                  isChecked={settings.orderManagement.cancel}
+                  onToggle={() => handleOrderManagementToggle('cancel')}
+                  trackColor={{
+                    false: "#E0E0E0",
+                    true: "#F44336"
+                  }}
+                  thumbColor="white"
+                />
               </HStack>
             </Pressable>
           </Box>
