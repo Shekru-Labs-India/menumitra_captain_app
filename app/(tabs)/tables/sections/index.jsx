@@ -4011,10 +4011,7 @@ export default function TableSectionsScreen() {
           {/* Element 4: Content */}
           <Box flex={1} bg="coolGray.100">
             {loading ? (
-              <Center flex={1} py={20}>
-                <Spinner size="lg" color="#0891b2" />
-                <Text mt={4} color="coolGray.600">Loading tables...</Text>
-              </Center>
+              <TableSkeletonLoader />
             ) : (
               <>
                 {/* Render tables - always use grid view */}
