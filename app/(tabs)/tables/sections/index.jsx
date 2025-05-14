@@ -567,7 +567,6 @@ export default function TableSectionsScreen() {
   const [editingSectionId, setEditingSectionId] = useState(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedTableForQR, setSelectedTableForQR] = useState(null);
-  const qrRef = useRef(null);
   const [isLoadingQr, setIsLoadingQr] = useState(false);
   const [qrData, setQrData] = useState(null);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
@@ -614,6 +613,9 @@ export default function TableSectionsScreen() {
   // Add state variables for download/share
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+
+  // Add the viewShotRef here at the component level (not inside QRCodeModal)
+  const viewShotRef = useRef(null);
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -2613,10 +2615,6 @@ export default function TableSectionsScreen() {
   const QRCodeModal = () => {
     if (!selectedTableForQR) return null;
     
-    // Create a ref for the QR view
-    const qrRef = useRef(null);
-    const viewShotRef = useRef(null);
-
     // Show download options
     const showDownloadOptions = () => {
       if (isDownloading || isSharing) return;
@@ -2636,6 +2634,14 @@ export default function TableSectionsScreen() {
         },
       ]);
     };
+
+    // Find local path to the mm-logo.png - adjust this path based on your project structure
+    // You might need to try a few options:
+    const logoPath = require('../../../../assets/images/mm-logo.png');
+    // or if that doesn't work:
+    // const logoPath = require('../../../assets/images/mm-logo.png');
+    // or:
+    // const logoPath = require('../../assets/images/mm-logo.png');
 
     return (
       <Modal
@@ -2692,7 +2698,7 @@ export default function TableSectionsScreen() {
 
             {qrData?.qr_code_url ? (
               <VStack space={4} alignItems="center">
-                {/* QR Container with ViewShot for capture */}
+                {/* QR Container with ViewShot for capture - using the externally defined ref */}
                 <ViewShot 
                   ref={viewShotRef}
                   options={{ quality: 1, format: "png" }}
@@ -2705,14 +2711,13 @@ export default function TableSectionsScreen() {
                   }}
                 >
                   <Box width={250} height={250} alignItems="center" justifyContent="center">
-                    {/* Using QRCode component with logo directly */}
+                    {/* QRCode without ref */}
                     <QRCode
-                      ref={qrRef}
                       value={qrData.qr_code_url}
                       size={250}
                       color="#0066FF"
                       backgroundColor="white"
-                      logo={qrData.logoBase64 ? { uri: `data:image/png;base64,${qrData.logoBase64}` } : require('../../../../assets/images/mm-logo.png')}
+                      logo={logoPath}
                       logoSize={70}
                       logoBackgroundColor="white"
                       logoBorderRadius={10}
@@ -2877,15 +2882,10 @@ export default function TableSectionsScreen() {
       // Generate the QR URL with proper format and encoding
       const qrUrl = `${data.user_app_url}o${data.outlet_code}/s${data.section_id}/t${data.table_number}`;
       
-      // Get logo as base64
-      // Make sure the path is correct to your mm-logo.png file
-      const logoBase64 = await imageToBase64(require('../../../../assets/images/mm-logo.png'));
-      
-      // Store the QR data with the logo information
+      // Set QR data
       setQrData({
         ...data,
         qr_code_url: qrUrl,
-        logoBase64: logoBase64,
         table_number: data.table_number,
         rawUrl: qrUrl
       });
@@ -3361,6 +3361,11 @@ export default function TableSectionsScreen() {
         duration: 10000,
       });
 
+      // Check if viewShotRef exists and is current
+      if (!viewShotRef.current) {
+        throw new Error("QR code view not ready. Please try again.");
+      }
+
       // Capture the QR code using ViewShot
       const uri = await viewShotRef.current.capture();
 
@@ -3394,6 +3399,11 @@ export default function TableSectionsScreen() {
         status: "info",
         duration: 10000,
       });
+
+      // Check if viewShotRef exists and is current
+      if (!viewShotRef.current) {
+        throw new Error("QR code view not ready. Please try again.");
+      }
 
       // Request permissions
       const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -3460,6 +3470,11 @@ export default function TableSectionsScreen() {
         status: "info",
         duration: 10000,
       });
+
+      // Check if viewShotRef exists and is current
+      if (!viewShotRef.current) {
+        throw new Error("QR code view not ready. Please try again.");
+      }
 
       // Get outlet name
       const outlet = (await AsyncStorage.getItem("outlet_name")) || "MenuMitra";
