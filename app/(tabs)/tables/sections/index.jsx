@@ -424,13 +424,14 @@ const OrderTypeButtons = () => {
       ? (100 - (activeButtonCount - 1) * 2) / activeButtonCount
       : 100;
 
-  // Create array of visible buttons
+  // Create array of visible buttons with specific colors
   const buttons = [
     {
       type: "counter",
       active: orderTypeSettings.counter,
       icon: "point-of-sale",
       label: "Counter",
+      color: "#4CAF50", // Green for counter
       params: {
         isSpecialOrder: "true",
         orderType: "counter",
@@ -443,6 +444,7 @@ const OrderTypeButtons = () => {
       active: orderTypeSettings.parcel,
       icon: "takeout-dining",
       label: "Parcel",
+      color: "#FF9800", // Orange for parcel
       params: {
         isSpecialOrder: "true",
         orderType: "parcel",
@@ -455,6 +457,7 @@ const OrderTypeButtons = () => {
       active: orderTypeSettings.delivery,
       icon: "delivery-dining",
       label: "Delivery",
+      color: "#2196F3", // Blue for delivery
       params: {
         isSpecialOrder: "true",
         orderType: "delivery",
@@ -467,6 +470,7 @@ const OrderTypeButtons = () => {
       active: orderTypeSettings.driveThrough,
       icon: "drive-eta",
       label: "Drive",
+      color: "#9C27B0", // Purple for drive-through
       params: {
         isSpecialOrder: "true",
         orderType: "drive-through",
@@ -510,7 +514,7 @@ const OrderTypeButtons = () => {
                 py={2.5}
                 bg="white"
                 borderWidth={1}
-                borderColor="#0891b2"
+                borderColor={button.color}
                 rounded="lg"
                 shadow={1}
                 flexDirection="row"
@@ -521,10 +525,10 @@ const OrderTypeButtons = () => {
                 <MaterialIcons
                   name={button.icon}
                   size={20}
-                  color="#0891b2"
+                  color={button.color}
                   style={{ marginRight: 8 }}
                 />
-                <Text color="#0891b2" fontSize="sm" fontWeight="medium">
+                <Text color={button.color} fontSize="sm" fontWeight="medium">
                   {button.label}
                 </Text>
               </Box>
@@ -1734,6 +1738,8 @@ export default function TableSectionsScreen() {
                                             ? "#fff3e0" // Print & Save - Light orange background
                                             : table.action === "KOT_and_save"
                                             ? "#e2e2e2" // KOT & Save - Grey background
+                                            : table.action === "has_save"
+                                            ? "#e8f5e9" // Has Save - Light green background
                                             : table.action === "create_order"
                                             ? "#ffcdd2" // Create order - Light red background
                                             : table.action === "placed"
@@ -1744,7 +1750,7 @@ export default function TableSectionsScreen() {
                                           : "#e8f5e9" // Available - Light green background
                                       }
                                       borderWidth={1}
-                                      borderStyle="dashed"
+                                      borderStyle={table.action === "has_save" ? "solid" : "dashed"}
                                       borderColor={
                                         table.isLoading
                                           ? "#aaaaaa" // Gray border for loading
@@ -1753,6 +1759,8 @@ export default function TableSectionsScreen() {
                                             ? "#ff9800" // Print & Save - Orange border
                                             : table.action === "KOT_and_save"
                                             ? "#000000" // KOT & Save - Black border
+                                            : table.action === "has_save"
+                                            ? "#4CAF50" // Has Save - Green border
                                             : table.action === "create_order"
                                             ? "#dc3545" // Create order - Red
                                             : table.action === "placed"
@@ -1794,14 +1802,13 @@ export default function TableSectionsScreen() {
                                               mx="auto" // Center horizontally
                                               width="90%" // Adjust width to match screenshots
                                               bg={
-                                                table.action ===
-                                                "print_and_save"
+                                                table.action === "print_and_save"
                                                   ? "#ff9800" // Print & Save - Orange
-                                                  : table.action ===
-                                                    "KOT_and_save"
+                                                  : table.action === "KOT_and_save"
                                                   ? "#000000" // KOT & Save - Black
-                                                  : table.action ===
-                                                    "create_order"
+                                                  : table.action === "has_save"
+                                                  ? "#4CAF50" // Has Save - Green
+                                                  : table.action === "create_order"
                                                   ? "#dc3545" // Create order - Red
                                                   : table.action === "placed"
                                                   ? "#dc3545" // Placed - Red
@@ -1879,16 +1886,15 @@ export default function TableSectionsScreen() {
                                                   )
                                                 }
                                                 bg={
-                                                  table.action ===
-                                                  "print_and_save"
+                                                  table.action === "print_and_save"
                                                     ? "#ff9800" // Print & Save - Orange
-                                                    : table.action ===
-                                                      "KOT_and_save"
+                                                    : table.action === "KOT_and_save"
                                                     ? "#000000" // KOT & Save - Black
-                                                    : table.action ===
-                                                      "create_order"
+                                                    : table.action === "has_save"
+                                                    ? "#4CAF50" // Has Save - Green
+                                                    : table.action === "create_order"
                                                     ? "#dc3545" // Create order - Red
-                                                    : "#dc3545" // Default orange
+                                                    : "#dc3545" // Default red
                                                 }
                                                 w={8}
                                                 h={8}

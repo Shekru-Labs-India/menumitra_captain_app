@@ -3746,7 +3746,7 @@ export default function CreateOrderScreen() {
       setLoadingMessage("Saving order...");
 
       // Create order with "save" status
-      const apiResponse = await createOrder("save", true);
+      const apiResponse = await createOrder("has_save", true);
 
       if (!apiResponse || apiResponse.st !== 1) {
         throw new Error(apiResponse?.msg || "Failed to save order");
