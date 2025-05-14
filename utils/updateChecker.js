@@ -17,6 +17,7 @@ export const isRunningInExpoGo = () => {
  * @param {Function} options.onUpdateAvailable - Callback when update is available
  * @param {Function} options.onUpdateDownloaded - Callback when update is downloaded
  * @param {Function} options.onError - Callback when an error occurs
+ * @param {Object} options.customStrings - Custom text for alert dialogs
  * @returns {Promise<{isAvailable: boolean, isDownloaded: boolean}>}
  */
 export const checkForExpoUpdates = async ({
@@ -24,12 +25,27 @@ export const checkForExpoUpdates = async ({
   onUpdateAvailable = null,
   onUpdateDownloaded = null,
   onError = null,
+  customStrings = null,
 } = {}) => {
   // Skip update check in Expo Go
   if (isRunningInExpoGo()) {
     console.log("Update checking is not supported in Expo Go");
     return { isAvailable: false, isDownloaded: false };
   }
+
+  // Default strings
+  const strings = {
+    updateAvailableTitle: "Update Available",
+    updateAvailableMessage: "A new version of the app is available. Would you like to update now?",
+    updateButton: "Update",
+    laterButton: "Later",
+    updateDownloadedTitle: "Update Downloaded",
+    updateDownloadedMessage: "The update has been downloaded. The app will now restart to apply the changes.",
+    okButton: "OK",
+    errorTitle: "Error",
+    errorMessage: "Failed to download update. Please try again later.",
+    ...customStrings,
+  };
 
   try {
     const update = await Updates.checkForUpdateAsync();
@@ -41,11 +57,11 @@ export const checkForExpoUpdates = async ({
       
       if (!silent) {
         Alert.alert(
-          "Update Available",
-          "A new version of the app is available. Would you like to update now?",
+          strings.updateAvailableTitle,
+          strings.updateAvailableMessage,
           [
             {
-              text: "Update",
+              text: strings.updateButton,
               onPress: async () => {
                 try {
                   await Updates.fetchUpdateAsync();
@@ -56,11 +72,11 @@ export const checkForExpoUpdates = async ({
                   
                   if (!silent) {
                     Alert.alert(
-                      "Update Downloaded",
-                      "The update has been downloaded. The app will now restart to apply the changes.",
+                      strings.updateDownloadedTitle,
+                      strings.updateDownloadedMessage,
                       [
                         {
-                          text: "OK",
+                          text: strings.okButton,
                           onPress: async () => {
                             await Updates.reloadAsync();
                           },
@@ -77,15 +93,15 @@ export const checkForExpoUpdates = async ({
                   
                   if (!silent) {
                     Alert.alert(
-                      "Error",
-                      "Failed to download update. Please try again later."
+                      strings.errorTitle,
+                      strings.errorMessage
                     );
                   }
                 }
               },
             },
             {
-              text: "Later",
+              text: strings.laterButton,
               style: "cancel",
             },
           ]

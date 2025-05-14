@@ -17,7 +17,7 @@ export const useVersion = () => {
 
 export function VersionProvider({ children }) {
   const value = {
-    version: "1.3.0",
+    version: "1.0.0",
     buildNumber: "1",
     appName: "MenuMitra Captain",
     environment: __DEV__ ? "development" : "production",

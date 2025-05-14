@@ -47,6 +47,7 @@ import { fetchWithAuth } from "../../utils/apiInterceptor";
 import { useVersion } from "../../context/VersionContext";
 import * as Notifications from "expo-notifications";
 import { checkForExpoUpdates, isRunningInExpoGo } from "../../utils/updateChecker";
+import UpdateModal from "../../components/UpdateModal";
 
 // Memoize static components
 const MemoizedStatusBar = memo(() => (
@@ -132,6 +133,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [isExpoGo, setIsExpoGo] = useState(isRunningInExpoGo());
+  const [otaUpdateAvailable, setOtaUpdateAvailable] = useState(false);
 
   // Get restaurant name from AsyncStorage
   const getRestaurantName = useCallback(async () => {
@@ -302,7 +304,12 @@ export default function HomeScreen() {
   );
 
   const checkForUpdates = async () => {
-    await checkForExpoUpdates();
+    await checkForExpoUpdates({
+      silent: true,
+      onUpdateAvailable: () => {
+        setOtaUpdateAvailable(true);
+      }
+    });
   };
 
   // Add Audio initialization
@@ -638,36 +645,55 @@ export default function HomeScreen() {
     checkVersion();
   }, [checkVersion]);
 
+  // Handle OTA update
+  const handleOtaUpdate = async () => {
+    try {
+      await Updates.fetchUpdateAsync();
+      Alert.alert(
+        "Update Downloaded",
+        "The update has been downloaded. The app will now restart to apply the changes.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              await Updates.reloadAsync();
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error downloading update:", error);
+      Alert.alert(
+        "Error",
+        "Failed to download update. Please try again later."
+      );
+    }
+  };
+
   const handleUpdatePress = () => {
-    // You can add logic here to direct users to the app store or download page
     Linking.openURL('https://play.google.com/store/apps/details?id=com.menumitra.captain');
   };
 
   return (
     <Box flex={1} bg="white" safeArea>
-      <Modal isOpen={showUpdateModal} closeOnOverlayClick={false} size="lg">
-        <Modal.Content>
-          <Modal.Header>Update Required</Modal.Header>
-          <Modal.Body>
-            <VStack space={3}>
-              <Text>
-                A new version of MenuMitra Captain (v{apiVersion}) is available. Your current version is v{appVersion}.
-              </Text>
-              <Text fontWeight="bold" color="orange.500">
-                Please update the app to continue using all features.
-              </Text>
-            </VStack>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button.Group space={2}>
-             
-              <Button colorScheme="orange" onPress={handleUpdatePress}>
-                Update Now
-              </Button>
-            </Button.Group>
-          </Modal.Footer>
-        </Modal.Content>
-      </Modal>
+      {/* Store Update Modal */}
+      <UpdateModal 
+        isOpen={showUpdateModal}
+        currentVersion={appVersion}
+        newVersion={apiVersion}
+        forceUpdate={true}
+        onClose={() => setShowUpdateModal(false)}
+      />
+
+      {/* OTA Update Modal */}
+      <UpdateModal 
+        isOpen={otaUpdateAvailable}
+        currentVersion={appVersion}
+        newVersion="latest"
+        isOtaUpdate={true}
+        onClose={() => setOtaUpdateAvailable(false)}
+        onApplyOtaUpdate={handleOtaUpdate}
+      />
 
       <MemoizedStatusBar />
       <HStack
