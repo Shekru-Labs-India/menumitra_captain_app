@@ -10,7 +10,6 @@ import {
   Icon,
   Spinner,
   KeyboardAvoidingView,
-  Modal,
   Center,
 } from "native-base";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -22,6 +21,7 @@ import { router } from "expo-router";
 import { getBaseUrl } from "../config/api.config";
 import * as Updates from "expo-updates";
 import { checkForExpoUpdates, isRunningInExpoGo } from "../utils/updateChecker";
+import UpdateModal from "../components/UpdateModal";
 
 export default function LoginScreen() {
   const [mobileNumber, setMobileNumber] = useState("");
@@ -256,30 +256,24 @@ export default function LoginScreen() {
 
   return (
     <Box flex={1} bg="white" safeArea>
-      {showUpdateModal && (
-        <Modal isOpen={true} closeOnOverlayClick={false} size="lg">
-          <Modal.Content>
-            <Modal.Header>Update Required</Modal.Header>
-            <Modal.Body>
-              <VStack space={3}>
-                <Text>
-                  A new version of MenuMitra Captain (v{apiVersion}) is available. Your current version is v{appVersion}.
-                </Text>
-                <Text fontWeight="bold" color="orange.500">
-                  Please update the app to continue using all features.
-                </Text>
-              </VStack>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button.Group space={2}>
-                <Button colorScheme="orange" onPress={handleUpdatePress}>
-                  Update Now
-                </Button>
-              </Button.Group>
-            </Modal.Footer>
-          </Modal.Content>
-        </Modal>
-      )}
+      {/* Store Update Modal */}
+      <UpdateModal 
+        isOpen={showUpdateModal}
+        currentVersion={appVersion}
+        newVersion={apiVersion}
+        forceUpdate={true}
+        onClose={() => setShowUpdateModal(false)}
+      />
+
+      {/* OTA Update Modal */}
+      <UpdateModal 
+        isOpen={otaUpdateAvailable}
+        currentVersion={appVersion}
+        newVersion="latest"
+        isOtaUpdate={true}
+        onClose={() => setOtaUpdateAvailable(false)}
+        onApplyOtaUpdate={handleOtaUpdate}
+      />
 
       <Box flex={1} px={6} justifyContent="center">
         <VStack space={6} alignItems="center" w="100%">
@@ -298,27 +292,6 @@ export default function LoginScreen() {
               Captain App
             </Text>
           </VStack>
-
-          {otaUpdateAvailable && (
-            <Pressable 
-              onPress={handleOtaUpdate}
-              py={2} px={4} mb={4}
-              bg="blue.100" rounded="md"
-              borderWidth={1} borderColor="blue.300"
-            >
-              <HStack alignItems="center" space={2}>
-                <Icon
-                  as={MaterialCommunityIcons}
-                  name="update"
-                  size={5}
-                  color="blue.600"
-                />
-                <Text color="blue.700" fontWeight="medium">
-                  Update available! Tap to install
-                </Text>
-              </HStack>
-            </Pressable>
-          )}
 
           <VStack space={4} w="100%">
             <VStack space={2} w="100%">
