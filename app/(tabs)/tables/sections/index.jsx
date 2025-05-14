@@ -4014,26 +4014,80 @@ export default function TableSectionsScreen() {
                 {/* Render tables - always use grid view */}
                 {renderGridView(sortedSections)}
                 
-                {/* Move background refresh indicator to bottom-center with subtle styling */}
+                {/* Floating action indicators */}
+                {updatingSections.size > 0 && (
+                  <Box 
+                    position="absolute" 
+                    top={4} 
+                    right={4} 
+                    zIndex={1000}
+                    px={3}
+                    py={1.5}
+                    bg="rgba(0,0,0,0.7)"
+                    rounded="md"
+                    shadow={2}
+                  >
+                    <HStack space={2} alignItems="center">
+                      <Spinner size="sm" color="white" />
+                      <Text color="white" fontSize="xs">Updating section</Text>
+                    </HStack>
+                  </Box>
+                )}
+                
+                {deletingSections.size > 0 && (
+                  <Box 
+                    position="absolute" 
+                    top={4} 
+                    right={4} 
+                    zIndex={1000}
+                    px={3}
+                    py={1.5}
+                    bg="rgba(220,53,69,0.7)"
+                    rounded="md"
+                    shadow={2}
+                  >
+                    <HStack space={2} alignItems="center">
+                      <Spinner size="sm" color="white" />
+                      <Text color="white" fontSize="xs">Deleting section</Text>
+                    </HStack>
+                  </Box>
+                )}
+                
+                {deletingTables.size > 0 && (
+                  <Box 
+                    position="absolute" 
+                    top={14} 
+                    right={4} 
+                    zIndex={1000}
+                    px={3}
+                    py={1.5}
+                    bg="rgba(220,53,69,0.7)"
+                    rounded="md"
+                    shadow={2}
+                  >
+                    <HStack space={2} alignItems="center">
+                      <Spinner size="sm" color="white" />
+                      <Text color="white" fontSize="xs">Deleting table</Text>
+                    </HStack>
+                  </Box>
+                )}
+                
+                {/* Background sync indicator */}
                 {backgroundRefreshing && (
                   <Box 
                     position="absolute" 
                     bottom={2} 
-                    left="50%" 
-                    style={{ transform: [{ translateX: -40 }] }}
+                    right={4}
                     zIndex={1000}
+                    px={3}
+                    py={1}
+                    bg="rgba(8,145,178,0.7)"
+                    rounded="full"
+                    shadow={1}
                   >
-                    <HStack 
-                      space={1} 
-                      alignItems="center" 
-                      bg="rgba(8, 145, 178, 0.7)" 
-                      px={3} 
-                      py={1} 
-                      rounded="full"
-                      shadow={1}
-                    >
+                    <HStack space={1} alignItems="center">
                       <Spinner size="sm" color="white" />
-                      <Text fontSize="xs" color="white" fontWeight="medium">Syncing</Text>
+                      <Text color="white" fontSize="xs" fontWeight="medium">Syncing</Text>
                     </HStack>
                   </Box>
                 )}
