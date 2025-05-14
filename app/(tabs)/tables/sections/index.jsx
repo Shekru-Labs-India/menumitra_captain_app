@@ -617,6 +617,8 @@ export default function TableSectionsScreen() {
   // Add the viewShotRef here at the component level (not inside QRCodeModal)
   const viewShotRef = useRef(null);
 
+  const [updateTimestamp, setUpdateTimestamp] = useState(Date.now()); // Add this to track refresh timestamps
+
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
       setFilterStatus("available");
@@ -720,11 +722,10 @@ export default function TableSectionsScreen() {
 
   const getStoredData = async () => {
     try {
-      setLoading(true);
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       if (storedOutletId) {
         setOutletId(parseInt(storedOutletId));
-        await fetchSections(parseInt(storedOutletId));
+        await fetchSections(parseInt(storedOutletId), true); // true = isInitialLoad
       } else {
         toast.show({
           description: "Please login again",
@@ -738,16 +739,23 @@ export default function TableSectionsScreen() {
         description: "Failed to load data",
         status: "error",
       });
-    } finally {
-      setLoading(false);
+      setLoading(false); // Ensure loading is turned off even on error
     }
   };
 
-  // Update the fetchSections function to add the alarm state flag to each table
-  const fetchSections = async (outletId) => {
+  // Replace the fetchSections function with this optimized version
+  const fetchSections = async (outletId, isInitialLoad = false) => {
     try {
-      // Only set loading state for user-initiated fetches
-      setLoading(true);
+      // Only set loading state for initial load, not for refreshes
+      if (isInitialLoad) {
+        setLoading(true);
+      } else {
+        setBackgroundRefreshing(true);
+      }
+
+      // Log a timestamp to track this refresh
+      const refreshTime = Date.now();
+      console.log(`Starting section fetch at ${refreshTime}`);
 
       const data = await fetchWithAuth(`${getBaseUrl()}/table_listview`, {
         method: "POST",
@@ -757,8 +765,6 @@ export default function TableSectionsScreen() {
         }),
       });
 
-      console.log("API Response:", data);
-
       if (data.st === 1) {
         const processedSections = data.data.map((section) => ({
           id: section.section_id,
@@ -767,7 +773,6 @@ export default function TableSectionsScreen() {
             ...table,
             timeSinceOccupied: calculateTimeDifference(table.occupied_time),
             isInAlarmState: isTableInAlarmState(table.occupied_time),
-            // Make sure action property is present and correctly set
             action: table.action || (table.is_occupied === 1 ? "placed" : null),
           })),
           totalTables: section.tables.length,
@@ -776,25 +781,65 @@ export default function TableSectionsScreen() {
           ).length,
         }));
 
-        setSections(processedSections);
+        // Use functional update to properly merge with existing state
+        setSections((currentSections) => {
+          // Preserve UI state for tables (like isLoading, etc.)
+          return processedSections.map(newSection => {
+            // Find this section in current sections (if it exists)
+            const existingSection = currentSections.find(s => s.id === newSection.id);
+            
+            if (!existingSection) return newSection;
+            
+            // Merge tables data to preserve any local UI state
+            const mergedTables = newSection.tables.map(newTable => {
+              const existingTable = existingSection.tables.find(
+                t => t.table_id === newTable.table_id
+              );
+              
+              if (!existingTable) return newTable;
+              
+              // Preserve UI states like loading, deleting, etc.
+              return {
+                ...newTable,
+                isLoading: existingTable.isLoading || false,
+              };
+            });
+            
+            return {
+              ...newSection,
+              tables: mergedTables,
+            };
+          });
+        });
+
+        // Set active section only if not set already
         if (processedSections.length > 0 && !activeSection) {
           setActiveSection(processedSections[0]);
         }
         
-        // Add this to store the sales data
+        // Update sales data
         setSalesData({
           liveSales: data.live_sales || 0,
           todayTotalSales: data.today_total_sales || 0,
         });
+        
+        // Update timestamp to trigger any components that depend on fresh data
+        setUpdateTimestamp(Date.now());
       }
     } catch (error) {
       console.error("Fetch Sections Error:", error);
-      toast.show({
-        description: error.message || "Failed to load sections",
-        status: "error",
-      });
+      // Only show error toast for user-initiated actions, not background refreshes
+      if (isInitialLoad) {
+        toast.show({
+          description: error.message || "Failed to load sections",
+          status: "error",
+        });
+      }
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
+      setBackgroundRefreshing(false);
     }
   };
 
@@ -1185,7 +1230,7 @@ export default function TableSectionsScreen() {
       setRefreshing(true);
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       if (storedOutletId) {
-        await fetchSections(parseInt(storedOutletId));
+        await fetchSections(parseInt(storedOutletId), false); // false = not initial load
         toast.show({
           description: "Tables refreshed",
           status: "success",
@@ -1203,7 +1248,7 @@ export default function TableSectionsScreen() {
     }
   }, [isQRModalOpen, showQRModal]);
 
-  // Replace the auto-refresh useEffect with this optimized version
+  // Update auto-refresh interval to use the non-loading version of fetchSections
   useEffect(() => {
     refreshInterval.current = setInterval(async () => {
       try {
@@ -1218,8 +1263,7 @@ export default function TableSectionsScreen() {
         
         const storedOutletId = await AsyncStorage.getItem("outlet_id");
         if (storedOutletId) {
-          // Use the silent refresh function instead
-          await fetchSections(parseInt(storedOutletId));
+          await fetchSections(parseInt(storedOutletId), false); // false = not initial load
         }
       } catch (error) {
         console.error("Auto Refresh Error:", error);
@@ -3961,12 +4005,38 @@ export default function TableSectionsScreen() {
           {/* Element 4: Content */}
           <Box flex={1} bg="coolGray.100">
             {loading ? (
-              <TableSkeletonLoader />
+              <Center flex={1} py={20}>
+                <Spinner size="lg" color="#0891b2" />
+                <Text mt={4} color="coolGray.600">Loading tables...</Text>
+              </Center>
             ) : (
               <>
-                {viewType === "grid"
-                  ? renderGridView(sortedSections)
-                  : renderGridView(sortedSections)}
+                {/* Render tables - always use grid view */}
+                {renderGridView(sortedSections)}
+                
+                {/* Move background refresh indicator to bottom-center with subtle styling */}
+                {backgroundRefreshing && (
+                  <Box 
+                    position="absolute" 
+                    bottom={2} 
+                    left="50%" 
+                    style={{ transform: [{ translateX: -40 }] }}
+                    zIndex={1000}
+                  >
+                    <HStack 
+                      space={1} 
+                      alignItems="center" 
+                      bg="rgba(8, 145, 178, 0.7)" 
+                      px={3} 
+                      py={1} 
+                      rounded="full"
+                      shadow={1}
+                    >
+                      <Spinner size="sm" color="white" />
+                      <Text fontSize="xs" color="white" fontWeight="medium">Syncing</Text>
+                    </HStack>
+                  </Box>
+                )}
               </>
             )}
           </Box>
