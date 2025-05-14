@@ -697,7 +697,8 @@ export default function CreateOrderScreen() {
             menu_name: item.menu_name,
             price: parseFloat(item.price),
             quantity: parseInt(item.quantity),
-            portionSize: "Full",
+            originalQuantity: parseInt(item.quantity), // Add this line to track original quantity
+            portionSize: item.half_or_full === "half" ? "Half" : "Full",
             specialInstructions: item.comment || "",
             offer: parseFloat(item.offer) || 0,
             menu_sub_total: parseFloat(item.menu_sub_total),
@@ -1778,55 +1779,44 @@ export default function CreateOrderScreen() {
 
   // Update handleAddItem to use the calculateItemTotal helper
   const handleAddItem = (item, selectedPortion) => {
-    const portionSize = "Full"; // Always use "Full" as default
+    const existingItemIndex = selectedItems.findIndex(
+      (i) => i.menu_id === item.menu_id && i.portionSize === selectedPortion
+    );
 
-    setSelectedItems((prevItems) => {
-      const existingItemIndex = prevItems.findIndex(
-        (prevItem) => String(prevItem.menu_id) === String(item.menu_id)
-      );
-
-      if (existingItemIndex !== -1) {
-        const updatedItems = [...prevItems];
-        const existingItem = updatedItems[existingItemIndex];
-
-        if (existingItem.quantity < 20) {
-          existingItem.quantity += 1;
-          existingItem.total_price = calculateItemTotal(
-            Number(item.full_price),
-            existingItem.quantity,
-            Number(item.offer || 0)
-          );
-        }
-
-        return updatedItems;
+    if (existingItemIndex >= 0) {
+      // Update existing item
+      const updatedItems = [...selectedItems];
+      const existingItem = updatedItems[existingItemIndex];
+      
+      // Store original quantity if it's not already set (for existing orders)
+      if (params?.orderId && existingItem.originalQuantity === undefined) {
+        existingItem.originalQuantity = existingItem.quantity;
       }
-
+      
+      // Increment quantity
+      existingItem.quantity = parseInt(existingItem.quantity) + 1;
+      // Update total price
+      existingItem.total_price = calculateItemTotal(
+        existingItem.price,
+        existingItem.quantity,
+        existingItem.offer || 0
+      );
+      
+      setSelectedItems(updatedItems);
+    } else {
+      // Create new item
       const newItem = {
-        menu_id: item.menu_id,
-        menu_name: item.menu_name || item.name,
-        name: item.name || item.menu_name,
-        price: Number(item.full_price),
+        ...item,
         quantity: 1,
-        portionSize,
-        half_price: Number(item.half_price || 0),
-        full_price: Number(item.full_price),
-        offer: Number(item.offer || 0),
+        portionSize: selectedPortion,
+        price: selectedPortion === "half" ? Math.floor(item.price * 0.6) : item.price,
+        total_price: selectedPortion === "half" ? Math.floor(item.price * 0.6) : item.price,
         specialInstructions: "",
-        isNewlyAdded: true,
-        total_price: calculateItemTotal(
-          Number(item.full_price),
-          1,
-          Number(item.offer || 0)
-        ),
+        isNewlyAdded: true // Mark as new item
       };
-
-      return [...prevItems, newItem];
-    });
-
-    // Clear search after adding
-    setSearchQuery("");
-    setSearchResults([]);
-    setIsSearchOpen(false);
+      
+      setSelectedItems([...selectedItems, newItem]);
+    }
   };
 
   // Update the removeFromCart function
@@ -2733,7 +2723,38 @@ export default function CreateOrderScreen() {
 
       // Add items
       selectedItems.forEach((item) => {
-        commands.push(...textToBytes(formatMenuItem(item)));
+        // Format item line (left-aligned item name, right-aligned quantity)
+        let line = item.menu_name || item.name || "Unknown Item";
+
+        // Append portion size if applicable
+        if (item.portionSize && item.portionSize.toLowerCase() !== "full") {
+          line += ` (${item.portionSize})`;
+        }
+
+        // Add instructions if available
+        let instructions = "";
+        if (item.specialInstructions) {
+          instructions = `  * ${item.specialInstructions}`;
+        }
+
+        // Truncate and pad the line
+        if (line.length > 22) {
+          line = line.substring(0, 19) + "...";
+        }
+
+        // Pad with spaces to align quantity
+        const padding = 22 - line.length;
+        line += " ".repeat(padding > 0 ? padding : 1) + item.quantity.toString();
+
+        commands.push(...textToBytes(line + "\n"));
+
+        // Add instructions on next line if present
+        if (instructions) {
+          commands.push(
+            ...textToBytes("\x1B\x21\x00"), // Normal size
+            ...textToBytes(instructions + "\n")
+          );
+        }
       });
 
       // Add dotted line after items
@@ -2858,149 +2879,155 @@ export default function CreateOrderScreen() {
       // Determine if this is an existing order
       const isExistingOrder = Boolean(params?.orderId);
       
-      // Determine if any items need to be reprinted
-      // This requires tracking which items are reprints vs. new additions
-      const hasNewItems = selectedItems.some(item => item.isNewlyAdded);
+      // Get list of items to print based on whether it's a new or existing order
+      let itemsToPrint = [];
+      let totalQuantityToPrint = 0;
       
-      // Determine appropriate KOT header
-      let kotHeader;
+      console.log("Selected items for KOT:", selectedItems.map(item => `${item.menu_name}: ${item.quantity} (${item.isNewlyAdded ? 'new' : 'existing'}, orig: ${item.originalQuantity || 0})`));
+      
       if (isExistingOrder) {
-        // For existing orders, check if we're just reprinting or adding items
-        kotHeader = hasNewItems 
-          ? "*** ADDITIONAL KOT ***\n\n"
-          : "*** REPRINT KOT ***\n\n";
+        console.log("Existing order detected. Preparing incremental KOT");
+        
+        // Extract selected items with their isNewlyAdded and other flags
+        let hasChanges = false;
+        
+        itemsToPrint = selectedItems.map(item => {
+          const currentQty = parseInt(item.quantity) || 0;
+          const originalQty = parseInt(item.originalQuantity) || 0;
+          
+          // For new items
+          if (item.isNewlyAdded === true) {
+            console.log(`Including new item: ${item.menu_name}, Qty: ${item.quantity}`);
+            hasChanges = true;
+            return {
+              ...item,
+              isNewItem: true,
+              isQuantityChange: false
+            };
+          }
+          
+          // For items with increased quantities
+          if (currentQty > originalQty) {
+            const diff = currentQty - originalQty;
+            console.log(`Including changed quantity item: ${item.menu_name}, Original: ${originalQty}, Current: ${currentQty}, Diff: ${diff}`);
+            hasChanges = true;
+            return {
+              ...item,
+              quantity: diff, // Only print the incremental quantity
+              isNewItem: false,
+              isQuantityChange: true
+            };
+          }
+          
+          // Items without changes are not included in KOT
+          return null;
+        }).filter(Boolean); // Remove null items
+        
+        // If no changes, print all items from the order
+        if (!hasChanges || itemsToPrint.length === 0) {
+          console.log("No changes detected. Printing all items from existing order");
+          itemsToPrint = selectedItems.map(item => ({
+            ...item,
+            isExistingReprint: true // Mark these as reprints
+          }));
+        }
+          
+        // Calculate total quantity of items being printed
+        totalQuantityToPrint = itemsToPrint.reduce((sum, item) => {
+          return sum + (parseInt(item.quantity) || 0);
+        }, 0);
       } else {
-        // For new orders, use the standard header
-        kotHeader = "*** KOT ***\n\n";
+        // For new orders, print all items
+        console.log("New order detected. Printing all items");
+        itemsToPrint = selectedItems;
+        
+        // Calculate total quantity across all items
+        totalQuantityToPrint = selectedItems.reduce((sum, item) => {
+          return sum + (parseInt(item.quantity) || 0);
+        }, 0);
       }
+      
+      // Add a clear header to indicate whether this is a new KOT or an addition
+      const kotHeader = isExistingOrder 
+        ? (itemsToPrint.some(item => item.isExistingReprint) 
+            ? "*** REPRINT KOT ***\n\n" 
+            : "*** ADDITIONAL KOT ***\n\n")
+        : "*** KOT ***\n\n";
 
-      // FIXED: Get order number with enhanced fallbacks to match owner app
-      const orderNumber =
-        orderData?.lists?.order_details?.order_number || // Old format from API
-        orderData?.order_details?.order_number || // Format from order details
-        orderData?.order_number || // Direct format for new orders
-        params?.orderNumber || // URL param fallback (adds this case)
-        params?.orderId || // Last fallback
-        "New";
-
-      console.log("Using order number for KOT:", orderNumber);
-
-      // Determine order type
-      const orderType = params?.orderType || "dine-in";
-      const orderTypeFormatted =
-        orderTypeMap[orderType] ||
-        orderType.charAt(0).toUpperCase() + orderType.slice(1);
-
-      const getDottedLine = () => "------------------------------\n";
-
-      // Create header
-      commands.push(
+      // Generate KOT commands - make sure to add the header!
+      commands = [
+        ...textToBytes("\x1B\x40"), // Initialize printer
         ...textToBytes("\x1B\x61\x01"), // Center alignment
-        ...textToBytes("\x1B\x21\x10"), // Double height
-        ...textToBytes(kotHeader), // Use dynamic KOT header based on order state
+        ...textToBytes("\x1B\x21\x10"), // Double width, double height
+        ...textToBytes(kotHeader), // Add the KOT header!
+        ...textToBytes(`${outletName || 'Restaurant'}\n`),
         ...textToBytes("\x1B\x21\x00"), // Normal text
-        ...textToBytes(`${outletName || "Restaurant"}\n`),
-        ...textToBytes(`${outletAddress || ""}\n`),
-        ...textToBytes(`${outletMobile || ""}\n\n`),
-
+        ...textToBytes(`${outletAddress || ''}\n`),
+        ...textToBytes(`${outletMobile || ''}\n\n`),
+        
         ...textToBytes("\x1B\x61\x00"), // Left align
-        ...textToBytes(`Bill no: ${orderNumber}\n`)
-      );
-
-      // Show different order information based on order type
-      if (orderType === "dine-in") {
-        // For dine-in orders, show table information
-        commands.push(
-          ...textToBytes(
-            `Table: ${params?.sectionName || ""}${
-              params?.tableNumber ? ` - ${params.tableNumber}` : ""
-            }\n`
-          )
-        );
-      } else {
-        // For other order types, show the order type
-        commands.push(...textToBytes(`Type: ${orderTypeFormatted}\n`));
-      }
-
-      commands.push(
+        ...textToBytes(`Bill no: ${orderData?.order_number || params?.orderNumber || 'New'}\n`),
         ...textToBytes(
-          `DateTime: ${
-            orderData?.datetime
-              ? formatTime(orderData.datetime)
-              : getCurrentDateTime()
-          }\n`
+          params?.orderType === "dine-in"
+            ? `Table: ${params?.sectionName || ''} - ${params?.tableNumber || ''}\n`
+            : `Type: ${params?.orderType?.toUpperCase() || 'UNKNOWN'}\n`
         ),
-
-        ...(customerDetails?.customer_name
-          ? [textToBytes(`Name: ${customerDetails.customer_name}\n`)]
-          : []),
-
+        ...textToBytes(`DateTime: ${getCurrentDateTime()}\n`), 
+        
+        ...(customerDetails?.customer_name ? [textToBytes(`Name: ${customerDetails.customer_name}\n`)] : []),
+        
         ...textToBytes(getDottedLine()),
         ...textToBytes("Item                    Qty\n"),
-        ...textToBytes(getDottedLine())
-      );
-
-      // Add menu items
-      let totalQty = 0;
-
-      // Use the items from the order, if available
-      const items = selectedItems || [];
-
-      // Make sure items exist and handle safely
-      if (items && items.length > 0) {
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i];
+        ...textToBytes(getDottedLine()),
+      ];
+      
+      // Format and add itemsToPrint to commands
+      if (itemsToPrint && itemsToPrint.length > 0) {
+        for (let i = 0; i < itemsToPrint.length; i++) {
+          const item = itemsToPrint[i];
           if (!item) continue;
 
           try {
-            const itemName = item.menu_name || item.name || "Unknown Item";
-            const quantity = parseInt(item.quantity) || 0;
-            totalQty += quantity;
+            const name = item.menu_name || item.name || "Unknown Item";
+            const qty = parseInt(item.quantity) || 0;
+            
+            // Format item text 
+            let itemText = "";
+            if (name.length > 20) {
+              // Split long item names
+              const lines = splitLongText(name, 20);
+              itemText = lines
+                .map((line, index) =>
+                  index === 0
+                    ? `${line.padEnd(20)} ${qty}\n`
+                    : `${line.padEnd(20)}\n`
+                )
+                .join("");
+            } else {
+              itemText = `${name.padEnd(20)} ${qty}\n`;
+            }
 
-            // Format item line (left-aligned item name, right-aligned quantity)
-            let line = itemName;
-
-            // Append portion size if applicable
+            // Add portion and special instructions if available
             if (item.portionSize && item.portionSize.toLowerCase() !== "full") {
-              line += ` (${item.portionSize})`;
+              itemText += `   (${item.portionSize})\n`;
             }
-
-            // Add instructions if available
-            let instructions = "";
             if (item.specialInstructions) {
-              instructions = `  * ${item.specialInstructions}`;
+              itemText += `   Note: ${item.specialInstructions}\n`;
             }
 
-            // Truncate and pad the line
-            if (line.length > 22) {
-              line = line.substring(0, 19) + "...";
-            }
-
-            // Pad with spaces to align quantity
-            const padding = 22 - line.length;
-            line += " ".repeat(padding > 0 ? padding : 1) + quantity.toString();
-
-            commands.push(...textToBytes(line + "\n"));
-
-            // Add instructions on next line if present
-            if (instructions) {
-              commands.push(
-                ...textToBytes("\x1B\x21\x00"), // Normal size
-                ...textToBytes(instructions + "\n")
-              );
-            }
+            commands.push(...textToBytes(itemText));
           } catch (itemError) {
             console.error("Error processing item for KOT:", itemError);
-            // Continue with next item instead of crashing
             continue;
           }
         }
       }
 
-      // Add footer
+      // Add footer with proper alignment and totals
       commands.push(
         ...textToBytes(getDottedLine()),
-        ...textToBytes(`Total Items: ${totalQty}\n\n`),
+        ...textToBytes(`${"Total Items:".padEnd(20)} ${totalQuantityToPrint}\n`),
+        ...textToBytes("\n"),
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         ...textToBytes("*** KITCHEN COPY ***\n\n\n"),
         ...textToBytes("\x1D\x56\x42\x40") // Cut paper
@@ -3598,8 +3625,7 @@ export default function CreateOrderScreen() {
           console.error("KOT print error:", printError);
           // Continue even with print error
           toast.show({
-            description:
-              "Order saved but KOT printing failed: " + printError.message,
+            description: "Order saved but KOT printing failed: " + printError.message,
             status: "warning",
             duration: 3000,
           });
@@ -4747,6 +4773,14 @@ export default function CreateOrderScreen() {
             status: "success",
             duration: 2000,
           });
+        } catch (printError) {
+          console.error("KOT print error:", printError);
+          toast.show({
+            description: "Order saved but KOT printing failed: " + printError.message,
+            status: "warning",
+            duration: 3000,
+          });
+        }
 
           // Wait for 3 seconds to allow user to cut the paper
           setLoadingMessage("Waiting to print receipt... Please cut the paper");
@@ -4769,23 +4803,6 @@ export default function CreateOrderScreen() {
             description: "Order settled and receipt printed successfully",
             status: "success",
             duration: 2000,
-          });
-        } catch (printError) {
-          console.error("Print error:", printError);
-          toast.show({
-            description: "Order saved but printing failed: " + printError.message,
-            status: "warning",
-            duration: 3000,
-          });
-        }
-
-        // Navigate back to tables screen
-        router.replace({
-          pathname: "/(tabs)/tables/sections",
-          params: {
-            refresh: Date.now().toString(),
-            status: "completed",
-          },
         });
       } catch (error) {
         console.error("KOT and Settle error:", error);
