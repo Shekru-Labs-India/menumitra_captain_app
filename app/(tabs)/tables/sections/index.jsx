@@ -57,6 +57,7 @@ import { Alert } from "react-native";
 import Image from "react-native/Libraries/Image/Image";
 import { TouchableOpacity, TouchableWithoutFeedback } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
+import { Asset } from 'expo-asset';
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -2611,6 +2612,10 @@ export default function TableSectionsScreen() {
   // Update the QRCodeModal component to match RestaurantTables.js
   const QRCodeModal = () => {
     if (!selectedTableForQR) return null;
+    
+    // Create a ref for the QR view
+    const qrRef = useRef(null);
+    const viewShotRef = useRef(null);
 
     // Show download options
     const showDownloadOptions = () => {
@@ -2685,25 +2690,38 @@ export default function TableSectionsScreen() {
               Table {selectedTableForQR?.table_number} QR Code
             </Text>
 
-            {qrData?.qrCodeUrl ? (
+            {qrData?.qr_code_url ? (
               <VStack space={4} alignItems="center">
-                {/* QR Container */}
-                <Box
-                  bg="white"
-                  p={4}
-                  borderWidth={3}
-                  borderColor="#FF7043"
-                  borderRadius="lg"
-                  position="relative"
+                {/* QR Container with ViewShot for capture */}
+                <ViewShot 
+                  ref={viewShotRef}
+                  options={{ quality: 1, format: "png" }}
+                  style={{
+                    backgroundColor: 'white',
+                    padding: 16,
+                    borderWidth: 3,
+                    borderColor: "#FF7043",
+                    borderRadius: 12,
+                  }}
                 >
-                  {/* Using direct Image component for the QR code */}
-                  <Image
-                    source={{ uri: qrData.qrCodeUrl }}
-                    alt="QR Code"
-                    style={{ width: 250, height: 250 }}
-                    resizeMode="contain"
-                  />
-                </Box>
+                  <Box width={250} height={250} alignItems="center" justifyContent="center">
+                    {/* Using QRCode component with logo directly */}
+                    <QRCode
+                      ref={qrRef}
+                      value={qrData.qr_code_url}
+                      size={250}
+                      color="#0066FF"
+                      backgroundColor="white"
+                      logo={qrData.logoBase64 ? { uri: `data:image/png;base64,${qrData.logoBase64}` } : require('../../../../assets/images/mm-logo.png')}
+                      logoSize={70}
+                      logoBackgroundColor="white"
+                      logoBorderRadius={10}
+                      quietZone={10}
+                      enableLinearGradient={false}
+                      ecl="H"
+                    />
+                  </Box>
+                </ViewShot>
 
                 <Text fontSize="md" color="coolGray.600" textAlign="center">
                   Scan to place your order
@@ -2724,7 +2742,12 @@ export default function TableSectionsScreen() {
                     opacity={isDownloading || isSharing ? 0.7 : 1}
                   >
                     {isDownloading ? (
-                      <Spinner size="sm" color="white" />
+                      <HStack space={2} alignItems="center">
+                        <Spinner size="sm" color="white" />
+                        <Text color="white" fontWeight="medium">
+                          Downloading...
+                        </Text>
+                      </HStack>
                     ) : (
                       <HStack space={2} alignItems="center">
                         <Icon
@@ -2753,7 +2776,12 @@ export default function TableSectionsScreen() {
                     opacity={isDownloading || isSharing ? 0.7 : 1}
                   >
                     {isSharing ? (
-                      <Spinner size="sm" color="white" />
+                      <HStack space={2} alignItems="center">
+                        <Spinner size="sm" color="white" />
+                        <Text color="white" fontWeight="medium">
+                          Sharing...
+                        </Text>
+                      </HStack>
                     ) : (
                       <HStack space={2} alignItems="center">
                         <Icon
@@ -2784,7 +2812,26 @@ export default function TableSectionsScreen() {
     );
   };
 
-  // Update handleQRIconPress to fetch sections first if needed
+  // Add this function to convert the logo image to base64
+  const imageToBase64 = async (imageSource) => {
+    try {
+      // Load the image asset
+      const asset = Asset.fromModule(imageSource);
+      await asset.downloadAsync();
+      
+      // Read the file and convert to base64
+      const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      return base64;
+    } catch (error) {
+      console.error("Error converting image to base64:", error);
+      return null;
+    }
+  };
+
+  // Update the handleQRIconPress function
   const handleQRIconPress = async (table, section) => {
     setIsLoadingQr(true);
     setIsQRModalOpen(true);
@@ -2830,19 +2877,17 @@ export default function TableSectionsScreen() {
       // Generate the QR URL with proper format and encoding
       const qrUrl = `${data.user_app_url}o${data.outlet_code}/s${data.section_id}/t${data.table_number}`;
       
-      // Use QR Server API for direct QR image generation - this is the KEY change
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrUrl)}&ecc=H&color=0066FF&bgcolor=FFFFFF&margin=1&qzone=1&logo=https://menumitra.com/assets/images/logo-icon.png&logosize=100`;
+      // Get logo as base64
+      // Make sure the path is correct to your mm-logo.png file
+      const logoBase64 = await imageToBase64(require('../../../../assets/images/mm-logo.png'));
       
-      console.log("Generated QR URL:", qrUrl);
-      console.log("QR Image URL:", qrCodeUrl);
-
-      // Set QR data with BOTH the data URL and the image URL
+      // Store the QR data with the logo information
       setQrData({
         ...data,
-        qr_code_url: qrUrl,        // Original data URL for encoding 
-        qrCodeUrl: qrCodeUrl,      // Image URL for display
+        qr_code_url: qrUrl,
+        logoBase64: logoBase64,
         table_number: data.table_number,
-        rawUrl: qrUrl              // Store raw URL for encoding in PDF
+        rawUrl: qrUrl
       });
 
       // Add a stability timeout to ensure QR code is stable before user interactions
@@ -3304,46 +3349,29 @@ export default function TableSectionsScreen() {
     setIsQRModalOpen(false);
   };
 
-  // Add this function near your other handlers like closeModal
+  // Modified shareQRCode function to use ViewShot
   const shareQRCode = async () => {
     try {
       setIsSharing(true);
 
-      if (!qrData?.qrCodeUrl) {
-        throw new Error("No QR code data available to share");
-      }
+      // Show info toast immediately
+      const toastId = toast.show({
+        description: "Preparing to share...",
+        status: "info",
+        duration: 10000,
+      });
 
-      // Use the direct QR code URL already created by QRServer
-      const qrApiUrl = qrData.qrCodeUrl;
-      const filename = `Table_${
-        selectedTableForQR?.table_number || "Unknown"
-      }_QR_${Date.now()}.png`;
-      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+      // Capture the QR code using ViewShot
+      const uri = await viewShotRef.current.capture();
 
-      // Download the QR image
-      const downloadResult = await FileSystem.downloadAsync(
-        qrApiUrl,
-        fileUri
-      );
+      // Close the info toast
+      toast.close(toastId);
 
-      if (downloadResult.status !== 200) {
-        throw new Error("Failed to download QR code image for sharing");
-      }
-
-      // Share the file
-      await Sharing.shareAsync(fileUri, {
+      // Share the captured image
+      await Sharing.shareAsync(uri, {
         mimeType: "image/png",
         dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code`,
       });
-
-      // Cleanup after sharing
-      setTimeout(async () => {
-        try {
-          await FileSystem.deleteAsync(fileUri, { idempotent: true });
-        } catch (e) {
-          console.log("Cleanup error (non-critical):", e);
-        }
-      }, 3000);
     } catch (error) {
       console.error("Share Error:", error);
       toast.show({
@@ -3355,21 +3383,22 @@ export default function TableSectionsScreen() {
     }
   };
 
-  // Add the downloadAsPNG function
+  // Modified downloadAsPNG function to use ViewShot
   const downloadAsPNG = async () => {
     try {
       setIsDownloading(true);
       
-      // Show loading toast
-      toast.show({
-        description: "Saving QR code...",
+      // Optimistically show success toast immediately
+      const toastId = toast.show({
+        description: "Preparing QR code...",
         status: "info",
-        duration: 2000,
+        duration: 10000,
       });
 
       // Request permissions
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== "granted") {
+        toast.close(toastId);
         toast.show({
           description: "Permission denied to save to gallery",
           status: "error",
@@ -3377,25 +3406,11 @@ export default function TableSectionsScreen() {
         return;
       }
 
-      // Use the direct QR code URL already created by QRServer
-      const qrApiUrl = qrData.qrCodeUrl;
-      const filename = `Table_${
-        selectedTableForQR?.table_number || "Unknown"
-      }_QR_${Date.now()}.png`;
-      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-
-      // Download the QR image
-      const downloadResult = await FileSystem.downloadAsync(
-        qrApiUrl,
-        fileUri
-      );
-
-      if (downloadResult.status !== 200) {
-        throw new Error("Failed to download QR code image");
-      }
-
+      // Capture the QR code using ViewShot
+      const uri = await viewShotRef.current.capture();
+      
       // Save to gallery
-      const asset = await MediaLibrary.createAssetAsync(fileUri);
+      const asset = await MediaLibrary.createAssetAsync(uri);
 
       // Create album if it doesn't exist
       try {
@@ -3409,13 +3424,17 @@ export default function TableSectionsScreen() {
         console.log("Album error (non-critical):", error);
       }
 
+      // Close the info toast
+      toast.close(toastId);
+      
+      // Show success toast
       toast.show({
         description: "QR code saved to gallery",
         status: "success",
         duration: 2000,
       });
 
-      // Close modal on successful download
+      // Close modal after a short delay
       setTimeout(() => {
         closeModal();
       }, 1000);
@@ -3430,26 +3449,31 @@ export default function TableSectionsScreen() {
     }
   };
 
-  // Add the handlePDFDownload function
+  // Modified handlePDFDownload function for local logo
   const handlePDFDownload = async () => {
     try {
       setIsDownloading(true);
-      toast.show({
-        description: "Generating PDF...",
+      
+      // Optimistically show info toast
+      const toastId = toast.show({
+        description: "Preparing PDF...",
         status: "info",
-        duration: 2000,
+        duration: 10000,
       });
 
       // Get outlet name
-      const outlet =
-        (await AsyncStorage.getItem("outlet_name")) || "MenuMitra";
-      const encodedQrValue = encodeURIComponent(qrData.qr_code_url);
-      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodedQrValue}&margin=10&color=0066FF&bgcolor=FFFFFF`;
-
-      // Create HTML content for PDF with directly embedded QR code URL
-      const tableInfo = `Table ${
-        selectedTableForQR?.table_number || "Unknown"
-      }`;
+      const outlet = (await AsyncStorage.getItem("outlet_name")) || "MenuMitra";
+      
+      // Capture QR code as image
+      const qrImageUri = await viewShotRef.current.capture();
+      
+      // Convert captured image to base64 for embedding in PDF
+      const base64QR = await FileSystem.readAsStringAsync(qrImageUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      // Create HTML content for PDF with data URL of the QR image
+      const tableInfo = `Table ${selectedTableForQR?.table_number || "Unknown"}`;
       const htmlContent = `
         <html>
           <head>
@@ -3461,7 +3485,7 @@ export default function TableSectionsScreen() {
               .outlet-name { font-weight: bold; color: #0891b2; font-size: 22px; margin-bottom: 10px; }
               .table-info { margin: 20px 0; font-size: 24px; font-weight: bold; color: #333; }
               .qr-container { margin: 30px 0; position: relative; }
-              .qr-container img { max-width: 100%; height: auto; border: 3px solid #FF7043; border-radius: 10px; padding: 10px; }
+              .qr-image { max-width: 100%; height: auto; border: 3px solid #FF7043; border-radius: 10px; padding: 10px; }
               .instructions { margin: 20px 0; font-size: 16px; color: #555; }
               .footer { margin-top: 40px; font-size: 12px; color: #666; }
             </style>
@@ -3472,7 +3496,7 @@ export default function TableSectionsScreen() {
               <h1>Menu QR Code</h1>
               <div class="table-info">${tableInfo}</div>
               <div class="qr-container">
-                <img src="${qrApiUrl}" width="350" height="350" />
+                <img src="data:image/png;base64,${base64QR}" class="qr-image" />
               </div>
               <div class="instructions">
                 Scan this QR code with your smartphone camera to place your order
@@ -3490,6 +3514,9 @@ export default function TableSectionsScreen() {
         html: htmlContent,
         base64: false,
       });
+
+      // Close the info toast
+      toast.close(toastId);
 
       let saveSuccess = false;
 
@@ -3513,7 +3540,6 @@ export default function TableSectionsScreen() {
           saveSuccess = true;
         } catch (error) {
           console.error("Save to gallery failed:", error);
-          // Show error but don't share automatically
           toast.show({
             description: "Could not save PDF to gallery",
             status: "error",
