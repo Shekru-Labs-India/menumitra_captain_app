@@ -3536,40 +3536,89 @@ export default function TableSectionsScreen() {
       // Close the info toast
       toast.close(toastId);
 
-      // For Android, we'll use Sharing directly instead of trying to save to gallery
+      // Request permissions first
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        toast.show({
+          description: "Permission denied to save to gallery",
+          status: "error",
+          duration: 3000,
+        });
+        return;
+      }
+
+      // For Android, save to MediaLibrary first, then optionally share
       if (Platform.OS === "android") {
         try {
-          // Move the PDF to a more accessible location with proper filename
-          const destinationUri = `${FileSystem.cacheDirectory}${filename}`;
-          await FileSystem.moveAsync({
-            from: pdfUri,
-            to: destinationUri
-          });
+          // For Android 11+ (API 30+), use StorageAccessFramework
+          const { StorageAccessFramework } = FileSystem;
 
-          // Share the PDF directly
-          await Sharing.shareAsync(destinationUri, {
-            mimeType: "application/pdf",
-            dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code PDF`,
-            UTI: "com.adobe.pdf"
+          // Let user select a directory
+          const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
+          
+          if (!permissions.granted) {
+            toast.show({
+              description: "Permission denied to save file",
+              status: "error", 
+              duration: 3000
+            });
+            return;
+          }
+          
+          // Create the file in the selected directory
+          const destinationUri = await StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            filename,
+            "application/pdf"
+          );
+          
+          // Read the PDF file
+          const pdfContent = await FileSystem.readAsStringAsync(pdfUri, {
+            encoding: FileSystem.EncodingType.Base64,
           });
-
+          
+          // Write the PDF content to the new file
+          await StorageAccessFramework.writeAsStringAsync(destinationUri, pdfContent, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          
           toast.show({
-            description: "PDF ready! Save it to your preferred location.",
+            description: "PDF saved successfully",
             status: "success",
             duration: 3000,
           });
           
-          // Close modal after a delay
-          setTimeout(() => {
-            closeModal();
-          }, 1500);
+          setTimeout(() => closeModal(), 1500);
         } catch (error) {
-          console.error("Android PDF sharing failed:", error);
-          toast.show({
-            description: "Could not share PDF. Please try again.",
-            status: "error",
-            duration: 3000,
-          });
+          console.error("Android PDF saving failed:", error);
+          
+          // As a last resort, try sharing the file
+          try {
+            // Move the PDF to a more accessible location with proper filename
+            const destinationUri = `${FileSystem.cacheDirectory}${filename}`;
+            await FileSystem.moveAsync({
+              from: pdfUri,
+              to: destinationUri
+            });
+            
+            await Sharing.shareAsync(destinationUri, {
+              mimeType: "application/pdf",
+              dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code PDF`,
+              UTI: "com.adobe.pdf"
+            });
+            
+            toast.show({
+              description: "PDF ready to share",
+              status: "success",
+              duration: 3000,
+            });
+          } catch (shareError) {
+            toast.show({
+              description: "Could not save or share PDF. Please try again.",
+              status: "error",
+              duration: 3000,
+            });
+          }
         }
       } else if (Platform.OS === "ios") {
         // iOS handling remains the same
