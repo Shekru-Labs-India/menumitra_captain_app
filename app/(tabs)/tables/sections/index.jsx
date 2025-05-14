@@ -3459,7 +3459,7 @@ export default function TableSectionsScreen() {
     }
   };
 
-  // Modified handlePDFDownload function for local logo
+  // Updated handlePDFDownload function with better Android handling
   const handlePDFDownload = async () => {
     try {
       setIsDownloading(true);
@@ -3524,6 +3524,9 @@ export default function TableSectionsScreen() {
         </html>
       `;
 
+      // Generate a filename with timestamp
+      const filename = `Table_${selectedTableForQR?.table_number || "Unknown"}_QR_${Date.now()}.pdf`;
+
       // Create PDF
       const { uri: pdfUri } = await Print.printToFileAsync({
         html: htmlContent,
@@ -3533,36 +3536,43 @@ export default function TableSectionsScreen() {
       // Close the info toast
       toast.close(toastId);
 
-      let saveSuccess = false;
-
-      // For Android
+      // For Android, we'll use Sharing directly instead of trying to save to gallery
       if (Platform.OS === "android") {
         try {
-          const asset = await MediaLibrary.createAssetAsync(pdfUri);
-          const album = await MediaLibrary.getAlbumAsync("MenuMitra");
+          // Move the PDF to a more accessible location with proper filename
+          const destinationUri = `${FileSystem.cacheDirectory}${filename}`;
+          await FileSystem.moveAsync({
+            from: pdfUri,
+            to: destinationUri
+          });
 
-          if (album === null) {
-            await MediaLibrary.createAlbumAsync("MenuMitra", asset, false);
-          } else {
-            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-          }
+          // Share the PDF directly
+          await Sharing.shareAsync(destinationUri, {
+            mimeType: "application/pdf",
+            dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code PDF`,
+            UTI: "com.adobe.pdf"
+          });
 
           toast.show({
-            description: "QR code PDF saved to your gallery!",
+            description: "PDF ready! Save it to your preferred location.",
             status: "success",
             duration: 3000,
           });
-          saveSuccess = true;
+          
+          // Close modal after a delay
+          setTimeout(() => {
+            closeModal();
+          }, 1500);
         } catch (error) {
-          console.error("Save to gallery failed:", error);
+          console.error("Android PDF sharing failed:", error);
           toast.show({
-            description: "Could not save PDF to gallery",
+            description: "Could not share PDF. Please try again.",
             status: "error",
             duration: 3000,
           });
         }
       } else if (Platform.OS === "ios") {
-        // iOS doesn't save PDFs to photo library, save to Files
+        // iOS handling remains the same
         try {
           await Sharing.shareAsync(pdfUri, {
             UTI: "com.adobe.pdf",
@@ -3574,7 +3584,11 @@ export default function TableSectionsScreen() {
             status: "success",
             duration: 3000,
           });
-          saveSuccess = true;
+          
+          // Close modal after a delay
+          setTimeout(() => {
+            closeModal();
+          }, 1500);
         } catch (error) {
           console.error("iOS save failed:", error);
           toast.show({
@@ -3583,13 +3597,6 @@ export default function TableSectionsScreen() {
             duration: 3000,
           });
         }
-      }
-
-      // Close modal on successful save
-      if (saveSuccess) {
-        setTimeout(() => {
-          closeModal();
-        }, 1500);
       }
     } catch (error) {
       console.error("PDF Generation Error:", error);
