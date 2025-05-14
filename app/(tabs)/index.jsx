@@ -46,6 +46,7 @@ import Constants from 'expo-constants';
 import { fetchWithAuth } from "../../utils/apiInterceptor";
 import { useVersion } from "../../context/VersionContext";
 import * as Notifications from "expo-notifications";
+import { checkForExpoUpdates, isRunningInExpoGo } from "../../utils/updateChecker";
 
 // Memoize static components
 const MemoizedStatusBar = memo(() => (
@@ -130,7 +131,7 @@ export default function HomeScreen() {
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const isExpoGo = Constants.executionEnvironment === "storeClient";
+  const [isExpoGo, setIsExpoGo] = useState(isRunningInExpoGo());
 
   // Get restaurant name from AsyncStorage
   const getRestaurantName = useCallback(async () => {
@@ -301,55 +302,7 @@ export default function HomeScreen() {
   );
 
   const checkForUpdates = async () => {
-    // Skip update check in Expo Go
-    if (isExpoGo) {
-      console.log("Update checking is not supported in Expo Go");
-      return;
-    }
-
-    try {
-      const update = await Updates.checkForUpdateAsync();
-      if (update.isAvailable) {
-        Alert.alert(
-          "Update Available",
-          "A new version of the app is available. Would you like to update now?",
-          [
-            {
-              text: "Update",
-              onPress: async () => {
-                try {
-                  await Updates.fetchUpdateAsync();
-                  Alert.alert(
-                    "Update Downloaded",
-                    "The update has been downloaded. The app will now restart to apply the changes.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: async () => {
-                          await Updates.reloadAsync();
-                        },
-                      },
-                    ]
-                  );
-                } catch (error) {
-                  console.log("Error downloading update:", error);
-                  Alert.alert(
-                    "Error",
-                    "Failed to download update. Please try again later."
-                  );
-                }
-              },
-            },
-            {
-              text: "Later",
-              style: "cancel",
-            },
-          ]
-        );
-      }
-    } catch (error) {
-      console.log("Error checking for updates:", error);
-    }
+    await checkForExpoUpdates();
   };
 
   // Add Audio initialization

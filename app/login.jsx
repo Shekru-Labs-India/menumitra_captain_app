@@ -20,6 +20,8 @@ import { useState, useEffect, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { getBaseUrl } from "../config/api.config";
+import * as Updates from "expo-updates";
+import { checkForExpoUpdates, isRunningInExpoGo } from "../utils/updateChecker";
 
 export default function LoginScreen() {
   const [mobileNumber, setMobileNumber] = useState("");
@@ -31,6 +33,7 @@ export default function LoginScreen() {
   const [apiVersion, setApiVersion] = useState("");
   const [isInitializing, setIsInitializing] = useState(true);
   const mobileInputRef = useRef(null);
+  const [otaUpdateAvailable, setOtaUpdateAvailable] = useState(false);
 
   useEffect(() => {
     initializeApp();
@@ -65,11 +68,53 @@ export default function LoginScreen() {
         }
       }
 
-      await checkVersion();
+      // Check for both server version requirements and OTA updates
+      await Promise.all([
+        checkVersion(),
+        !isRunningInExpoGo() ? checkOtaUpdates() : Promise.resolve()
+      ]);
     } catch (error) {
       console.error("Error during initialization:", error);
     } finally {
       setIsInitializing(false);
+    }
+  };
+
+  // Check for over-the-air updates
+  const checkOtaUpdates = async () => {
+    await checkForExpoUpdates({
+      silent: true, // Don't show alerts automatically
+      onUpdateAvailable: () => {
+        setOtaUpdateAvailable(true);
+      }
+    });
+  };
+
+  // Handle OTA update
+  const handleOtaUpdate = async () => {
+    try {
+      setIsLoading(true);
+      await Updates.fetchUpdateAsync();
+      Alert.alert(
+        "Update Downloaded",
+        "The update has been downloaded. The app will now restart to apply the changes.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              await Updates.reloadAsync();
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error downloading update:", error);
+      Alert.alert(
+        "Error",
+        "Failed to download update. Please try again later."
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -253,6 +298,27 @@ export default function LoginScreen() {
               Captain App
             </Text>
           </VStack>
+
+          {otaUpdateAvailable && (
+            <Pressable 
+              onPress={handleOtaUpdate}
+              py={2} px={4} mb={4}
+              bg="blue.100" rounded="md"
+              borderWidth={1} borderColor="blue.300"
+            >
+              <HStack alignItems="center" space={2}>
+                <Icon
+                  as={MaterialCommunityIcons}
+                  name="update"
+                  size={5}
+                  color="blue.600"
+                />
+                <Text color="blue.700" fontWeight="medium">
+                  Update available! Tap to install
+                </Text>
+              </HStack>
+            </Pressable>
+          )}
 
           <VStack space={4} w="100%">
             <VStack space={2} w="100%">
