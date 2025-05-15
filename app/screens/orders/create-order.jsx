@@ -4095,10 +4095,23 @@ export default function CreateOrderScreen() {
       toast.show({
         description: "Please add items to the order",
         status: "warning",
+        duration: 2000,
       });
       return;
     }
-
+    
+    // If payment method is selected in main screen and isPaid is true
+    if (isPaid && paymentMethod) {
+      handleKOT(paymentMethod, isPaid);
+      return;
+    }
+    
+    // For existing paid orders, use their payment method
+    if (params?.orderDetails && params.isPaid === true && params.paymentMethod) {
+      handleKOT(params.paymentMethod, true);
+      return;
+    }
+    
     // Set the current action to 'kot'
     setCurrentAction("kot");
 
@@ -4118,6 +4131,18 @@ export default function CreateOrderScreen() {
         status: "warning",
         duration: 2000,
       });
+      return;
+    }
+    
+    // If payment method is selected in main screen and isPaid is true
+    if (isPaid && paymentMethod) {
+      handleSettleOrder(paymentMethod, isPaid);
+      return;
+    }
+    
+    // For existing paid orders, use their payment method
+    if (params?.orderDetails && params.isPaid === true && params.paymentMethod) {
+      handleSettleOrder(params.paymentMethod, true);
       return;
     }
 
@@ -5622,7 +5647,7 @@ export default function CreateOrderScreen() {
                           </Text>
                         </Button>
                       )}
-
+                      
                       {/* Add Cancel Order button for existing orders */}
                       {params?.orderId && settings.orderManagement.cancel && (
                         <Button
