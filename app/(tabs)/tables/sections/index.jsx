@@ -1894,7 +1894,7 @@ export default function TableSectionsScreen() {
                                       borderWidth={1}
                                       borderStyle={
                                         table.action === "has_save"
-                                          ? "solid"
+                                          ? "dashed"
                                           : "dashed"
                                       }
                                       borderColor={
