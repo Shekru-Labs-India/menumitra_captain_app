@@ -4376,23 +4376,48 @@ export default function CreateOrderScreen() {
 const loadSettings = async () => {
   try {
     console.log("Loading settings in CreateOrderScreen");
-    // Always get the latest settings from API
-    const appSettings = await getSettings();
-    console.log("Loaded settings:", appSettings);
     
-    // Set settings directly without nesting under orderManagement
-    setSettings(appSettings);
-  } catch (error) {
-    console.error("Error loading settings:", error);
-    // Set default values as fallback - flat structure
-    setSettings({
+    // First try to load settings from AsyncStorage for immediate rendering
+    let initialSettings = {
       print_and_save: true,
       KOT_and_save: true,
+      has_save: true,
       settle: true,
       reserve_table: true,
-      cancel: true,
-      has_save: true
-    });
+      cancel: true
+    };
+    
+    try {
+      const storedSettings = await AsyncStorage.getItem("app_settings");
+      if (storedSettings) {
+        const parsedSettings = JSON.parse(storedSettings);
+        // Extract order management settings
+        initialSettings = {
+          print_and_save: Boolean(parsedSettings.print_and_save),
+          KOT_and_save: Boolean(parsedSettings.KOT_and_save),
+          has_save: Boolean(parsedSettings.has_save),
+          settle: Boolean(parsedSettings.settle),
+          reserve_table: Boolean(parsedSettings.reserve_table),
+          cancel: Boolean(parsedSettings.cancel)
+        };
+      }
+      } catch (error) {
+      console.log("Error loading cached settings:", error);
+      // Continue with default settings as fallback
+    }
+    
+    // Set initial settings immediately
+    setSettings(initialSettings);
+    
+    // Then fetch from API in the background
+    const appSettings = await getSettings();
+    console.log("Loaded settings from API:", appSettings);
+    
+    // Update settings state with API response
+    setSettings(appSettings);
+    } catch (error) {
+    console.error("Error loading settings:", error);
+    // Keep the initial settings we already set
   }
 };
 
