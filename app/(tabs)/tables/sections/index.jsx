@@ -2035,12 +2035,10 @@ export default function TableSectionsScreen() {
                                               alignItems="center"
                                             >
                                               {/* Blinker indicator - matching owner app conditions exactly */}
-                                              {(table.action ===
-                                                "KOT_and_save" ||
-                                                table.action ===
-                                                  "print_and_save" ||
-                                                table.action ===
-                                                  "create_order" ||
+                                              {(table.action === "KOT_and_save" ||
+                                                table.action === "print_and_save" ||
+                                                table.action === "create_order" ||
+                                                table.action === "has_save" ||
                                                 table.action === "placed") && (
                                                 <Animated.View
                                                   style={{
