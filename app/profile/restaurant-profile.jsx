@@ -215,15 +215,17 @@ const RestaurantProfile = () => {
       if (response.st === 1) {
         setRestaurantData(response.data);
         
-        // Store restaurant data in AsyncStorage for offline access
         try {
-          await AsyncStorage.setItem("outlet_name", response.data.name || "");
-          await AsyncStorage.setItem("outlet_address", response.data.address || "");
-          await AsyncStorage.setItem("outlet_mobile", response.data.mobile || "");
-          await AsyncStorage.setItem("upi_id", response.data.upi_id || "")
-          console.log("UPI ID IS SET TO", response.data.upi_id);
+          await AsyncStorage.multiSet([
+            ["outlet_name", response.data.name || ""],
+            ["outlet_address", response.data.address || ""],
+            ["outlet_mobile", response.data.mobile || ""],
+            ["upi_id", response.data.upi_id || ""],
+            ["gst", response.data.gst?.toString() || "0"],
+            ["service_charges", response.data.service_charges?.toString() || "0"]
+          ]);
         } catch (storageError) {
-          console.error("Error saving to AsyncStorage:", storageError);
+          console.error("Storage update failed:", storageError);
         }
       } else {
         toast.show({
