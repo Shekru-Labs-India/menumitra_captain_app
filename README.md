@@ -1,50 +1,118 @@
-# Welcome to your Expo app 👋
+# MenuMitra Captain App 👨‍✈️
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A powerful restaurant management application built with [Expo](https://expo.dev) for restaurant captains and staff.
 
-## Get started
+## Project Overview
+
+MenuMitra Captain App is a comprehensive React Native/Expo mobile application designed for restaurant staff to efficiently manage orders, tables, and restaurant operations. Built with modern technologies and best practices in mind.
+
+## Technical Stack
+
+- **Core**: React Native v0.76.7, Expo SDK v52.0.36, React v18.3.1
+- **Navigation**: Expo Router v4.0.16
+- **Backend**: Firebase v11.1.0 (Firestore)
+- **UI**: Native Base v3.4.28, Expo Vector Icons, Lottie Animations
+- **Device Features**: BLE Integration, QR Code handling, Push Notifications
+
+## Key Features
+
+- 📱 Order Management System
+- 🎯 Table Management
+- 📸 QR Code Generation & Scanning
+- 🖨️ Bluetooth Printer Integration
+- 🔔 Push Notifications
+- 🔒 Secure Storage
+- 📁 File System Operations
+- 📷 Media Management
+
+## Getting Started
 
 1. Install dependencies
-
    ```bash
    npm install
    ```
 
-2. Start the app
-
+2. Start the development server
    ```bash
-    npx expo start
+   npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+3. Choose your development environment:
+   - [Development build](https://docs.expo.dev/develop/development-builds/introduction/)
+   - [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+   - [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+   - [Expo Go](https://expo.dev/go)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Project Structure
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+├── app/                 # Main application code
+├── components/          # Reusable React components
+├── context/            # React Context providers
+├── hooks/              # Custom React hooks
+├── services/           # API and service layer
+├── utils/              # Utility functions
+├── types/              # TypeScript definitions
+├── constants/          # App constants
+├── assets/             # Static assets
+└── config/             # Configuration files
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Available Scripts
 
-## Learn more
+```bash
+# Development
+npm start                # Start development server
+npm run android         # Run on Android
+npm run ios            # Run on iOS
+npm run web            # Run on Web
 
-To learn more about developing your project with Expo, look at the following resources:
+# Building
+npm run build:android        # Build Android preview
+npm run build:android-dev    # Build Android development
+npm run build:android-prod   # Build Android production
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+# Maintenance
+npm run reset-project       # Reset to fresh project
+npm run clean:android      # Clean Android build
+npm run clean:ios         # Clean iOS build
+```
 
-## Join the community
+## Development Tools
 
-Join our community of developers creating universal apps.
+- **Testing**: Jest with expo preset
+- **Build**: EAS CLI v13.4.2
+- **Development**: Expo Dev Client
+- **Code Quality**: Babel with module resolver
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## UI/UX Features
+
+- 🎨 Modern UI Components
+- 🎭 Custom Animations
+- 📱 Responsive Layouts
+- 🔔 Toast Notifications
+- 🖼️ Blur Effects
+- 🎨 Linear Gradients
+- 🤚 Gesture Handling
+
+## Security Features
+
+- 🔐 Secure Storage Implementation
+- 💾 AsyncStorage for Data Persistence
+- 🔑 Firebase Authentication Ready
+
+## Learn More
+
+- [Expo Documentation](https://docs.expo.dev/): Learn fundamentals and advanced topics
+- [React Native Documentation](https://reactnative.dev)
+- [Native Base Documentation](https://docs.nativebase.io)
+
+## Community & Support
+
+Join our community of developers:
+- [Expo on GitHub](https://github.com/expo/expo)
+- [Discord Community](https://chat.expo.dev)
+
+## License
+
+This project is proprietary software. All rights reserved.
