@@ -792,7 +792,16 @@ export default function MenuSelectionScreen() {
       
       return `Table ${tableData.table_number} - ${tableData.section_name}`;
     }
-    return `New ${toTitleCase(orderType)} Order`;
+    // For non-dine-in orders
+  const isExistingOrder = params.orderId && params.orderNumber;
+  const orderTypeTitle = toTitleCase(orderType);
+  if (isExistingOrder) {
+    // For updating existing orders
+    return `Update ${orderTypeTitle} Order`;
+  } else {
+    // For creating new orders
+    return `Create ${orderTypeTitle} Order`;
+  }
   };
 
   // Add fetchAvailableTables function
@@ -1370,14 +1379,23 @@ export default function MenuSelectionScreen() {
           
           <View style={styles.actionButtons}>
             {/* Only show Create Order button if table is not reserved */}
-            {!isReserved && orderType === "dine-in" && (
+            {!isReserved && orderType === "dine-in" ? (
               <Pressable
                 style={[styles.actionButton, styles.createOrderButton]}
                 onPress={navigateToCreateOrder}
               >
                 <Text style={styles.actionButtonText}>Create Order</Text>
               </Pressable>
-            )}
+            )
+:(
+              <Pressable
+                style={[styles.actionButton, styles.createOrderButton]}
+                onPress={navigateToCreateOrder}
+              >
+                <Text style={styles.actionButtonText}>Creates Order</Text>
+              </Pressable>
+            )            
+            }
           </View>
         </HStack>
       )}
