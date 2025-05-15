@@ -599,7 +599,6 @@ const OrdersScreen = () => {
   const [showPicker, setShowPicker] = useState(false);
   const [dateFilter, setDateFilter] = useState("today");
   const [dateRange, setDateRange] = useState(getDateRange("today"));
-  // const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [showOrderTypeModal, setShowOrderTypeModal] = useState(false);
@@ -1511,16 +1510,6 @@ const OrdersScreen = () => {
     }
   };
 
-  // const isDateInRange = (dateToCheck, startDate, endDate) => {
-  //   // Convert all dates to Date objects for comparison
-  //   const checkDate = parseDateFromFormat(dateToCheck);
-  //   const start = parseDateFromFormat(startDate);
-  //   const end = parseDateFromFormat(endDate);
-    
-  //   // Compare the dates
-  //   return checkDate >= start && checkDate <= end;
-  // };
-
   const getDateRangeFilter = (filterType) => {
     const today = new Date();
     const todayStr = formatDate(today);
@@ -1943,12 +1932,11 @@ const OrdersScreen = () => {
 
         {/* Status badges - Single row */}
         <HStack space={2} mb={2} flexWrap="wrap">
-          <Badge bg="blue.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="blue.800">Placed: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.filter(
-                (order) => order.order_status?.toLowerCase() === "placed"
-              ).length, 0)}
-            </Text>
+          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="coolGray.800">Total: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.length,
+              0
+            )}</Text>
           </Badge>
           
           <Badge bg="orange.100" rounded="md" px={2} py={1}>
@@ -1959,53 +1947,18 @@ const OrdersScreen = () => {
             </Text>
           </Badge>
           
-          <Badge bg="green.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="green.800">Served: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.filter(
-                (order) => order.order_status?.toLowerCase() === "served"
-              ).length, 0)}
-            </Text>
-          </Badge>
-          
-          <Badge bg="purple.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="purple.800">Paid: {filteredOrders.reduce(
+          <Badge bg="blue.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="blue.800">Paid: {filteredOrders.reduce(
               (total, dateGroup) => total + dateGroup.data.filter(
                 (order) => order.order_status?.toLowerCase() === "paid"
               ).length, 0)}
             </Text>
           </Badge>
           
-          <Badge bg="red.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="red.800">Cancelled: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.filter(
-                (order) => order.order_status?.toLowerCase() === "cancelled"
-              ).length, 0)}
-            </Text>
-          </Badge>
-        </HStack>
-
-        {/* Order type badges */}
-        <HStack space={2} flexWrap="wrap">
-          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="coolGray.800">Dine-in: {filteredOrders.reduce(
+          <Badge bg="indigo.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="indigo.800">Dine-in: {filteredOrders.reduce(
               (total, dateGroup) => total + dateGroup.data.filter(
                 (order) => order.order_type?.toLowerCase() === "dine-in"
-              ).length, 0)}
-            </Text>
-          </Badge>
-          
-          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="coolGray.800">Parcel: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.filter(
-                (order) => order.order_type?.toLowerCase() === "parcel"
-              ).length, 0)}
-            </Text>
-          </Badge>
-          
-          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="coolGray.800">Drive: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.filter(
-                (order) => order.order_type?.toLowerCase() === "drive-through"
               ).length, 0)}
             </Text>
           </Badge>
@@ -2014,14 +1967,6 @@ const OrdersScreen = () => {
             <Text fontSize="xs" color="coolGray.800">Counter: {filteredOrders.reduce(
               (total, dateGroup) => total + dateGroup.data.filter(
                 (order) => order.order_type?.toLowerCase() === "counter"
-              ).length, 0)}
-            </Text>
-          </Badge>
-          
-          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="coolGray.800">Delivery: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.filter(
-                (order) => order.order_type?.toLowerCase() === "delivery"
               ).length, 0)}
             </Text>
           </Badge>
