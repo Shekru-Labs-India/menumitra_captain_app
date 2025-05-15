@@ -30,12 +30,9 @@ export default function SettingsScreen() {
   const router = useRouter();
   const toast = useToast();
   const { colorMode, toggleColorMode } = useColorMode();
-  const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingSettings, setLoadingSettings] = useState({});
   const [appState, setAppState] = useState(AppState.currentState);
   const fadeAnim = useState(new Animated.Value(0))[0];
-  const [initialLoad, setInitialLoad] = useState(true);
   
   const { 
     printerDevice, 
@@ -180,10 +177,6 @@ export default function SettingsScreen() {
           duration: 2000  
         });
       }
-    } finally {
-      setInitialLoad(false);
-      setIsLoading(false);
-      setRefreshing(false);
     }
   }, [refreshing, toast]);
 
@@ -196,12 +189,46 @@ export default function SettingsScreen() {
   }, [appState, fetchLatestSettings]);
 
   useEffect(() => {
-    fetchLatestSettings(false);
+    const loadStoredSettings = async () => {
+      try {
+        const storedSettings = await AsyncStorage.getItem("app_settings");
+        if (storedSettings) {
+          const parsedSettings = JSON.parse(storedSettings);
+          setSettings({
+            theme: parsedSettings.theme || "system",
+            style: parsedSettings.style || "blue",
+            showMenuImages: Boolean(parsedSettings.POS_show_menu_image),
+            orderTypes: {
+              dine_in: Boolean(parsedSettings.has_dine_in),
+              parcel: Boolean(parsedSettings.has_parcel),
+              counter: Boolean(parsedSettings.has_counter),
+              delivery: Boolean(parsedSettings.has_delivery),
+              driveThrough: Boolean(parsedSettings.has_drive_through),
+            },
+            orderManagement: {
+              print_and_save: Boolean(parsedSettings.print_and_save),
+              KOT_and_save: Boolean(parsedSettings.KOT_and_save),
+              has_save: Boolean(parsedSettings.has_save),
+              settle: Boolean(parsedSettings.settle),
+              reserve_table: Boolean(parsedSettings.reserve_table),
+              cancel: Boolean(parsedSettings.cancel),
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error loading settings from storage:", error);
+      }
+      
+      // Fetch latest after loading from storage
+      fetchLatestSettings(false);
+    };
+    
+    loadStoredSettings();
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => {
       subscription.remove();
     };
-  }, [fetchLatestSettings, handleAppStateChange]);
+  }, [handleAppStateChange]);
 
   // Pull-to-refresh
   const onRefresh = useCallback(() => {
@@ -279,7 +306,7 @@ export default function SettingsScreen() {
   };
 
   const updateSetting = async (type, value) => {
-    // Immediately update UI state (optimistic)
+    // Immediately update UI state
     const updatedSettings = { ...settings };
     
     if (type === 'has_dine_in') {
@@ -302,6 +329,38 @@ export default function SettingsScreen() {
     
     setSettings(updatedSettings);
     
+    // Update local storage immediately
+    try {
+      const appSettings = await AsyncStorage.getItem("app_settings");
+      if (appSettings) {
+        const parsedSettings = JSON.parse(appSettings);
+        const updatedStorageSettings = { ...parsedSettings };
+        
+        if (type === 'has_dine_in') {
+          updatedStorageSettings.has_dine_in = value ? 1 : 0;
+        } else if (type === 'has_parcel') {
+          updatedStorageSettings.has_parcel = value ? 1 : 0;
+        } else if (type === 'has_counter') {
+          updatedStorageSettings.has_counter = value ? 1 : 0;
+        } else if (type === 'has_delivery') {
+          updatedStorageSettings.has_delivery = value ? 1 : 0;
+        } else if (type === 'has_drive_through') {
+          updatedStorageSettings.has_drive_through = value ? 1 : 0;
+        } else if (type === 'POS_show_menu_image') {
+          updatedStorageSettings.POS_show_menu_image = value ? 1 : 0;
+        } else if (['print_and_save', 'KOT_and_save', 'has_save', 'settle', 'reserve_table', 'cancel'].includes(type)) {
+          updatedStorageSettings[type] = value ? 1 : 0;
+        } else if (type === 'theme' || type === 'style') {
+          updatedStorageSettings[type] = value;
+        }
+        
+        await AsyncStorage.setItem("app_settings", JSON.stringify(updatedStorageSettings));
+      }
+    } catch (error) {
+      console.error("Error updating local storage:", error);
+    }
+    
+    // Make API call in background
     try {
       const outlet_id = await AsyncStorage.getItem("outlet_id");
       const user_id = await AsyncStorage.getItem("captain_id");
@@ -318,28 +377,22 @@ export default function SettingsScreen() {
       });
 
       if (response.st !== 1) {
-        // Revert on failure 
-        const originalSettings = { ...settings };
-        setSettings(originalSettings);
-        
         toast.show({
-          description: "Failed to update setting",
-          status: "error",
+          description: "Failed to update setting on server",
+          status: "warning",
           placement: "bottom",
           duration: 2000
         });
+        // Don't revert UI as it's already in AsyncStorage
       }
     } catch (error) {
-      // Revert on error
-      const originalSettings = { ...settings };
-      setSettings(originalSettings);
-      
       toast.show({
-        description: "Error updating setting",
+        description: "Error updating setting on server",
         status: "error",
         placement: "bottom",
         duration: 2000
       });
+      // Don't revert UI as it's already in AsyncStorage
     }
   };
 
@@ -569,410 +622,6 @@ export default function SettingsScreen() {
       </Box>
     );
   };
-
-  if (initialLoad) {
-    return (
-      <Box flex={1} bg="coolGray.50" safeArea>
-        <HStack
-          px={4}
-          py={3}
-          justifyContent="space-between"
-          alignItems="center"
-          bg={bgColor}
-          shadow={1}
-        >
-          <IconButton
-            icon={<MaterialIcons name="arrow-back" size={24} color="gray" />}
-            onPress={() => router.back()}
-            variant="ghost"
-            _pressed={{ bg: "coolGray.100" }}
-            borderRadius="full"
-          />
-          <Heading size="md" flex={1} textAlign="center" color={textColor}>
-            Settings
-          </Heading>
-          <Pressable 
-            onPress={resetToDefaultSettings}
-            bg="blue.500"
-            px={3}
-            py={1.5}
-            rounded="full"
-            _pressed={{ bg: "blue.600" }}
-          >
-            <HStack alignItems="center" space={1}>
-              <Text color="white" fontWeight="medium" fontSize="sm">
-                Reset
-              </Text>
-              <Icon as={MaterialIcons} name="refresh" size={4} color="white" />
-            </HStack>
-          </Pressable>
-        </HStack>
-
-        <ScrollView>
-          {/* Printer section skeleton */}
-          <Box bg="white" rounded="xl" shadow={1} mx={4} my={4}>
-            <HStack space={4} p={4} alignItems="center">
-              <Box bg="coolGray.100" p={3} rounded="full">
-                <Skeleton size="6" rounded="full" />
-              </Box>
-              <VStack flex={1}>
-                <Skeleton.Text lines={2} />
-              </VStack>
-              <Skeleton h={4} w={4} rounded="full" />
-            </HStack>
-          </Box>
-
-          {/* Appearance section skeleton */}
-          <HStack space={3} p={4} alignItems="center" mx={4} mb={2}>
-            <Box bg="#E1F5FE" p={2} rounded="lg">
-              <Skeleton size="6" rounded="full" />
-            </Box>
-            <VStack flex={1}>
-              <Skeleton.Text lines={2} />
-            </VStack>
-          </HStack>
-
-          {/* Theme selector skeleton */}
-          <Box mx={4} mb={4}>
-            <Box 
-              bg="#E1F5FE" 
-              borderLeftWidth={4}
-              borderLeftColor="#2196F3"
-              rounded="lg"
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={8} w={24} rounded="sm" />
-              </HStack>
-            </Box>
-          </Box>
-
-          {/* Order Types section skeleton */}
-          <HStack space={3} p={4} alignItems="center" mx={4} mb={2}>
-            <Box bg="#F3E5F5" p={2} rounded="lg">
-              <Skeleton size="6" rounded="full" />
-            </Box>
-            <VStack flex={1}>
-              <Skeleton.Text lines={2} />
-            </VStack>
-          </HStack>
-
-          {/* Order type toggles skeleton */}
-          <Box mx={4} mb={4}>
-            {/* Dine In skeleton */}
-            <Box 
-              bg="#E3F2FD" 
-              borderLeftWidth={4}
-              borderLeftColor="#2196F3"
-              rounded="lg"
-              mb={2}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-            
-            {/* Parcel skeleton */}
-            <Box 
-              bg="#FFF3E0" 
-              borderLeftWidth={4}
-              borderLeftColor="#FF9800"
-              rounded="lg"
-              mb={2}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-            
-            {/* Counter skeleton */}
-            <Box 
-              bg="#E8F5E9" 
-              borderLeftWidth={4}
-              borderLeftColor="#4CAF50"
-              rounded="lg"
-              mb={2}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-            
-            {/* Delivery skeleton */}
-            <Box 
-              bg="#E3F2FD" 
-              borderLeftWidth={4}
-              borderLeftColor="#2196F3"
-              rounded="lg"
-              mb={2}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-            
-            {/* Drive Through skeleton */}
-            <Box 
-              bg="#F3E5F5" 
-              borderLeftWidth={4}
-              borderLeftColor="#9C27B0"
-              rounded="lg"
-              mb={2}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-          </Box>
-
-          {/* Menu Settings skeleton */}
-          <HStack space={3} p={4} alignItems="center" mx={4} mb={2} mt={2}>
-            <Box bg="#E8F5E9" p={2} rounded="lg">
-              <Skeleton size="6" rounded="full" />
-            </Box>
-            <VStack flex={1}>
-              <Skeleton.Text lines={2} />
-            </VStack>
-          </HStack>
-
-          {/* Menu toggle skeleton */}
-          <Box mx={4} mb={4}>
-            <Box 
-              bg="white" 
-              borderLeftWidth={4}
-              borderLeftColor="#666666"
-              rounded="lg"
-              shadow={1}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-          </Box>
-
-          {/* Order Management skeleton */}
-          <HStack space={3} p={4} alignItems="center" mx={4} mb={2} mt={2}>
-            <Box bg="#FFF3E0" p={2} rounded="lg">
-              <Skeleton size="6" rounded="full" />
-            </Box>
-            <VStack flex={1}>
-              <Skeleton.Text lines={2} />
-            </VStack>
-          </HStack>
-
-          {/* Order Management toggles skeleton */}
-          <Box mx={4} mb={4}>
-            {/* Print & Save skeleton */}
-            <Box 
-              bg="#FFF3E0" 
-              borderLeftWidth={4}
-              borderLeftColor="#FF9800"
-              rounded="lg"
-              mb={2}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-            
-            {/* KOT & Save skeleton */}
-            <Box 
-              bg="#E0E0E0" 
-              borderLeftWidth={4}
-              borderLeftColor="#000000"
-              rounded="lg"
-              mb={2}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-            
-            {/* Save skeleton */}
-            <Box 
-              bg="#E8F5E9" 
-              borderLeftWidth={4}
-              borderLeftColor="#4CAF50"
-              rounded="lg"
-              mb={2}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-            
-            {/* Settle skeleton */}
-            <Box 
-              bg="#E1F5FE" 
-              borderLeftWidth={4}
-              borderLeftColor="#87CEEB"
-              rounded="lg"
-              mb={2}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-            
-            {/* Reserve Table skeleton */}
-            <Box 
-              bg="#F5F5F5" 
-              borderLeftWidth={4}
-              borderLeftColor="#808080"
-              rounded="lg"
-              mb={2}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-            
-            {/* Cancel Order skeleton */}
-            <Box 
-              bg="#FFEBEE" 
-              borderLeftWidth={4}
-              borderLeftColor="#F44336"
-              rounded="lg"
-              mb={2}
-              overflow="hidden"
-            >
-              <HStack 
-                py={3.5} 
-                px={4}
-                justifyContent="space-between" 
-                alignItems="center"
-              >
-                <HStack space={3} alignItems="center" flex={1}>
-                  <Skeleton size="5" rounded="full" />
-                  <Skeleton h={5} w={20} rounded="sm" />
-                </HStack>
-                <Skeleton h={6} w={12} rounded="full" />
-              </HStack>
-            </Box>
-          </Box>
-        </ScrollView>
-      </Box>
-    );
-  }
 
   return (
     <Box flex={1} bg="coolGray.50" safeArea>
