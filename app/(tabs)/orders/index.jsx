@@ -769,7 +769,88 @@ const OrdersScreen = () => {
     }
   };
 
-  // Update the fetchOrders function to handle date range filtering
+  // Add this getFilteredOrders function to match the OrderList.js approach
+  const getFilteredOrders = useCallback(() => {
+    if (!orders || !orders.length) return [];
+
+    let relevantSections = [];
+    
+    // First, identify the relevant date sections based on date filter
+    if (dateFilterType === "customRange" && dateRange.start && dateRange.end) {
+      // For custom date range, filter all sections within the range
+      relevantSections = orders
+        .filter((section) =>
+          isDateInRange(section.date, dateRange.start, dateRange.end)
+        );
+    } else if (dateFilterType !== "today") {
+      // Handle other date filters
+      const range = getDateRange(dateFilterType);
+      
+      // Filter orders based on the date range
+      relevantSections = orders
+        .filter((section) =>
+          isDateInRange(section.date, range.start, range.end)
+        );
+    } else {
+      // For today, find the matching section
+      const dateSection = orders.find((section) => section.date === date);
+      if (dateSection) {
+        relevantSections = [dateSection];
+      }
+    }
+
+    // Then, apply other filters (status, type, search) to the data within selected date sections
+    const filteredSections = relevantSections.map((section) => ({
+      ...section,
+      data: section.data
+        .filter((order) => {
+          // Apply status filter
+          if (orderStatus !== "all") {
+            return (
+              order.order_status?.toLowerCase() ===
+              orderStatus.toLowerCase()
+            );
+          }
+          return true;
+        })
+        .filter((order) => {
+          // Apply order type filter
+          if (orderType !== "all") {
+            return (
+              order.order_type?.toLowerCase() === orderType.toLowerCase()
+            );
+          }
+          return true;
+        })
+        .filter((order) => {
+          // Apply search filter
+          if (searchQuery) {
+            return order.order_number
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase());
+          }
+          return true;
+        }),
+    }));
+
+    // Apply sorting to all filtered sections
+    return sortOrders(filteredSections, sortBy, isAscending);
+  }, [
+    orders,
+    date,
+    orderStatus,
+    orderType,
+    searchQuery,
+    sortBy,
+    isAscending,
+    dateFilterType,
+    dateRange,
+  ]);
+
+  // Replace the existing filteredOrders with a memoized version using the new function
+  const filteredOrders = useMemo(() => getFilteredOrders(), [getFilteredOrders]);
+
+  // Update fetchOrders to only trigger loading states for initial or manual refreshes
   const fetchOrders = async (isSilentRefresh = false) => {
     console.log("Fetching orders for date range:", dateRange); // Debug log
     if (!isSilentRefresh) setIsLoading(true);
@@ -786,43 +867,21 @@ const OrdersScreen = () => {
       });
 
       if (data.st === 1 && data.lists) {
-        // Store all orders but filter display based on selected date or date range
+        // Store all orders without filtering them initially
         setOrders(data.lists);
 
-        // Filter orders for timers based on selected date
-        const relevantOrders =
-          dateFilter === "custom" && dateRange.start && dateRange.end
-            ? data.lists.filter((section) =>
-                isDateInRange(section.date, dateRange.start, dateRange.end)
-              )
-            : data.lists.find((section) => section.date === date);
-
+        // Setup order timers for placed orders
         const newTimers = {};
-
-        if (dateFilter === "custom" && dateRange.start && dateRange.end) {
-          // If custom date range, check all matching sections
-          if (Array.isArray(relevantOrders)) {
-            relevantOrders.forEach((section) => {
-              section.data.forEach((order) => {
-                if (order.order_status?.toLowerCase() === "placed") {
-                  newTimers[order.order_number] = calculateOrderTimer(
-                    order.datetime
-                  );
-                }
-              });
-            });
-          }
-        } else if (relevantOrders) {
-          // If single date match
-          relevantOrders.data.forEach((order) => {
+        data.lists.forEach((section) => {
+          section.data.forEach((order) => {
             if (order.order_status?.toLowerCase() === "placed") {
               newTimers[order.order_number] = calculateOrderTimer(
                 order.datetime
               );
             }
           });
-        }
-
+        });
+        
         setOrderTimers(newTimers);
       }
     } catch (error) {
@@ -851,27 +910,39 @@ const OrdersScreen = () => {
     }
   };
 
-  // Update useEffect to include outlet name fetch
+  // Update useEffect to avoid redundant API calls
+  useEffect(() => {
+    // Only validate dateRange here, no need to call fetchOrders
+    if (dateRange.start && dateRange.end) {
+      const startDate = parseDateFromFormat(dateRange.start);
+      const endDate = parseDateFromFormat(dateRange.end);
+      
+      if (startDate > endDate) {
+        toast.show({
+          description: "Start date cannot be after end date",
+          status: "warning",
+          duration: 3000,
+        });
+        
+        // Reset to today if invalid range
+        handleDateFilterTypeChange("today");
+      }
+    }
+  }, [dateRange]);
+
+  // Simplify initial fetch useEffect to just get all orders once
   useEffect(() => {
     getOutletName();
     fetchOrders();
 
-    // Only set up auto-refresh if the selected date is today
-    const today = new Date();
-    const [selectedDay, selectedMonth, selectedYear] = date.split(" ");
-    const selectedDate = new Date(
-      `${selectedMonth} ${selectedDay}, ${selectedYear}`
-    );
+    // Only set up auto-refresh if needed
+    const refreshInterval = setInterval(() => {
+      console.log("Auto-refreshing orders...");
+      fetchOrders(true); // Use silent refresh for automatic updates
+    }, 60000);
 
-    if (selectedDate.toDateString() === today.toDateString()) {
-      const refreshInterval = setInterval(() => {
-        console.log("Auto-refreshing orders for date:", date);
-        fetchOrders(true); // Use silent refresh for automatic updates
-      }, 60000);
-
-      return () => clearInterval(refreshInterval);
-    }
-  }, [date]); // Keep date in dependencies to re-fetch when date changes
+    return () => clearInterval(refreshInterval);
+  }, []); // Empty dependency array to only run on mount
 
   // Add local state update for timer end to avoid full refresh
   const handleTimerEnd = useCallback(
@@ -933,106 +1004,6 @@ const OrdersScreen = () => {
   const toggleSortDirection = () => {
     setIsAscending(!isAscending);
   };
-
-  // Update the filtered orders calculation to handle date ranges
-  const filteredOrders = useMemo(() => {
-    if (!orders || !orders.length) return [];
-
-    let relevantSections = [];
-
-    if (dateFilter === "custom" && dateRange.start && dateRange.end) {
-      // For custom date range, filter all sections within the range
-      relevantSections = orders
-        .filter((section) =>
-          isDateInRange(section.date, dateRange.start, dateRange.end)
-        )
-        .map((section) => ({
-          ...section,
-          data: section.data
-            .filter((order) => {
-              // Apply status filter
-              if (orderStatus !== "all") {
-                return (
-                  order.order_status?.toLowerCase() ===
-                  orderStatus.toLowerCase()
-                );
-              }
-              return true;
-            })
-            .filter((order) => {
-              // Apply order type filter
-              if (orderType !== "all") {
-                return (
-                  order.order_type?.toLowerCase() === orderType.toLowerCase()
-                );
-              }
-              return true;
-            })
-            .filter((order) => {
-              // Apply search filter
-              if (searchQuery) {
-                return order.order_number
-                  .toLowerCase()
-                  .includes(searchQuery.toLowerCase());
-              }
-              return true;
-            }),
-        }));
-    } else {
-      // For single date, find the matching section
-      const dateSection = orders.find((section) => section.date === date);
-      if (!dateSection) return [];
-
-      // Create a section with the selected date and filtered data
-      relevantSections = [
-        {
-          date: date,
-          data: dateSection.data
-            .filter((order) => {
-              // Apply status filter
-              if (orderStatus !== "all") {
-                return (
-                  order.order_status?.toLowerCase() ===
-                  orderStatus.toLowerCase()
-                );
-              }
-              return true;
-            })
-            .filter((order) => {
-              // Apply order type filter
-              if (orderType !== "all") {
-                return (
-                  order.order_type?.toLowerCase() === orderType.toLowerCase()
-                );
-              }
-              return true;
-            })
-            .filter((order) => {
-              // Apply search filter
-              if (searchQuery) {
-                return order.order_number
-                  .toLowerCase()
-                  .includes(searchQuery.toLowerCase());
-              }
-              return true;
-            }),
-        },
-      ];
-    }
-
-    // Apply sorting to all relevant sections
-    return sortOrders(relevantSections, sortBy, isAscending);
-  }, [
-    orders,
-    date,
-    orderStatus,
-    orderType,
-    searchQuery,
-    sortBy,
-    isAscending,
-    dateFilter,
-    dateRange,
-  ]);
 
   const handleDateChange = (event, date) => {
     if (date) {
@@ -1517,6 +1488,7 @@ const OrdersScreen = () => {
     }
   };
 
+  // Helper to parse dates from "DD MMM YYYY" format
   const parseDateFromFormat = (dateStr) => {
     if (!dateStr) return new Date();
     
@@ -1600,44 +1572,7 @@ const OrdersScreen = () => {
     }
   };
 
-  const onStartDateChange = (event, selectedDate) => {
-    setShowStartDatePicker(false);
-    if (selectedDate) {
-      // If end date exists but is before the new start date, reset it
-      if (customDateRange.endDate && selectedDate > customDateRange.endDate) {
-        setCustomDateRange({
-          startDate: selectedDate,
-          endDate: null
-        });
-      } else {
-        setCustomDateRange(prev => ({...prev, startDate: selectedDate}));
-      }
-    }
-  };
-
-  const onEndDateChange = (event, selectedDate) => {
-    setShowEndDatePicker(false);
-    if (selectedDate) {
-      setCustomDateRange(prev => ({...prev, endDate: selectedDate}));
-    }
-  };
-
-  const handleDateRangeSelect = (startDate, endDate) => {
-    console.log("Date range selected:", startDate, endDate);
-    
-    if (startDate && endDate) {
-      // Update your dateRange state or pass these values to your fetchOrders function
-      const formattedStartDate = formatDate(startDate);
-      const formattedEndDate = formatDate(endDate);
-      
-      // You could use these values to update your date filter state
-      setDateFilterType('customRange');
-      
-      // Refresh orders with new date range
-      fetchOrders(true);
-    }
-  };
-
+  // Update handleDateFilterTypeChange to avoid triggering API calls
   const handleDateFilterTypeChange = (type) => {
     setDateFilterType(type);
     
@@ -1649,14 +1584,128 @@ const OrdersScreen = () => {
     }
     
     // Clear custom date range when selecting a predefined filter
-    setCustomDateRange({
-      startDate: new Date(),
-      endDate: new Date(),
+    if (type !== 'customRange') {
+      setCustomDateRange({
+        startDate: new Date(),
+        endDate: new Date(),
+      });
+      
+      // Get the date range for this filter using the updated logic
+      const newRange = getDateRange(type);
+      setDateRange(newRange);
+      
+      // Update date display if needed
+      if (type === "today") {
+        setDate(formatDateString(new Date()));
+      }
+    }
+    
+    // No need to call fetchOrders here - filtering will happen locally with our memoized filteredOrders
+  };
+
+  // Update the date picker handlers to not trigger API calls
+  const onStartDateChange = (event, selectedDate) => {
+    setShowStartDatePicker(false);
+    
+    if (selectedDate) {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      if (selectedDate > today) {
+        toast.show({
+          description: "Cannot select future dates",
+          status: "warning",
+          duration: 3000,
+        });
+        return;
+      }
+
+      // Set the start date
+      setCustomDateRange(prev => ({...prev, startDate: selectedDate}));
+      
+      // After selecting start date, open end date picker
+      setTimeout(() => {
+        setShowEndDatePicker(true);
+      }, 300);
+    }
+  };
+
+  const onEndDateChange = (event, selectedDate) => {
+    setShowEndDatePicker(false);
+    
+    if (selectedDate) {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      if (selectedDate > today) {
+        toast.show({
+          description: "Cannot select future dates",
+          status: "warning",
+          duration: 3000,
+        });
+        return;
+      }
+
+      // Ensure end date is not before start date
+      if (selectedDate < customDateRange.startDate) {
+        toast.show({
+          description: "End date cannot be before start date",
+          status: "warning",
+          duration: 3000,
+        });
+        return;
+      }
+
+      // Set the end date
+      setCustomDateRange(prev => ({...prev, endDate: selectedDate}));
+      
+      // Open the date filter modal after both dates are selected
+      setTimeout(() => {
+        setIsDateFilterModalVisible(true);
+      }, 300);
+    }
+  };
+
+  // Update the Modal button handler for custom date range
+  const handleApplyCustomDateRange = () => {
+    setIsDateFilterModalVisible(false);
+    
+    if (!customDateRange.startDate || !customDateRange.endDate) {
+      toast.show({
+        description: "Please select both start and end dates",
+        status: "warning",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    // Set the date filter type to custom range
+    setDateFilterType("customRange");
+    
+    // Set the date range with formatted dates
+    setDateRange({
+      start: formatDateString(customDateRange.startDate),
+      end: formatDateString(customDateRange.endDate),
+      label: "Custom Date"
     });
     
-    // Fetch orders with new filter type
-    fetchOrders(true);
+    // Show success toast
+    toast.show({
+      description: `Showing orders from ${formatDateString(customDateRange.startDate)} to ${formatDateString(customDateRange.endDate)}`,
+      status: "success",
+      duration: 3000,
+    });
+
+    // No need to fetch orders - filtering happens locally with our memoized filteredOrders
   };
+
+  // Add useEffect to handle date range changes with silent refresh
+  useEffect(() => {
+    if (dateRange.start && dateRange.end) {
+      // Use silent refresh when date range changes to improve UI responsiveness
+      fetchOrders(true);
+    }
+  }, [dateRange]);
 
   if (isLoading) {
     return (
@@ -1843,8 +1892,8 @@ const OrdersScreen = () => {
                 ? 'This Month'
                 : dateFilterType === 'lastMonth'
                 ? 'Last Month'
-                : dateFilterType === 'customRange'
-                ? 'Custom Date'
+                : dateFilterType === 'customRange' && dateRange.start && dateRange.end
+                ? 'Custom Range'
                 : 'Date Filter'}
             </Text>
             <Icon
@@ -1860,18 +1909,18 @@ const OrdersScreen = () => {
       <Box px={4} py={3}>
         <HStack alignItems="center" mb={2}>
           <Text fontSize="md" fontWeight="semibold" color="coolGray.800">
-            {dateFilterType === "customRange" && customDateRange.startDate && customDateRange.endDate
-              ? `${formatDate(customDateRange.startDate)} to ${formatDate(customDateRange.endDate)}`
+            {dateFilterType === "customRange" && dateRange.start && dateRange.end
+              ? `${dateRange.start} to ${dateRange.end}`
               : date}
           </Text>
 
-          {dateFilterType === "customRange" && customDateRange.startDate && customDateRange.endDate && (
+          {dateFilterType === "customRange" && dateRange.start && dateRange.end && (
             <Pressable
               ml={2}
               onPress={() => {
                 handleDateFilterTypeChange("today");
                 const today = new Date();
-                setDate(formatDate(today));
+                setDate(formatDateString(today));
                 fetchOrders(true);
               }}
             >
@@ -2244,27 +2293,6 @@ const OrdersScreen = () => {
             <VStack divider={<Divider />} width="100%">
               <Pressable
                 onPress={() => {
-                  handleDateFilterTypeChange("today");
-                  setIsDateFilterModalVisible(false);
-                }}
-                py={3}
-                px={4}
-              >
-                <HStack alignItems="center" justifyContent="space-between">
-                  <Text>Today</Text>
-                  {dateFilterType === "today" && (
-                    <Icon
-                      as={MaterialIcons}
-                      name="check"
-                      size="sm"
-                      color="primary.500"
-                    />
-                  )}
-                </HStack>
-              </Pressable>
-
-              <Pressable
-                onPress={() => {
                   handleDateFilterTypeChange("yesterday");
                   setIsDateFilterModalVisible(false);
                 }}
@@ -2367,28 +2395,62 @@ const OrdersScreen = () => {
                   )}
                 </HStack>
               </Pressable>
+            </VStack>
 
+            <Divider my={2} />
+
+            {/* Custom Date Range Section */}
+            <VStack p={4} space={3}>
+              <Text fontSize="md" fontWeight="medium" color="coolGray.700">
+                Custom Date Range
+              </Text>
+
+              {/* Start Date Section */}
               <Pressable
                 onPress={() => {
-                  setDateFilterType("customRange");
+                  setShowStartDatePicker(true);
                   setIsDateFilterModalVisible(false);
-                  setShowPicker(true);
                 }}
-                py={3}
-                px={4}
               >
-                <HStack alignItems="center" justifyContent="space-between">
-                  <Text>Custom Date Range</Text>
-                  {dateFilterType === "customRange" && (
-                    <Icon
-                      as={MaterialIcons}
-                      name="check"
-                      size="sm"
-                      color="primary.500"
-                    />
-                  )}
-                </HStack>
+                <Box borderWidth={1} borderColor="coolGray.200" rounded="md">
+                  <Text fontSize="sm" color="coolGray.600" px={4} pt={2}>
+                    Start Date:
+                  </Text>
+                  <Text fontSize="md" px={4} pb={2} color="coolGray.800">
+                    {customDateRange.startDate ? formatDateString(customDateRange.startDate) : "Select Date"}
+                  </Text>
+                </Box>
               </Pressable>
+
+              {/* End Date Section */}
+              <Pressable
+                onPress={() => {
+                  if (!customDateRange.startDate) {
+                    setCustomDateRange({
+                      ...customDateRange,
+                      startDate: new Date(),
+                    });
+                  }
+                  setShowEndDatePicker(true);
+                  setIsDateFilterModalVisible(false);
+                }}
+              >
+                <Box borderWidth={1} borderColor="coolGray.200" rounded="md">
+                  <Text fontSize="sm" color="coolGray.600" px={4} pt={2}>
+                    End Date:
+                  </Text>
+                  <Text fontSize="md" px={4} pb={2} color="coolGray.800">
+                    {customDateRange.endDate ? formatDateString(customDateRange.endDate) : "Select Date"}
+                  </Text>
+                </Box>
+              </Pressable>
+
+              <Button
+                colorScheme="blue"
+                onPress={handleApplyCustomDateRange}
+              >
+                Apply Date Range
+              </Button>
             </VStack>
           </Modal.Body>
         </Modal.Content>
