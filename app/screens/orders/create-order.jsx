@@ -58,6 +58,7 @@ import axios from "axios";
 import Toast from "react-native-toast-message";
 import { Ionicons } from "@expo/vector-icons";
 import PaymentModal from "../../components/PaymentModal";
+import { getSettings } from "../../../utils/getSettings";
 
 // Helper function to get the API base URL with trailing slash
 const onGetProductionUrl = () => {
@@ -368,13 +369,12 @@ export default function CreateOrderScreen() {
 
   // Settings state to control button visibility
   const [settings, setSettings] = useState({
-    orderManagement: {
-      print_and_save: true,
-      KOT_and_save: true,
-      settle: true,
-      reserve_table: true,
-      cancel: true,
-    },
+    print_and_save: true,
+    KOT_and_save: true,
+    settle: true,
+    reserve_table: true,
+    cancel: true,
+    has_save: true
   });
 
   // Use PrinterContext for improved printer management
@@ -4372,25 +4372,29 @@ export default function CreateOrderScreen() {
 
   // Add useEffect to load settings
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const storedSettings = await AsyncStorage.getItem("app_settings");
-        if (storedSettings) {
-          const parsedSettings = JSON.parse(storedSettings);
-          setSettings({
-            orderManagement: {
-              print_and_save: parsedSettings.print_and_save,
-              KOT_and_save: parsedSettings.KOT_and_save,
-              settle: parsedSettings.settle,
-              reserve_table: parsedSettings.reserve_table,
-              cancel: parsedSettings.cancel,
-            },
-          });
-        }
-      } catch (error) {
-        console.error("Error loading settings:", error);
-      }
-    };
+   // Update the loadSettings function in create-order.jsx
+const loadSettings = async () => {
+  try {
+    console.log("Loading settings in CreateOrderScreen");
+    // Always get the latest settings from API
+    const appSettings = await getSettings();
+    console.log("Loaded settings:", appSettings);
+    
+    // Set settings directly without nesting under orderManagement
+    setSettings(appSettings);
+  } catch (error) {
+    console.error("Error loading settings:", error);
+    // Set default values as fallback - flat structure
+    setSettings({
+      print_and_save: true,
+      KOT_and_save: true,
+      settle: true,
+      reserve_table: true,
+      cancel: true,
+      has_save: true
+    });
+  }
+};
 
     loadSettings();
   }, []);
@@ -5535,7 +5539,7 @@ export default function CreateOrderScreen() {
                   <VStack space={1} p={2} pt={0}>
                     {/* Top row - 3 buttons, matching screenshot */}
                     <HStack space={1}>
-                      {settings.orderManagement.print_and_save && (
+                      {settings.print_and_save && (
                         <Button
                           flex={1}
                           h={10}
@@ -5559,72 +5563,7 @@ export default function CreateOrderScreen() {
                         </Button>
                       )}
 
-                      <Button
-                        flex={1}
-                        h={10}
-                        bg="black"
-                        _pressed={{ bg: "#333" }}
-                        borderRadius="md"
-                        leftIcon={
-                          <Icon
-                            as={MaterialIcons}
-                            name="receipt"
-                            size="sm"
-                            color="white"
-                          />
-                        }
-                        onPress={onKOTPress}
-                        py={0}
-                      >
-                        <Text color="white" fontSize="xs">
-                          KOT
-                        </Text>
-                      </Button>
-
-                      {settings.orderManagement.settle && (
-                        <Button
-                          flex={1}
-                          h={10}
-                          bg="#00B0F0"
-                          _pressed={{ bg: "#0099CC" }}
-                          borderRadius="md"
-                          onPress={handleSettleOrder}
-                          py={0}
-                        >
-                          <Text color="white" fontSize="xs">
-                            Settle
-                          </Text>
-                        </Button>
-                      )}
-                    </HStack>
-
-                    {/* Middle row - Lock icon and KOT & Save */}
-                    <HStack space={1}>
-                      {settings.orderManagement.reserve_table && (
-                        <Button
-                          w="33%"
-                          h={10}
-                          bg="green.500"
-                          _pressed={{ bg: "green.600" }}
-                          borderRadius="md"
-                          py={0}
-                          onPress={handleSaveOrder}
-                          alignItems="center"
-                          justifyContent="center"
-                          leftIcon={
-                            <Icon
-                              as={MaterialIcons}
-                              name="save"
-                              size="sm"
-                              color="white"
-                            />
-                          }
-                        >
-                          <Text color="white">Save</Text>
-                        </Button>
-                      )}
-
-                      {settings.orderManagement.KOT_and_save && (
+                      {settings.KOT_and_save && (
                         <Button
                           flex={1}
                           h={10}
@@ -5639,35 +5578,28 @@ export default function CreateOrderScreen() {
                               color="white"
                             />
                           }
-                          onPress={handleKOTAndSave}
+                          onPress={onKOTPress}
                           py={0}
                         >
                           <Text color="white" fontSize="xs">
-                            KOT & Save
+                            KOT
                           </Text>
                         </Button>
                       )}
-                      
-                      {/* Add Cancel Order button for existing orders */}
-                      {params?.orderId && settings.orderManagement.cancel && (
+
+                      {settings.settle && (
                         <Button
-                          w="36px"
+                          flex={1}
                           h={10}
-                          bg="red.600"
-                          _pressed={{ bg: "red.700" }}
+                          bg="#00B0F0"
+                          _pressed={{ bg: "#0099CC" }}
                           borderRadius="md"
+                          onPress={handleSettleOrder}
                           py={0}
-                          ml={1}
-                          onPress={handleCancelOrder}
-                          alignItems="center"
-                          justifyContent="center"
                         >
-                          <Icon
-                            as={MaterialIcons}
-                            name="close"
-                            size="sm"
-                            color="white"
-                          />
+                          <Text color="white" fontSize="xs">
+                            Settle
+                          </Text>
                         </Button>
                       )}
                     </HStack>
