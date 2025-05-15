@@ -58,6 +58,7 @@ export const fetchSettingsFromAPI = async () => {
         settle: data.settle,
         reserve_table: data.reserve_table,
         cancel: data.cancel,
+        has_save: data.has_save,
       };
       
       // Save to AsyncStorage for offline use
