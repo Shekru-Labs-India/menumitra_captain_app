@@ -1889,7 +1889,7 @@ export default function TableSectionsScreen() {
                                             : "#ffcdd2" // Standard occupied - Light red background
                                           : table.is_reserved
                                           ? "#e0e0e0" // Reserved - Gray background
-                                          : "#e8f5e9" // Available - Light green background
+                                          : "white" // Available - Light green background
                                       }
                                       borderWidth={1}
                                       borderStyle={
@@ -1911,10 +1911,10 @@ export default function TableSectionsScreen() {
                                             ? "#dc3545" // Create order - Red
                                             : table.action === "placed"
                                             ? "#dc3545" // Placed - Red
-                                            : "#2196f3" // Regular occupied - Blue
+                                            : "#dc3545" // Regular occupied - Blue
                                           : table.is_reserved
                                           ? "#757575" // Reserved - Gray border
-                                          : "#198754" // Available - Green border
+                                          : "#aaaaaa" // Available - Green border
                                       }
                                       position="relative"
                                       justifyContent="center"
