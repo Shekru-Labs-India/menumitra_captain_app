@@ -766,7 +766,7 @@ export default function MenuSelectionScreen() {
   // Render floating cart button
   const renderFloatingCart = () => {
     if (cart.length === 0) return null;
-
+  
     return (
       <Pressable
         style={styles.floatingCart}
@@ -774,9 +774,9 @@ export default function MenuSelectionScreen() {
       >
         <HStack alignItems="center">
           <MaterialIcons name="shopping-cart" size={24} color="#0dcaf0" />
-          <Text ml={2} fontSize="md" fontWeight="bold" color="#0dcaf0">{cart.length}</Text>
+          {/* <Text ml={2} fontSize="md" fontWeight="bold" color="#0dcaf0">{cart.length}</Text> */}
           <Text ml={2} fontWeight="bold" color="#0dcaf0">
-            {tableData?.order_id ? "Update Order" : "Create Order"}
+            {getOrderButtonText()}
           </Text>
         </HStack>
       </Pressable>
@@ -1122,6 +1122,14 @@ export default function MenuSelectionScreen() {
     );
   };
 
+  const getOrderButtonText = () => {
+    const isExistingOrder = params.orderId && params.orderNumber;
+    const action = isExistingOrder ? "Update" : "Create";
+    return orderType === "dine-in" 
+      ? `${action} Order`
+      : `${action} ${toTitleCase(orderType)} Order`;
+  };
+
   // Add useEffect to fetch settings
   useEffect(() => {
     const loadSettings = async () => {
@@ -1378,25 +1386,16 @@ export default function MenuSelectionScreen() {
           </Box>
           
           <View style={styles.actionButtons}>
-            {/* Only show Create Order button if table is not reserved */}
-            {!isReserved && orderType === "dine-in" ? (
-              <Pressable
-                style={[styles.actionButton, styles.createOrderButton]}
-                onPress={navigateToCreateOrder}
-              >
-                <Text style={styles.actionButtonText}>Create Order</Text>
-              </Pressable>
-            )
-:(
-              <Pressable
-                style={[styles.actionButton, styles.createOrderButton]}
-                onPress={navigateToCreateOrder}
-              >
-                <Text style={styles.actionButtonText}>Creates Order</Text>
-              </Pressable>
-            )            
-            }
-          </View>
+  <Pressable
+    style={[styles.actionButton, styles.createOrderButton]}
+    onPress={navigateToCreateOrder}
+    disabled={isReserved}
+  >
+    <Text style={styles.actionButtonText}>
+      {getOrderButtonText()}
+    </Text>
+  </Pressable>
+</View>
         </HStack>
       )}
       
