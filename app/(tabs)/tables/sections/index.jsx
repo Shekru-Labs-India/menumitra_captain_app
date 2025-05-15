@@ -4128,11 +4128,9 @@ export default function TableSectionsScreen() {
             <Modal.CloseButton position="absolute" right={2} />
           </HStack>
           <Modal.Body>
-            <FormControl isRequired>
-              <FormControl.Label>
-                <HStack space={1} alignItems="center">
-                  <Text>Section Name </Text>
-                </HStack>
+            <FormControl isRequired={false}>
+              <FormControl.Label _text={{ fontWeight: "bold" }}>
+                <Text color="red.500">*</Text> Section Name
               </FormControl.Label>
               <Input
                 value={newSectionName}
