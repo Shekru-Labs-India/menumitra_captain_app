@@ -28,6 +28,7 @@ import {
   Center,
   Icon,
   Switch,
+  AlertDialog,
 } from "native-base";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -59,7 +60,6 @@ import { TouchableOpacity, TouchableWithoutFeedback } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { Asset } from "expo-asset";
 // import { useFocusEffect } from "@react-navigation/native";
-
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -416,7 +416,7 @@ const OrderTypeButtons = () => {
             delivery: parsedSettings.has_delivery,
             driveThrough: parsedSettings.has_drive_through,
           });
-          
+
           // REMOVE THIS LINE - should not set parent state
           // setIsReservation(parsedSettings.reserve_table);
           // console.log(parsedSettings.reserve_table);
@@ -649,8 +649,12 @@ export default function TableSectionsScreen() {
 
   const [isReservation, setIsReservation] = useState(false);
 
+  const [isOpen, setIsOpen] = React.useState(false);
+  // const [selectedTable, setSelectedTable] = React.useState(null);
+  const cancelRef = React.useRef(null);
+
   // Add near the top of the component, where other imports are
-  
+
   // Then replace the current useEffect for loading app settings with this useFocusEffect
   useFocusEffect(
     useCallback(() => {
@@ -661,7 +665,7 @@ export default function TableSectionsScreen() {
           if (storedSettings) {
             console.log("FOCUS EFFECT: Raw app_settings:", storedSettings);
             const parsedSettings = JSON.parse(storedSettings);
-            
+
             // Be extremely explicit about the check
             const reserveValue = parsedSettings.reserve_table;
             console.log(
@@ -670,17 +674,17 @@ export default function TableSectionsScreen() {
               "Type:",
               typeof reserveValue
             );
-            
+
             // Handle all possible value formats
-            const isEnabled = 
-              reserveValue === true || 
-              reserveValue === 1 || 
-              reserveValue === "1" || 
+            const isEnabled =
+              reserveValue === true ||
+              reserveValue === 1 ||
+              reserveValue === "1" ||
               reserveValue === "true";
-            
+
             console.log("FOCUS EFFECT: Setting isReservation to:", isEnabled);
             setIsReservation(isEnabled);
-            
+
             // Also check for other settings that might be relevant
             console.log("FOCUS EFFECT: All settings:", parsedSettings);
           } else {
@@ -693,12 +697,12 @@ export default function TableSectionsScreen() {
 
       // Execute immediately when screen is focused
       loadAppSettings();
-      
+
       // Also fetch directly to verify correct storage format
-      AsyncStorage.getAllKeys().then(keys => {
+      AsyncStorage.getAllKeys().then((keys) => {
         console.log("FOCUS EFFECT: All AsyncStorage keys:", keys);
       });
-      
+
       return () => {
         // Cleanup if needed
         console.log("FOCUS EFFECT: Tables screen unfocused");
@@ -708,22 +712,29 @@ export default function TableSectionsScreen() {
 
   // Also add a debug element to the UI to show the current state
   // Add this right before the closing </ScrollView> tag
-  {__DEV__ && (
-    <Box 
-      position="absolute" 
-      top={100} 
-      right={10} 
-      px={3} 
-      py={2} 
-      bg="rgba(0,0,0,0.7)" 
-      rounded="md" 
-      zIndex={9999}
-    >
-      <Text color="white" fontSize="xs">
-        isReservation: {String(isReservation)}
-      </Text>
-    </Box>
-  )}
+  {
+    __DEV__ && (
+      <Box
+        position="absolute"
+        top={100}
+        right={10}
+        px={3}
+        py={2}
+        bg="rgba(0,0,0,0.7)"
+        rounded="md"
+        zIndex={9999}
+      >
+        <Text color="white" fontSize="xs">
+          isReservation: {String(isReservation)}
+        </Text>
+      </Box>
+    );
+  }
+  const handleReservationClick = (table) => {
+    setSelectedTable(table);
+    setIsOpen(true);
+  };
+
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -1336,7 +1347,7 @@ export default function TableSectionsScreen() {
     }
     try {
       setRefreshing(true);
-      
+
       // Log app_settings data during refresh
       console.log("PULL REFRESH: Checking app_settings...");
       const appSettings = await AsyncStorage.getItem("app_settings");
@@ -1344,15 +1355,20 @@ export default function TableSectionsScreen() {
         console.log("PULL REFRESH: app_settings found:", appSettings);
         const parsedSettings = JSON.parse(appSettings);
         console.log("PULL REFRESH: Parsed settings:", parsedSettings);
-        console.log("PULL REFRESH: reserve_table value:", parsedSettings.reserve_table, "Type:", typeof parsedSettings.reserve_table);
+        console.log(
+          "PULL REFRESH: reserve_table value:",
+          parsedSettings.reserve_table,
+          "Type:",
+          typeof parsedSettings.reserve_table
+        );
       } else {
         console.log("PULL REFRESH: No app_settings found in AsyncStorage");
       }
-      
+
       // Also log all keys in AsyncStorage for verification
       const allKeys = await AsyncStorage.getAllKeys();
       console.log("PULL REFRESH: All AsyncStorage keys:", allKeys);
-      
+
       // Continue with normal refresh
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       if (storedOutletId) {
@@ -2105,32 +2121,44 @@ export default function TableSectionsScreen() {
                                           )}
 
                                           {/* Reserve button with lock icon */}
-                                          {showEditIcons && 
-                                            table.is_occupied !== 1 && 
+                                          {showEditIcons &&
+                                            table.is_occupied !== 1 &&
                                             isReservation && (
-                                            <Box
-                                              position="absolute"
-                                              bottom={1}
-                                              left={1}
-                                              zIndex={2}
-                                            >
-                                              <Pressable
-                                                onPress={() => handleTableReservation(table)}
-                                                rounded="full"
-                                                size={8}
-                                                w={8}
-                                                h={8}
-                                                alignItems="center"
-                                                justifyContent="center"
+                                              <Box
+                                                position="absolute"
+                                                bottom={1}
+                                                left={1}
+                                                zIndex={2}
                                               >
-                                                <MaterialIcons
-                                                  name={table.is_reserved ? "lock-open" : "lock-outline"}
-                                                  size={18}
-                                                  color={table.is_reserved ? "#000" : "#ef4444"}
-                                                />
-                                              </Pressable>
-                                            </Box>
-                                          )}
+                                                <Pressable
+                                                  onPress={() =>
+                                                    handleReservationClick(
+                                                      table
+                                                    )
+                                                  }
+                                                  rounded="full"
+                                                  size={8}
+                                                  w={8}
+                                                  h={8}
+                                                  alignItems="center"
+                                                  justifyContent="center"
+                                                >
+                                                  <MaterialIcons
+                                                    name={
+                                                      table.is_reserved
+                                                        ? "lock-open"
+                                                        : "lock-outline"
+                                                    }
+                                                    size={18}
+                                                    color={
+                                                      table.is_reserved
+                                                        ? "#000"
+                                                        : "#ef4444"
+                                                    }
+                                                  />
+                                                </Pressable>
+                                              </Box>
+                                            )}
                                           {/* Delete icon for last table */}
                                           {showEditIcons &&
                                             table.table_id ===
@@ -2692,6 +2720,7 @@ export default function TableSectionsScreen() {
   };
 
   const handleTableReservation = async (table) => {
+    setIsOpen(false); // Close the dialog first
     try {
       // Set loading state but don't show a global loading spinner
       setUpdatingStatus(true);
@@ -4346,6 +4375,43 @@ export default function TableSectionsScreen() {
 
       {/* Add the PaymentModal */}
       {renderPaymentModal()}
+    
+     {/* Your existing JSX */}
+    
+     <AlertDialog
+      leastDestructiveRef={cancelRef}
+      isOpen={isOpen}
+      onClose={() => setIsOpen(false)}
+    >
+      <AlertDialog.Content>
+        <AlertDialog.CloseButton />
+        <AlertDialog.Header>Confirm Reservation</AlertDialog.Header>
+        <AlertDialog.Body>
+          {selectedTable?.is_reserved 
+            ? `Are you sure you want to remove the reservation for this table no ${selectedTable?.table_number}`
+            : `Are you sure you want to reserve this table no : ${selectedTable?.table_number}`}
+        </AlertDialog.Body>
+        <AlertDialog.Footer>
+          <Button.Group space={2}>
+            <Button
+              variant="unstyled"
+              colorScheme="coolGray"
+              onPress={() => setIsOpen(false)}
+              ref={cancelRef}
+            >
+              Cancel
+            </Button>
+            <Button
+              colorScheme={selectedTable?.is_reserved ? "red" : "success"}
+              onPress={() => handleTableReservation(selectedTable)}
+            >
+              {selectedTable?.is_reserved ? "Remove" : "Reserve"}
+            </Button>
+          </Button.Group>
+        </AlertDialog.Footer>
+      </AlertDialog.Content>
+    </AlertDialog>
     </Box>
+    
   );
 }
