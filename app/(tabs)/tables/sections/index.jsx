@@ -57,7 +57,9 @@ import { Alert } from "react-native";
 import Image from "react-native/Libraries/Image/Image";
 import { TouchableOpacity, TouchableWithoutFeedback } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
-import { Asset } from 'expo-asset';
+import { Asset } from "expo-asset";
+// import { useFocusEffect } from "@react-navigation/native";
+
 
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
@@ -204,19 +206,19 @@ const TableSkeletonLoader = () => {
   // Create a shimmer component
   const Shimmer = ({ width, height, style }) => {
     return (
-      <Box 
-        width={width} 
-        height={height} 
-        bg="#E2E8F0" 
-        borderRadius="md" 
+      <Box
+        width={width}
+        height={height}
+        bg="#E2E8F0"
+        borderRadius="md"
         overflow="hidden"
         style={style}
       >
         <Animated.View
           style={{
-            width: '60%',
-            height: '100%',
-            backgroundColor: 'rgba(255, 255, 255, 0.5)',
+            width: "60%",
+            height: "100%",
+            backgroundColor: "rgba(255, 255, 255, 0.5)",
             transform: [{ translateX: shimmerAnim }],
           }}
         />
@@ -251,30 +253,36 @@ const TableSkeletonLoader = () => {
       >
         <Animated.View
           style={{
-            width: '100%',
-            height: '100%',
-            position: 'absolute',
+            width: "100%",
+            height: "100%",
+            position: "absolute",
             left: 0,
             top: 0,
-            backgroundColor: 'transparent',
+            backgroundColor: "transparent",
             opacity: 0.6,
           }}
         >
           <Animated.View
             style={{
-              width: '50%',
-              height: '200%',
-              backgroundColor: 'rgba(255, 255, 255, 0.8)',
+              width: "50%",
+              height: "200%",
+              backgroundColor: "rgba(255, 255, 255, 0.8)",
               transform: [
-  { translateX: shimmerAnim },
-  { translateY: -5 },
-  { rotateZ: '25deg' }
-],
-              position: 'absolute',
+                { translateX: shimmerAnim },
+                { translateY: -5 },
+                { rotateZ: "25deg" },
+              ],
+              position: "absolute",
             }}
           />
         </Animated.View>
-        <Box width="40%" height="20px" bg="#CBD5E0" alignSelf="center" borderRadius="sm" />
+        <Box
+          width="40%"
+          height="20px"
+          bg="#CBD5E0"
+          alignSelf="center"
+          borderRadius="sm"
+        />
       </Box>
     </Box>
   );
@@ -292,11 +300,11 @@ const TableSkeletonLoader = () => {
                     <Box height={6} bg="#E2E8F0" rounded="md" width="100%" />
                     <Animated.View
                       style={{
-                        width: '50%',
-                        height: '100%',
-                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        width: "50%",
+                        height: "100%",
+                        backgroundColor: "rgba(255, 255, 255, 0.8)",
                         transform: [{ translateX: shimmerAnim }],
-                        position: 'absolute',
+                        position: "absolute",
                       }}
                     />
                   </Box>
@@ -304,11 +312,11 @@ const TableSkeletonLoader = () => {
                     <Box height={6} bg="#E2E8F0" rounded="md" width="100%" />
                     <Animated.View
                       style={{
-                        width: '50%',
-                        height: '100%',
-                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        width: "50%",
+                        height: "100%",
+                        backgroundColor: "rgba(255, 255, 255, 0.8)",
                         transform: [{ translateX: shimmerAnim }],
-                        position: 'absolute',
+                        position: "absolute",
                       }}
                     />
                   </Box>
@@ -318,25 +326,36 @@ const TableSkeletonLoader = () => {
                 <HStack space={3} alignItems="center" mt={2}>
                   {[1, 2, 3].map((statItem) => (
                     <HStack key={statItem} space={1} alignItems="center">
-                      <Box w={3} h={3} bg="#E2E8F0" rounded="full" overflow="hidden">
+                      <Box
+                        w={3}
+                        h={3}
+                        bg="#E2E8F0"
+                        rounded="full"
+                        overflow="hidden"
+                      >
                         <Animated.View
                           style={{
-                            width: '100%',
-                            height: '100%',
-                            backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                            width: "100%",
+                            height: "100%",
+                            backgroundColor: "rgba(255, 255, 255, 0.5)",
                             transform: [{ translateX: shimmerAnim }],
                           }}
                         />
                       </Box>
                       <Box width={16} position="relative" overflow="hidden">
-                        <Box height={4} bg="#E2E8F0" rounded="md" width="100%" />
+                        <Box
+                          height={4}
+                          bg="#E2E8F0"
+                          rounded="md"
+                          width="100%"
+                        />
                         <Animated.View
                           style={{
-                            width: '50%',
-                            height: '100%',
-                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            width: "50%",
+                            height: "100%",
+                            backgroundColor: "rgba(255, 255, 255, 0.8)",
                             transform: [{ translateX: shimmerAnim }],
-                            position: 'absolute',
+                            position: "absolute",
                           }}
                         />
                       </Box>
@@ -351,14 +370,16 @@ const TableSkeletonLoader = () => {
               {/* Tables Grid Skeleton */}
               <VStack space={2}>
                 {[1, 2].map((row) => (
-                  <HStack 
+                  <HStack
                     key={row}
                     px={0}
                     py={3}
                     alignItems="center"
                     justifyContent="space-evenly"
                   >
-                    {[1, 2, 3].map((col) => <ShimmerTable key={`${row}-${col}`} />)}
+                    {[1, 2, 3].map((col) => (
+                      <ShimmerTable key={`${row}-${col}`} />
+                    ))}
                   </HStack>
                 ))}
               </VStack>
@@ -395,6 +416,10 @@ const OrderTypeButtons = () => {
             delivery: parsedSettings.has_delivery,
             driveThrough: parsedSettings.has_drive_through,
           });
+          
+          // REMOVE THIS LINE - should not set parent state
+          // setIsReservation(parsedSettings.reserve_table);
+          // console.log(parsedSettings.reserve_table);
         }
       } catch (error) {
         console.error("Error loading order type settings:", error);
@@ -409,13 +434,14 @@ const OrderTypeButtons = () => {
   // Get outlet_id once
   const [outletId, setOutletId] = useState(null);
   useEffect(() => {
-    AsyncStorage.getItem("outlet_id").then(id => {
+    AsyncStorage.getItem("outlet_id").then((id) => {
       if (id) setOutletId(parseInt(id));
     });
   }, []);
 
   // Calculate active buttons count
-  const activeButtonCount = Object.values(orderTypeSettings).filter(Boolean).length;
+  const activeButtonCount =
+    Object.values(orderTypeSettings).filter(Boolean).length;
 
   // Calculate width percentage based on active button count
   // Subtract small gap amount (2%) between buttons from total width
@@ -494,9 +520,7 @@ const OrderTypeButtons = () => {
       <Box px={4} width="100%">
         <HStack
           space={2}
-          justifyContent={
-            activeButtonCount === 0 ? "center" : "space-between"
-          }
+          justifyContent={activeButtonCount === 0 ? "center" : "space-between"}
         >
           {buttons.map((button, index) => (
             <Pressable
@@ -622,6 +646,84 @@ export default function TableSectionsScreen() {
   const viewShotRef = useRef(null);
 
   const [updateTimestamp, setUpdateTimestamp] = useState(Date.now()); // Add this to track refresh timestamps
+
+  const [isReservation, setIsReservation] = useState(false);
+
+  // Add near the top of the component, where other imports are
+  
+  // Then replace the current useEffect for loading app settings with this useFocusEffect
+  useFocusEffect(
+    useCallback(() => {
+      const loadAppSettings = async () => {
+        try {
+          console.log("FOCUS EFFECT: Loading app_settings in tables screen...");
+          const storedSettings = await AsyncStorage.getItem("app_settings");
+          if (storedSettings) {
+            console.log("FOCUS EFFECT: Raw app_settings:", storedSettings);
+            const parsedSettings = JSON.parse(storedSettings);
+            
+            // Be extremely explicit about the check
+            const reserveValue = parsedSettings.reserve_table;
+            console.log(
+              "FOCUS EFFECT: Reserve value:",
+              reserveValue,
+              "Type:",
+              typeof reserveValue
+            );
+            
+            // Handle all possible value formats
+            const isEnabled = 
+              reserveValue === true || 
+              reserveValue === 1 || 
+              reserveValue === "1" || 
+              reserveValue === "true";
+            
+            console.log("FOCUS EFFECT: Setting isReservation to:", isEnabled);
+            setIsReservation(isEnabled);
+            
+            // Also check for other settings that might be relevant
+            console.log("FOCUS EFFECT: All settings:", parsedSettings);
+          } else {
+            console.log("FOCUS EFFECT: No app_settings found in AsyncStorage");
+          }
+        } catch (error) {
+          console.error("FOCUS EFFECT: Error loading app settings:", error);
+        }
+      };
+
+      // Execute immediately when screen is focused
+      loadAppSettings();
+      
+      // Also fetch directly to verify correct storage format
+      AsyncStorage.getAllKeys().then(keys => {
+        console.log("FOCUS EFFECT: All AsyncStorage keys:", keys);
+      });
+      
+      return () => {
+        // Cleanup if needed
+        console.log("FOCUS EFFECT: Tables screen unfocused");
+      };
+    }, []) // Empty dependency array to only react to focus/unfocus events
+  );
+
+  // Also add a debug element to the UI to show the current state
+  // Add this right before the closing </ScrollView> tag
+  {__DEV__ && (
+    <Box 
+      position="absolute" 
+      top={100} 
+      right={10} 
+      px={3} 
+      py={2} 
+      bg="rgba(0,0,0,0.7)" 
+      rounded="md" 
+      zIndex={9999}
+    >
+      <Text color="white" fontSize="xs">
+        isReservation: {String(isReservation)}
+      </Text>
+    </Box>
+  )}
 
   const handleSelectChange = (value) => {
     if (value === "availableTables") {
@@ -788,27 +890,29 @@ export default function TableSectionsScreen() {
         // Use functional update to properly merge with existing state
         setSections((currentSections) => {
           // Preserve UI state for tables (like isLoading, etc.)
-          return processedSections.map(newSection => {
+          return processedSections.map((newSection) => {
             // Find this section in current sections (if it exists)
-            const existingSection = currentSections.find(s => s.id === newSection.id);
-            
+            const existingSection = currentSections.find(
+              (s) => s.id === newSection.id
+            );
+
             if (!existingSection) return newSection;
-            
+
             // Merge tables data to preserve any local UI state
-            const mergedTables = newSection.tables.map(newTable => {
+            const mergedTables = newSection.tables.map((newTable) => {
               const existingTable = existingSection.tables.find(
-                t => t.table_id === newTable.table_id
+                (t) => t.table_id === newTable.table_id
               );
-              
+
               if (!existingTable) return newTable;
-              
+
               // Preserve UI states like loading, deleting, etc.
               return {
                 ...newTable,
                 isLoading: existingTable.isLoading || false,
               };
             });
-            
+
             return {
               ...newSection,
               tables: mergedTables,
@@ -820,13 +924,13 @@ export default function TableSectionsScreen() {
         if (processedSections.length > 0 && !activeSection) {
           setActiveSection(processedSections[0]);
         }
-        
+
         // Update sales data
         setSalesData({
           liveSales: data.live_sales || 0,
           todayTotalSales: data.today_total_sales || 0,
         });
-        
+
         // Update timestamp to trigger any components that depend on fresh data
         setUpdateTimestamp(Date.now());
       }
@@ -1232,6 +1336,24 @@ export default function TableSectionsScreen() {
     }
     try {
       setRefreshing(true);
+      
+      // Log app_settings data during refresh
+      console.log("PULL REFRESH: Checking app_settings...");
+      const appSettings = await AsyncStorage.getItem("app_settings");
+      if (appSettings) {
+        console.log("PULL REFRESH: app_settings found:", appSettings);
+        const parsedSettings = JSON.parse(appSettings);
+        console.log("PULL REFRESH: Parsed settings:", parsedSettings);
+        console.log("PULL REFRESH: reserve_table value:", parsedSettings.reserve_table, "Type:", typeof parsedSettings.reserve_table);
+      } else {
+        console.log("PULL REFRESH: No app_settings found in AsyncStorage");
+      }
+      
+      // Also log all keys in AsyncStorage for verification
+      const allKeys = await AsyncStorage.getAllKeys();
+      console.log("PULL REFRESH: All AsyncStorage keys:", allKeys);
+      
+      // Continue with normal refresh
       const storedOutletId = await AsyncStorage.getItem("outlet_id");
       if (storedOutletId) {
         await fetchSections(parseInt(storedOutletId), false); // false = not initial load
@@ -1257,14 +1379,19 @@ export default function TableSectionsScreen() {
     refreshInterval.current = setInterval(async () => {
       try {
         // Only refresh if no modal is open and we're not already doing something
-        if (isQRModalOpen || showQRModal || showDeleteModal || deletingSections.size > 0) {
+        if (
+          isQRModalOpen ||
+          showQRModal ||
+          showDeleteModal ||
+          deletingSections.size > 0
+        ) {
           console.log("Skipping auto-refresh because of active UI state");
           return;
         }
-        
+
         // Set background refreshing flag (won't show spinner)
         setBackgroundRefreshing(true);
-        
+
         const storedOutletId = await AsyncStorage.getItem("outlet_id");
         if (storedOutletId) {
           await fetchSections(parseInt(storedOutletId), false); // false = not initial load
@@ -1287,11 +1414,11 @@ export default function TableSectionsScreen() {
   const silentRefreshSections = async (outletId) => {
     try {
       // Don't set loading state here - that's the key difference
-      
+
       // Create a timestamp to track this specific refresh
       const refreshTimestamp = Date.now();
       console.log(`Starting background refresh ${refreshTimestamp}`);
-      
+
       // Make the API call
       const data = await fetchWithAuth(`${getBaseUrl()}/table_listview`, {
         method: "POST",
@@ -1301,7 +1428,10 @@ export default function TableSectionsScreen() {
         }),
       });
 
-      console.log(`Background refresh ${refreshTimestamp} received response:`, data.st);
+      console.log(
+        `Background refresh ${refreshTimestamp} received response:`,
+        data.st
+      );
 
       if (data.st === 1) {
         // Process the data (same as in fetchSections)
@@ -1321,38 +1451,40 @@ export default function TableSectionsScreen() {
         }));
 
         // Use a functional state update to ensure we're working with fresh state
-        setSections(currentSections => {
+        setSections((currentSections) => {
           // Compare and merge data (for a smoother update)
-          const mergedSections = processedSections.map(newSection => {
+          const mergedSections = processedSections.map((newSection) => {
             // Find this section in current state (if it exists)
-            const existingSection = currentSections.find(s => s.id === newSection.id);
-            
+            const existingSection = currentSections.find(
+              (s) => s.id === newSection.id
+            );
+
             if (!existingSection) return newSection;
-            
+
             // Merge tables data to preserve any local UI state
-            const mergedTables = newSection.tables.map(newTable => {
-              const existingTable = existingSection.tables.find(t => 
-                t.table_id === newTable.table_id
+            const mergedTables = newSection.tables.map((newTable) => {
+              const existingTable = existingSection.tables.find(
+                (t) => t.table_id === newTable.table_id
               );
-              
+
               if (!existingTable) return newTable;
-              
+
               // Preserve UI states like deletingTables, updatingStatus, etc.
               return {
                 ...newTable,
                 isLoading: existingTable.isLoading || false,
               };
             });
-            
+
             return {
               ...newSection,
               tables: mergedTables,
             };
           });
-          
+
           return mergedSections;
         });
-        
+
         // Update active section if needed
         if (processedSections.length > 0 && !activeSection) {
           setActiveSection(processedSections[0]);
@@ -1492,8 +1624,18 @@ export default function TableSectionsScreen() {
                         isDisabled={updatingSections.has(section.id)}
                       />
                     ) : (
-                      <HStack space={2} alignItems="center" flex={1} maxWidth="70%">
-                        <Text fontSize="lg" fontWeight="bold" numberOfLines={1} ellipsizeMode="tail">
+                      <HStack
+                        space={2}
+                        alignItems="center"
+                        flex={1}
+                        maxWidth="70%"
+                      >
+                        <Text
+                          fontSize="lg"
+                          fontWeight="bold"
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
                           {section.name}
                         </Text>
                         {updatingSections.has(section.id) && (
@@ -1750,7 +1892,11 @@ export default function TableSectionsScreen() {
                                           : "#e8f5e9" // Available - Light green background
                                       }
                                       borderWidth={1}
-                                      borderStyle={table.action === "has_save" ? "solid" : "dashed"}
+                                      borderStyle={
+                                        table.action === "has_save"
+                                          ? "solid"
+                                          : "dashed"
+                                      }
                                       borderColor={
                                         table.isLoading
                                           ? "#aaaaaa" // Gray border for loading
@@ -1802,13 +1948,16 @@ export default function TableSectionsScreen() {
                                               mx="auto" // Center horizontally
                                               width="90%" // Adjust width to match screenshots
                                               bg={
-                                                table.action === "print_and_save"
+                                                table.action ===
+                                                "print_and_save"
                                                   ? "#ff9800" // Print & Save - Orange
-                                                  : table.action === "KOT_and_save"
+                                                  : table.action ===
+                                                    "KOT_and_save"
                                                   ? "#000000" // KOT & Save - Black
                                                   : table.action === "has_save"
                                                   ? "#4CAF50" // Has Save - Green
-                                                  : table.action === "create_order"
+                                                  : table.action ===
+                                                    "create_order"
                                                   ? "#dc3545" // Create order - Red
                                                   : table.action === "placed"
                                                   ? "#dc3545" // Placed - Red
@@ -1886,13 +2035,17 @@ export default function TableSectionsScreen() {
                                                   )
                                                 }
                                                 bg={
-                                                  table.action === "print_and_save"
+                                                  table.action ===
+                                                  "print_and_save"
                                                     ? "#ff9800" // Print & Save - Orange
-                                                    : table.action === "KOT_and_save"
+                                                    : table.action ===
+                                                      "KOT_and_save"
                                                     ? "#000000" // KOT & Save - Black
-                                                    : table.action === "has_save"
+                                                    : table.action ===
+                                                      "has_save"
                                                     ? "#4CAF50" // Has Save - Green
-                                                    : table.action === "create_order"
+                                                    : table.action ===
+                                                      "create_order"
                                                     ? "#dc3545" // Create order - Red
                                                     : "#dc3545" // Default red
                                                 }
@@ -1951,8 +2104,10 @@ export default function TableSectionsScreen() {
                                             </Box>
                                           )}
 
-                                          {/* Reserve button with lock icon - only show when gear is active and table is NOT occupied */}
-                                          {showEditIcons && table.is_occupied !== 1 && (
+                                          {/* Reserve button with lock icon */}
+                                          {showEditIcons && 
+                                            table.is_occupied !== 1 && 
+                                            isReservation && (
                                             <Box
                                               position="absolute"
                                               bottom={1}
@@ -1960,9 +2115,7 @@ export default function TableSectionsScreen() {
                                               zIndex={2}
                                             >
                                               <Pressable
-                                                onPress={() => {
-                                                  handleTableReservation(table);
-                                                }}
+                                                onPress={() => handleTableReservation(table)}
                                                 rounded="full"
                                                 size={8}
                                                 w={8}
@@ -1978,7 +2131,6 @@ export default function TableSectionsScreen() {
                                               </Pressable>
                                             </Box>
                                           )}
-
                                           {/* Delete icon for last table */}
                                           {showEditIcons &&
                                             table.table_id ===
@@ -2035,9 +2187,12 @@ export default function TableSectionsScreen() {
                                               alignItems="center"
                                             >
                                               {/* Blinker indicator - matching owner app conditions exactly */}
-                                              {(table.action === "KOT_and_save" ||
-                                                table.action === "print_and_save" ||
-                                                table.action === "create_order" ||
+                                              {(table.action ===
+                                                "KOT_and_save" ||
+                                                table.action ===
+                                                  "print_and_save" ||
+                                                table.action ===
+                                                  "create_order" ||
                                                 table.action === "has_save" ||
                                                 table.action === "placed") && (
                                                 <Animated.View
@@ -2540,106 +2695,106 @@ export default function TableSectionsScreen() {
     try {
       // Set loading state but don't show a global loading spinner
       setUpdatingStatus(true);
-      
+
       // Optimistically update UI immediately - before API call
-      setSections(prevSections => 
-        prevSections.map(section => ({
+      setSections((prevSections) =>
+        prevSections.map((section) => ({
           ...section,
-          tables: section.tables.map(t => 
-            t.table_id === table.table_id 
+          tables: section.tables.map((t) =>
+            t.table_id === table.table_id
               ? { ...t, is_reserved: !t.is_reserved }
               : t
-          )
+          ),
         }))
       );
-      
+
       // Show toast notification for immediate feedback
       toast.show({
-        description: table.is_reserved 
-          ? "Removing reservation..." 
+        description: table.is_reserved
+          ? "Removing reservation..."
           : "Reserving table...",
         status: "info",
-        duration: 1000
+        duration: 1000,
       });
 
       // Get stored outlet ID and user ID
       const [storedOutletId, storedUserId] = await Promise.all([
         AsyncStorage.getItem("outlet_id"),
-        AsyncStorage.getItem("user_id")
+        AsyncStorage.getItem("user_id"),
       ]);
-      
+
       if (!storedOutletId || !table.table_id || !storedUserId) {
         throw new Error("Missing outlet, user, or table data");
       }
-      
+
       // Call the API to reserve the table
       const response = await fetchWithAuth(
         `${getBaseUrl()}/table_is_reserved`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             table_id: table.table_id.toString(),
             table_number: table.table_number.toString(),
             outlet_id: storedOutletId.toString(),
             is_reserved: !table.is_reserved, // Toggle the reservation status
-            user_id: storedUserId.toString()
-          })
+            user_id: storedUserId.toString(),
+          }),
         }
       );
-      
+
       if (response.st === 1) {
         // Success - UI already updated, just show success toast
         toast.show({
-          description: table.is_reserved 
-            ? "Table reservation removed" 
+          description: table.is_reserved
+            ? "Table reservation removed"
             : "Table has been reserved",
           status: "success",
-          duration: 2000
+          duration: 2000,
         });
-        
+
         // Remove the need to refresh data - UI is already updated
         // fetchSections(parseInt(storedOutletId)); - REMOVED THIS LINE
       } else {
         // API failed - revert optimistic update
-        setSections(prevSections => 
-          prevSections.map(section => ({
+        setSections((prevSections) =>
+          prevSections.map((section) => ({
             ...section,
-            tables: section.tables.map(t => 
-              t.table_id === table.table_id 
+            tables: section.tables.map((t) =>
+              t.table_id === table.table_id
                 ? { ...t, is_reserved: table.is_reserved } // Revert to original state
                 : t
-            )
+            ),
           }))
         );
-        
+
         toast.show({
           description: response.msg || "Failed to update table reservation",
           status: "error",
-          duration: 3000
+          duration: 3000,
         });
       }
     } catch (error) {
       console.error("Error reserving table:", error);
-      
+
       // Revert optimistic update on error
-      setSections(prevSections => 
-        prevSections.map(section => ({
+      setSections((prevSections) =>
+        prevSections.map((section) => ({
           ...section,
-          tables: section.tables.map(t => 
-            t.table_id === table.table_id 
+          tables: section.tables.map((t) =>
+            t.table_id === table.table_id
               ? { ...t, is_reserved: table.is_reserved } // Revert to original state
               : t
-          )
+          ),
         }))
       );
-      
+
       toast.show({
         description: "Failed to update table reservation",
         status: "error",
-        duration: 3000
+        duration: 3000,
       });
     } finally {
       setUpdatingStatus(false);
@@ -2662,7 +2817,7 @@ export default function TableSectionsScreen() {
   // Update the QRCodeModal component to match RestaurantTables.js
   const QRCodeModal = () => {
     if (!selectedTableForQR) return null;
-    
+
     // Show download options
     const showDownloadOptions = () => {
       if (isDownloading || isSharing) return;
@@ -2685,7 +2840,7 @@ export default function TableSectionsScreen() {
 
     // Find local path to the mm-logo.png - adjust this path based on your project structure
     // You might need to try a few options:
-    const logoPath = require('../../../../assets/images/mm-logo.png');
+    const logoPath = require("../../../../assets/images/mm-logo.png");
     // or if that doesn't work:
     // const logoPath = require('../../../assets/images/mm-logo.png');
     // or:
@@ -2747,18 +2902,23 @@ export default function TableSectionsScreen() {
             {qrData?.qr_code_url ? (
               <VStack space={4} alignItems="center">
                 {/* QR Container with ViewShot for capture - using the externally defined ref */}
-                <ViewShot 
+                <ViewShot
                   ref={viewShotRef}
                   options={{ quality: 1, format: "png" }}
                   style={{
-                    backgroundColor: 'white',
+                    backgroundColor: "white",
                     padding: 16,
                     borderWidth: 3,
                     borderColor: "#FF7043",
                     borderRadius: 12,
                   }}
                 >
-                  <Box width={250} height={250} alignItems="center" justifyContent="center">
+                  <Box
+                    width={250}
+                    height={250}
+                    alignItems="center"
+                    justifyContent="center"
+                  >
                     {/* QRCode without ref */}
                     <QRCode
                       value={qrData.qr_code_url}
@@ -2871,12 +3031,12 @@ export default function TableSectionsScreen() {
       // Load the image asset
       const asset = Asset.fromModule(imageSource);
       await asset.downloadAsync();
-      
+
       // Read the file and convert to base64
       const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      
+
       return base64;
     } catch (error) {
       console.error("Error converting image to base64:", error);
@@ -2898,8 +3058,9 @@ export default function TableSectionsScreen() {
 
     try {
       // Get outlet_id from AsyncStorage if needed
-      const storedOutletId = outletId || await AsyncStorage.getItem("outlet_id");
-      
+      const storedOutletId =
+        outletId || (await AsyncStorage.getItem("outlet_id"));
+
       if (!storedOutletId) {
         throw new Error("Outlet ID not found");
       }
@@ -2929,13 +3090,13 @@ export default function TableSectionsScreen() {
 
       // Generate the QR URL with proper format and encoding
       const qrUrl = `${data.user_app_url}o${data.outlet_code}/s${data.section_id}/t${data.table_number}`;
-      
+
       // Set QR data
       setQrData({
         ...data,
         qr_code_url: qrUrl,
         table_number: data.table_number,
-        rawUrl: qrUrl
+        rawUrl: qrUrl,
       });
 
       // Add a stability timeout to ensure QR code is stable before user interactions
@@ -3169,9 +3330,9 @@ export default function TableSectionsScreen() {
 
   // Replace the PaymentModal component implementation with the imported one
   const renderPaymentModal = () => (
-    <PaymentModal 
-        isOpen={isPaymentModalVisible}
-        onClose={() => setIsPaymentModalVisible(false)}
+    <PaymentModal
+      isOpen={isPaymentModalVisible}
+      onClose={() => setIsPaymentModalVisible(false)}
       tableData={selectedTable}
       paymentSuccess={paymentSuccess}
       paymentLoading={paymentLoading}
@@ -3440,7 +3601,7 @@ export default function TableSectionsScreen() {
   const downloadAsPNG = async () => {
     try {
       setIsDownloading(true);
-      
+
       // Optimistically show success toast immediately
       const toastId = toast.show({
         description: "Preparing QR code...",
@@ -3466,7 +3627,7 @@ export default function TableSectionsScreen() {
 
       // Capture the QR code using ViewShot
       const uri = await viewShotRef.current.capture();
-      
+
       // Save to gallery
       const asset = await MediaLibrary.createAssetAsync(uri);
 
@@ -3484,7 +3645,7 @@ export default function TableSectionsScreen() {
 
       // Close the info toast
       toast.close(toastId);
-      
+
       // Show success toast
       toast.show({
         description: "QR code saved to gallery",
@@ -3511,7 +3672,7 @@ export default function TableSectionsScreen() {
   const handlePDFDownload = async () => {
     try {
       setIsDownloading(true);
-      
+
       // Optimistically show info toast
       const toastId = toast.show({
         description: "Preparing PDF...",
@@ -3526,17 +3687,19 @@ export default function TableSectionsScreen() {
 
       // Get outlet name
       const outlet = (await AsyncStorage.getItem("outlet_name")) || "MenuMitra";
-      
+
       // Capture QR code as image
       const qrImageUri = await viewShotRef.current.capture();
-      
+
       // Convert captured image to base64 for embedding in PDF
       const base64QR = await FileSystem.readAsStringAsync(qrImageUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      
+
       // Create HTML content for PDF with data URL of the QR image
-      const tableInfo = `Table ${selectedTableForQR?.table_number || "Unknown"}`;
+      const tableInfo = `Table ${
+        selectedTableForQR?.table_number || "Unknown"
+      }`;
       const htmlContent = `
         <html>
           <head>
@@ -3573,7 +3736,9 @@ export default function TableSectionsScreen() {
       `;
 
       // Generate a filename with timestamp
-      const filename = `Table_${selectedTableForQR?.table_number || "Unknown"}_QR_${Date.now()}.pdf`;
+      const filename = `Table_${
+        selectedTableForQR?.table_number || "Unknown"
+      }_QR_${Date.now()}.pdf`;
 
       // Create PDF
       const { uri: pdfUri } = await Print.printToFileAsync({
@@ -3602,59 +3767,64 @@ export default function TableSectionsScreen() {
           const { StorageAccessFramework } = FileSystem;
 
           // Let user select a directory
-          const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
-          
+          const permissions =
+            await StorageAccessFramework.requestDirectoryPermissionsAsync();
+
           if (!permissions.granted) {
             toast.show({
               description: "Permission denied to save file",
-              status: "error", 
-              duration: 3000
+              status: "error",
+              duration: 3000,
             });
             return;
           }
-          
+
           // Create the file in the selected directory
           const destinationUri = await StorageAccessFramework.createFileAsync(
             permissions.directoryUri,
             filename,
             "application/pdf"
           );
-          
+
           // Read the PDF file
           const pdfContent = await FileSystem.readAsStringAsync(pdfUri, {
             encoding: FileSystem.EncodingType.Base64,
           });
-          
+
           // Write the PDF content to the new file
-          await StorageAccessFramework.writeAsStringAsync(destinationUri, pdfContent, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-          
+          await StorageAccessFramework.writeAsStringAsync(
+            destinationUri,
+            pdfContent,
+            {
+              encoding: FileSystem.EncodingType.Base64,
+            }
+          );
+
           toast.show({
             description: "PDF saved successfully",
             status: "success",
             duration: 3000,
           });
-          
+
           setTimeout(() => closeModal(), 1500);
         } catch (error) {
           console.error("Android PDF saving failed:", error);
-          
+
           // As a last resort, try sharing the file
           try {
             // Move the PDF to a more accessible location with proper filename
             const destinationUri = `${FileSystem.cacheDirectory}${filename}`;
             await FileSystem.moveAsync({
               from: pdfUri,
-              to: destinationUri
+              to: destinationUri,
             });
-            
+
             await Sharing.shareAsync(destinationUri, {
               mimeType: "application/pdf",
               dialogTitle: `Table ${selectedTableForQR?.table_number} QR Code PDF`,
-              UTI: "com.adobe.pdf"
+              UTI: "com.adobe.pdf",
             });
-            
+
             toast.show({
               description: "PDF ready to share",
               status: "success",
@@ -3681,7 +3851,7 @@ export default function TableSectionsScreen() {
             status: "success",
             duration: 3000,
           });
-          
+
           // Close modal after a delay
           setTimeout(() => {
             closeModal();
@@ -3945,8 +4115,6 @@ export default function TableSectionsScreen() {
             </Box>
           </Box>
 
-         
-
           {/* Element 3: Order Type Buttons - THIS WILL STICK WHEN SCROLLED TO TOP */}
           <Box
             bg="white"
@@ -3958,19 +4126,19 @@ export default function TableSectionsScreen() {
             <OrderTypeButtons />
           </Box>
 
-           {/* Element 2: Sales Summary Row */}
-           <Box 
-            bg="white" 
+          {/* Element 2: Sales Summary Row */}
+          <Box
+            bg="white"
             py={3}
             borderBottomWidth={1}
             borderBottomColor="coolGray.200"
           >
             <HStack mx={4} justifyContent="space-between">
-              <Box 
-                flex={1} 
-                bg="coolGray.50" 
-                rounded="lg" 
-                p={3} 
+              <Box
+                flex={1}
+                bg="coolGray.50"
+                rounded="lg"
+                p={3}
                 borderWidth={1}
                 borderColor="coolGray.200"
                 mr={2}
@@ -3984,12 +4152,12 @@ export default function TableSectionsScreen() {
                   </Text>
                 </HStack>
               </Box>
-              
-              <Box 
-                flex={1} 
-                bg="coolGray.50" 
-                rounded="lg" 
-                p={3} 
+
+              <Box
+                flex={1}
+                bg="coolGray.50"
+                rounded="lg"
+                p={3}
                 borderWidth={1}
                 borderColor="coolGray.200"
                 ml={2}
@@ -4014,13 +4182,13 @@ export default function TableSectionsScreen() {
               <>
                 {/* Render tables - always use grid view */}
                 {renderGridView(sortedSections)}
-                
+
                 {/* Floating action indicators */}
                 {updatingSections.size > 0 && (
-                  <Box 
-                    position="absolute" 
-                    top={4} 
-                    right={4} 
+                  <Box
+                    position="absolute"
+                    top={4}
+                    right={4}
                     zIndex={1000}
                     px={3}
                     py={1.5}
@@ -4030,16 +4198,18 @@ export default function TableSectionsScreen() {
                   >
                     <HStack space={2} alignItems="center">
                       <Spinner size="sm" color="white" />
-                      <Text color="white" fontSize="xs">Updating section</Text>
+                      <Text color="white" fontSize="xs">
+                        Updating section
+                      </Text>
                     </HStack>
                   </Box>
                 )}
-                
+
                 {deletingSections.size > 0 && (
-                  <Box 
-                    position="absolute" 
-                    top={4} 
-                    right={4} 
+                  <Box
+                    position="absolute"
+                    top={4}
+                    right={4}
                     zIndex={1000}
                     px={3}
                     py={1.5}
@@ -4049,16 +4219,18 @@ export default function TableSectionsScreen() {
                   >
                     <HStack space={2} alignItems="center">
                       <Spinner size="sm" color="white" />
-                      <Text color="white" fontSize="xs">Deleting section</Text>
+                      <Text color="white" fontSize="xs">
+                        Deleting section
+                      </Text>
                     </HStack>
                   </Box>
                 )}
-                
+
                 {deletingTables.size > 0 && (
-                  <Box 
-                    position="absolute" 
-                    top={14} 
-                    right={4} 
+                  <Box
+                    position="absolute"
+                    top={14}
+                    right={4}
                     zIndex={1000}
                     px={3}
                     py={1.5}
@@ -4068,16 +4240,18 @@ export default function TableSectionsScreen() {
                   >
                     <HStack space={2} alignItems="center">
                       <Spinner size="sm" color="white" />
-                      <Text color="white" fontSize="xs">Deleting table</Text>
+                      <Text color="white" fontSize="xs">
+                        Deleting table
+                      </Text>
                     </HStack>
                   </Box>
                 )}
-                
+
                 {/* Background sync indicator */}
                 {backgroundRefreshing && (
-                  <Box 
-                    position="absolute" 
-                    bottom={2} 
+                  <Box
+                    position="absolute"
+                    bottom={2}
                     right={4}
                     zIndex={1000}
                     px={3}
@@ -4088,7 +4262,9 @@ export default function TableSectionsScreen() {
                   >
                     <HStack space={1} alignItems="center">
                       <Spinner size="sm" color="white" />
-                      <Text color="white" fontSize="xs" fontWeight="medium">Syncing</Text>
+                      <Text color="white" fontSize="xs" fontWeight="medium">
+                        Syncing
+                      </Text>
                     </HStack>
                   </Box>
                 )}

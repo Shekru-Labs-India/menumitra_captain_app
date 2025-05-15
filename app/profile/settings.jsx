@@ -375,7 +375,12 @@ export default function SettingsScreen() {
           user_id
         })
       });
-
+      if (response.st === 1) {
+        fetchLatestSettings()
+        console.log("settings updated +++")
+        const app_settings = await AsyncStorage.getItem("app_settings")
+        console.log("app_settings"+app_settings)
+      }
       if (response.st !== 1) {
         toast.show({
           description: "Failed to update setting on server",
