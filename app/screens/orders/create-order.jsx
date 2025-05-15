@@ -5096,14 +5096,6 @@ const loadSettings = async () => {
               bg="#00B0F0"
               _pressed={{ bg: "#0099CC" }}
               borderRadius="md"
-              leftIcon={
-                <Icon
-                  as={MaterialIcons}
-                  name="checkbox-circle"
-                  size="sm"
-                  color="white"
-                />
-              }
               onPress={onSettlePress}
               py={0}
               isDisabled={isLoading}
