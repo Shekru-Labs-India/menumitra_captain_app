@@ -818,6 +818,157 @@ export default function SettingsScreen() {
               </HStack>
             </Box>
           </Box>
+
+          {/* Order Management skeleton */}
+          <HStack space={3} p={4} alignItems="center" mx={4} mb={2} mt={2}>
+            <Box bg="#FFF3E0" p={2} rounded="lg">
+              <Skeleton size="6" rounded="full" />
+            </Box>
+            <VStack flex={1}>
+              <Skeleton.Text lines={2} />
+            </VStack>
+          </HStack>
+
+          {/* Order Management toggles skeleton */}
+          <Box mx={4} mb={4}>
+            {/* Print & Save skeleton */}
+            <Box 
+              bg="#FFF3E0" 
+              borderLeftWidth={4}
+              borderLeftColor="#FF9800"
+              rounded="lg"
+              mb={2}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+            
+            {/* KOT & Save skeleton */}
+            <Box 
+              bg="#E0E0E0" 
+              borderLeftWidth={4}
+              borderLeftColor="#000000"
+              rounded="lg"
+              mb={2}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+            
+            {/* Save skeleton */}
+            <Box 
+              bg="#E8F5E9" 
+              borderLeftWidth={4}
+              borderLeftColor="#4CAF50"
+              rounded="lg"
+              mb={2}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+            
+            {/* Settle skeleton */}
+            <Box 
+              bg="#E1F5FE" 
+              borderLeftWidth={4}
+              borderLeftColor="#87CEEB"
+              rounded="lg"
+              mb={2}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+            
+            {/* Reserve Table skeleton */}
+            <Box 
+              bg="#F5F5F5" 
+              borderLeftWidth={4}
+              borderLeftColor="#808080"
+              rounded="lg"
+              mb={2}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+            
+            {/* Cancel Order skeleton */}
+            <Box 
+              bg="#FFEBEE" 
+              borderLeftWidth={4}
+              borderLeftColor="#F44336"
+              rounded="lg"
+              mb={2}
+              overflow="hidden"
+            >
+              <HStack 
+                py={3.5} 
+                px={4}
+                justifyContent="space-between" 
+                alignItems="center"
+              >
+                <HStack space={3} alignItems="center" flex={1}>
+                  <Skeleton size="5" rounded="full" />
+                  <Skeleton h={5} w={20} rounded="sm" />
+                </HStack>
+                <Skeleton h={6} w={12} rounded="full" />
+              </HStack>
+            </Box>
+          </Box>
         </ScrollView>
       </Box>
     );
