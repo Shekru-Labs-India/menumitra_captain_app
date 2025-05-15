@@ -599,12 +599,21 @@ const OrdersScreen = () => {
   const [showPicker, setShowPicker] = useState(false);
   const [dateFilter, setDateFilter] = useState("today");
   const [dateRange, setDateRange] = useState(getDateRange("today"));
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  // const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [showOrderTypeModal, setShowOrderTypeModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [isTodayActive, setIsTodayActive] = useState(true);
+
+  const [dateFilterType, setDateFilterType] = useState('today');
+  const [customDateRange, setCustomDateRange] = useState({
+    startDate: new Date(),
+    endDate: new Date(),
+  });
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [isDateFilterModalVisible, setIsDateFilterModalVisible] = useState(false);
 
   const handleDatePickerChange = (event, selectedDate) => {
     setShowDatePicker(false);
@@ -1484,6 +1493,171 @@ const OrdersScreen = () => {
     );
   };
 
+  const formatDate = (inputDate) => {
+    try {
+      if (!inputDate) return "";
+
+      const date = new Date(inputDate);
+      if (isNaN(date.getTime())) {
+        if (typeof inputDate === "string") {
+          return inputDate;
+        }
+        return "";
+      }
+
+      // Format to match API format exactly: "DD MMM YYYY"
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = date.toLocaleString("en-US", { month: "short" });
+      const year = date.getFullYear();
+
+      return `${day} ${month} ${year}`;
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "";
+    }
+  };
+
+  const parseDateFromFormat = (dateStr) => {
+    if (!dateStr) return new Date();
+    
+    try {
+      const parts = dateStr.split(' ');
+      if (parts.length !== 3) return new Date();
+      
+      const day = parseInt(parts[0], 10);
+      const monthMap = {
+        'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+        'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+      };
+      const month = monthMap[parts[1]];
+      const year = parseInt(parts[2], 10);
+      
+      return new Date(year, month, day);
+    } catch (error) {
+      console.error("Error parsing date:", error);
+      return new Date();
+    }
+  };
+
+  // const isDateInRange = (dateToCheck, startDate, endDate) => {
+  //   // Convert all dates to Date objects for comparison
+  //   const checkDate = parseDateFromFormat(dateToCheck);
+  //   const start = parseDateFromFormat(startDate);
+  //   const end = parseDateFromFormat(endDate);
+    
+  //   // Compare the dates
+  //   return checkDate >= start && checkDate <= end;
+  // };
+
+  const getDateRangeFilter = (filterType) => {
+    const today = new Date();
+    const todayStr = formatDate(today);
+    
+    switch (filterType) {
+      case 'today': {
+        return { startDate: todayStr, endDate: todayStr };
+      }
+      case 'yesterday': {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = formatDate(yesterday);
+        return { startDate: yesterdayStr, endDate: yesterdayStr };
+      }
+      case 'thisWeek': {
+        const startOfWeek = new Date(today);
+        const day = today.getDay();
+        const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+        startOfWeek.setDate(diff);
+        return { startDate: formatDate(startOfWeek), endDate: todayStr };
+      }
+      case 'lastWeek': {
+        const lastWeekStart = new Date(today);
+        lastWeekStart.setDate(lastWeekStart.getDate() - 7 - lastWeekStart.getDay() + 1);
+        const lastWeekEnd = new Date(lastWeekStart);
+        lastWeekEnd.setDate(lastWeekEnd.getDate() + 6);
+        return { startDate: formatDate(lastWeekStart), endDate: formatDate(lastWeekEnd) };
+      }
+      case 'thisMonth': {
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        return { startDate: formatDate(startOfMonth), endDate: todayStr };
+      }
+      case 'lastMonth': {
+        const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        return { 
+          startDate: formatDate(startOfLastMonth), 
+          endDate: formatDate(endOfLastMonth) 
+        };
+      }
+      case 'customRange': {
+        return { 
+          startDate: formatDate(customDateRange.startDate), 
+          endDate: formatDate(customDateRange.endDate) 
+        };
+      }
+      default:
+        return { startDate: todayStr, endDate: todayStr };
+    }
+  };
+
+  const onStartDateChange = (event, selectedDate) => {
+    setShowStartDatePicker(false);
+    if (selectedDate) {
+      // If end date exists but is before the new start date, reset it
+      if (customDateRange.endDate && selectedDate > customDateRange.endDate) {
+        setCustomDateRange({
+          startDate: selectedDate,
+          endDate: null
+        });
+      } else {
+        setCustomDateRange(prev => ({...prev, startDate: selectedDate}));
+      }
+    }
+  };
+
+  const onEndDateChange = (event, selectedDate) => {
+    setShowEndDatePicker(false);
+    if (selectedDate) {
+      setCustomDateRange(prev => ({...prev, endDate: selectedDate}));
+    }
+  };
+
+  const handleDateRangeSelect = (startDate, endDate) => {
+    console.log("Date range selected:", startDate, endDate);
+    
+    if (startDate && endDate) {
+      // Update your dateRange state or pass these values to your fetchOrders function
+      const formattedStartDate = formatDate(startDate);
+      const formattedEndDate = formatDate(endDate);
+      
+      // You could use these values to update your date filter state
+      setDateFilterType('customRange');
+      
+      // Refresh orders with new date range
+      fetchOrders(true);
+    }
+  };
+
+  const handleDateFilterTypeChange = (type) => {
+    setDateFilterType(type);
+    
+    if (type === 'today') {
+      // If 'today' is selected, update UI to show today is active
+      setIsTodayActive(true);
+    } else {
+      setIsTodayActive(false);
+    }
+    
+    // Clear custom date range when selecting a predefined filter
+    setCustomDateRange({
+      startDate: new Date(),
+      endDate: new Date(),
+    });
+    
+    // Fetch orders with new filter type
+    fetchOrders(true);
+  };
+
   if (isLoading) {
     return (
       <Center flex={1}>
@@ -1619,19 +1793,19 @@ const OrdersScreen = () => {
         </Pressable>
 
         <Pressable
-          onPress={() => handleDateFilterChange("today")}
+          onPress={() => handleDateFilterTypeChange('today')}
           h="40px"
           px={3}
-          bg={isTodayActive ? "#2196F3" : "white"}
+          bg={dateFilterType === 'today' ? "primary.500" : "white"}
           borderWidth={1}
-          borderColor={isTodayActive ? "#2196F3" : "coolGray.300"}
+          borderColor={dateFilterType === 'today' ? "primary.500" : "coolGray.300"}
           rounded="md"
           justifyContent="center"
           alignItems="center"
         >
           <Text
             fontSize="sm"
-            color={isTodayActive ? "white" : "coolGray.700"}
+            color={dateFilterType === 'today' ? "white" : "coolGray.700"}
             fontWeight="medium"
           >
             Today
@@ -1639,7 +1813,7 @@ const OrdersScreen = () => {
         </Pressable>
 
         <Pressable
-          onPress={() => setShowPicker(true)}
+          onPress={() => setIsDateFilterModalVisible(true)}
           h="40px"
           px={2}
           bg="white"
@@ -1657,21 +1831,21 @@ const OrdersScreen = () => {
             width="100%"
           >
             <Text fontSize="sm" color="coolGray.700">
-              {dateFilter === "today"
-                ? "Date Filter"
-                : dateFilter === "yesterday"
-                ? "Yesterday"
-                : dateFilter === "thisWeek"
-                ? "This Week"
-                : dateFilter === "lastWeek"
-                ? "Last Week"
-                : dateFilter === "thisMonth"
-                ? "This Month"
-                : dateFilter === "lastMonth"
-                ? "Last Month"
-                : dateFilter === "custom"
-                ? "Custom Date"
-                : "Date Filter"}
+              {dateFilterType === 'today'
+                ? 'Date Filter'
+                : dateFilterType === 'yesterday'
+                ? 'Yesterday'
+                : dateFilterType === 'thisWeek'
+                ? 'This Week'
+                : dateFilterType === 'lastWeek'
+                ? 'Last Week'
+                : dateFilterType === 'thisMonth'
+                ? 'This Month'
+                : dateFilterType === 'lastMonth'
+                ? 'Last Month'
+                : dateFilterType === 'customRange'
+                ? 'Custom Date'
+                : 'Date Filter'}
             </Text>
             <Icon
               as={MaterialIcons}
@@ -1686,18 +1860,18 @@ const OrdersScreen = () => {
       <Box px={4} py={3}>
         <HStack alignItems="center" mb={2}>
           <Text fontSize="md" fontWeight="semibold" color="coolGray.800">
-            {dateFilter === "custom" && dateRange.start && dateRange.end
-              ? `${dateRange.start} to ${dateRange.end}`
+            {dateFilterType === "customRange" && customDateRange.startDate && customDateRange.endDate
+              ? `${formatDate(customDateRange.startDate)} to ${formatDate(customDateRange.endDate)}`
               : date}
           </Text>
 
-          {dateFilter === "custom" && dateRange.start && dateRange.end && (
+          {dateFilterType === "customRange" && customDateRange.startDate && customDateRange.endDate && (
             <Pressable
               ml={2}
               onPress={() => {
-                setDateFilter("today");
+                handleDateFilterTypeChange("today");
                 const today = new Date();
-                setDate(formatDateString(today));
+                setDate(formatDate(today));
                 fetchOrders(true);
               }}
             >
@@ -1819,7 +1993,7 @@ const OrdersScreen = () => {
               <VStack divider={<Divider />} width="100%">
                 <Pressable
                   onPress={() => {
-                    handleDateFilterChange("yesterday");
+                    handleDateFilterTypeChange("yesterday");
                     setShowPicker(false);
                   }}
                   py={3}
@@ -1827,7 +2001,7 @@ const OrdersScreen = () => {
                 >
                   <HStack alignItems="center" justifyContent="space-between">
                     <Text>Yesterday</Text>
-                    {dateFilter === "yesterday" && (
+                    {dateFilterType === "yesterday" && (
                       <Icon
                         as={MaterialIcons}
                         name="check"
@@ -1840,7 +2014,7 @@ const OrdersScreen = () => {
 
                 <Pressable
                   onPress={() => {
-                    handleDateFilterChange("thisWeek");
+                    handleDateFilterTypeChange("thisWeek");
                     setShowPicker(false);
                   }}
                   py={3}
@@ -1848,7 +2022,7 @@ const OrdersScreen = () => {
                 >
                   <HStack alignItems="center" justifyContent="space-between">
                     <Text>This Week</Text>
-                    {dateFilter === "thisWeek" && (
+                    {dateFilterType === "thisWeek" && (
                       <Icon
                         as={MaterialIcons}
                         name="check"
@@ -1861,7 +2035,7 @@ const OrdersScreen = () => {
 
                 <Pressable
                   onPress={() => {
-                    handleDateFilterChange("lastWeek");
+                    handleDateFilterTypeChange("lastWeek");
                     setShowPicker(false);
                   }}
                   py={3}
@@ -1869,7 +2043,7 @@ const OrdersScreen = () => {
                 >
                   <HStack alignItems="center" justifyContent="space-between">
                     <Text>Last Week</Text>
-                    {dateFilter === "lastWeek" && (
+                    {dateFilterType === "lastWeek" && (
                       <Icon
                         as={MaterialIcons}
                         name="check"
@@ -1882,7 +2056,7 @@ const OrdersScreen = () => {
 
                 <Pressable
                   onPress={() => {
-                    handleDateFilterChange("thisMonth");
+                    handleDateFilterTypeChange("thisMonth");
                     setShowPicker(false);
                   }}
                   py={3}
@@ -1890,7 +2064,7 @@ const OrdersScreen = () => {
                 >
                   <HStack alignItems="center" justifyContent="space-between">
                     <Text>This Month</Text>
-                    {dateFilter === "thisMonth" && (
+                    {dateFilterType === "thisMonth" && (
                       <Icon
                         as={MaterialIcons}
                         name="check"
@@ -1903,7 +2077,7 @@ const OrdersScreen = () => {
 
                 <Pressable
                   onPress={() => {
-                    handleDateFilterChange("lastMonth");
+                    handleDateFilterTypeChange("lastMonth");
                     setShowPicker(false);
                   }}
                   py={3}
@@ -1911,7 +2085,7 @@ const OrdersScreen = () => {
                 >
                   <HStack alignItems="center" justifyContent="space-between">
                     <Text>Last Month</Text>
-                    {dateFilter === "lastMonth" && (
+                    {dateFilterType === "lastMonth" && (
                       <Icon
                         as={MaterialIcons}
                         name="check"
@@ -1934,7 +2108,7 @@ const OrdersScreen = () => {
                 {/* Start Date Section */}
                 <Pressable
                   onPress={() => {
-                    setShowDatePicker(true);
+                    setShowStartDatePicker(true);
                   }}
                 >
                   <Box borderWidth={1} borderColor="coolGray.200" rounded="md">
@@ -1942,7 +2116,7 @@ const OrdersScreen = () => {
                       Start Date:
                     </Text>
                     <Text fontSize="md" px={4} pb={2} color="coolGray.800">
-                      {dateRange.start || formatDateString(new Date())}
+                      {customDateRange.startDate ? formatDate(customDateRange.startDate) : "Select Date"}
                     </Text>
                   </Box>
                 </Pressable>
@@ -1950,10 +2124,10 @@ const OrdersScreen = () => {
                 {/* End Date Section */}
                 <Pressable
                   onPress={() => {
-                    if (!dateRange.start) {
-                      setDateRange({
-                        ...dateRange,
-                        start: formatDateString(new Date()),
+                    if (!customDateRange.startDate) {
+                      setCustomDateRange({
+                        ...customDateRange,
+                        startDate: formatDate(new Date()),
                       });
                     }
                     setShowEndDatePicker(true);
@@ -1964,7 +2138,7 @@ const OrdersScreen = () => {
                       End Date:
                     </Text>
                     <Text fontSize="md" px={4} pb={2} color="coolGray.800">
-                      {dateRange.end || formatDateString(new Date())}
+                      {customDateRange.endDate || formatDate(new Date())}
                     </Text>
                   </Box>
                 </Pressable>
@@ -1975,14 +2149,13 @@ const OrdersScreen = () => {
                     setShowPicker(false);
                     
                     // If dates aren't set, use today's date
-                    const start = dateRange.start || formatDateString(new Date());
-                    const end = dateRange.end || formatDateString(new Date());
+                    const start = customDateRange.startDate || formatDate(new Date());
+                    const end = customDateRange.endDate || formatDate(new Date());
                     
-                    setDateFilter("custom");
-                    setDateRange({
-                      start,
-                      end,
-                      label: "Custom Date",
+                    setDateFilterType("customRange");
+                    setCustomDateRange({
+                      startDate: start,
+                      endDate: end,
                     });
                     
                     // Show success toast
@@ -2004,59 +2177,24 @@ const OrdersScreen = () => {
       )}
 
       {/* DateTimePicker components - these will appear over the modal on Android */}
-      {showDatePicker && (
+      {showStartDatePicker && (
         <DateTimePicker
-          value={pickerDate}
+          value={customDateRange.startDate || new Date()}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, date) => {
-            setShowDatePicker(false);
-            if (date) {
-              setPickerDate(date);
-              // Update the date range without closing modal
-              const formattedStartDate = formatDateString(date);
-              setDateRange({
-                ...dateRange,
-                start: formattedStartDate,
-              });
-            }
-          }}
-          maximumDate={new Date()}
+          onChange={onStartDateChange}
+          maximumDate={new Date()} // No future dates
         />
       )}
 
       {showEndDatePicker && (
         <DateTimePicker
-          value={endDate}
+          value={customDateRange.endDate || customDateRange.startDate || new Date()}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, date) => {
-            setShowEndDatePicker(false);
-            if (date) {
-              // Validate end date
-              const today = new Date();
-              today.setHours(23, 59, 59, 999);
-              
-              if (date > today) {
-                toast.show({
-                  description: "Cannot select future dates",
-                  status: "warning",
-                  duration: 3000,
-                });
-                return;
-              }
-              
-              // Only update if valid
-              setEndDate(date);
-              const formattedEndDate = formatDateString(date);
-              setDateRange({
-                ...dateRange,
-                end: formattedEndDate,
-              });
-            }
-          }}
-          maximumDate={new Date()}
-          minimumDate={startDate}
+          onChange={onEndDateChange}
+          minimumDate={customDateRange.startDate || undefined} // No dates before start date
+          maximumDate={new Date()} // No future dates
         />
       )}
 
@@ -2092,6 +2230,169 @@ const OrdersScreen = () => {
 
       {renderOrderTypeModal()}
       {renderStatusModal()}
+
+      {/* Date Filter Modal */}
+      <Modal
+        isOpen={isDateFilterModalVisible}
+        onClose={() => setIsDateFilterModalVisible(false)}
+        size="md"
+      >
+        <Modal.Content>
+          <Modal.CloseButton />
+          <Modal.Header>Select Date Filter</Modal.Header>
+          <Modal.Body p={0}>
+            <VStack divider={<Divider />} width="100%">
+              <Pressable
+                onPress={() => {
+                  handleDateFilterTypeChange("today");
+                  setIsDateFilterModalVisible(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <Text>Today</Text>
+                  {dateFilterType === "today" && (
+                    <Icon
+                      as={MaterialIcons}
+                      name="check"
+                      size="sm"
+                      color="primary.500"
+                    />
+                  )}
+                </HStack>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  handleDateFilterTypeChange("yesterday");
+                  setIsDateFilterModalVisible(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <Text>Yesterday</Text>
+                  {dateFilterType === "yesterday" && (
+                    <Icon
+                      as={MaterialIcons}
+                      name="check"
+                      size="sm"
+                      color="primary.500"
+                    />
+                  )}
+                </HStack>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  handleDateFilterTypeChange("thisWeek");
+                  setIsDateFilterModalVisible(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <Text>This Week</Text>
+                  {dateFilterType === "thisWeek" && (
+                    <Icon
+                      as={MaterialIcons}
+                      name="check"
+                      size="sm"
+                      color="primary.500"
+                    />
+                  )}
+                </HStack>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  handleDateFilterTypeChange("lastWeek");
+                  setIsDateFilterModalVisible(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <Text>Last Week</Text>
+                  {dateFilterType === "lastWeek" && (
+                    <Icon
+                      as={MaterialIcons}
+                      name="check"
+                      size="sm"
+                      color="primary.500"
+                    />
+                  )}
+                </HStack>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  handleDateFilterTypeChange("thisMonth");
+                  setIsDateFilterModalVisible(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <Text>This Month</Text>
+                  {dateFilterType === "thisMonth" && (
+                    <Icon
+                      as={MaterialIcons}
+                      name="check"
+                      size="sm"
+                      color="primary.500"
+                    />
+                  )}
+                </HStack>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  handleDateFilterTypeChange("lastMonth");
+                  setIsDateFilterModalVisible(false);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <Text>Last Month</Text>
+                  {dateFilterType === "lastMonth" && (
+                    <Icon
+                      as={MaterialIcons}
+                      name="check"
+                      size="sm"
+                      color="primary.500"
+                    />
+                  )}
+                </HStack>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  setDateFilterType("customRange");
+                  setIsDateFilterModalVisible(false);
+                  setShowPicker(true);
+                }}
+                py={3}
+                px={4}
+              >
+                <HStack alignItems="center" justifyContent="space-between">
+                  <Text>Custom Date Range</Text>
+                  {dateFilterType === "customRange" && (
+                    <Icon
+                      as={MaterialIcons}
+                      name="check"
+                      size="sm"
+                      color="primary.500"
+                    />
+                  )}
+                </HStack>
+              </Pressable>
+            </VStack>
+          </Modal.Body>
+        </Modal.Content>
+      </Modal>
     </Box>
   );
 };
