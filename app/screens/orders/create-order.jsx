@@ -369,12 +369,12 @@ export default function CreateOrderScreen() {
 
   // Settings state to control button visibility
   const [settings, setSettings] = useState({
-    print_and_save: true,
-    KOT_and_save: true,
-    settle: true,
-    reserve_table: true,
-    cancel: true,
-    has_save: true
+    print_and_save: null,
+    KOT_and_save: null,
+    settle: null,
+    reserve_table: null,
+    cancel: null,
+    has_save: null
   });
 
   // Use PrinterContext for improved printer management
@@ -5539,7 +5539,7 @@ const loadSettings = async () => {
                   <VStack space={1} p={2} pt={0}>
                     {/* Top row - 3 buttons, matching screenshot */}
                     <HStack space={1}>
-                      {settings.print_and_save && (
+                      {settings?.print_and_save && (
                         <Button
                           flex={1}
                           h={10}
@@ -5563,7 +5563,7 @@ const loadSettings = async () => {
                         </Button>
                       )}
 
-                      {settings.KOT_and_save && (
+                      {settings?.KOT_and_save && (
                         <Button
                           flex={1}
                           h={10}
@@ -5587,7 +5587,7 @@ const loadSettings = async () => {
                         </Button>
                       )}
 
-                      {settings.settle && (
+                      {settings?.settle && (
                         <Button
                           flex={1}
                           h={10}
@@ -5604,22 +5604,21 @@ const loadSettings = async () => {
                       )}
                     </HStack>
 
-                    {/* Reserve Table Button - conditional */}
-                    {/* {params?.orderType === "dine-in" && params?.isOccupied !== "1" && (
+                    {/* Add Cancel Order button for existing orders */}
+                    {params?.orderId && settings?.cancel && (
                       <Button
                         w="100%"
                         h={10}
-                        bg="#00A67E"
-                        _pressed={{ bg: "#00916A" }}
+                        bg="red.600"
+                        _pressed={{ bg: "red.700" }}
                         borderRadius="md"
                         py={0}
                         mt={1}
-                        leftIcon={<Icon as={MaterialIcons} name="event-seat" size="sm" color="white" />}
-                        onPress={handleTableReservation}
+                        onPress={handleCancelOrder}
                       >
-                        <Text color="white" fontSize="xs">Reserve Table</Text>
+                        <Text color="white" fontSize="xs">Cancel Order</Text>
                       </Button>
-                    )} */}
+                    )}
                   </VStack>
                 </Box>
               </Box>
