@@ -5604,14 +5604,14 @@ const loadSettings = async () => {
                           </Text>
                           <Input
                             keyboardType="numeric"
-                            value={specialDiscount?.toString()}
+                            value={specialDiscount === "0" ? "" : specialDiscount.toString()}
                             onChangeText={(text) =>
                               setSpecialDiscount(text ? parseFloat(text) : 0)
                             }
                             variant="outline"
                             size="sm"
                             bg="white"
-                            placeholder="0"
+                            placeholder=""
                             borderColor="gray.300"
                           />
                         </VStack>
@@ -5622,14 +5622,14 @@ const loadSettings = async () => {
                           </Text>
                           <Input
                             keyboardType="numeric"
-                            value={extraCharges?.toString()}
+                            value={extraCharges === "0" ? "" :extraCharges.toString() }
                             onChangeText={(text) =>
                               setExtraCharges(text ? parseFloat(text) : 0)
                             }
                             variant="outline"
                             size="sm"
                             bg="white"
-                            placeholder="0"
+                            placeholder=""
                             borderColor="gray.300"
                           />
                         </VStack>
@@ -5640,14 +5640,14 @@ const loadSettings = async () => {
                           </Text>
                           <Input
                             keyboardType="numeric"
-                            value={tip?.toString()}
+                            value={tip === "0" ? "" : tip.toString()}
                             onChangeText={(text) =>
                               setTip(text ? parseFloat(text) : 0)
                             }
                             variant="outline"
                             size="sm"
                             bg="white"
-                            placeholder="0"
+                            placeholder=""
                             borderColor="gray.300"
                           />
                         </VStack>
