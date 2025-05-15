@@ -872,15 +872,15 @@ const OrdersScreen = () => {
         // Setup order timers for placed orders
         const newTimers = {};
         data.lists.forEach((section) => {
-          section.data.forEach((order) => {
-            if (order.order_status?.toLowerCase() === "placed") {
-              newTimers[order.order_number] = calculateOrderTimer(
-                order.datetime
-              );
-            }
-          });
-        });
-        
+              section.data.forEach((order) => {
+                if (order.order_status?.toLowerCase() === "placed") {
+                  newTimers[order.order_number] = calculateOrderTimer(
+                    order.datetime
+                  );
+                }
+              });
+            });
+
         setOrderTimers(newTimers);
       }
     } catch (error) {
@@ -935,12 +935,12 @@ const OrdersScreen = () => {
     fetchOrders();
 
     // Only set up auto-refresh if needed
-    const refreshInterval = setInterval(() => {
+      const refreshInterval = setInterval(() => {
       console.log("Auto-refreshing orders...");
-      fetchOrders(true); // Use silent refresh for automatic updates
-    }, 60000);
+        fetchOrders(true); // Use silent refresh for automatic updates
+      }, 60000);
 
-    return () => clearInterval(refreshInterval);
+      return () => clearInterval(refreshInterval);
   }, []); // Empty dependency array to only run on mount
 
   // Add local state update for timer end to avoid full refresh
@@ -1604,15 +1604,15 @@ const OrdersScreen = () => {
         toast.show({
           description: "Cannot select future dates",
           status: "warning",
-          duration: 3000,
+          duration: 2000,
         });
         return;
       }
 
-      // Set the start date
+      // Set the start date and immediately show end date picker
       setCustomDateRange(prev => ({...prev, startDate: selectedDate}));
       
-      // After selecting start date, open end date picker
+      // Small delay for better UX
       setTimeout(() => {
         setShowEndDatePicker(true);
       }, 300);
@@ -1630,25 +1630,24 @@ const OrdersScreen = () => {
         toast.show({
           description: "Cannot select future dates",
           status: "warning",
-          duration: 3000,
+          duration: 2000,
         });
         return;
       }
 
-      // Ensure end date is not before start date
       if (selectedDate < customDateRange.startDate) {
         toast.show({
           description: "End date cannot be before start date",
           status: "warning",
-          duration: 3000,
+          duration: 2000,
         });
         return;
       }
 
-      // Set the end date
+      // Set the end date and show filter modal
       setCustomDateRange(prev => ({...prev, endDate: selectedDate}));
       
-      // Open the date filter modal after both dates are selected
+      // Small delay for better UX
       setTimeout(() => {
         setIsDateFilterModalVisible(true);
       }, 300);
@@ -2139,28 +2138,8 @@ const OrdersScreen = () => {
 
                 <Button
                   colorScheme="blue"
-                  onPress={() => {
-                    setShowPicker(false);
-                    
-                    // If dates aren't set, use today's date
-                    const start = customDateRange.startDate || formatDate(new Date());
-                    const end = customDateRange.endDate || formatDate(new Date());
-                    
-                    setDateFilterType("customRange");
-                    setCustomDateRange({
-                      startDate: start,
-                      endDate: end,
-                    });
-                    
-                    // Show success toast
-                    toast.show({
-                      description: `Showing orders from ${start} to ${end}`,
-                      status: "success",
-                      duration: 3000,
-                    });
-                    
-                    fetchOrders(true);
-                  }}
+                  onPress={handleApplyCustomDateRange}
+                  isDisabled={!customDateRange.startDate || !customDateRange.endDate}
                 >
                   Apply Date Range
                 </Button>
@@ -2393,6 +2372,7 @@ const OrdersScreen = () => {
               <Button
                 colorScheme="blue"
                 onPress={handleApplyCustomDateRange}
+                isDisabled={!customDateRange.startDate || !customDateRange.endDate}
               >
                 Apply Date Range
               </Button>
