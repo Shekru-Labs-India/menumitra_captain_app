@@ -344,7 +344,7 @@ export default function MenuDetailsView() {
         ) : (
           <Box bg="coolGray.100" w="full" h="120px">
             <Center flex={1}>
-              <Icon as={MaterialIcons} name="store" size={16} color="coolGray.300" />
+              <Icon as={MaterialIcons} name="restaurant" size={16} color="coolGray.300" />
               <Text color="coolGray.500" mt={2}>
                 {settings.POS_show_menu_image ? "No images available" : "Images hidden by settings"}
               </Text>

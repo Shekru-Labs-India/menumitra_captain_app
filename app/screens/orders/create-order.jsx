@@ -5466,7 +5466,7 @@ const loadSettings = async () => {
                       borderWidth={1}
                       borderColor="coolGray.200"
                     >
-                      <MaterialIcons name="store" size={48} color="gray" />
+                      <MaterialIcons name="restaurant" size={48} color="gray" />
                       <Text color="coolGray.400" mt={2}>
                         No items added to order
                       </Text>

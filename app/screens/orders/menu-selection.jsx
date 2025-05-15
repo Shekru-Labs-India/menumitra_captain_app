@@ -613,7 +613,7 @@ export default function MenuSelectionScreen() {
       >
         <Box alignItems="center" position="relative">
           <Box w={50} h={50} bg="gray.200" borderRadius={25} mb={1} justifyContent="center" alignItems="center">
-            <MaterialIcons name="store" size={24} color="#999" />
+            <MaterialIcons name="restaurant" size={24} color="#999" />
           </Box>
           <Text fontSize="sm" fontWeight="bold" textAlign="center">{item.category_name}</Text>
           
@@ -700,7 +700,7 @@ export default function MenuSelectionScreen() {
             />
           ) : (
             <Center h="100%" w="100%">
-              <MaterialIcons name="store" size={40} color={isReserved ? "#999" : "#666"} />
+              <MaterialIcons name="restaurant" size={40} color={isReserved ? "#999" : "#666"} />
             </Center>
           )}
           

@@ -390,7 +390,7 @@ export default function MenuListView() {
               >
                 <Icon
                   as={MaterialIcons}
-                  name="store"
+                  name="restaurant"
                   size={5}
                   color="coolGray.400"
                 />
