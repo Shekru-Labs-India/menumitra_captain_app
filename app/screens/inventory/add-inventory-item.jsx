@@ -581,8 +581,10 @@ export default function AddInventoryItemScreen() {
       <ScrollView px={4} showsVerticalScrollIndicator={false}>
         <VStack space={4} mt={4} mb={6}>
           {/* Item Name */}
-          <FormControl isRequired isInvalid={"name" in errors}>
-            <FormControl.Label>Item Name</FormControl.Label>
+          <FormControl isRequired={false} isInvalid={"name" in errors}>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>
+              <Text color="red.500">*</Text> Item Name
+            </FormControl.Label>
             <Input
               placeholder="Enter item name"
               value={formData.name}
@@ -601,8 +603,10 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* Supplier Name */}
-          <FormControl isRequired isInvalid={"supplierId" in errors}>
-            <FormControl.Label>Supplier Name</FormControl.Label>
+          <FormControl isRequired={false} isInvalid={"supplierId" in errors}>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>
+              <Text color="red.500">*</Text> Supplier Name
+            </FormControl.Label>
             <Pressable
               onPress={() => {
                 if (supplierSelect.current) {
@@ -650,7 +654,7 @@ export default function AddInventoryItemScreen() {
 
           {/* Description */}
           <FormControl>
-            <FormControl.Label>Description</FormControl.Label>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>Description</FormControl.Label>
             <TextArea
               h={20}
               placeholder="Enter item description"
@@ -668,9 +672,11 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* Category */}
-          <FormControl isRequired isInvalid={"category_id" in errors}>
+          <FormControl isRequired={false} isInvalid={"category_id" in errors}>
             <HStack justifyContent="space-between" alignItems="center">
-              <FormControl.Label>Category</FormControl.Label>
+              <FormControl.Label _text={{ fontWeight: "bold" }}>
+                <Text color="red.500">*</Text> Category
+              </FormControl.Label>
               <IconButton
                 icon={<MaterialIcons name="add" size={24} color="black" />}
                 onPress={() => setAddCategoryModalOpen(true)}
@@ -722,8 +728,10 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* Price Input */}
-          <FormControl isRequired isInvalid={"unit_price" in errors}>
-            <FormControl.Label>Unit Price (₹)</FormControl.Label>
+          <FormControl isRequired={false} isInvalid={"unit_price" in errors}>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>
+              <Text color="red.500">*</Text> Unit Price (₹)
+            </FormControl.Label>
             <Input
               keyboardType="decimal-pad"
               placeholder="0.00"
@@ -744,8 +752,10 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* Quantity Input */}
-          <FormControl isRequired isInvalid={"quantity" in errors}>
-            <FormControl.Label>Quantity</FormControl.Label>
+          <FormControl isRequired={false} isInvalid={"quantity" in errors}>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>
+              <Text color="red.500">*</Text> Quantity
+            </FormControl.Label>
             <Input
               keyboardType="number-pad"
               placeholder="0"
@@ -767,7 +777,7 @@ export default function AddInventoryItemScreen() {
 
           {/* Brand Name */}
           <FormControl isInvalid={"brand_name" in errors}>
-            <FormControl.Label>Brand Name</FormControl.Label>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>Brand Name</FormControl.Label>
             <Input
               placeholder="Enter brand name"
               value={formData.brand_name}
@@ -787,8 +797,10 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* Unit of Measure */}
-          <FormControl isRequired isInvalid={"unit_of_measure" in errors}>
-            <FormControl.Label>Unit of Measure</FormControl.Label>
+          <FormControl isRequired={false} isInvalid={"unit_of_measure" in errors}>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>
+              <Text color="red.500">*</Text> Unit of Measure
+            </FormControl.Label>
             <Input
               placeholder="Enter unit of measure"
               value={formData.unit_of_measure}
@@ -809,7 +821,7 @@ export default function AddInventoryItemScreen() {
 
           {/* Reorder Level */}
           <FormControl isInvalid={"reorder_level" in errors}>
-            <FormControl.Label>Reorder Level</FormControl.Label>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>Reorder Level</FormControl.Label>
             <Input
               keyboardType="numeric"
               placeholder="Enter reorder level"
@@ -831,7 +843,7 @@ export default function AddInventoryItemScreen() {
 
           {/* Expiration Date */}
           <FormControl isInvalid={"expiration_date" in errors}>
-            <FormControl.Label>Expiration Date</FormControl.Label>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>Expiration Date</FormControl.Label>
             <Pressable onPress={() => setShowExpirationDatePicker(true)}>
               <Input
                 value={formData.expiration_date}
@@ -866,7 +878,7 @@ export default function AddInventoryItemScreen() {
 
           {/* In Date */}
           <FormControl isInvalid={"in_date" in errors}>
-            <FormControl.Label>In Date</FormControl.Label>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>In Date</FormControl.Label>
             <Pressable onPress={() => setShowInDatePicker(true)}>
               <Input
                 value={formData.in_date}
@@ -901,7 +913,7 @@ export default function AddInventoryItemScreen() {
 
           {/* Out Date */}
           <FormControl isInvalid={"out_date" in errors}>
-            <FormControl.Label>Out Date</FormControl.Label>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>Out Date</FormControl.Label>
             <Pressable onPress={() => setShowOutDatePicker(true)}>
               <Input
                 value={formData.out_date}
@@ -983,7 +995,7 @@ export default function AddInventoryItemScreen() {
 
           {/* Status */}
           <FormControl flex={1}>
-            <FormControl.Label>Status</FormControl.Label>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>Status</FormControl.Label>
             <Pressable
               onPress={() => {
                 if (statusSelect.current) {
@@ -1017,8 +1029,10 @@ export default function AddInventoryItemScreen() {
           </FormControl>
 
           {/* Tax Rate Input */}
-          <FormControl isRequired isInvalid={"tax_rate" in errors}>
-            <FormControl.Label>Tax Rate (%)</FormControl.Label>
+          <FormControl isRequired={false} isInvalid={"tax_rate" in errors}>
+            <FormControl.Label _text={{ fontWeight: "bold" }}>
+              <Text color="red.500">*</Text> Tax Rate (%)
+            </FormControl.Label>
             <Input
               keyboardType="decimal-pad"
               placeholder="0.00"
@@ -1047,8 +1061,8 @@ export default function AddInventoryItemScreen() {
               <Modal.CloseButton />
               <Modal.Header>Add New Category</Modal.Header>
               <Modal.Body>
-                <FormControl isRequired>
-                  <FormControl.Label>Category Name</FormControl.Label>
+                <FormControl isRequired={false}>
+                  <FormControl.Label _text={{ fontWeight: "bold" }}>Category Name</FormControl.Label>
                   <Input
                     placeholder="Enter category name"
                     value={newCategoryName}
