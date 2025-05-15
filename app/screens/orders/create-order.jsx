@@ -4962,6 +4962,238 @@ const loadSettings = async () => {
     }
   };
 
+  // Add this function to match the owner app's renderPricingFooter
+  const renderPricingFooter = () => {
+    // Calculate pricing values using captain app's functions
+    const subtotal = calculateSubtotal(selectedItems);
+    const itemDiscountAmount = calculateItemDiscount(selectedItems);
+    const discountPercentage = getDiscountPercentage();
+    const specialDiscountAmount = parseFloat(specialDiscount) || 0;
+    const extraChargesAmount = parseFloat(extraCharges) || 0;
+    const subtotalAfterDiscounts = subtotal - itemDiscountAmount - specialDiscountAmount;
+    const subtotalAfterExtra = subtotalAfterDiscounts + extraChargesAmount;
+    const serviceAmount = calculateServiceCharges(subtotalAfterExtra, serviceChargePercentage);
+    const gstAmount = calculateGST(subtotalAfterExtra + serviceAmount, gstPercentage);
+    const tipAmount = parseFloat(tip) || 0;
+    const finalTotal = calculateGrandTotal(
+      selectedItems,
+      specialDiscount,
+      extraCharges,
+      serviceChargePercentage,
+      gstPercentage,
+      tip
+    );
+
+    return (
+      <Box>
+        {/* Pricing row */}
+        <HStack justifyContent="space-between" mb={2} p={2}>
+          <VStack alignItems="center">
+            <Text fontWeight="semibold" fontSize="xs">
+              ₹{subtotal.toFixed(2)}
+            </Text>
+            <Text fontSize="2xs" color="gray.500">
+              Total
+            </Text>
+          </VStack>
+
+          <VStack alignItems="center">
+            <Text fontWeight="semibold" fontSize="xs" color="red.500">
+              -₹{itemDiscountAmount.toFixed(2)}
+            </Text>
+            <Text fontSize="2xs" color="gray.500">
+              Disc ({discountPercentage}%)
+            </Text>
+          </VStack>
+
+          <VStack alignItems="center">
+            <Text fontWeight="semibold" fontSize="xs">
+              +₹{serviceAmount.toFixed(2)}
+            </Text>
+            <Text fontSize="2xs" color="gray.500">
+              Service ({Math.round(serviceChargePercentage)}%)
+            </Text>
+          </VStack>
+
+          <VStack alignItems="center">
+            <Text fontWeight="semibold" fontSize="xs">
+              +₹{gstAmount.toFixed(2)}
+            </Text>
+            <Text fontSize="2xs" color="gray.500">
+              GST ({Math.round(gstPercentage)}%)
+            </Text>
+          </VStack>
+
+          <VStack alignItems="center">
+            <Text fontWeight="semibold" fontSize="xs" color="green.500">
+              ₹{finalTotal.toFixed(2)}
+            </Text>
+            <Text fontSize="2xs" color="gray.500">
+              Grand Total
+            </Text>
+          </VStack>
+        </HStack>
+
+        {/* First row: Print & Save, KOT, Settle buttons */}
+        <HStack space={1} px={2} mb={1}>
+          {/* Print & Save Button */}
+          {settings?.print_and_save && (
+            <Button
+              flex={1}
+              h={10}
+              bg="#FF9800"
+              _pressed={{ bg: "#F57C00" }}
+              borderRadius="md"
+              leftIcon={
+                <Icon
+                  as={MaterialIcons}
+                  name="print"
+                  size="sm"
+                  color="white"
+                />
+              }
+              onPress={onPrintAndSavePress}
+              py={0}
+              isDisabled={isLoading}
+            >
+              <Text color="white" fontSize="xs">
+                Print & Save
+              </Text>
+            </Button>
+          )}
+          
+          {/* KOT Button */}
+          {settings?.KOT_and_save && (
+            <Button
+              flex={1}
+              h={10}
+              bg="black"
+              _pressed={{ bg: "#333" }}
+              borderRadius="md"
+              leftIcon={
+                <Icon
+                  as={MaterialIcons}
+                  name="receipt"
+                  size="sm"
+                  color="white"
+                />
+              }
+              onPress={onKOTPress}
+              py={0}
+              isDisabled={isLoading}
+            >
+              <Text color="white" fontSize="xs">
+                KOT
+              </Text>
+            </Button>
+          )}
+          
+          {/* Settle Button */}
+          {settings?.settle && (
+            <Button
+              flex={1}
+              h={10}
+              bg="#00B0F0"
+              _pressed={{ bg: "#0099CC" }}
+              borderRadius="md"
+              leftIcon={
+                <Icon
+                  as={MaterialIcons}
+                  name="checkbox-circle"
+                  size="sm"
+                  color="white"
+                />
+              }
+              onPress={onSettlePress}
+              py={0}
+              isDisabled={isLoading}
+            >
+              <Text color="white" fontSize="xs">
+                Settle
+              </Text>
+            </Button>
+          )}
+        </HStack>
+        
+        {/* Second row: Save, KOT & Save, Cancel buttons with correct styling */}
+        <HStack space={1} px={2} mt={1}>
+          {/* Save Button */}
+          {settings?.has_save && (
+            <Button
+              flex={1}
+              h={10}
+              bg="#28a745"
+              _pressed={{ bg: "#218838" }}
+              borderRadius="md"
+              leftIcon={
+                <Icon
+                  as={MaterialIcons}
+                  name="save"
+                  size="sm"
+                  color="white"
+                />
+              }
+              onPress={handleSaveOrder}
+              py={0}
+              isDisabled={isLoading}
+            >
+              <Text color="white" fontSize="xs">
+                Save
+              </Text>
+            </Button>
+          )}
+          
+          {/* KOT & Save Button */}
+          {settings?.KOT_and_save && (
+            <Button
+              flex={settings?.has_save ? 2 : 3}
+              h={10}
+              bg="black"
+              _pressed={{ bg: "#333" }}
+              borderRadius="md"
+              leftIcon={
+                <Icon
+                  as={MaterialIcons}
+                  name="save"
+                  size="sm"
+                  color="white"
+                />
+              }
+              onPress={handleKOTAndSave}
+              py={0}
+              isDisabled={isLoading}
+            >
+              <Text color="white" fontSize="xs">
+                KOT & Save
+              </Text>
+            </Button>
+          )}
+          
+          {/* Cancel Button - only for existing orders */}
+          {settings?.cancel && params?.orderId && (
+            <IconButton
+              h={10}
+              w={10}
+              bg="red.500"
+              _pressed={{ bg: "red.600" }}
+              borderRadius="md"
+              icon={
+                <Icon
+                  as={MaterialIcons}
+                  name="close"
+                  size="sm"
+                  color="white"
+                />
+              }
+              onPress={handleCancelOrder}
+              isDisabled={isLoading}
+            />
+          )}
+        </HStack>
+      </Box>
+    );
+  };
+
   return (
     <Box flex={1} bg="white" safeArea>
       <Header
@@ -5453,173 +5685,7 @@ const loadSettings = async () => {
                     elevation: 3,
                   }}
                 >
-                  {/* Price summary row */}
-                  <HStack justifyContent="space-between" mb={2} p={2}>
-                    <VStack alignItems="center">
-                      <Text fontWeight="semibold" fontSize="xs">
-                        ₹{calculateSubtotal(selectedItems).toFixed(2)}
-                      </Text>
-                      <Text fontSize="2xs" color="gray.500">
-                        Total
-                      </Text>
-                    </VStack>
-
-                    <VStack alignItems="center">
-                      <Text fontWeight="semibold" fontSize="xs" color="red.500">
-                        -₹{calculateItemDiscount(selectedItems).toFixed(2)}
-                      </Text>
-                      <Text fontSize="2xs" color="gray.500">
-                        Disc ({formatCurrency(getDiscountPercentage())}%)
-                      </Text>
-                    </VStack>
-
-                    <VStack alignItems="center">
-                      <Text fontWeight="semibold" fontSize="xs">
-                        +₹
-                        {calculateServiceCharges(
-                          calculateTotalAfterDiscounts(
-                            selectedItems,
-                            specialDiscount
-                          ) + parseFloat(extraCharges || 0),
-                          serviceChargePercentage
-                        ).toFixed(2)}
-                      </Text>
-                      <Text fontSize="2xs" color="gray.500">
-                        Service ({Math.round(serviceChargePercentage)}%)
-                      </Text>
-                    </VStack>
-
-                    <VStack alignItems="center">
-                      <Text fontWeight="semibold" fontSize="xs">
-                        +₹
-                        {calculateGST(
-                          calculateTotalAfterDiscounts(
-                            selectedItems,
-                            specialDiscount
-                          ) +
-                            parseFloat(extraCharges || 0) +
-                            calculateServiceCharges(
-                              calculateTotalAfterDiscounts(
-                                selectedItems,
-                                specialDiscount
-                              ) + parseFloat(extraCharges || 0),
-                              serviceChargePercentage
-                            ),
-                          gstPercentage
-                        ).toFixed(2)}
-                      </Text>
-                      <Text fontSize="2xs" color="gray.500">
-                        GST ({Math.round(gstPercentage)}%)
-                      </Text>
-                    </VStack>
-
-                    <VStack alignItems="center">
-                      <Text
-                        fontWeight="semibold"
-                        fontSize="xs"
-                        color="green.500"
-                      >
-                        ₹
-                        {calculateGrandTotal(
-                          selectedItems,
-                          specialDiscount,
-                          extraCharges,
-                          serviceChargePercentage,
-                          gstPercentage,
-                          tip
-                        ).toFixed(2)}
-                      </Text>
-                      <Text fontSize="2xs" color="gray.500">
-                        Grand Total
-                      </Text>
-                    </VStack>
-                  </HStack>
-
-                  {/* Buttons */}
-                  <VStack space={1} p={2} pt={0}>
-                    {/* Top row - 3 buttons, matching screenshot */}
-                    <HStack space={1}>
-                      {settings?.print_and_save && (
-                        <Button
-                          flex={1}
-                          h={10}
-                          bg="#FF9800"
-                          _pressed={{ bg: "#F57C00" }}
-                          borderRadius="md"
-                          leftIcon={
-                            <Icon
-                              as={MaterialIcons}
-                              name="print"
-                              size="sm"
-                              color="white"
-                            />
-                          }
-                          onPress={onPrintAndSavePress}
-                          py={0}
-                        >
-                          <Text color="white" fontSize="xs">
-                            Print & Save
-                          </Text>
-                        </Button>
-                      )}
-
-                      {settings?.KOT_and_save && (
-                        <Button
-                          flex={1}
-                          h={10}
-                          bg="black"
-                          _pressed={{ bg: "#333" }}
-                          borderRadius="md"
-                          leftIcon={
-                            <Icon
-                              as={MaterialIcons}
-                              name="receipt"
-                              size="sm"
-                              color="white"
-                            />
-                          }
-                          onPress={onKOTPress}
-                          py={0}
-                        >
-                          <Text color="white" fontSize="xs">
-                            KOT
-                          </Text>
-                        </Button>
-                      )}
-
-                      {settings?.settle && (
-                        <Button
-                          flex={1}
-                          h={10}
-                          bg="#00B0F0"
-                          _pressed={{ bg: "#0099CC" }}
-                          borderRadius="md"
-                          onPress={handleSettleOrder}
-                          py={0}
-                        >
-                          <Text color="white" fontSize="xs">
-                            Settle
-                          </Text>
-                        </Button>
-                      )}
-                    </HStack>
-
-                    {/* Add Cancel Order button for existing orders */}
-                    {params?.orderId && settings?.cancel && (
-                      <Button
-                        w="100%"
-                        h={10}
-                        bg="red.600"
-                        _pressed={{ bg: "red.700" }}
-                        borderRadius="md"
-                        py={0}
-                        mt={1}
-                        onPress={handleCancelOrder}
-                      >
-                        <Text color="white" fontSize="xs">Cancel Order</Text>
-                      </Button>
-                    )}
-                  </VStack>
+                  {renderPricingFooter()}
                 </Box>
               </Box>
             )}
