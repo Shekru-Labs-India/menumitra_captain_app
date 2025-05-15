@@ -1077,6 +1077,16 @@ export default function TableSectionsScreen() {
       console.log("Table pressed:", table);
       console.log("Section:", section);
 
+      if (table.is_reserved) {
+        // toast.show({
+        //   description: "Table is reserved",
+        //   status: "error",
+        // });
+        // handleTableReservation(table);
+        handleReservationClick(table);
+
+        return;
+      }
       if (!table || !section) {
         console.error("Missing table or section data");
         return;
