@@ -2154,7 +2154,7 @@ export default function TableSectionsScreen() {
                                             isReservation && (
                                               <Box
                                                 position="absolute"
-                                                top={1}
+                                                bottom={1}
                                                 left={1}
                                                 zIndex={2}
                                               >
