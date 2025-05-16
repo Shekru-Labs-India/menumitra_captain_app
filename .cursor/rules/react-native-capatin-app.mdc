@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+always take context what issue it was what expected result should be. follow the code patterns which already been used. new implementation should not make major breaking changes.
