@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   settle: true,
   reserve_table: true,
   cancel: true,
+  has_save: true,
 };
 
 /**
@@ -26,9 +27,10 @@ const DEFAULT_SETTINGS = {
 export const fetchSettingsFromAPI = async () => {
   try {
     const outletId = await AsyncStorage.getItem('outlet_id');
+    const accessToken = await AsyncStorage.getItem('access_token');
     
-    if (!outletId) {
-      throw new Error('Missing outlet ID. Please login again.');
+    if (!outletId || !accessToken) {
+      throw new Error('Missing outlet ID or access token. Please login again.');
     }
     
     // Call the outlet_settings_view API using the captain app's authentication
@@ -47,18 +49,18 @@ export const fetchSettingsFromAPI = async () => {
       const formattedSettings = {
         theme: data.theme || 'system',
         style: data.style || 'blue',
-        has_parcel: data.has_parcel,
-        has_counter: data.has_counter,
-        has_delivery: data.has_delivery,
-        has_drive_through: data.has_drive_through,
-        has_dine_in: data.has_dine_in,
-        POS_show_menu_image: data.POS_show_menu_image,
-        print_and_save: data.print_and_save,
-        KOT_and_save: data.KOT_and_save,
-        settle: data.settle,
-        reserve_table: data.reserve_table,
-        cancel: data.cancel,
-        has_save: data.has_save,
+        has_parcel: data.has_parcel ?? DEFAULT_SETTINGS.has_parcel,
+        has_counter: data.has_counter ?? DEFAULT_SETTINGS.has_counter,
+        has_delivery: data.has_delivery ?? DEFAULT_SETTINGS.has_delivery,
+        has_drive_through: data.has_drive_through ?? DEFAULT_SETTINGS.has_drive_through,
+        has_dine_in: data.has_dine_in ?? DEFAULT_SETTINGS.has_dine_in,
+        POS_show_menu_image: data.POS_show_menu_image ?? DEFAULT_SETTINGS.POS_show_menu_image,
+        print_and_save: data.print_and_save ?? DEFAULT_SETTINGS.print_and_save,
+        KOT_and_save: data.KOT_and_save ?? DEFAULT_SETTINGS.KOT_and_save,
+        settle: data.settle ?? DEFAULT_SETTINGS.settle,
+        reserve_table: data.reserve_table ?? DEFAULT_SETTINGS.reserve_table,
+        cancel: data.cancel ?? DEFAULT_SETTINGS.cancel,
+        has_save: data.has_save ?? DEFAULT_SETTINGS.has_save,
       };
       
       // Save to AsyncStorage for offline use
