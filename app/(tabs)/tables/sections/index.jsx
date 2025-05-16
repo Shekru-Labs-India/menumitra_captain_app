@@ -61,6 +61,17 @@ import { useIsFocused } from "@react-navigation/native";
 import { Asset } from "expo-asset";
 // import { useFocusEffect } from "@react-navigation/native";
 
+// Add these imports at the top if not already present
+import * as Updates from 'expo-updates';
+
+import { checkForExpoUpdates, isRunningInExpoGo } from "../../../../utils/updateChecker";
+import UpdateModal from "../../../../components/UpdateModal";
+import Constants from 'expo-constants';
+import { useVersion } from "../../../../context/VersionContext";
+
+// Get the app version from expo constants, fallback to version from app.json
+const appVersion = Constants.expoConfig?.version || '1.2.1';
+
 // Add this helper function at the top level
 const calculateTimeDifference = (occupiedTime) => {
   try {
@@ -3918,8 +3929,128 @@ export default function TableSectionsScreen() {
     }
   };
 
+  // Add these state variables in the HomeScreen component
+  const [apiVersion, setApiVersion] = useState("");
+  const [needsUpdate, setNeedsUpdate] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [otaUpdateAvailable, setOtaUpdateAvailable] = useState(false);
+  const [isExpoGo, setIsExpoGo] = useState(isRunningInExpoGo());
+  const { version: appVersion } = useVersion();
+
+  // Add the version check function
+  const checkVersion = useCallback(async () => {
+    // Skip version check in Expo Go
+    if (isExpoGo) return;
+
+    try {
+      const response = await fetchWithAuth('https://men4u.xyz/1.3/common_api/check_version', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_type: 'captain_app' })
+      });
+      
+      if (response.st === 1) {
+        setApiVersion(response.version || '');
+        // Compare versions
+        const apiVer = response.version ? response.version.split('.').map(Number) : [0, 0, 0];
+        const appVer = appVersion.split('.').map(Number);
+        
+        // Compare version numbers
+        for (let i = 0; i < 3; i++) {
+          if (apiVer[i] > appVer[i]) {
+            setNeedsUpdate(true);
+            setShowUpdateModal(true);
+            break;
+          } else if (apiVer[i] < appVer[i]) {
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking version:', error);
+    }
+  }, [appVersion, isExpoGo]);
+
+  // Add the OTA update check function
+  const checkForUpdates = async () => {
+    await checkForExpoUpdates({
+      silent: true,
+      onUpdateAvailable: () => {
+        setOtaUpdateAvailable(true);
+      }
+    });
+  };
+
+  // Add the OTA update handler
+  const handleOtaUpdate = async () => {
+    try {
+      await Updates.fetchUpdateAsync();
+      Alert.alert(
+        "Update Downloaded",
+        "The update has been downloaded. The app will now restart to apply the changes.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              await Updates.reloadAsync();
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error downloading update:", error);
+      Alert.alert(
+        "Error",
+        "Failed to download update. Please try again later."
+      );
+    }
+  };
+
+  // Add this useEffect for initial version check
+  useEffect(() => {
+    checkVersion();
+  }, [checkVersion]);
+
+  // Update the useFocusEffect to include update checks
+  useFocusEffect(
+    useCallback(() => {
+      const initializeScreen = async () => {
+        await fetchData();
+        if (!isExpoGo) {
+          await checkForUpdates();
+        }
+      };
+
+      initializeScreen();
+    }, [fetchData, isExpoGo])
+  );
+
+  // Add the update modals in the return statement, right after the Box flex={1} bg="white" safeArea
   return (
-    <Box safeArea flex={1} bg="coolGray.100">
+    <Box flex={1} bg="white" safeArea>
+      {/* Store Update Modal - Only show if not in Expo Go */}
+      {!isExpoGo && (
+        <UpdateModal 
+          isOpen={showUpdateModal}
+          currentVersion={appVersion}
+          newVersion={apiVersion}
+          forceUpdate={true}
+          onClose={() => setShowUpdateModal(false)}
+        />
+      )}
+
+      {/* OTA Update Modal - Only show if not in Expo Go */}
+      {!isExpoGo && (
+        <UpdateModal 
+          isOpen={otaUpdateAvailable}
+          currentVersion={appVersion}
+          newVersion="latest"
+          isOtaUpdate={true}
+          onClose={() => setOtaUpdateAvailable(false)}
+          onApplyOtaUpdate={handleOtaUpdate}
+        />
+      )}
+
       {/* Fixed Header Parts */}
       <VStack>
         <HStack
@@ -4427,3 +4558,38 @@ export default function TableSectionsScreen() {
     
   );
 }
+
+// Add fetchData function
+const fetchData = async () => {
+  try {
+    const storedOutletId = await AsyncStorage.getItem("outlet_id");
+    if (!storedOutletId) {
+      toast.show({
+        description: "Please login again",
+        status: "error",
+      });
+      router.replace("/login");
+      return;
+    }
+
+    // Load app settings
+    const storedSettings = await AsyncStorage.getItem("app_settings");
+    if (storedSettings) {
+      const parsedSettings = JSON.parse(storedSettings);
+      setIsReservation(parsedSettings.reserve_table === true || parsedSettings.reserve_table === 1);
+    }
+
+    // Fetch sections data
+    await fetchSections(parseInt(storedOutletId));
+
+    // Get restaurant name
+    await getRestaurantName();
+
+  } catch (error) {
+    console.error("Error fetching initial data:", error);
+    toast.show({
+      description: "Failed to load initial data",
+      status: "error",
+    });
+  }
+};
