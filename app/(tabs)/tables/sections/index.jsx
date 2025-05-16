@@ -68,6 +68,7 @@ import { checkForExpoUpdates, isRunningInExpoGo } from "../../../../utils/update
 import UpdateModal from "../../../../components/UpdateModal";
 import Constants from 'expo-constants';
 import { useVersion } from "../../../../context/VersionContext";
+import { getSettings } from "../../../../utils/getSettings";
 
 // Get the app version from expo constants, fallback to version from app.json
 const appVersion = Constants.expoConfig?.version || '1.2.1';
@@ -412,35 +413,40 @@ const OrderTypeButtons = () => {
     driveThrough: false,
   });
   const router = useRouter();
+  const isFocused = useIsFocused();
 
-  // Fetch settings only once when component mounts
-  useEffect(() => {
-    const getOrderTypeSettings = async () => {
-      try {
-        setLoading(true);
-        const storedSettings = await AsyncStorage.getItem("app_settings");
-        if (storedSettings) {
-          const parsedSettings = JSON.parse(storedSettings);
+  // Load settings using useFocusEffect to refresh on navigation
+  useFocusEffect(
+    useCallback(() => {
+      const loadOrderTypeSettings = async () => {
+        try {
+          setLoading(true);
+          console.log("OrderTypeButtons: Loading settings on focus...");
+          // Use getSettings utility to get latest settings from API
+          const settings = await getSettings();
+          console.log("OrderTypeButtons: Settings received:", settings);
+          
           setOrderTypeSettings({
-            counter: parsedSettings.has_counter,
-            parcel: parsedSettings.has_parcel,
-            delivery: parsedSettings.has_delivery,
-            driveThrough: parsedSettings.has_drive_through,
+            counter: settings.has_counter,
+            parcel: settings.has_parcel,
+            delivery: settings.has_delivery,
+            driveThrough: settings.has_drive_through,
           });
-
-          // REMOVE THIS LINE - should not set parent state
-          // setIsReservation(parsedSettings.reserve_table);
-          // console.log(parsedSettings.reserve_table);
+        } catch (error) {
+          console.error("OrderTypeButtons: Error loading settings:", error);
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.error("Error loading order type settings:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
 
-    getOrderTypeSettings();
-  }, []);
+      loadOrderTypeSettings();
+      
+      return () => {
+        // Clean up if needed
+        console.log("OrderTypeButtons: Component unfocused");
+      };
+    }, [])
+  );
 
   // Get outlet_id once
   const [outletId, setOutletId] = useState(null);
@@ -518,7 +524,15 @@ const OrderTypeButtons = () => {
   ].filter((button) => button.active);
 
   if (loading) {
-    return null; // Don't render anything while loading
+    return (
+      <Box bg="white" py={2} borderBottomWidth={1} borderBottomColor="coolGray.200">
+        <Box px={4} width="100%">
+          <Center py={2}>
+            <Spinner size="sm" color="coolGray.400" />
+          </Center>
+        </Box>
+      </Box>
+    );
   }
 
   return (
@@ -672,35 +686,32 @@ export default function TableSectionsScreen() {
       const loadAppSettings = async () => {
         try {
           console.log("FOCUS EFFECT: Loading app_settings in tables screen...");
-          const storedSettings = await AsyncStorage.getItem("app_settings");
-          if (storedSettings) {
-            console.log("FOCUS EFFECT: Raw app_settings:", storedSettings);
-            const parsedSettings = JSON.parse(storedSettings);
+          // Replace direct AsyncStorage call with getSettings utility function
+          const settings = await getSettings();
+          
+          console.log("FOCUS EFFECT: Received settings:", settings);
 
-            // Be extremely explicit about the check
-            const reserveValue = parsedSettings.reserve_table;
-            console.log(
-              "FOCUS EFFECT: Reserve value:",
-              reserveValue,
-              "Type:",
-              typeof reserveValue
-            );
+          // Be extremely explicit about the check
+          const reserveValue = settings.reserve_table;
+          console.log(
+            "FOCUS EFFECT: Reserve value:",
+            reserveValue,
+            "Type:",
+            typeof reserveValue
+          );
 
-            // Handle all possible value formats
-            const isEnabled =
-              reserveValue === true ||
-              reserveValue === 1 ||
-              reserveValue === "1" ||
-              reserveValue === "true";
+          // Handle all possible value formats
+          const isEnabled =
+            reserveValue === true ||
+            reserveValue === 1 ||
+            reserveValue === "1" ||
+            reserveValue === "true";
 
-            console.log("FOCUS EFFECT: Setting isReservation to:", isEnabled);
-            setIsReservation(isEnabled);
+          console.log("FOCUS EFFECT: Setting isReservation to:", isEnabled);
+          setIsReservation(isEnabled);
 
-            // Also check for other settings that might be relevant
-            console.log("FOCUS EFFECT: All settings:", parsedSettings);
-          } else {
-            console.log("FOCUS EFFECT: No app_settings found in AsyncStorage");
-          }
+          // Also check for other settings that might be relevant
+          console.log("FOCUS EFFECT: All settings:", settings);
         } catch (error) {
           console.error("FOCUS EFFECT: Error loading app settings:", error);
         }
@@ -1369,22 +1380,25 @@ export default function TableSectionsScreen() {
     try {
       setRefreshing(true);
 
-      // Log app_settings data during refresh
+      // Log app_settings data during refresh using getSettings
       console.log("PULL REFRESH: Checking app_settings...");
-      const appSettings = await AsyncStorage.getItem("app_settings");
-      if (appSettings) {
-        console.log("PULL REFRESH: app_settings found:", appSettings);
-        const parsedSettings = JSON.parse(appSettings);
-        console.log("PULL REFRESH: Parsed settings:", parsedSettings);
-        console.log(
-          "PULL REFRESH: reserve_table value:",
-          parsedSettings.reserve_table,
-          "Type:",
-          typeof parsedSettings.reserve_table
-        );
-      } else {
-        console.log("PULL REFRESH: No app_settings found in AsyncStorage");
-      }
+      const settings = await getSettings();
+      console.log("PULL REFRESH: Settings loaded:", settings);
+      console.log(
+        "PULL REFRESH: reserve_table value:",
+        settings.reserve_table,
+        "Type:",
+        typeof settings.reserve_table
+      );
+      
+      // Update isReservation state with the fetched value
+      const reserveValue = settings.reserve_table;
+      const isEnabled =
+        reserveValue === true ||
+        reserveValue === 1 ||
+        reserveValue === "1" ||
+        reserveValue === "true";
+      setIsReservation(isEnabled);
 
       // Also log all keys in AsyncStorage for verification
       const allKeys = await AsyncStorage.getAllKeys();
@@ -4607,12 +4621,17 @@ const fetchData = async () => {
       return;
     }
 
-    // Load app settings
-    const storedSettings = await AsyncStorage.getItem("app_settings");
-    if (storedSettings) {
-      const parsedSettings = JSON.parse(storedSettings);
-      setIsReservation(parsedSettings.reserve_table === true || parsedSettings.reserve_table === 1);
-    }
+    // Load app settings using the getSettings utility
+    const settings = await getSettings();
+    
+    // Update isReservation state based on settings
+    const reserveValue = settings.reserve_table;
+    const isEnabled =
+      reserveValue === true ||
+      reserveValue === 1 ||
+      reserveValue === "1" ||
+      reserveValue === "true";
+    setIsReservation(isEnabled);
 
     // Fetch sections data
     await fetchSections(parseInt(storedOutletId));
