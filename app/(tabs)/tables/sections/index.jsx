@@ -806,9 +806,9 @@ export default function TableSectionsScreen() {
   useFocusEffect(
     useCallback(() => {
       const refreshSections = async () => {
-        // Skip refresh if QR modal is open
-        if (isQRModalOpen || showQRModal) {
-          console.log("Skipping refresh because QR modal is open");
+        // Skip refresh if QR modal is open or edit mode is enabled
+        if (isQRModalOpen || showQRModal || showEditIcons) {
+          console.log("Skipping refresh because QR modal is open or edit mode is enabled");
           return;
         }
 
@@ -834,7 +834,7 @@ export default function TableSectionsScreen() {
       };
 
       refreshSections();
-    }, [isQRModalOpen, showQRModal])
+    }, [isQRModalOpen, showQRModal, showEditIcons])
   );
 
   const getStoredData = async () => {
@@ -1351,8 +1351,8 @@ export default function TableSectionsScreen() {
 
   // Add this function for pull to refresh
   const onRefresh = useCallback(async () => {
-    if (isQRModalOpen || showQRModal) {
-      console.log("Skipping refresh because QR modal is open");
+    if (isQRModalOpen || showQRModal || showEditIcons) {
+      console.log("Skipping refresh because QR modal is open or edit mode is enabled");
       return;
     }
     try {
@@ -1398,7 +1398,7 @@ export default function TableSectionsScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [isQRModalOpen, showQRModal]);
+  }, [isQRModalOpen, showQRModal, showEditIcons]); // Add showEditIcons to dependencies
 
   // Update auto-refresh interval to use the non-loading version of fetchSections
   useEffect(() => {
@@ -1409,9 +1409,10 @@ export default function TableSectionsScreen() {
           isQRModalOpen ||
           showQRModal ||
           showDeleteModal ||
-          deletingSections.size > 0
+          deletingSections.size > 0 ||
+          showEditIcons // Add check for edit mode
         ) {
-          console.log("Skipping auto-refresh because of active UI state");
+          console.log("Skipping auto-refresh because of active UI state or edit mode");
           return;
         }
 
@@ -1434,7 +1435,7 @@ export default function TableSectionsScreen() {
         clearInterval(refreshInterval.current);
       }
     };
-  }, [isQRModalOpen, showQRModal, showDeleteModal, deletingSections.size]);
+  }, [isQRModalOpen, showQRModal, showDeleteModal, deletingSections.size, showEditIcons]); // Add showEditIcons to dependencies
 
   // Add a new function for silent refresh without global loading state
   const silentRefreshSections = async (outletId) => {
@@ -1933,11 +1934,12 @@ export default function TableSectionsScreen() {
                                             ? "#000000" // KOT & Save - Black border
                                             : table.action === "has_save"
                                             ? "#4CAF50" // Has Save - Green border
-                                            : table.action === "create_order"
-                                            ? "#dc3545" // Create order - Red
-                                            : table.action === "placed"
-                                            ? "#dc3545" // Placed - Red
-                                            : "#dc3545" // Regular occupied - Blue
+                                            : table.action ===
+                                                    "create_order"
+                                                  ? "#dc3545" // Create order - Red
+                                                  : table.action === "placed"
+                                                  ? "#dc3545" // Placed - Red
+                                                  : "#dc3545" // Regular occupied - Blue
                                           : table.is_reserved
                                           ? "#757575" // Reserved - Gray border
                                           : "#aaaaaa" // Available - Green border
@@ -2136,7 +2138,7 @@ export default function TableSectionsScreen() {
                                             isReservation && (
                                               <Box
                                                 position="absolute"
-                                                bottom={1}
+                                                top={1}
                                                 left={1}
                                                 zIndex={2}
                                               >
@@ -4215,7 +4217,7 @@ export default function TableSectionsScreen() {
 
           {/* Element 4: Content */}
           <Box flex={1} bg="coolGray.100">
-            {loading ? (
+            {loading && !showEditIcons ? (
               <TableSkeletonLoader />
             ) : (
               <>
