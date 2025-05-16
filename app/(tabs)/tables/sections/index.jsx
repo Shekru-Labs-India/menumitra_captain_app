@@ -405,12 +405,11 @@ const TableSkeletonLoader = () => {
 
 // Create a standalone component outside of the main component for order type buttons
 const OrderTypeButtons = () => {
-  const [loading, setLoading] = useState(true);
   const [orderTypeSettings, setOrderTypeSettings] = useState({
-    counter: false,
-    parcel: false,
-    delivery: false,
-    driveThrough: false,
+    counter: true, // Start with all buttons enabled for optimistic rendering
+    parcel: true,
+    delivery: true,
+    driveThrough: true,
   });
   const router = useRouter();
   const isFocused = useIsFocused();
@@ -418,31 +417,35 @@ const OrderTypeButtons = () => {
   // Load settings using useFocusEffect to refresh on navigation
   useFocusEffect(
     useCallback(() => {
+      let isMounted = true;
+      
       const loadOrderTypeSettings = async () => {
         try {
-          setLoading(true);
           console.log("OrderTypeButtons: Loading settings on focus...");
           // Use getSettings utility to get latest settings from API
           const settings = await getSettings();
           console.log("OrderTypeButtons: Settings received:", settings);
           
-          setOrderTypeSettings({
-            counter: settings.has_counter,
-            parcel: settings.has_parcel,
-            delivery: settings.has_delivery,
-            driveThrough: settings.has_drive_through,
-          });
+          // Only update if component is still mounted
+          if (isMounted) {
+            setOrderTypeSettings({
+              counter: settings.has_counter,
+              parcel: settings.has_parcel,
+              delivery: settings.has_delivery,
+              driveThrough: settings.has_drive_through,
+            });
+          }
         } catch (error) {
           console.error("OrderTypeButtons: Error loading settings:", error);
-        } finally {
-          setLoading(false);
+          // Don't change the optimistic state on error
         }
       };
 
       loadOrderTypeSettings();
       
       return () => {
-        // Clean up if needed
+        // Clean up
+        isMounted = false;
         console.log("OrderTypeButtons: Component unfocused");
       };
     }, [])
@@ -522,18 +525,6 @@ const OrderTypeButtons = () => {
       },
     },
   ].filter((button) => button.active);
-
-  if (loading) {
-    return (
-      <Box bg="white" py={2} borderBottomWidth={1} borderBottomColor="coolGray.200">
-        <Box px={4} width="100%">
-          <Center py={2}>
-            <Spinner size="sm" color="coolGray.400" />
-          </Center>
-        </Box>
-      </Box>
-    );
-  }
 
   return (
     <Box
