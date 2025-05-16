@@ -57,7 +57,7 @@ const PaymentModal = ({
               ? getOrderTypeDisplay()
               : `Table ${tableData?.table_number}`}{" "}
             {/* Only show order number if it exists */}
-            {tableData?.order_number && `| Order #${tableData?.order_number}`} | ₹
+            {tableData?.order_number && `| Order No: ${tableData?.order_number}`} | ₹
             {tableData?.grand_total?.toFixed(2)}
           </Text>
         </Box>
