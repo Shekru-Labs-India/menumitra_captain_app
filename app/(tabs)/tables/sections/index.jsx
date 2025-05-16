@@ -2914,6 +2914,45 @@ export default function TableSectionsScreen() {
           alignItems="center"
           justifyContent="center"
         >
+          {/* Hidden ViewShot container for capture */}
+          {qrData?.qr_code_url && (
+            <Box position="absolute" top={-9999} left={-9999}>
+              <ViewShot
+                ref={viewShotRef}
+                options={{ quality: 1, format: "png" }}
+                style={{
+                  backgroundColor: "white",
+                  padding: 16,
+                  borderWidth: 3,
+                  borderColor: "#FF7043",
+                  borderRadius: 12,
+                }}
+              >
+                <Box
+                  width={250}
+                  height={250}
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <QRCode
+                    value={qrData.qr_code_url}
+                    size={250}
+                    color="#0066FF"
+                    backgroundColor="white"
+                    logo={logoPath}
+                    logoSize={70}
+                    logoBackgroundColor="white"
+                    logoBorderRadius={10}
+                    quietZone={10}
+                    enableLinearGradient={false}
+                    ecl="H"
+                  />
+                </Box>
+              </ViewShot>
+            </Box>
+          )}
+
+          {/* Visible QR display */}
           <Box
             bg="white"
             width="90%"
@@ -2953,10 +2992,7 @@ export default function TableSectionsScreen() {
 
             {qrData?.qr_code_url ? (
               <VStack space={4} alignItems="center">
-                {/* QR Container with ViewShot for capture - using the externally defined ref */}
-                <ViewShot
-                  ref={viewShotRef}
-                  options={{ quality: 1, format: "png" }}
+                <Box
                   style={{
                     backgroundColor: "white",
                     padding: 16,
@@ -2971,7 +3007,6 @@ export default function TableSectionsScreen() {
                     alignItems="center"
                     justifyContent="center"
                   >
-                    {/* QRCode without ref */}
                     <QRCode
                       value={qrData.qr_code_url}
                       size={250}
@@ -2986,7 +3021,7 @@ export default function TableSectionsScreen() {
                       ecl="H"
                     />
                   </Box>
-                </ViewShot>
+                </Box>
 
                 <Text fontSize="md" color="coolGray.600" textAlign="center">
                   Scan to place your order

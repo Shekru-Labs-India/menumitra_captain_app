@@ -4,3 +4,6 @@ globs:
 alwaysApply: true
 ---
 always take context what issue it was what expected result should be. follow the code patterns which already been used. new implementation should not make major breaking changes.
+
+
+dont go out of context just do what i said if am wrong then suggest me if i agree then we will do that
