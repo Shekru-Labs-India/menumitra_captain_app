@@ -2288,6 +2288,7 @@ export default function OrderDetailsScreen() {
             <Button
               variant="outline"
               size="sm"
+              mx={5}
               leftIcon={<Icon as={MaterialIcons} name="edit" size="sm" />}
               onPress={() => router.push({
                 pathname: "/screens/orders/menu-selection",
