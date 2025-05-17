@@ -268,8 +268,8 @@ export default function MenuSelectionScreen() {
           customer_alternate_mobile: orderDetails.customer_alternate_mobile || "",
           customer_landmark: orderDetails.customer_landmark || ""
         });
-        setUserName(orderDetails.user_name || "");
-        setUserMobile(orderDetails.user_mobile || "");
+        setUserName(orderDetails.customer_name || "");
+        setUserMobile(orderDetails.customer_mobile || "");
         setSpecialDiscount(parseFloat(orderDetails.special_discount) || 0);
         setCharges(parseFloat(orderDetails.charges) || 0);
         setTip(parseFloat(orderDetails.tip) || 0);
@@ -1257,6 +1257,16 @@ export default function MenuSelectionScreen() {
       </Box>
     );
   };
+
+  useEffect(() => {
+    if (params.userName && !userName) setUserName(params.userName);
+    if (params.userMobile && !userMobile) setUserMobile(params.userMobile);
+  }, [params.userName, params.userMobile]);
+
+  useEffect(() => {
+    if (orderDetails?.user_name && !userName) setUserName(orderDetails.user_name);
+    if (orderDetails?.user_mobile && !userMobile) setUserMobile(orderDetails.user_mobile);
+  }, [orderDetails]);
 
   return (
     <SafeAreaView style={styles.container}>

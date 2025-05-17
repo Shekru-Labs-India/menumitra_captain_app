@@ -2323,11 +2323,11 @@ export default function OrderDetailsScreen() {
                     section_id: orderDetails.order_type === "dine-in" ? orderDetails.section_id : "",
                     section_name: orderDetails.order_type === "dine-in" ? orderDetails.section : "",
                     outlet_id: orderDetails.outlet_id,
-                    customer_name: orderDetails.customer_name || "",
-                    customer_mobile: orderDetails.customer_mobile || "",
+                    customer_name: orderDetails.customer_name || orderDetails.user_name || "",
+                    customer_mobile: orderDetails.customer_mobile || orderDetails.user_mobile || "",
                   }),
-                  userName: orderDetails.customer_name || "",
-                  userMobile: orderDetails.customer_mobile || "",
+                  userName: orderDetails.customer_name || orderDetails.user_name || "",
+                  userMobile: orderDetails.customer_mobile || orderDetails.user_mobile || "",
                 },
               })}
             >
