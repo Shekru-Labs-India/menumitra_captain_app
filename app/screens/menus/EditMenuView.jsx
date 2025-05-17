@@ -210,7 +210,7 @@ export default function EditMenuView() {
           food_type: menuData.food_type || "",
           menu_cat_id: menuData.menu_cat_id?.toString() || "",
           category_name: menuData.category_name || "",
-          spicy_index: menuData.spicy_index?.toString() || "1",
+          spicy_index: menuData.spicy_index ? menuData.spicy_index.toString() : "",
           offer: menuData.offer?.toString() || "",
           description: menuData.description || "",
           ingredients: menuData.ingredients || "",
@@ -369,7 +369,7 @@ export default function EditMenuView() {
       formData.append("full_price", menuDetails.full_price);
       formData.append("food_type", menuDetails.food_type);
       formData.append("menu_cat_id", menuDetails.menu_cat_id);
-      formData.append("spicy_index", menuDetails.spicy_index || "1");
+      formData.append("spicy_index", menuDetails.spicy_index || "");
       formData.append("offer", menuDetails.offer || "0");
       formData.append("description", menuDetails.description || "");
       formData.append("ingredients", menuDetails.ingredients || "");
@@ -1051,7 +1051,7 @@ export default function EditMenuView() {
                     value={
                       spicyLevels.find(
                         (level) => level.id === menuDetails.spicy_index
-                      )?.name || ""
+                      )?.name || "Select Spicy Level"
                     }
                     isReadOnly
                     rightElement={
