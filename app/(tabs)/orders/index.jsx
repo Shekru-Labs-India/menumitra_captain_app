@@ -606,13 +606,14 @@ const OrdersScreen = () => {
   const [isTodayActive, setIsTodayActive] = useState(true);
 
   const [dateFilterType, setDateFilterType] = useState('today');
-  const [customDateRange, setCustomDateRange] = useState({
+  const [customRangeDraft, setCustomRangeDraft] = useState({
     startDate: new Date(),
     endDate: new Date(),
   });
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [isDateFilterModalVisible, setIsDateFilterModalVisible] = useState(false);
+  const [datePickerMode, setDatePickerMode] = useState(null); // 'start' | 'end' | null
 
   const handleDatePickerChange = (event, selectedDate) => {
     setShowDatePicker(false);
@@ -1574,8 +1575,8 @@ const OrdersScreen = () => {
       }
       case 'customRange': {
         return { 
-          startDate: formatDate(customDateRange.startDate), 
-          endDate: formatDate(customDateRange.endDate) 
+          startDate: formatDate(customRangeDraft.startDate), 
+          endDate: formatDate(customRangeDraft.endDate) 
         };
       }
       default:
@@ -1596,7 +1597,7 @@ const OrdersScreen = () => {
     
     // Clear custom date range when selecting a predefined filter
     if (type !== 'customRange') {
-      setCustomDateRange({
+      setCustomRangeDraft({
         startDate: new Date(),
         endDate: new Date(),
       });
@@ -1632,7 +1633,7 @@ const OrdersScreen = () => {
       }
 
       // Set the start date and immediately show end date picker
-      setCustomDateRange(prev => ({...prev, startDate: selectedDate}));
+      setCustomRangeDraft(prev => ({...prev, startDate: selectedDate}));
       
       // Small delay for better UX
       setTimeout(() => {
@@ -1657,7 +1658,7 @@ const OrdersScreen = () => {
         return;
       }
 
-      if (selectedDate < customDateRange.startDate) {
+      if (selectedDate < customRangeDraft.startDate) {
         toast.show({
           description: "End date cannot be before start date",
           status: "warning",
@@ -1667,7 +1668,7 @@ const OrdersScreen = () => {
       }
 
       // Set the end date and show filter modal
-      setCustomDateRange(prev => ({...prev, endDate: selectedDate}));
+      setCustomRangeDraft(prev => ({...prev, endDate: selectedDate}));
       
       // Small delay for better UX
       setTimeout(() => {
@@ -1680,7 +1681,7 @@ const OrdersScreen = () => {
   const handleApplyCustomDateRange = () => {
     setIsDateFilterModalVisible(false);
     
-    if (!customDateRange.startDate || !customDateRange.endDate) {
+    if (!customRangeDraft.startDate || !customRangeDraft.endDate) {
       toast.show({
         description: "Please select both start and end dates",
         status: "warning",
@@ -1694,14 +1695,14 @@ const OrdersScreen = () => {
     
     // Set the date range with formatted dates
     setDateRange({
-      start: formatDateString(customDateRange.startDate),
-      end: formatDateString(customDateRange.endDate),
+      start: formatDateString(customRangeDraft.startDate),
+      end: formatDateString(customRangeDraft.endDate),
       label: "Custom Date"
     });
     
     // Show success toast
     toast.show({
-      description: `Showing orders from ${formatDateString(customDateRange.startDate)} to ${formatDateString(customDateRange.endDate)}`,
+      description: `Showing orders from ${formatDateString(customRangeDraft.startDate)} to ${formatDateString(customRangeDraft.endDate)}`,
       status: "success",
       duration: 3000,
     });
@@ -1727,6 +1728,45 @@ const OrdersScreen = () => {
       delivery: orders.filter(o => o.order_type?.toLowerCase() === "delivery").length,
       total: orders.length,
     };
+  };
+
+  // Handler for quick filters
+  const handleQuickDateFilter = (type) => {
+    if (type === "customRange") {
+      setDateFilterType("customRange");
+      // Don't close the modal, just update the type
+      return;
+    }
+    setDateFilterType(type);
+    setIsDateFilterModalVisible(false);
+    const newRange = getDateRange(type);
+    setDateRange(newRange);
+    setDate(type === "today" ? formatDateString(new Date()) : newRange.end);
+    fetchOrders(true);
+  };
+
+  // Handler for applying custom range
+  const handleApplyCustomRange = () => {
+    if (!customRangeDraft.startDate || !customRangeDraft.endDate) {
+      toast.show({
+        description: "Please select both start and end dates",
+        status: "warning",
+        duration: 3000,
+      });
+      return;
+    }
+    setDateFilterType("customRange");
+    setDateRange({
+      start: formatDateString(customRangeDraft.startDate),
+      end: formatDateString(customRangeDraft.endDate),
+      label: "Custom Date"
+    });
+    setIsDateFilterModalVisible(false);
+    toast.show({
+      description: `Showing orders from ${formatDateString(customRangeDraft.startDate)} to ${formatDateString(customRangeDraft.endDate)}`,
+      status: "success",
+      duration: 3000,
+    });
   };
 
   if (isLoading) {
@@ -2153,7 +2193,7 @@ const OrdersScreen = () => {
                       Start Date:
                     </Text>
                     <Text fontSize="md" px={4} pb={2} color="coolGray.800">
-                      {customDateRange.startDate ? formatDate(customDateRange.startDate) : "Select Date"}
+                      {customRangeDraft.startDate ? formatDate(customRangeDraft.startDate) : "Select Date"}
                     </Text>
                   </Box>
                 </Pressable>
@@ -2161,9 +2201,9 @@ const OrdersScreen = () => {
                 {/* End Date Section */}
                 <Pressable
                   onPress={() => {
-                    if (!customDateRange.startDate) {
-                      setCustomDateRange({
-                        ...customDateRange,
+                    if (!customRangeDraft.startDate) {
+                      setCustomRangeDraft({
+                        ...customRangeDraft,
                         startDate: formatDate(new Date()),
                       });
                     }
@@ -2175,7 +2215,7 @@ const OrdersScreen = () => {
                       End Date:
                     </Text>
                     <Text fontSize="md" px={4} pb={2} color="coolGray.800">
-                      {customDateRange.endDate || formatDate(new Date())}
+                      {customRangeDraft.endDate || formatDate(new Date())}
                     </Text>
                   </Box>
                 </Pressable>
@@ -2183,7 +2223,7 @@ const OrdersScreen = () => {
                 <Button
                   colorScheme="blue"
                   onPress={handleApplyCustomDateRange}
-                  isDisabled={!customDateRange.startDate || !customDateRange.endDate}
+                  isDisabled={!customRangeDraft.startDate || !customRangeDraft.endDate}
                 >
                   Apply Date Range
                 </Button>
@@ -2196,22 +2236,54 @@ const OrdersScreen = () => {
       {/* DateTimePicker components - these will appear over the modal on Android */}
       {showStartDatePicker && (
         <DateTimePicker
-          value={customDateRange.startDate || new Date()}
+          value={customRangeDraft.startDate || new Date()}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={onStartDateChange}
-          maximumDate={new Date()} // No future dates
+          onChange={(event, selectedDate) => {
+            setShowStartDatePicker(false);
+            if (selectedDate) {
+              setCustomRangeDraft(prev => {
+                // जर नवीन start date > जुना end date, तर end date reset करा
+                let newEndDate = prev.endDate;
+                if (prev.endDate && selectedDate > prev.endDate) {
+                  newEndDate = null;
+                }
+                return {
+                  ...prev,
+                  startDate: selectedDate,
+                  endDate: newEndDate,
+                };
+              });
+            }
+          }}
+          maximumDate={new Date()}
         />
       )}
 
       {showEndDatePicker && (
         <DateTimePicker
-          value={customDateRange.endDate || customDateRange.startDate || new Date()}
+          value={customRangeDraft.endDate || customRangeDraft.startDate || new Date()}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={onEndDateChange}
-          minimumDate={customDateRange.startDate || undefined} // No dates before start date
-          maximumDate={new Date()} // No future dates
+          onChange={(event, selectedDate) => {
+            setShowEndDatePicker(false);
+            if (selectedDate) {
+              if (customRangeDraft.startDate && selectedDate < customRangeDraft.startDate) {
+                toast.show({
+                  description: "End date cannot be before start date",
+                  status: "warning",
+                  duration: 2000,
+                });
+                return;
+              }
+              setCustomRangeDraft(prev => ({
+                ...prev,
+                endDate: selectedDate,
+              }));
+            }
+          }}
+          minimumDate={customRangeDraft.startDate || undefined}
+          maximumDate={new Date()}
         />
       )}
 
@@ -2248,182 +2320,139 @@ const OrdersScreen = () => {
       {renderOrderTypeModal()}
       {renderStatusModal()}
 
-      {/* Date Filter Modal */}
+      {/* 1. Date Filter Modal (Quick Filters + Custom Range) */}
       <Modal
         isOpen={isDateFilterModalVisible}
         onClose={() => setIsDateFilterModalVisible(false)}
         size="md"
       >
         <Modal.Content>
-          <Modal.CloseButton />
-          <Modal.Header>Select Date Filter</Modal.Header>
-          <Modal.Body p={0}>
-            <VStack divider={<Divider />} width="100%">
-              <Pressable
-                onPress={() => {
-                  handleDateFilterTypeChange("yesterday");
-                  setIsDateFilterModalVisible(false);
-                }}
-                py={3}
-                px={4}
-              >
+          <Modal.Header>Select Date Range</Modal.Header>
+          <Modal.Body>
+            <VStack>
+              {/* Quick Filters */}
+              <Pressable onPress={() => handleQuickDateFilter("yesterday")} py={3} px={4}>
                 <HStack alignItems="center" justifyContent="space-between">
                   <Text>Yesterday</Text>
-                  {dateFilterType === "yesterday" && (
-                    <Icon
-                      as={MaterialIcons}
-                      name="check"
-                      size="sm"
-                      color="primary.500"
-                    />
-                  )}
+                  {dateFilterType === "yesterday" && <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />}
                 </HStack>
               </Pressable>
-
-              <Pressable
-                onPress={() => {
-                  handleDateFilterTypeChange("thisWeek");
-                  setIsDateFilterModalVisible(false);
-                }}
-                py={3}
-                px={4}
-              >
+              <Pressable onPress={() => handleQuickDateFilter("thisWeek")} py={3} px={4}>
                 <HStack alignItems="center" justifyContent="space-between">
                   <Text>This Week</Text>
-                  {dateFilterType === "thisWeek" && (
-                    <Icon
-                      as={MaterialIcons}
-                      name="check"
-                      size="sm"
-                      color="primary.500"
-                    />
-                  )}
+                  {dateFilterType === "thisWeek" && <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />}
                 </HStack>
               </Pressable>
-
-              <Pressable
-                onPress={() => {
-                  handleDateFilterTypeChange("lastWeek");
-                  setIsDateFilterModalVisible(false);
-                }}
-                py={3}
-                px={4}
-              >
+              <Pressable onPress={() => handleQuickDateFilter("lastWeek")} py={3} px={4}>
                 <HStack alignItems="center" justifyContent="space-between">
                   <Text>Last Week</Text>
-                  {dateFilterType === "lastWeek" && (
-                    <Icon
-                      as={MaterialIcons}
-                      name="check"
-                      size="sm"
-                      color="primary.500"
-                    />
-                  )}
+                  {dateFilterType === "lastWeek" && <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />}
                 </HStack>
               </Pressable>
-
-              <Pressable
-                onPress={() => {
-                  handleDateFilterTypeChange("thisMonth");
-                  setIsDateFilterModalVisible(false);
-                }}
-                py={3}
-                px={4}
-              >
+              <Pressable onPress={() => handleQuickDateFilter("thisMonth")} py={3} px={4}>
                 <HStack alignItems="center" justifyContent="space-between">
                   <Text>This Month</Text>
-                  {dateFilterType === "thisMonth" && (
-                    <Icon
-                      as={MaterialIcons}
-                      name="check"
-                      size="sm"
-                      color="primary.500"
-                    />
-                  )}
+                  {dateFilterType === "thisMonth" && <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />}
                 </HStack>
               </Pressable>
-
-              <Pressable
-                onPress={() => {
-                  handleDateFilterTypeChange("lastMonth");
-                  setIsDateFilterModalVisible(false);
-                }}
-                py={3}
-                px={4}
-              >
+              <Pressable onPress={() => handleQuickDateFilter("lastMonth")} py={3} px={4}>
                 <HStack alignItems="center" justifyContent="space-between">
                   <Text>Last Month</Text>
-                  {dateFilterType === "lastMonth" && (
-                    <Icon
-                      as={MaterialIcons}
-                      name="check"
-                      size="sm"
-                      color="primary.500"
-                    />
-                  )}
+                  {dateFilterType === "lastMonth" && <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />}
                 </HStack>
               </Pressable>
-            </VStack>
-
-            <Divider my={2} />
-
-            {/* Custom Date Range Section */}
-            <VStack p={4} space={3}>
-              <Text fontSize="md" fontWeight="medium" color="coolGray.700">
-                Custom Date Range
-              </Text>
-
-              {/* Start Date Section */}
-              <Pressable
-                onPress={() => {
-                  setShowStartDatePicker(true);
-                  setIsDateFilterModalVisible(false);
-                }}
-              >
-                <Box borderWidth={1} borderColor="coolGray.200" rounded="md">
-                  <Text fontSize="sm" color="coolGray.600" px={4} pt={2}>
-                    Start Date:
-                  </Text>
-                  <Text fontSize="md" px={4} pb={2} color="coolGray.800">
-                    {customDateRange.startDate ? formatDateString(customDateRange.startDate) : "Select Date"}
-                  </Text>
-                </Box>
+              <Pressable onPress={() => handleQuickDateFilter("customRange")} py={3} px={4}>
+                <HStack alignItems="center" justifyContent="space-between">
+                  <Text>Custom Range</Text>
+                  {dateFilterType === "customRange" && <Icon as={MaterialIcons} name="check" size="sm" color="primary.500" />}
+                </HStack>
               </Pressable>
-
-              {/* End Date Section */}
-              <Pressable
-                onPress={() => {
-                  if (!customDateRange.startDate) {
-                    setCustomDateRange({
-                      ...customDateRange,
-                      startDate: new Date(),
-                    });
-                  }
-                  setShowEndDatePicker(true);
-                  setIsDateFilterModalVisible(false);
-                }}
-              >
-                <Box borderWidth={1} borderColor="coolGray.200" rounded="md">
-                  <Text fontSize="sm" color="coolGray.600" px={4} pt={2}>
-                    End Date:
-                  </Text>
-                  <Text fontSize="md" px={4} pb={2} color="coolGray.800">
-                    {customDateRange.endDate ? formatDateString(customDateRange.endDate) : "Select Date"}
-                  </Text>
-                </Box>
-              </Pressable>
-
-              <Button
-                colorScheme="blue"
-                onPress={handleApplyCustomDateRange}
-                isDisabled={!customDateRange.startDate || !customDateRange.endDate}
-              >
-                Apply Date Range
-              </Button>
+              <Divider my={2} />
+              {/* Custom Date Range Section (always visible, but only active if customRange is selected) */}
+              <Box bg="coolGray.50" p={3} rounded="md" opacity={dateFilterType === "customRange" ? 1 : 0.5}>
+                <Text>Custom Date Range</Text>
+                <Pressable onPress={() => dateFilterType === "customRange" && setShowStartDatePicker(true)}>
+                  <Box borderWidth={1} borderColor="coolGray.200" rounded="md" p={2} mt={2}>
+                    <Text fontSize="sm" color="coolGray.600">Start Date:</Text>
+                    <Text fontSize="md" color="coolGray.800">
+                      {customRangeDraft.startDate ? formatDateString(customRangeDraft.startDate) : "Select Date"}
+                    </Text>
+                  </Box>
+                </Pressable>
+                <Pressable onPress={() => dateFilterType === "customRange" && setShowEndDatePicker(true)}>
+                  <Box borderWidth={1} borderColor="coolGray.200" rounded="md" p={2} mt={2}>
+                    <Text fontSize="sm" color="coolGray.600">End Date:</Text>
+                    <Text fontSize="md" color="coolGray.800">
+                      {customRangeDraft.endDate ? formatDateString(customRangeDraft.endDate) : "Select Date"}
+                    </Text>
+                  </Box>
+                </Pressable>
+                <Button
+                  colorScheme="blue"
+                  onPress={handleApplyCustomRange}
+                  isDisabled={dateFilterType !== "customRange" || !customRangeDraft.startDate || !customRangeDraft.endDate}
+                  mt={2}
+                >
+                  Apply Date Range
+                </Button>
+              </Box>
             </VStack>
           </Modal.Body>
         </Modal.Content>
       </Modal>
+
+      {/* Native DateTimePickers (show one at a time) */}
+      {showStartDatePicker && (
+        <DateTimePicker
+          value={customRangeDraft.startDate || new Date()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            setShowStartDatePicker(false);
+            if (selectedDate) {
+              setCustomRangeDraft(prev => {
+                // जर नवीन start date > जुना end date, तर end date reset करा
+                let newEndDate = prev.endDate;
+                if (prev.endDate && selectedDate > prev.endDate) {
+                  newEndDate = null;
+                }
+                return {
+                  ...prev,
+                  startDate: selectedDate,
+                  endDate: newEndDate,
+                };
+              });
+            }
+          }}
+          maximumDate={new Date()}
+        />
+      )}
+      {showEndDatePicker && (
+        <DateTimePicker
+          value={customRangeDraft.endDate || customRangeDraft.startDate || new Date()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            setShowEndDatePicker(false);
+            if (selectedDate) {
+              if (customRangeDraft.startDate && selectedDate < customRangeDraft.startDate) {
+                toast.show({
+                  description: "End date cannot be before start date",
+                  status: "warning",
+                  duration: 2000,
+                });
+                return;
+              }
+              setCustomRangeDraft(prev => ({
+                ...prev,
+                endDate: selectedDate,
+              }));
+            }
+          }}
+          minimumDate={customRangeDraft.startDate || undefined}
+          maximumDate={new Date()}
+        />
+      )}
     </Box>
   );
 };
