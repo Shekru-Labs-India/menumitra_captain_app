@@ -3900,7 +3900,7 @@ export default function CreateOrderScreen() {
     modalIsPaidValue = null
   ) => {
     try {
-      // Use modal values if provided
+      // Use modal values if provided 
       const effectiveIsPaid =
         modalIsPaidValue !== null ? modalIsPaidValue : isPaid;
       const effectivePaymentMethod = modalPaymentMethod || paymentMethod;
@@ -4016,9 +4016,98 @@ export default function CreateOrderScreen() {
         body: JSON.stringify(orderData),
       });
 
+      if (params?.orderId) {
+        // Prepare status update body
+        const statusRequestBody = {
+          outlet_id: storedOutletId?.toString(),
+          order_id: params?.orderId,
+          order_status: "paid", // For settle, always mark as paid
+          user_id: storedUserId?.toString(),
+          action: "settle",
+          order_type: params?.orderType || "dine-in",
+          is_paid: paymentStatus,
+          payment_method: effectivePaymentMethod,
+          customer_name: customerDetails.customer_name || "",
+          customer_mobile: customerDetails.customer_mobile || "",
+          customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+          customer_address: customerDetails.customer_address || "",
+          customer_landmark: customerDetails.customer_landmark || "",
+          special_discount: specialDiscount?.toString(),
+          charges: extraCharges?.toString(),
+          tip: tip?.toString(),
+          device_token: deviceToken,
+        };
+      
+        // Add table info for dine-in
+        if (params?.orderType === "dine-in") {
+          statusRequestBody.tables = [params.tableNumber?.toString()];
+          statusRequestBody.section_id = params.sectionId?.toString();
+        }
+      
+        // Call update_order_status
+        const statusResponse = await fetchWithAuth(
+          `${onGetProductionUrl()}update_order_status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(statusRequestBody),
+          }
+        );
+      
+        if (statusResponse.st !== 1) {
+          throw new Error(statusResponse.msg || "Failed to update order status");
+        }
+      }
+
       if (response.st !== 1) {
         throw new Error(response.msg || "Failed to settle order");
       }
+
+      // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      // ADD THIS BLOCK for update_order_status for existing orders
+      if (params?.orderId) {
+        // Prepare status update body (same as Owner App)
+        const statusRequestBody = {
+          outlet_id: storedOutletId?.toString(),
+          order_id: params?.orderId,
+          order_status: "paid",
+          user_id: storedUserId?.toString(),
+          action: "settle",
+          order_type: params?.orderType || "dine-in",
+          is_paid: paymentStatus,
+          payment_method: effectivePaymentMethod,
+          customer_name: customerDetails.customer_name || "",
+          customer_mobile: customerDetails.customer_mobile || "",
+          customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+          customer_address: customerDetails.customer_address || "",
+          customer_landmark: customerDetails.customer_landmark || "",
+          special_discount: specialDiscount?.toString(),
+          charges: extraCharges?.toString(),
+          tip: tip?.toString(),
+          device_token: deviceToken,
+        };
+
+        // Add table info for dine-in
+        if (params?.orderType === "dine-in") {
+          statusRequestBody.tables = [params.tableNumber?.toString()];
+          statusRequestBody.section_id = params.sectionId?.toString();
+        }
+
+        // Call update_order_status
+        const statusResponse = await fetchWithAuth(
+          `${onGetProductionUrl()}update_order_status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(statusRequestBody),
+          }
+        );
+
+        if (statusResponse.st !== 1) {
+          throw new Error(statusResponse.msg || "Failed to update order status");
+        }
+      }
+      // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
       toast.show({
         description: "Order settled successfully",
@@ -4805,6 +4894,7 @@ const loadSettings = async () => {
       setIsProcessing(true);
       setLoadingMessage("Processing order...");
 
+      // MAIN LOGIC try/catch
       try {
         // First create order with "KOT_and_save" status
         const apiResponse = await createOrder("KOT_and_save", true);
@@ -4817,7 +4907,7 @@ const loadSettings = async () => {
           JSON.stringify(apiResponse)
         );
 
-        // First print KOT
+        // Print KOT
         try {
           setLoadingMessage("Printing KOT...");
           await printKOT(apiResponse);
@@ -4836,27 +4926,79 @@ const loadSettings = async () => {
           });
         }
 
-          // Wait for 3 seconds to allow user to cut the paper
-          setLoadingMessage("Waiting to print receipt... Please cut the paper");
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          
-          // Now update to settle the order
-          setLoadingMessage("Settling order and printing receipt...");
-          
-          // Update the order status to settle
-          const settleResponse = await createOrder("settle", true);
-          
-          if (!settleResponse || settleResponse.st !== 1) {
-            throw new Error(settleResponse?.msg || "Failed to settle order");
+        // Wait for 3 seconds to allow user to cut the paper
+        setLoadingMessage("Waiting to print receipt... Please cut the paper");
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Now update to settle the order
+        setLoadingMessage("Settling order and printing receipt...");
+
+        // Update the order status to settle
+        const settleResponse = await createOrder("settle", true);
+
+        // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        // ADD THIS BLOCK for update_order_status for existing orders
+        if (params?.orderId) {
+          const [storedUserId, storedOutletId, deviceToken] = await Promise.all([
+            AsyncStorage.getItem("user_id"),
+            AsyncStorage.getItem("outlet_id"),
+            AsyncStorage.getItem("device_token"),
+          ]);
+
+          // Prepare status update body
+          const statusRequestBody = {
+            outlet_id: storedOutletId?.toString(),
+            order_id: params?.orderId || apiResponse.order_id,
+            order_status: "paid", // For settle, always mark as paid
+            user_id: storedUserId?.toString(),
+            action: "settle",
+            order_type: params?.orderType || "dine-in",
+            is_paid: "paid",
+            payment_method: modalPaymentMethod || paymentMethod,
+            customer_name: customerDetails.customer_name || "",
+            customer_mobile: customerDetails.customer_mobile || "",
+            customer_alternate_mobile: customerDetails.customer_alternate_mobile || "",
+            customer_address: customerDetails.customer_address || "",
+            customer_landmark: customerDetails.customer_landmark || "",
+            special_discount: specialDiscount?.toString(),
+            charges: extraCharges?.toString(),
+            tip: tip?.toString(),
+            device_token: deviceToken,
+          };
+
+          // Add table info for dine-in
+          if (params?.orderType === "dine-in") {
+            statusRequestBody.tables = [params.tableNumber?.toString()];
+            statusRequestBody.section_id = params.sectionId?.toString();
           }
-          
-          // Print the receipt
-          await printReceipt(settleResponse);
-          
-          toast.show({
-            description: "Order settled and receipt printed successfully",
-            status: "success",
-            duration: 2000,
+
+          // Call update_order_status
+          const statusResponse = await fetchWithAuth(
+            `${onGetProductionUrl()}update_order_status`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(statusRequestBody),
+            }
+          );
+
+          if (statusResponse.st !== 1) {
+            throw new Error(statusResponse.msg || "Failed to update order status");
+          }
+        }
+        // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+        if (!settleResponse || settleResponse.st !== 1) {
+          throw new Error(settleResponse?.msg || "Failed to settle order");
+        }
+
+        // Print the receipt
+        await printReceipt(settleResponse);
+
+        toast.show({
+          description: "Order settled and receipt printed successfully",
+          status: "success",
+          duration: 2000,
         });
       } catch (error) {
         console.error("KOT and Settle error:", error);
