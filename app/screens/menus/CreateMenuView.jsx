@@ -352,7 +352,7 @@ export default function CreateMenuView() {
       formData.append("full_price", menuDetails.full_price);
       formData.append("food_type", menuDetails.food_type);
       formData.append("menu_cat_id", menuDetails.menu_cat_id);
-      formData.append("spicy_index", menuDetails.spicy_index || "1");
+      formData.append("spicy_index", menuDetails.spicy_index || "0");
       formData.append("offer", menuDetails.offer || "0");
       formData.append("description", menuDetails.description);
       formData.append("ingredients", menuDetails.ingredients);
