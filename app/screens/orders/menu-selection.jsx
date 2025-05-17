@@ -797,10 +797,10 @@ export default function MenuSelectionScreen() {
   const orderTypeTitle = toTitleCase(orderType);
   if (isExistingOrder) {
     // For updating existing orders
-    return `Update ${orderTypeTitle} Order`;
+    return `Update Order - ${orderTypeTitle}`;
   } else {
     // For creating new orders
-    return `Create ${orderTypeTitle} Order`;
+    return `Create Order - ${orderTypeTitle} `;
   }
   };
 
