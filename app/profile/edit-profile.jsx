@@ -220,7 +220,9 @@ export default function EditProfileScreen() {
             </FormControl>
 
             <FormControl isInvalid={"aadhar_number" in errors}>
-              <FormControl.Label>Aadhar Number</FormControl.Label>
+              <FormControl.Label>
+                <Text style={{ color: 'red' }}>*</Text> Aadhar Number
+              </FormControl.Label>
               <Input
                 value={formData.aadhar_number}
                 onChangeText={(value) => {
