@@ -1,0 +1,108 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+description: Rules for Menumitra Captain App. Use NativeBase, expo-router, fetchWithAuth, and follow modular patterns. Follow owner app's logic flow, but use captain app's stack.
+globs: *.js, *.jsx
+
+# Menumitra Captain App Cursor Rules
+
+## UI & Styling
+- Use NativeBase components (`Box`, `Text`, `Button`, etc.) for all UI and layout.
+- Prefer NativeBase props and theme for styling (e.g., `bg`, `color`, `px`, `py`).
+- Use `StyleSheet.create` only for custom styles not supported by NativeBase.
+- Extend and reuse the NativeBase theme via `extendTheme` in `_layout.jsx`.
+
+## Navigation
+- Use `expo-router` for navigation:
+  - Use `router.push('/path')` or `router.replace('/path')` for navigation.
+  - Use `router.back()` or `navigation.goBack()` for going back.
+- Pass data between screens using params:
+  - Use `router.push({ pathname: '/screen', params: { ... } })`.
+  - Access params in screens with `useLocalSearchParams()`.
+
+## Data Passing
+- Always use `useLocalSearchParams()` to access route params in screens/components.
+- For complex data, serialize to JSON before passing as a param, and parse on the receiving screen.
+- For callbacks or refresh triggers, use context or global state (not params).
+
+## API Calls
+- Use the `fetchWithAuth` utility for all authenticated API requests.
+- Construct API endpoints using `getBaseUrl()` from config.
+- Handle unauthorized responses globally in `apiInterceptor.js` (auto-logout and redirect to `/login`).
+- For non-auth requests, use plain `fetch`.
+
+## Logic Flow & State
+- Organize screens by feature (e.g., `/screens/orders`, `/screens/menus`).
+- Each screen/component should:
+  - Manage its own state with `useState`/`useEffect`.
+  - Fetch data on mount or focus (`useEffect`, `useFocusEffect`).
+  - Use `useToast` from NativeBase for user feedback.
+- Use context providers (e.g., `AuthProvider`, `VersionProvider`) for global state and logic.
+
+## Component Patterns
+- Use NativeBase's `HStack`, `IconButton`, etc. for headers and navigation bars.
+- Use NativeBase's `Modal`, `Alert`, `Spinner` for modals, alerts, and loading states.
+- Use NativeBase's `FlatList`, `SectionList`, or `ScrollView` for lists.
+
+## Error Handling
+- Show errors using `useToast` or NativeBase's `Alert`.
+- For API errors, check for unauthorized and trigger logout if needed.
+
+## Code Reuse
+- Extract repeated logic into hooks or utility functions (e.g., fetching user data, handling logout).
+- Use context for cross-screen state (e.g., authentication, version, printer).
+
+---
+
+### Example Patterns
+
+**Navigation:**
+```js
+import { useRouter, useLocalSearchParams } from "expo-router";
+const router = useRouter();
+const params = useLocalSearchParams();
+router.push({ pathname: "/orders/details", params: { orderId: 123 } });
+```
+
+**API Call:**
+```js
+import { fetchWithAuth } from "../../utils/apiInterceptor";
+const data = await fetchWithAuth(`${getBaseUrl()}/order_view`, { method: "POST", ... });
+```
+
+**NativeBase UI:**
+```jsx
+import { Box, Text, Button, useToast } from "native-base";
+const toast = useToast();
+<Box>
+  <Text>Order Details</Text>
+  <Button onPress={handleOrder}>Submit</Button>
+</Box>
+```
+
+**Params:**
+```js
+const params = useLocalSearchParams();
+const orderId = params.orderId;
+```
+
+---
+
+**Summary Table**
+
+| Owner App Pattern         | Captain App Rule/Pattern                |
+|--------------------------|-----------------------------------------|
+| StyleSheet, core RN UI   | NativeBase UI, theme, minimal StyleSheet|
+| navigation.navigate      | router.push, router.replace             |
+| route.params             | useLocalSearchParams                    |
+| fetch/axios              | fetchWithAuth, getBaseUrl               |
+| Toast/Alert              | useToast, NativeBase Alert              |
+| Context for global state | Context Providers (Auth, Version, etc.) |
+
+---
+
+**Update and expand these rules as your project evolves. For more on Cursor rules, see [Cursor 101](mdc:menumitra_captain_app/https:/cursor101.com/cursor/rules) and [this Medium guide](mdc:menumitra_captain_app/https:/medium.com/@aashari/getting-better-results-from-cursor-ai-with-simple-rules-cbc87346ad88).**
+
+
