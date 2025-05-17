@@ -1931,12 +1931,12 @@ const OrdersScreen = () => {
 
         {/* Status badges - Single row */}
         <HStack space={2} mb={2} flexWrap="wrap">
-          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
+          {/* <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
             <Text fontSize="xs" color="coolGray.800">Total: {filteredOrders.reduce(
               (total, dateGroup) => total + dateGroup.data.length,
               0
             )}</Text>
-          </Badge>
+          </Badge> */}
           
           <Badge bg="orange.100" rounded="md" px={2} py={1}>
             <Text fontSize="xs" color="orange.800">Cooking: {filteredOrders.reduce(
@@ -1966,6 +1966,14 @@ const OrdersScreen = () => {
             <Text fontSize="xs" color="coolGray.800">Counter: {filteredOrders.reduce(
               (total, dateGroup) => total + dateGroup.data.filter(
                 (order) => order.order_type?.toLowerCase() === "counter"
+              ).length, 0)}
+            </Text>
+          </Badge>
+
+          <Badge bg="purple.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="purple.800">Delivery: {filteredOrders.reduce(
+              (total, dateGroup) => total + dateGroup.data.filter(
+                (order) => order.order_type?.toLowerCase() === "delivery"
               ).length, 0)}
             </Text>
           </Badge>
