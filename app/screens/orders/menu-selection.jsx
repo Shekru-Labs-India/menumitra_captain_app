@@ -1127,7 +1127,7 @@ export default function MenuSelectionScreen() {
     const action = isExistingOrder ? "Update" : "Create";
     return orderType === "dine-in" 
       ? `${action} Order`
-      : `${action} ${toTitleCase(orderType)} Order`;
+      : `${action} Order`;
   };
 
   // Add useEffect to fetch settings
