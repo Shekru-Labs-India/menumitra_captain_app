@@ -1043,13 +1043,35 @@ const OrdersScreen = () => {
     [handleOrderPress, handleTimerEnd]
   );
 
-  const renderSectionHeader = ({ section }) => (
-    <Box bg="gray.100" px={4} py={2} mb={3}>
-      <Text fontSize="md" fontWeight="semibold">
-        {section.date}
-      </Text>
-    </Box>
-  );
+  const renderSectionHeader = ({ section }) => {
+    if (dateFilterType !== "customRange") return null;
+    const counts = getOrderCounts(section.data);
+    return (
+      <Box bg="gray.100" px={4} py={2} mb={1}>
+        <Text fontSize="md" fontWeight="semibold">{section.date}</Text>
+        <HStack space={2} mt={1} flexWrap="wrap">
+          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="coolGray.800">Total: {counts.total}</Text>
+          </Badge>
+          <Badge bg="orange.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="orange.800">Cooking: {counts.cooking}</Text>
+          </Badge>
+          <Badge bg="blue.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="blue.800">Paid: {counts.paid}</Text>
+          </Badge>
+          <Badge bg="indigo.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="indigo.800">Dine-in: {counts.dineIn}</Text>
+          </Badge>
+          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="coolGray.800">Counter: {counts.counter}</Text>
+          </Badge>
+          <Badge bg="purple.100" rounded="md" px={2} py={1}>
+            <Text fontSize="xs" color="purple.800">Delivery: {counts.delivery}</Text>
+          </Badge>
+        </HStack>
+      </Box>
+    );
+  };
 
   const handleCallWaiter = async () => {
     try {
@@ -1695,6 +1717,18 @@ const OrdersScreen = () => {
     }
   }, [dateRange]);
 
+  // Helper to get counts for a date section
+  const getOrderCounts = (orders) => {
+    return {
+      cooking: orders.filter(o => o.order_status?.toLowerCase() === "cooking").length,
+      paid: orders.filter(o => o.order_status?.toLowerCase() === "paid").length,
+      dineIn: orders.filter(o => o.order_type?.toLowerCase() === "dine-in").length,
+      counter: orders.filter(o => o.order_type?.toLowerCase() === "counter").length,
+      delivery: orders.filter(o => o.order_type?.toLowerCase() === "delivery").length,
+      total: orders.length,
+    };
+  };
+
   if (isLoading) {
     return (
       <Center flex={1}>
@@ -1930,54 +1964,56 @@ const OrdersScreen = () => {
         </Text>
 
         {/* Status badges - Single row */}
-        <HStack space={2} mb={2} flexWrap="wrap">
-          {/* <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="coolGray.800">Total: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.length,
-              0
-            )}</Text>
-          </Badge> */}
-          
-          <Badge bg="orange.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="orange.800">Cooking: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.filter(
-                (order) => order.order_status?.toLowerCase() === "cooking"
-              ).length, 0)}
-            </Text>
-          </Badge>
-          
-          <Badge bg="blue.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="blue.800">Paid: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.filter(
-                (order) => order.order_status?.toLowerCase() === "paid"
-              ).length, 0)}
-            </Text>
-          </Badge>
-          
-          <Badge bg="indigo.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="indigo.800">Dine-in: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.filter(
-                (order) => order.order_type?.toLowerCase() === "dine-in"
-              ).length, 0)}
-            </Text>
-          </Badge>
-          
-          <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="coolGray.800">Counter: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.filter(
-                (order) => order.order_type?.toLowerCase() === "counter"
-              ).length, 0)}
-            </Text>
-          </Badge>
+        {dateFilterType !== "customRange" && (
+          <HStack space={2} mb={2} flexWrap="wrap">
+            <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
+              <Text fontSize="xs" color="coolGray.800">Total: {filteredOrders.reduce(
+                (total, dateGroup) => total + dateGroup.data.length,
+                0
+              )}</Text>
+            </Badge>
+            
+            <Badge bg="orange.100" rounded="md" px={2} py={1}>
+              <Text fontSize="xs" color="orange.800">Cooking: {filteredOrders.reduce(
+                (total, dateGroup) => total + dateGroup.data.filter(
+                  (order) => order.order_status?.toLowerCase() === "cooking"
+                ).length, 0)}
+              </Text>
+            </Badge>
+            
+            <Badge bg="blue.100" rounded="md" px={2} py={1}>
+              <Text fontSize="xs" color="blue.800">Paid: {filteredOrders.reduce(
+                (total, dateGroup) => total + dateGroup.data.filter(
+                  (order) => order.order_status?.toLowerCase() === "paid"
+                ).length, 0)}
+              </Text>
+            </Badge>
+            
+            <Badge bg="indigo.100" rounded="md" px={2} py={1}>
+              <Text fontSize="xs" color="indigo.800">Dine-in: {filteredOrders.reduce(
+                (total, dateGroup) => total + dateGroup.data.filter(
+                  (order) => order.order_type?.toLowerCase() === "dine-in"
+                ).length, 0)}
+              </Text>
+            </Badge>
+            
+            <Badge bg="coolGray.100" rounded="md" px={2} py={1}>
+              <Text fontSize="xs" color="coolGray.800">Counter: {filteredOrders.reduce(
+                (total, dateGroup) => total + dateGroup.data.filter(
+                  (order) => order.order_type?.toLowerCase() === "counter"
+                ).length, 0)}
+              </Text>
+            </Badge>
 
-          <Badge bg="purple.100" rounded="md" px={2} py={1}>
-            <Text fontSize="xs" color="purple.800">Delivery: {filteredOrders.reduce(
-              (total, dateGroup) => total + dateGroup.data.filter(
-                (order) => order.order_type?.toLowerCase() === "delivery"
-              ).length, 0)}
-            </Text>
-          </Badge>
-        </HStack>
+            <Badge bg="purple.100" rounded="md" px={2} py={1}>
+              <Text fontSize="xs" color="purple.800">Delivery: {filteredOrders.reduce(
+                (total, dateGroup) => total + dateGroup.data.filter(
+                  (order) => order.order_type?.toLowerCase() === "delivery"
+                ).length, 0)}
+              </Text>
+            </Badge>
+          </HStack>
+        )}
       </Box>
 
       {/* Date Picker */}
@@ -2194,7 +2230,7 @@ const OrdersScreen = () => {
         sections={filteredOrders}
         keyExtractor={(item) => item.order_id?.toString()}
         renderItem={renderOrderItem}
-        // renderSectionHeader={renderSectionHeader}
+        renderSectionHeader={renderSectionHeader}
         ListEmptyComponent={
           <EmptyStateAnimation
             orderStatus={orderStatus}
