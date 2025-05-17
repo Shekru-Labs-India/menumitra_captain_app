@@ -172,10 +172,13 @@ export default function MenuDetailsView() {
   };
 
   const renderSpicyLevel = (level) => {
-    const spicyLevel = parseInt(level);
+    if (!level || isNaN(parseInt(level))) {
+      return null; // Hide the fire icons if level is null, empty, or not a number
+    }
+    const spicyLevel = Math.min(parseInt(level), 3); // Limit to 3 icons max
     return (
       <HStack space={1}>
-        {[...Array(5)].map((_, index) => (
+        {[...Array(3)].map((_, index) => (
           <Icon
             key={index}
             as={MaterialIcons}
