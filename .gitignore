@@ -7,7 +7,6 @@ node_modules/
 .expo/
 dist/
 web-build/
-expo-env.d.ts
 
 # Native
 *.orig.*
@@ -34,10 +33,3 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
-
-app-example
-
-# Keystore files
-*.keystore
-*.jks
-android/app/credentials/keystore.properties
