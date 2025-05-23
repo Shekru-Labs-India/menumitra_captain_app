@@ -25,9 +25,9 @@ const CustomTabBar = () => {
   };
 
   const tabs = [
-    { icon: "home-8-line", label: "Home", route: "TabScreen/HomeScreen" },
+    { icon: "equalizer-line", label: "Operations", route: "TabScreen/HomeScreen" },
     { icon: "ri-restaurant-2-line", label: "Menu", route: "MenuScreen" },
-    { icon: "layout-grid-line", label: "Tables", route: "RestaurantTables", isCenter: true },
+    { icon: "home-line", label: "Home", route: "RestaurantTables", isCenter: true },
     { icon: "ri-list-unordered", label: "Orders", route: "OrderList" },
     { icon: "ri-user-line", label: "Profile", route: "RestaurantProfile" },
   ];
@@ -64,12 +64,12 @@ const CustomTabBar = () => {
             styles.iconContainer,
             tab.isCenter && styles.centerIconContainer,
             activeTab === index && styles.activeTabContainer,
-            activeTab === index && tab.isCenter && styles.activeTabContainer,
+            activeTab === index && tab.isCenter && [styles.activeTabContainer, { borderRadius: 50 }],
           ]}
         >
           <RemixIcon
             name={tab.icon}
-            size={tab.isCenter ? 32 : 28}
+            size={tab.isCenter ? 30 : 24}
             color={activeTab === index ? "#219ebc" : "#000"}
           />
           <Text
@@ -106,15 +106,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 10,
+    padding: 6,
     marginVertical: 5,
-    marginHorizontal: 5,
+    marginHorizontal: 1,
   },
   centerIconContainer: {
-    flex: 1.1,
-    marginTop: -5,
+    flex: 1,
+    marginTop: -10,
     backgroundColor: "#fff",
-    borderRadius: 8,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: "#666",
+    marginHorizontal: 3,
+    elevation: 3,
   },
   activeTabContainer: {
     backgroundColor: "#f5f5f5",
@@ -124,11 +128,12 @@ const styles = StyleSheet.create({
     borderColor: "#219ebc",
   },
   iconText: {
-    fontSize: 12,
-    paddingVertical: 3,
+    fontSize: 10,
+    paddingVertical: 2,
+    textAlign: 'center',
   },
   centerIconText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "600",
   },
   activeTabText: {
