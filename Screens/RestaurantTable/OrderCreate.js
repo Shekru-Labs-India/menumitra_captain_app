@@ -153,6 +153,10 @@ const OrderCreate = ({ route, navigation }) => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [currentAction, setCurrentAction] = useState(null); // To track whether KOT or Settle was clicked
 
+  // Add validation error states
+  const [mobileError, setMobileError] = useState("");
+  const [alternateMobileError, setAlternateMobileError] = useState("");
+
   const [bleManager] = useState(() => {
     // Only initialize BLE manager when not in Expo Go
     if (!Constants.appOwnership || Constants.appOwnership !== "expo") {
@@ -913,18 +917,20 @@ const OrderCreate = ({ route, navigation }) => {
                 {item.offer > 0 && (
                   <Text style={styles.offerText}> ({item.offer}% OFF)</Text>
                 )}
+
               </Text>
-              <View style={styles.priceRemoveContainer}>
-                <Text style={styles.priceLabel}>Price : </Text>
-                <Text style={styles.unitPrice}>
+              <Text style={styles.unitPrice}>
                   ₹{parseFloat(item.price).toFixed(2)}
                 </Text>
+              <View style={styles.priceRemoveContainer}>
+               
+               
                 <TouchableOpacity
                   style={styles.removeButton}
                   onPress={() => removeFromCart(item.menu_id, item.portion)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // Increase touch area
                 >
-                  <Icon name="close" size={18} color="#FF4B4B" />
+                  <RemixIcon name="close-line" size={18} color="#666666" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -991,8 +997,7 @@ const OrderCreate = ({ route, navigation }) => {
     );
   };
 
-  // Add this to show order type in the header
-  // Utility function to convert a string to title case
+  
 
   const renderOrderTypeHeader = () => {
     if (orderType === "dine-in" && tableData) {
@@ -1001,9 +1006,7 @@ const OrderCreate = ({ route, navigation }) => {
       
       return (
         <View style={styles.tableInfoContainer}>
-          <View
-           
-          >
+          <View>
             <Text
               style={[
                 styles.tableInfoText,
@@ -1029,8 +1032,19 @@ const OrderCreate = ({ route, navigation }) => {
     const orderNumber = tableData?.order_number || (orderDetails && orderDetails.order_number);
     
     return (
-      <View style={[styles.tableInfoContainer, { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#000000" }]}>
-                  <View>            <Text style={[styles.tableInfoText, {color: "#000000"}]}>              {orderType.charAt(0).toUpperCase() + orderType.slice(1)}            </Text>                        {/* Show order number if it exists */}            {orderNumber && (              <Text style={[styles.orderNumberIndicator, {color: "#000000"}]}>                Bill No. {orderNumber}              </Text>            )}          </View>
+      <View style={[styles.tableInfoContainer, { alignSelf: 'center' }]}>
+        <View style={styles.orderTypeHeaderContainer}>
+          <Text style={[styles.tableInfoText, {color: "#000000"}]}>
+            {orderType.charAt(0).toUpperCase() + orderType.slice(1)}
+          </Text>
+          
+          {/* Show order number if it exists */}
+          {orderNumber && (
+            <Text style={[styles.orderNumberIndicator, {color: "#000000"}]}>
+              Bill No. {orderNumber}
+            </Text>
+          )}
+        </View>
       </View>
     );
   };
@@ -1123,10 +1137,10 @@ const OrderCreate = ({ route, navigation }) => {
           
           // CRITICAL FIX: Handle customer details - Use direct assignment with null checks
           if (order_details) {
-            // Set customer details directly from API response
+            // Set customer details directly from API response with fallbacks to user_name and user_mobile
             setCustomerDetails({
-              customer_name: order_details.customer_name !== null ? order_details.customer_name : "",
-              customer_mobile: order_details.customer_mobile !== null ? order_details.customer_mobile : "",
+              customer_name: order_details.customer_name !== null ? order_details.customer_name : (order_details.user_name || ""),
+              customer_mobile: order_details.customer_mobile !== null ? order_details.customer_mobile : (order_details.user_mobile || ""),
               customer_alternate_mobile: order_details.customer_alternate_mobile !== null ? order_details.customer_alternate_mobile : "",
               customer_address: order_details.customer_address !== null ? order_details.customer_address : "",
               customer_landmark: order_details.customer_landmark !== null ? order_details.customer_landmark : ""
@@ -2106,15 +2120,16 @@ const currentDate = (() => {
 
         // Footer - centered
         ...textToBytes("\x1B\x61\x01"), // Center align
-        ...textToBytes("------ Payment Options ------\n\n"),
-        ...textToBytes("\x1B\x21\x00"), // Normal text
-        ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
+        ...textToBytes(`Scan to Pay ${grandTotal.toFixed(2)}\n\n`),
+        
         ...textToBytes("------------------------\n"),
         
         // QR Code
         ...generateQRCode(qrData),
-        ...textToBytes('\n\n'),
-        ...textToBytes(`Scan to Pay ${grandTotal.toFixed(2)}\n\n`),
+        ...textToBytes('\n'),
+        ...textToBytes("------ Payment Options ------\n\n"),
+        ...textToBytes("\x1B\x21\x00"), // Normal text
+        ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
         ...textToBytes("\n"),
         ...textToBytes("-----Thank You Visit Again!-----"),
         ...textToBytes("https://menumitra.com/)\n"),
@@ -2202,12 +2217,35 @@ const currentDate = (() => {
     }
   };
 
+  const validateMobileNumbers = () => {
+    // Check if mobile number is provided but not 10 digits
+    if (customerDetails.customer_mobile && customerDetails.customer_mobile.length > 0 && 
+        customerDetails.customer_mobile.length !== 10) {
+      Alert.alert("Invalid Number", "Mobile number must be exactly 10 digits");
+      return false;
+    }
+    
+    // Check if alternate mobile number is provided but not 10 digits
+    if (customerDetails.customer_alternate_mobile && customerDetails.customer_alternate_mobile.length > 0 && 
+        customerDetails.customer_alternate_mobile.length !== 10) {
+      Alert.alert("Invalid Number", "Alternate mobile number must be exactly 10 digits");
+      return false;
+    }
+    
+    return true;
+  };
+
   // Update handlePrint function
   const handlePrint = async () => {
     try {
       // Dismiss keyboard and ensure updates are processed
       Keyboard.dismiss();
       await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Validate mobile numbers
+      if (!validateMobileNumbers()) {
+        return;
+      }
       
       // Log customer details right before sending the request
       console.log("Customer details being used for print:", JSON.stringify(customerDetails));
@@ -2302,17 +2340,16 @@ const currentDate = (() => {
         const response = await axiosInstance.post(
           onGetProductionUrl() + "create_order",
           createRequestBody,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
         apiResponse = response.data;
       }
-
       if (apiResponse.st === 1) {
         // Order created/updated successfully
         
@@ -2397,8 +2434,8 @@ const currentDate = (() => {
                         printerUrl: printerList[0]?.url,
                         orientation: "portrait",
                       });
-                      setCart([]);
-                      navigation.navigate("RestaurantTables");
+          setCart([]);
+          navigation.navigate("RestaurantTables");
                     } catch (error) {
                       console.error("PDF print error:", error);
                       Alert.alert("Error", "Failed to generate PDF");
@@ -2422,8 +2459,37 @@ const currentDate = (() => {
                 },
               }
             );
-          } 
+          } else {
+            // Production build options - order created but prompt for printer connection
+            Alert.alert(
+              "Order Created",
+              "Order has been created successfully. Connect a printer to print the receipt.",
+              [
+                {
+                  text: "Connect Printer",
+                  onPress: () => navigation.navigate("PrinterManagement"),
+                },
+                {
+                  text: "Skip Printing",
+                  style: "cancel",
+                  onPress: () => {
+                    setCart([]);
+                    navigation.navigate("RestaurantTables");
+                  },
+                },
+              ],
+              {
+                cancelable: true,
+                onDismiss: () => {
+                  setCart([]);
+                  navigation.navigate("RestaurantTables");
+                },
+              }
+            );
+          }
         }
+      } else {
+        throw new Error(apiResponse.msg || "Failed to process order");
       }
     } catch (error) {
       console.error("Order/Print error:", error);
@@ -2724,21 +2790,11 @@ const getCurrentDateTime = () => {
         }, 0);
       }
 
-      const isComplementaryStatus = (
-        (typeof orderData?.is_paid === 'string' && 
-         ['complementary', 'COMPLEMENTARY'].includes(orderData?.is_paid.toLowerCase())) ||
-        (typeof orderDetails?.is_paid === 'string' && 
-         ['complementary', 'COMPLEMENTARY'].includes(orderDetails?.is_paid.toLowerCase())) ||
-        (typeof orderData?.is_complementary === 'boolean' && orderData?.is_complementary) ||
-        (typeof orderDetails?.is_complementary === 'boolean' && orderDetails?.is_complementary) ||
-        isComplementary === true
-      );
+   
       
       // Add a clear header to indicate whether this is a new KOT or an addition
       const kotHeader = isExistingOrder 
-        ? (itemsToPrint.some(item => item.isExistingReprint) 
-            ? "*** REPRINT KOT ***\n\n" 
-            : "*** ADDITIONAL KOT ***\n\n")
+        ? "*** ADDITIONAL KOT ***\n\n"
         : "*** KOT ***\n\n";
 
       // Generate KOT commands
@@ -2746,11 +2802,7 @@ const getCurrentDateTime = () => {
         ...textToBytes("\x1B\x40"), // Initialize printer
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         // --- ADD: Complementary at the top if applicable ---
-        ...(isComplementaryStatus ? [
-          ...textToBytes("\x1B\x21\x10"), // Double width, double height
-          ...textToBytes("COMPLEMENTARY\n"),
-          ...textToBytes("\x1B\x21\x00") // Normal text
-        ] : []),
+        
         ...textToBytes("\x1B\x21\x10"), // Double width, double height
         ...textToBytes(kotHeader),
         ...textToBytes(`${outletName}\n`),
@@ -2845,8 +2897,17 @@ const getCurrentDateTime = () => {
   // Update handleKOT to use printThermal
   const handleKOT = async (modalPaymentMethod = null, modalIsPaidValue = null) => {
     try {
+      // Dismiss keyboard and ensure updates are processed
+      Keyboard.dismiss();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Validate mobile numbers
+      if (!validateMobileNumbers()) {
+        return;
+      }
+      
       setIsLoading(true);
-      setLoadingMessage("Processing order...");
+      setLoadingMessage("Processing KOT...");
 
       if (cart.length === 0) {
         Alert.alert("Error", "Please add items to cart before generating KOT");
@@ -3644,6 +3705,12 @@ const getCurrentDateTime = () => {
                 style={styles.saveModalButton}
                 onPress={() => {
                   console.log("Customer details being saved:", customerDetails);
+                  
+                  // Use the common validation function
+                  if (!validateMobileNumbers()) {
+                    return;
+                  }
+                  
                   setShowCustomerDetailsModal(false);
                 }}
               >
@@ -3667,22 +3734,27 @@ const getCurrentDateTime = () => {
   const renderPaymentOptions = () => {
     return (
       <View style={styles.paymentOptionsContainer}>
-        <TouchableOpacity 
-          style={[
-            styles.expandButton, 
-            { borderBottomWidth: showPaymentOptions ? 1 : 0 }
-          ]} 
-          onPress={() => setShowPaymentOptions(!showPaymentOptions)}
-        >
-          <RemixIcon 
-            name={showPaymentOptions ? "arrow-up-s-line" : "arrow-down-s-line"} 
-            size={24} 
-            color="#666" 
-          />
-        </TouchableOpacity>
+      <TouchableOpacity 
+  style={[
+    styles.expandButton, 
+    { borderBottomWidth: showPaymentOptions ? 1 : 0 }
+  ]} 
+  onPress={() => setShowPaymentOptions(!showPaymentOptions)}
+>
+  <View style={styles.arrowLineRow}>
+    <View style={styles.dashLine} />
+    <RemixIcon 
+      name={showPaymentOptions ? "arrow-down-s-line" : "arrow-up-s-line"} 
+      size={24} 
+      color="#666" 
+      style={styles.arrowIcon}
+    />
+    <View style={styles.dashLine} />
+  </View>
+</TouchableOpacity>
         
         {showPaymentOptions && (
-          <View style={[styles.paymentOptionsContent, { paddingVertical: 8 }]}>
+          <View style={[styles.paymentOptionsContent, { paddingVertical: 10 }]}>
             {/* Input fields row */}
             <View style={styles.paymentInputsRow}>
               <View style={styles.inputBlock}>
@@ -3921,7 +3993,7 @@ const getCurrentDateTime = () => {
               style={styles.closeButton}
               onPress={handleCancelOrder}
             >
-              <RemixIcon name="close-line" size={18} color="#fff" />
+                <RemixIcon name="close-line" size={18} color="#666" />
             </TouchableOpacity>
           )}
         </View>
@@ -4295,9 +4367,41 @@ const getCurrentDateTime = () => {
       const numberRegex = /^\d*$/;
       if (!numberRegex.test(value)) return;
       
-      if (value.length === 1 && !['6', '7', '8', '9'].includes(value)) return;
+      // If first digit is being entered, validate it starts with 6, 7, 8, or 9
+      if (value.length === 1 && !['6', '7', '8', '9'].includes(value)) {
+        if (field === "customer_mobile") {
+          setMobileError("Mobile number must start with 6, 7, 8, or 9");
+        } else {
+          setAlternateMobileError("Mobile number must start with 6, 7, 8, or 9");
+        }
+        return;
+      }
       
-      if (value.length > 10) return;
+      // Limit to exactly 10 digits
+      if (value.length > 10) {
+        if (field === "customer_mobile") {
+          setMobileError("Mobile number cannot exceed 10 digits");
+        } else {
+          setAlternateMobileError("Mobile number cannot exceed 10 digits");
+        }
+        return;
+      }
+      
+      // Check if the number is less than 10 digits when it's not empty
+      if (value.length > 0 && value.length < 10) {
+        if (field === "customer_mobile") {
+          setMobileError("Mobile number must be 10 digits");
+        } else {
+          setAlternateMobileError("Alternate mobile number must be 10 digits");
+        }
+      } else {
+        // Clear error when valid input is entered or field is empty
+        if (field === "customer_mobile") {
+          setMobileError("");
+        } else {
+          setAlternateMobileError("");
+        }
+      }
     }
     
     // New validations for modal fields
@@ -4327,15 +4431,23 @@ const getCurrentDateTime = () => {
     if (route.params?.existingOrderDetails) {
       const orderDetails = route.params.existingOrderDetails;
       console.log("🔵 Received existing order details in OrderCreate", orderDetails);
+      console.log("Customer Name:", orderDetails.customer_name);
+      console.log("User Name:", orderDetails.user_name);
+      console.log("Customer Mobile:", orderDetails.customer_mobile);
+      console.log("User Mobile:", orderDetails.user_mobile);
       
-      // Set customer details directly from the passed data
+      // Set customer details directly from the passed data with fallbacks to user_name and user_mobile
       setCustomerDetails({
-        customer_name: orderDetails.customer_name || "",
-        customer_mobile: orderDetails.customer_mobile || "",
+        customer_name: orderDetails.customer_name || orderDetails.user_name || "",
+        customer_mobile: orderDetails.customer_mobile || orderDetails.user_mobile || "",
         customer_alternate_mobile: orderDetails.customer_alternate_mobile || "",
         customer_address: orderDetails.customer_address || "",
         customer_landmark: orderDetails.customer_landmark || ""
       });
+      
+      // Also set these directly for the modal in case that's used
+      setCustomerName(orderDetails.customer_name || orderDetails.user_name || "");
+      setCustomerMobile(orderDetails.customer_mobile || orderDetails.user_mobile || "");
       
       // Set other order-related values
       if (orderDetails.special_discount !== undefined) {
@@ -4714,6 +4826,11 @@ const getDiscountPercentage = () => {
       Keyboard.dismiss();
       await new Promise(resolve => setTimeout(resolve, 100));
       
+      // Validate mobile numbers
+      if (!validateMobileNumbers()) {
+        return;
+      }
+      
       // Log customer details right before sending the request
       console.log("Customer details being used for save:", JSON.stringify(customerDetails));
       
@@ -4854,7 +4971,7 @@ const getDiscountPercentage = () => {
       <CustomHeader
   title={tableData?.order_id || orderDetails?.order_id ? "Update Order" : "Create Order"}
   showBackButton={true}
-  titleStyle={{ marginLeft: -20 }} // Move title slightly left
+  titleStyle={{ marginLeft: 20 }} // Move title slightly left
   onBackPress={handleBackNavigation} // Add this prop to handle back navigation
   rightComponent={
     <View style={styles.orderTypeContainer}>
@@ -4884,7 +5001,7 @@ const getDiscountPercentage = () => {
 
             {/* Cart content with improved scroll handling */}
             <View style={[styles.cartContentContainer, { flex: 1 }]}>
-              {cart.length > 0 && (
+              {/* {cart.length > 0 && (
                 <View style={styles.cartHeader}>
                   <View style={styles.cartTitleRow}>
                     <View style={styles.cartTitleContainer}>
@@ -4896,7 +5013,7 @@ const getDiscountPercentage = () => {
                         {isRefreshingCart ? (
                           <ActivityIndicator size="small" color="#4b89dc" />
                         ) : (
-                          <RemixIcon name="restart-line" size={20} color="#666" />
+                          <RemixIcon name="refresh-line" size={20} color="#666" />
                         )}
                       </TouchableOpacity>
                       <Text style={styles.cartTitle}>
@@ -4905,7 +5022,7 @@ const getDiscountPercentage = () => {
                     </View>
                   </View>
                 </View>
-              )}
+              )} */}
 
               {/* Improved cart items render */}
               {renderCartItems()}
@@ -5335,14 +5452,33 @@ const styles = StyleSheet.create({
   },
   tableInfoContainer: {
     paddingVertical: 4,
-    
+    paddingHorizontal: 0,
     borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   tableInfoText: {
     color: "black",
     fontSize: 12,
     fontWeight: "500",
     textAlign: "center",
+  },
+  orderTypeContainer: {
+    paddingRight: 8,
+    marginRight: 10,
+    minWidth: 90, // Increase this value as needed
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
+  orderTypeHeaderContainer: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#000000",
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   menuItem: {
     padding: 10,
@@ -5401,14 +5537,6 @@ const styles = StyleSheet.create({
   },
   portionCloseText: {
     color: "red",
-  },
-  orderTypeContainer: {
-    paddingRight: 8,
-    marginRight: 10,
-    minWidth: 90, // Increase this value as needed
-    justifyContent: "center",
-    alignItems: "flex-end",
-    
   },
   cartTitleContainer: {
     flexDirection: "row",
@@ -5785,6 +5913,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#219ebc",
     marginRight: 8,
+    
   },
   totalContainer: {
     flexDirection: 'row',
@@ -6135,7 +6264,7 @@ settleButton: {
   alignItems: 'center',
   justifyContent: 'center',
   backgroundColor: '#3498db',
-  borderRadius: 4,
+  borderRadius: 0,
   marginLeft: 6,
   height: '100%',
 },
@@ -6621,9 +6750,7 @@ paymentMethodLabel: {
   color: '#666',
   marginBottom: 10,
 },
-paymentOptionsContainer: {
-  marginBottom: 20,
-},
+
 paymentMethodsRow: {
   flexDirection: 'row',
   flexWrap: 'wrap',
@@ -6691,7 +6818,7 @@ settleButton: {
   justifyContent: 'center',
   alignItems: 'center',
   padding: 12,
-  borderRadius: 8,
+  borderRadius: 4,
 },
 settleButtonText: {
   color: '#fff',
@@ -6849,9 +6976,7 @@ fixedFooterContainer: {
     marginBottom: 15,
     textAlign: 'left',
   },
-  paymentOptionsContainer: {
-    marginBottom: 20,
-  },
+ 
   paymentMethodsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -6924,6 +7049,21 @@ fixedFooterContainer: {
   },
   kotButton: {
     backgroundColor: '#000',
+  },
+  arrowLineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  dashLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  arrowIcon: {
+    marginHorizontal: 8,
   },
 
 }
