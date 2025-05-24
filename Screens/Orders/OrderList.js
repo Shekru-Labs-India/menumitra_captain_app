@@ -65,6 +65,9 @@ const OrderList = ({ route }) => {
   const [selected, setSelected] = useState("All"); // Track selected button
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState(""); // State for search query
+  // Add state for caching
+  const [isLoadingFreshData, setIsLoadingFreshData] = useState(false);
+  const [lastCacheTime, setLastCacheTime] = useState(null);
 
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
@@ -133,26 +136,227 @@ const OrderList = ({ route }) => {
     }
   };
 
-  // Add handleRefresh function
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchOrders().finally(() => setRefreshing(false));
-  }, []);
+  // Add this function to save orders to cache
+  const saveOrdersToCache = async (orders) => {
+    try {
+      const timestamp = new Date().getTime();
+      const cacheData = {
+        orders,
+        timestamp,
+      };
+      await AsyncStorage.setItem('orderListCache', JSON.stringify(cacheData));
+      setLastCacheTime(timestamp);
+      console.log('Orders saved to cache at', new Date(timestamp).toLocaleTimeString());
+    } catch (error) {
+      console.error('Error saving orders to cache:', error);
+    }
+  };
 
+  // Add this function to load orders from cache
+  const loadOrdersFromCache = async () => {
+    try {
+      const cachedData = await AsyncStorage.getItem('orderListCache');
+      if (cachedData) {
+        const { orders, timestamp } = JSON.parse(cachedData);
+        const cachedTime = new Date(timestamp);
+        console.log('Retrieved cached orders from', cachedTime.toLocaleTimeString());
+        
+        // Set the cached orders
+        setOrderList(orders);
+        setLastCacheTime(timestamp);
+        
+        // Set up collapsed states for date groups
+        const today = new Date();
+        const currentDateStr = formatDate(today);
+
+        const initialCollapsedStates = {};
+        const dateGroups = orders.reduce((acc, order) => {
+          if (!acc.includes(order.date)) {
+            acc.push(order.date);
+          }
+          return acc;
+        }, []);
+        
+        dateGroups.forEach((date) => {
+          if (date !== currentDateStr) {
+            initialCollapsedStates[date] = true;
+          }
+        });
+        setCollapsedDates(initialCollapsedStates);
+        
+        // Return true if we found cache
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error loading orders from cache:', error);
+      return false;
+    }
+  };
+
+  // Add cache age helper to determine if cache is stale
+  const isCacheStale = () => {
+    if (!lastCacheTime) return true;
+    
+    const cacheAgeMs = Date.now() - lastCacheTime;
+    const cacheAgeMinutes = cacheAgeMs / 60000;
+    console.log(`Cache age: ${cacheAgeMinutes.toFixed(2)} minutes`);
+    
+    // Consider cache stale after 5 minutes
+    return cacheAgeMinutes > 5;
+  };
+
+  // Add a function for initial load with cache
+  const initialLoad = async () => {
+    console.log('Initial load with cache check');
+    const hasCachedData = await loadOrdersFromCache();
+    
+    if (hasCachedData) {
+      // We have cached data, so set loading to false
+      setLoading(false);
+      
+      // Check if the cache is stale
+      if (isCacheStale()) {
+        console.log('Cache is stale, fetching fresh data in background');
+        // Fetch fresh data in the background
+        fetchOrders(true, true);
+      }
+    } else {
+      // No cached data, do a regular fetch
+      console.log('No cached data, doing a regular fetch');
+      fetchOrders();
+    }
+  };
+
+  // Update useFocusEffect to use initialLoad
   useFocusEffect(
     React.useCallback(() => {
-      console.log("🎯 Screen focused - fetching orders");
-      fetchOrders();
+      console.log("🎯 Screen focused - loading orders with cache strategy");
+      initialLoad();
     }, [])
   );
+  
+  // Update the fetchOrders function to handle caching
+  const fetchOrders = async (isSilentRefresh = false, isBackgroundRefresh = false) => {
+    console.log("🔄 Fetching orders... Silent refresh:", isSilentRefresh, "Background refresh:", isBackgroundRefresh);
 
-  // Remove or modify the initial fetch useEffect
-  // Since useFocusEffect will handle the fetching on mount and navigation
+    if (!isSilentRefresh && !isBackgroundRefresh) {
+      setLoading(true);
+    }
+    
+    if (isBackgroundRefresh) {
+      setIsLoadingFreshData(true);
+    }
+
+    try {
+      const [restaurantId, userId, accessToken] = await Promise.all([
+        getRestaurantId(),
+        getUserId(),
+        AsyncStorage.getItem("access_token"),
+      ]);
+
+      console.log("Debug - Token:", accessToken);
+      console.log("Debug - Restaurant ID:", restaurantId);
+
+      // Add timestamp before API call
+      const startTime = new Date().getTime();
+
+      const response = await axiosInstance.post(
+        `${onGetProductionUrl()}order_listview`,
+        {
+          outlet_id: restaurantId,
+          created_by_id: userId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Calculate and log response time
+      const endTime = new Date().getTime();
+      const responseTime = endTime - startTime;
+      console.log(`order_listview API response time: ${responseTime}ms`);
+
+      if (response?.data?.st === 1 && response.data.lists) {
+        // Transform the nested date structure into a flat array of orders
+        const formattedOrders = response.data.lists.reduce((acc, dateGroup) => {
+          const orders = dateGroup.data.map((order) => ({
+            ...order,
+            date: dateGroup.date,
+            time: order.time,
+            table_number: Array.isArray(order.table_number)
+              ? order.table_number
+              : order.table_number
+              ? [order.table_number]
+              : [],
+          }));
+          return [...acc, ...orders];
+        }, []);
+
+        // Check if the data has actually changed
+        const currentOrdersJSON = JSON.stringify(orderList);
+        const newOrdersJSON = JSON.stringify(formattedOrders);
+        const hasDataChanged = currentOrdersJSON !== newOrdersJSON;
+        
+        if (hasDataChanged) {
+          console.log("Data has changed, updating the UI");
+          setOrderList(formattedOrders);
+          
+          // Set up collapsed states for date groups
+          const today = new Date();
+          const currentDateStr = formatDate(today);
+
+          const initialCollapsedStates = {};
+          response.data.lists.forEach((dateGroup) => {
+            if (dateGroup.date !== currentDateStr) {
+              initialCollapsedStates[dateGroup.date] = true;
+            }
+          });
+          setCollapsedDates(initialCollapsedStates);
+          
+          // Save to cache
+          saveOrdersToCache(formattedOrders);
+        } else {
+          console.log("Data has not changed since last fetch");
+        }
+      } else {
+        console.error("API Error:", response?.data?.msg);
+        // Don't clear the order list if we're doing a background refresh and have existing data
+        if (!isBackgroundRefresh || orderList.length === 0) {
+          setOrderList([]);
+        }
+      }
+    } catch (error) {
+      console.error(
+        "❌ Error fetching orders:",
+        error.response?.data || error.message
+      );
+      // Don't clear the order list if we're doing a background refresh and have existing data
+      if (!isBackgroundRefresh || orderList.length === 0) {
+        setOrderList([]);
+      }
+    } finally {
+      setLoading(false);
+      if (!isSilentRefresh) setRefreshing(false);
+      if (isBackgroundRefresh) setIsLoadingFreshData(false);
+    }
+  };
+
+  // Update handleRefresh function to do a full refresh
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchOrders(false, false).finally(() => setRefreshing(false));
+  }, []);
+
+  // Set up auto-refresh interval
   useEffect(() => {
     // Set up auto-refresh interval (60 seconds)
     const refreshInterval = setInterval(() => {
       console.log("Auto-refreshing orders list...");
-      fetchOrders(true); // Pass true to indicate it's an auto-refresh
+      fetchOrders(true, true); // Pass true to indicate it's a silent background refresh
     }, 60000);
 
     // Cleanup interval on component unmount
@@ -177,90 +381,6 @@ const OrderList = ({ route }) => {
       subscription.remove();
     };
   }, []);
-
-  // Update the fetchOrders function to handle silent refresh
-  const fetchOrders = async (isSilentRefresh = false) => {
-    console.log("🔄 Fetching orders... Silent refresh:", isSilentRefresh);
-
-    if (!isSilentRefresh) setLoading(true);
-
-    try {
-      const [restaurantId, userId, accessToken] = await Promise.all([
-        getRestaurantId(),
-        getUserId(),
-        AsyncStorage.getItem("access_token"),
-      ]);
-
-      console.log("Debug - Token:", accessToken);
-      console.log("Debug - Restaurant ID:", restaurantId);
-
-      const response = await axiosInstance.post(
-        `${onGetProductionUrl()}order_listview`,
-        {
-          outlet_id: restaurantId,
-          created_by_id: userId,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      console.log("API Response:", response.data);
-
-      if (response?.data?.st === 1 && response.data.lists) {
-        // Transform the nested date structure into a flat array of orders
-        const formattedOrders = response.data.lists.reduce((acc, dateGroup) => {
-          const orders = dateGroup.data.map((order) => ({
-            ...order,
-            date: dateGroup.date,
-            time: order.time,
-            table_number: Array.isArray(order.table_number)
-              ? order.table_number
-              : order.table_number
-              ? [order.table_number]
-              : [],
-          }));
-          return [...acc, ...orders];
-        }, []);
-
-        setOrderList(formattedOrders);
-
-        // Set up collapsed states for date groups
-        const today = new Date();
-        const currentDateStr = formatDate(today);
-
-        const initialCollapsedStates = {};
-        response.data.lists.forEach((dateGroup) => {
-          if (dateGroup.date !== currentDateStr) {
-            initialCollapsedStates[dateGroup.date] = true;
-          }
-        });
-        setCollapsedDates(initialCollapsedStates);
-      } else {
-        console.error("API Error:", response?.data?.msg);
-        setOrderList([]);
-      }
-    } catch (error) {
-      console.error(
-        "❌ Error fetching orders:",
-        error.response?.data || error.message
-      );
-      setOrderList([]);
-    } finally {
-      setLoading(false);
-      if (!isSilentRefresh) setRefreshing(false);
-    }
-  };
-
-  const onDateChange = (event, selectedDate) => {
-    setShowPicker(false);
-    if (selectedDate) {
-      setDate(selectedDate);
-    }
-  };
 
   const handleViewDetails = (order) => {
     const status = order.order_status.toLowerCase();
@@ -1442,6 +1562,8 @@ const OrderList = ({ route }) => {
           </Text>
         )}
 
+       
+
         {!loading ? (
           <View style={styles.orderListContainer}>
             {getFilteredOrders().length > 0 ? (
@@ -1538,7 +1660,7 @@ const OrderList = ({ route }) => {
                               <View style={[styles.typeBadge]}>
                                 <RemixIcon name="car-fill" size={10} color="#555" />
                                 <Text style={styles.typeBadgeText}>
-                                  Drive: {orderCounts.driveThrough}
+                                  Drive-through: {orderCounts.driveThrough}
                                 </Text>
                               </View>
                             )}
@@ -2522,6 +2644,29 @@ const styles = StyleSheet.create({
   isPaidText: {
     fontSize: 12,
     fontWeight: "500",
+  },
+  refreshIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E5F0FF',
+    paddingVertical: 6,
+    marginHorizontal: 10,
+    marginVertical: 5,
+    borderRadius: 8,
+  },
+  refreshText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#4b89dc',
+  },
+  cachedDataText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#777',
+    marginTop: 5,
+    marginBottom: 5,
+    fontStyle: 'italic',
   },
 });
 
