@@ -71,17 +71,17 @@ const ICON_COLORS = {
   chef: "#FF6B6B", // or any other color you prefer
 };
 
-// Add this helper function at the top of your file
-const formatIndianNumber = (num) => {
-  const number = Number(num).toFixed(2);
-  const [wholePart, decimal] = number.split(".");
-  const lastThree = wholePart.substring(wholePart.length - 3);
-  const otherNumbers = wholePart.substring(0, wholePart.length - 3);
-  const formatted =
-    otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") +
-    (otherNumbers ? "," : "") +
+// Replace the existing formatIndianNumber function with this new one
+const formatIndianCurrency = (amount) => {
+  if (!amount) return "0";
+  const numStr = amount.toString().replace(/,/g, '');
+  const [wholePart, decimalPart] = numStr.split('.');
+  const lastThree = wholePart.slice(-3);
+  const remaining = wholePart.slice(0, -3);
+  const formattedWhole = remaining ? 
+    remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree : 
     lastThree;
-  return `₹ ${formatted}.${decimal}`;
+  return decimalPart ? `${formattedWhole}.${decimalPart}` : formattedWhole;
 };
 
 const HomeScreen = () => {
@@ -731,31 +731,24 @@ const HomeScreen = () => {
           
           <View style={styles.cardContainer}>
             <TouchableOpacity
-              style={styles.salesButton}
+              style={[styles.cardWrapper, { width: "100%" }]}
               onPress={() => navigation.navigate("OrderList")}
             >
-              <View style={styles.todaysSalesBadge}>
-                <Text style={styles.salesText}>Today's Sales</Text>
-                <View style={styles.salesValueContainer}>
-                  <Text style={styles.salesValue}>{todaySalesFromTables}</Text>
-                  <RemixIcon name="arrow-right-s-line" size={20} color="#1976d2" />
-                </View>
-              </View>
+              <Card style={styles.infoCard}>
+                <Card.Content style={styles.infoCardContent}>
+                  <View style={styles.salesContainer}>
+                    <View style={styles.salesColumn}>
+                      <Text style={styles.salesAmount}>₹{formatIndianCurrency(todaySalesFromTables)}</Text>
+                      <Text style={styles.salesLabel}>   Today's Sales   </Text>
+                    </View>
+                    <View style={[styles.salesColumn, styles.liveSalesColumn]}>
+                      <Text style={styles.salesAmount}>₹{formatIndianCurrency(liveSalesFromTables)}</Text>
+                      <Text style={styles.salesLabel}>     Live Sales    </Text>
+                    </View>
+                  </View>
+                </Card.Content>
+              </Card>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.salesButton}
-              onPress={() => handleCardPress("reports")}
-            >
-              <View style={styles.liveSalesBadge}>
-                <Text style={styles.salesText}>Live Sales</Text>
-                <View style={styles.salesValueContainer}>
-                  <Text style={styles.salesValue}>{liveSalesFromTables}</Text>
-                  <RemixIcon name="arrow-right-s-line" size={20} color="#f4511e" />
-                </View>
-              </View>
-            </TouchableOpacity>
-
           </View>
 
           {/* New Cards with Icon and Text */}
@@ -935,7 +928,6 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     marginTop: 5,
-
     width: "100%",
     borderRadius: 13,
     elevation: 2,
@@ -946,7 +938,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(233,243,251,0.8)",
     borderRadius: 13,
-    borderWidth: 1,
   },
   leftTextView: {
     flex: 1,
@@ -1213,49 +1204,31 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
   },
-  salesButton: {
-    width: '100%',
-    marginBottom: 12,
+  salesContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingVertical: 10,
   },
-  todaysSalesBadge: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#e3f2fd',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#90caf9',
+  salesColumn: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 15,
   },
-  liveSalesBadge: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(253,237,232,0.8)',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#ffccbc',
+  liveSalesColumn: {
+    borderLeftWidth: 1,
+    borderLeftColor: "#90caf9",
   },
-  salesText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+  salesAmount: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 4,
   },
-  salesValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    height: 30,
-  },
-  salesValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
+  salesLabel: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "500",
   },
 });
 
