@@ -2348,14 +2348,17 @@ const RestaurantTables = () => {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              filterStatus === "all" && styles.filterButtonActive,
+              {
+                backgroundColor: filterStatus === "all" ? "#0dcaf0" : "#fff",
+                borderColor: "#0dcaf0"
+              }
             ]}
             onPress={() => setFilterStatus("all")}
           >
             <Text
               style={[
                 styles.filterButtonText,
-                filterStatus === "all" && styles.filterButtonTextActive,
+                {color: filterStatus === "all" ? "#fff" : "#0dcaf0"}
               ]}
             >
               All
@@ -2364,14 +2367,17 @@ const RestaurantTables = () => {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              filterStatus === "occupied" && styles.filterButtonActiveOc,
+              {
+                backgroundColor: filterStatus === "occupied" ? "red" : "#fff",
+                borderColor: "red"
+              }
             ]}
             onPress={() => setFilterStatus("occupied")}
           >
             <Text
               style={[
                 styles.filterButtonText,
-                filterStatus === "occupied" && styles.filterButtonTextActive,
+                {color: filterStatus === "occupied" ? "#fff" : "red"}
               ]}
             >
               Occupied
@@ -2380,14 +2386,17 @@ const RestaurantTables = () => {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              filterStatus === "available" && styles.filterButtonActiveAv,
+              {
+                backgroundColor: filterStatus === "available" ? "green" : "#fff",
+                borderColor: "green"
+              }
             ]}
             onPress={() => setFilterStatus("available")}
           >
             <Text
               style={[
                 styles.filterButtonText,
-                filterStatus === "available" && styles.filterButtonTextActive,
+                {color: filterStatus === "available" ? "#fff" : "green"}
               ]}
             >
               Available
@@ -2935,8 +2944,13 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#ddd",
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: 36,
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
   filterButtonActive: {
     backgroundColor: "#0dcaf0",
