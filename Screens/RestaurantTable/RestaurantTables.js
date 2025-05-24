@@ -1460,36 +1460,12 @@ const RestaurantTables = () => {
 
         {/* Section card */}
         <View style={styles.sectionContainer}>
-          <View style={styles.sectionHeaderContainer}>
-            <View style={styles.sectionHeaderLeft}>
-              <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionHeader} numberOfLines={1} ellipsizeMode="tail">
-                  {item.section_name}
-                </Text>
-                
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Total:</Text>
-                  <Text style={styles.statNumber}>{sectionStats.total}</Text>
-                </View>
-                
-                <View style={styles.statItem}>
-                  <Text style={[styles.statLabel, { color: "#dc3545" }]}>
-                    Occupied:
-                  </Text>
-                  <Text style={[styles.statNumber, { color: "#dc3545" }]}>
-                    {sectionStats.occupied}
-                  </Text>
-                </View>
-                
-                <View style={styles.statItem}>
-                  <Text style={[styles.statLabel, { color: "#198754" }]}>
-                    Available:
-                  </Text>
-                  <Text style={[styles.statNumber, { color: "#198754" }]}>
-                    {sectionStats.available}
-                  </Text>
-                </View>
-              </View>
+          <View style={styles.sectionHeaderRowCustom}>
+            <Text style={styles.sectionNameCustom}>{item.section_name}</Text>
+            <View style={styles.sectionLegendsCustom}>
+              <Text style={styles.legendTextCustom}>Total: <Text style={styles.legendNumberCustom}>{sectionStats.total}</Text></Text>
+              <Text style={[styles.legendTextCustom, { color: '#dc3545', marginLeft: 16 }]}>Occ: <Text style={styles.legendNumberCustom}>{sectionStats.occupied}</Text></Text>
+              <Text style={[styles.legendTextCustom, { color: '#4CAF50', marginLeft: 16 }]}>Avail: <Text style={styles.legendNumberCustom}>{sectionStats.available}</Text></Text>
             </View>
           </View>
           {filteredTables.length > 0 ? (
@@ -2694,28 +2670,42 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     backgroundColor: "white",
   },
-  sectionHeaderContainer: {
+  sectionHeaderRowCustom: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#f9f9f9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
     marginBottom: 10,
   },
-  sectionHeaderLeft: {
+  sectionNameCustom: {
     flex: 1,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'left',
+    paddingRight: 10,
   },
-  sectionTitleRow: {
+  sectionLegendsCustom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  legendTextCustom: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  legendNumberCustom: {
+    fontWeight: 'bold',
+    color: '#222',
+  },
+  iconContainer: {
     flexDirection: "row",
     alignItems: "center",
-    width: "100%",
-    paddingHorizontal: 4,
-    flexWrap: "nowrap", // Prevent wrapping to next line
-  },
-  sectionHeader: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#333",
-    marginRight: 8,
-    maxWidth: "30%", // Limit width to prevent overlap
+    gap: 8,
   },
   statItem: {
     flexDirection: "row",
@@ -2732,20 +2722,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     color: "#666",
-  },
-  iconContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8, // Space between icons
-  },
-  iconButton: {
-    backgroundColor: "rgba(128, 128, 128, 0.2)", // Light gray with transparency
-    borderRadius: 50, // Fully rounded
-    padding: 8, // Internal padding
-    width: 36, // Fixed width
-    height: 36, // Fixed height
-    justifyContent: "center",
-    alignItems: "center",
   },
   tableCard: {
     width: "31%",
