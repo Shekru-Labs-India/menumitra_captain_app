@@ -90,126 +90,143 @@ const RestaurantProfile = () => {
   };
 
   const handleLogout = async () => {
-    try {
-      let userId;
-      let role;
-
-      // 1. Try structured data first (forward compatibility)
-      try {
-        const userDataStr = await AsyncStorage.getItem("user_data");
-        if (userDataStr) {
-          const userData = JSON.parse(userDataStr);
-          userId = userData.primary_id || userData.user_id;
-          role = userData.role;
-          console.log("Using structured user data:", { userId, role });
-        }
-      } catch (e) {
-        console.log("No structured data found or parse error");
-      }
-
-      // 2. Fallback to legacy storage (backward compatibility)
-      if (!userId) {
-        userId = await AsyncStorage.getItem("user_id");
-        if (!userId) {
-          userId = await AsyncStorage.getItem("captain_id");
-        }
-        role = await AsyncStorage.getItem("role") || "captain";
-        console.log("Using legacy storage:", { userId, role });
-      }
-
-      // 3. Final validation
-      if (!userId) {
-        throw new Error("No valid user identification found");
-      }
-
-      console.log("Proceeding with logout:", { userId, role });
-
-      // Call logout API
-      const response = await axiosInstance.post(
-        onGetProductionUrl() + "logout",
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
         {
-          user_id: userId,
-          role: role || "captain",
-          app: "captain",
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              let userId;
+              let role;
+
+              // 1. Try structured data first (forward compatibility)
+              try {
+                const userDataStr = await AsyncStorage.getItem("user_data");
+                if (userDataStr) {
+                  const userData = JSON.parse(userDataStr);
+                  userId = userData.primary_id || userData.user_id;
+                  role = userData.role;
+                  console.log("Using structured user data:", { userId, role });
+                }
+              } catch (e) {
+                console.log("No structured data found or parse error");
+              }
+
+              // 2. Fallback to legacy storage (backward compatibility)
+              if (!userId) {
+                userId = await AsyncStorage.getItem("user_id");
+                if (!userId) {
+                  userId = await AsyncStorage.getItem("captain_id");
+                }
+                role = await AsyncStorage.getItem("role") || "captain";
+                console.log("Using legacy storage:", { userId, role });
+              }
+
+              // 3. Final validation
+              if (!userId) {
+                throw new Error("No valid user identification found");
+              }
+
+              console.log("Proceeding with logout:", { userId, role });
+
+              // Call logout API
+              const response = await axiosInstance.post(
+                onGetProductionUrl() + "logout",
+                {
+                  user_id: userId,
+                  role: role || "captain",
+                  app: "captain",
+                }
+              );
+
+              const data = response.data;
+
+              if (data.st !== 1) {
+                throw new Error(data.msg || "Logout failed");
+              }
+
+              // Clear storage with both old and new keys
+              try {
+                const keysToRemove = [
+                  // New structured storage
+                  "user_data",
+                  "outlet_data",
+                  
+                  // Legacy user identification
+                  "user_id",
+                  "captain_id",
+                  "role",
+                  
+                  // Other data
+                  "access_token",
+                  "refresh_token",
+                  "device_token",
+                  "captain_name",
+                  "mobile",
+                  "outlet_id",
+                  "outlet_name",
+                  "outlet_config",
+                  "sales_data",
+                  "app_settings",
+                  
+                  // Device related
+                  "expoPushToken",
+                  "sessionToken",
+                  "device_sessid",
+                  "push_token",
+                  "device_uuid"
+                ];
+
+                await AsyncStorage.multiRemove(keysToRemove);
+                console.log("Storage cleared successfully");
+
+                navigation.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: "Login" }],
+                  })
+                );
+
+                Alert.alert("Success", "You have been logged out successfully");
+              } catch (e) {
+                console.error("Error clearing storage:", e);
+                throw e;
+              }
+            } catch (error) {
+              console.error("Logout error:", error);
+
+              // If error is related to missing data, clear storage and redirect anyway
+              if (error.message.includes("not found")) {
+                try {
+                  await AsyncStorage.clear();
+                  navigation.dispatch(
+                    CommonActions.reset({
+                      index: 0,
+                      routes: [{ name: "Login" }],
+                    })
+                  );
+                } catch (e) {
+                  console.error("Error during forced logout:", e);
+                }
+              }
+
+              Alert.alert(
+                "Error",
+                "Failed to log out. Please try again.\n" + error.message
+              );
+            }
+          }
         }
-      );
-
-      const data = response.data;
-
-      if (data.st !== 1) {
-        throw new Error(data.msg || "Logout failed");
-      }
-
-      // Clear storage with both old and new keys
-      try {
-        const keysToRemove = [
-          // New structured storage
-          "user_data",
-          "outlet_data",
-          
-          // Legacy user identification
-          "user_id",
-          "captain_id",
-          "role",
-          
-          // Other data
-          "access_token",
-          "refresh_token",
-          "device_token",
-          "captain_name",
-          "mobile",
-          "outlet_id",
-          "outlet_name",
-          "outlet_config",
-          "sales_data",
-          "app_settings",
-          
-          // Device related
-          "expoPushToken",
-          "sessionToken",
-          "device_sessid",
-          "push_token",
-          "device_uuid"
-        ];
-
-        await AsyncStorage.multiRemove(keysToRemove);
-        console.log("Storage cleared successfully");
-
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: "Login" }],
-          })
-        );
-
-        Alert.alert("Success", "You have been logged out successfully");
-      } catch (e) {
-        console.error("Error clearing storage:", e);
-        throw e;
-      }
-    } catch (error) {
-      console.error("Logout error:", error);
-
-      // If error is related to missing data, clear storage and redirect anyway
-      if (error.message.includes("not found")) {
-        try {
-          await AsyncStorage.clear();
-          navigation.dispatch(
-            CommonActions.reset({
-              index: 0,
-              routes: [{ name: "Login" }],
-            })
-          );
-        } catch (e) {
-          console.error("Error during forced logout:", e);
-        }
-      }
-
-      Alert.alert(
-        "Error",
-        "Failed to log out. Please try again.\n" + error.message
-      );
-    }
+      ],
+      { cancelable: true }
+    );
   };
 
   function handleEditRestaurantProfile() {
