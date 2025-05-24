@@ -26,6 +26,8 @@ import RemixIcon from 'react-native-remix-icon'; // Import RemixIcon
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getSettings } from '../../utils/getSettings';
+import NetInfo from '@react-native-community/netinfo';
+import { InteractionManager } from 'react-native';
 
 const DemoScreen = () => {
   const navigation = useNavigation(); // Initialize navigation
@@ -52,13 +54,151 @@ const DemoScreen = () => {
   const [settings, setSettings] = useState({
     reserve_table: true
   });
+  const [cachedMenuItems, setCachedMenuItems] = useState([]);
+  const [cachedCategories, setCachedCategories] = useState([]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [customerName, setCustomerName] = useState("");
+  const [customerMobile, setCustomerMobile] = useState("");
 
   // 1. First, add a constant for the maximum allowed quantity
   const MAX_ITEM_QUANTITY = 20;
 
   useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+    // Immediately try to load and display cached data
+    const initializeScreen = async () => {
+      // Set loading to false immediately to prevent any loading indicators
+      setLoading(false);
+      
+      try {
+        // Get cached data synchronously
+        const cachedMenuData = await AsyncStorage.getItem('cachedMenuData');
+        const cachedCategoriesData = await AsyncStorage.getItem('cachedCategoriesData');
+        
+        let hasCachedData = false;
+        
+        if (cachedMenuData && cachedCategoriesData) {
+          const parsedMenuData = JSON.parse(cachedMenuData);
+          const parsedCategoriesData = JSON.parse(cachedCategoriesData);
+          
+          // Immediately set the data for display
+          setMenuItems(parsedMenuData);
+          setFilteredMenuItems(parsedMenuData);
+          setCategories(parsedCategoriesData);
+          setSelectedCategory("ALL");
+          
+          // Store references
+          setCachedMenuItems(parsedMenuData);
+          setCachedCategories(parsedCategoriesData);
+          
+          hasCachedData = true;
+        }
+        
+        // Always fetch fresh data in the background, regardless of cache state
+        fetchFreshData();
+      } catch (error) {
+        console.error("Error initializing screen with cached data:", error);
+        // If cache loading fails, fetch fresh data
+        fetchFreshData();
+      }
+    };
+    
+    initializeScreen();
+  }, []);
+
+  // Separate function to fetch fresh data in the background
+  const fetchFreshData = async () => {
+    try {
+      // Check network connectivity first
+      const networkState = await NetInfo.fetch();
+      
+      if (!networkState.isConnected) {
+        console.log("No internet connection, using cached data only");
+        return;
+      }
+      
+      const [restaurantId, accessToken] = await Promise.all([
+        getRestaurantId(),
+        AsyncStorage.getItem("access_token"),
+      ]);
+
+      const response = await axiosInstance.post(
+        onGetProductionUrl() + "get_all_menu_list_by_category",
+        {
+          outlet_id: restaurantId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.st === 1) {
+        // Process categories
+        const categoriesData = response.data.data.category || [];
+        // Add "All" category at the beginning
+        const allCategories = [
+          {
+            menu_cat_id: 0,
+            category_name: "ALL",
+            menu_count: response.data.data.menus?.length || 0,
+          },
+          ...categoriesData,
+        ];
+        
+        // Process menu items
+        const menusData = response.data.data.menus || [];
+        const formattedMenuItems = menusData.map(item => ({
+          menu_id: item.menu_id,
+          name: item.menu_name,
+          price: parseFloat(item.price) || 0,
+          full_price: parseFloat(item.price) || 0,
+          image: item.image,
+          rating: item.rating,
+          category_id: item.menu_cat_id,
+          category_name: item.category_name,
+          offer: item.offer,
+          is_special: item.is_special,
+          food_type: item.menu_food_type,
+          quantity: 1,
+          total_price: parseFloat(item.price) || 0,
+        }));
+        
+        // Cache the data for future use
+        try {
+          await AsyncStorage.setItem('cachedMenuData', JSON.stringify(formattedMenuItems));
+          await AsyncStorage.setItem('cachedCategoriesData', JSON.stringify(allCategories));
+        } catch (error) {
+          console.error("Error caching menu data:", error);
+        }
+        
+        // Update state with fresh data
+        setCategories(allCategories);
+        setMenuItems(formattedMenuItems);
+        setFilteredMenuItems(formattedMenuItems);
+        
+        // Keep the same category selection
+        const currentCategory = selectedCategory;
+        if (currentCategory !== "ALL") {
+          const filtered = formattedMenuItems.filter(
+            (item) => item.category_name.toLowerCase().trim() === currentCategory.toLowerCase().trim()
+          );
+          setFilteredMenuItems(filtered);
+        }
+        
+        // Update cached references
+        setCachedMenuItems(formattedMenuItems);
+        setCachedCategories(allCategories);
+      }
+    } catch (error) {
+      console.error("Error fetching fresh menu data:", error);
+      // Don't show errors if we have cached data
+    } finally {
+      setIsInitialLoad(false);
+      setRefreshing(false);
+    }
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -179,9 +319,19 @@ const DemoScreen = () => {
 
           if (orderResponse.data.st === 1 && orderResponse.data.lists) {
             const { order_details, menu_details } = orderResponse.data.lists;
+            console.log("order_details", order_details);
             
             if (order_details) {
               setExistingOrderDetails(order_details);
+              
+              // Extract customer information if available
+              if (order_details.user_name) {
+                setCustomerName(order_details.user_name);
+              }
+              
+              if (order_details.user_mobile) {
+                setCustomerMobile(order_details.user_mobile);
+              }
             }
             
             if (menu_details && menu_details.length > 0) {
@@ -227,75 +377,6 @@ const DemoScreen = () => {
       setCart(route.params.currentCart);
     }
   }, [route.params?.currentCart]);
-
-  const fetchAllData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [restaurantId, accessToken] = await Promise.all([
-        getRestaurantId(),
-        AsyncStorage.getItem("access_token"),
-      ]);
-
-      const response = await axiosInstance.post(
-        onGetProductionUrl() + "get_all_menu_list_by_category",
-        {
-          outlet_id: restaurantId,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.data.st === 1) {
-        console.log("All data fetch response:", response.data);
-        
-        // Process categories
-        const categoriesData = response.data.data.category || [];
-        // Add "All" category at the beginning
-        const allCategories = [
-          {
-            menu_cat_id: 0,
-            category_name: "ALL",
-            menu_count: response.data.data.menus?.length || 0,
-          },
-          ...categoriesData,
-        ];
-        
-        setCategories(allCategories);
-        setSelectedCategory("ALL");
-        
-        // Process menu items - simply use price from API
-        const menusData = response.data.data.menus || [];
-        const formattedMenuItems = menusData.map(item => ({
-          menu_id: item.menu_id,
-          name: item.menu_name,
-          price: parseFloat(item.price) || 0,
-          full_price: parseFloat(item.price) || 0, // Set full_price to price for OrderCreate
-          image: item.image,
-          rating: item.rating,
-          category_id: item.menu_cat_id,
-          category_name: item.category_name,
-          offer: item.offer,
-          is_special: item.is_special,
-          food_type: item.menu_food_type,
-          quantity: 1,
-          total_price: parseFloat(item.price) || 0,
-        }));
-        
-        setMenuItems(formattedMenuItems);
-        setFilteredMenuItems(formattedMenuItems);
-      }
-    } catch (error) {
-      console.error("Error fetching menu data:", error);
-      Alert.alert("Error", "Failed to load menu data. Please try again.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
 
   const handleSearch = (text) => {
     setSearchQuery(text);
@@ -351,14 +432,13 @@ const DemoScreen = () => {
       setSettings(appSettings);
       console.log("Settings refreshed on pull-to-refresh in DemoScreen");
       
-      // Then refresh other data
-      await fetchAllData();
+      // Then refresh data using the new fetchFreshData function
+      fetchFreshData();
     } catch (error) {
       console.error("Error during refresh in DemoScreen:", error);
-    } finally {
-      setRefreshing(false);
     }
-  }, [fetchAllData]);
+    // Note: setRefreshing(false) is handled in fetchFreshData
+  }, []);
 
   // 2. Update the addToCart function to check against the maximum quantity
   const addToCart = (item) => {
@@ -418,51 +498,72 @@ const DemoScreen = () => {
     setCart(updatedCart);
   };
 
-  // Update the navigateToOrderCreate function to ensure offers are passed
-  const navigateToOrderCreate = () => {
-    const updatedCart = cart.map(item => {
+  // Optimized navigation function with preloaded data for better performance
+  const navigateToOrderCreate = useCallback(() => {
+    // Pre-process and optimize cart data before navigation
+    // This avoids doing this work in the OrderCreate screen
+    const optimizedCart = cart.map(item => {
+      // Pre-calculate everything needed in OrderCreate to avoid calculations there
+      const price = parseFloat(item.price || 0);
+      const quantity = parseInt(item.quantity || 1);
+      const total = price * quantity;
+      const offer = parseFloat(item.offer || 0);
+      
       // For new items
       if (!item.isExistingItem) {
         return {
           ...item,
-          offer: item.offer || 0,
-          isNewItem: true
+          price,
+          quantity,
+          offer,
+          isNewItem: true,
+          // Pre-calculate item's total price to avoid recalculation
+          total_price: total
         };
       }
       
       // For existing items, check if quantity has changed
       const originalQty = parseInt(item.originalQuantity) || 0;
-      const currentQty = parseInt(item.quantity) || 0;
       
-      if (currentQty > originalQty) {
+      if (quantity > originalQty) {
         return {
           ...item,
+          price,
+          quantity,
+          offer,
           quantityChanged: true,
-          originalQuantity: originalQty
+          originalQuantity: originalQty,
+          // Pre-calculate total price
+          total_price: total
         };
       }
       
-      return item;
+      // Pre-calculate total price for unchanged items too
+      return {
+        ...item,
+        price,
+        quantity,
+        offer,
+        total_price: total
+      };
     });
     
-    console.log("Navigating to OrderCreate with cart:", updatedCart.length);
-    
+    // Immediately navigate with the optimized cart
     navigation.navigate("OrderCreate", {
       tableData,
-      cartItems: updatedCart,
+      cartItems: optimizedCart,
       orderType,
       onOrderCreated: () => {
         console.log("Order created callback triggered");
         setOrderCreated(true);
       },
       updateCartOnReturn: (cartFromOrderCreate) => {
-        console.log("updateCartOnReturn called with cart:", cartFromOrderCreate?.length);
         if (cartFromOrderCreate) {
           setReturnedCart([...cartFromOrderCreate]);
         }
       }
     });
-  };
+  }, [cart, tableData, orderType, navigation]);
 
   // Add an extra useEffect to verify the cart updates
   useEffect(() => {
@@ -536,6 +637,12 @@ const DemoScreen = () => {
         </View>
       );
     }
+    
+    // Check if we're editing an existing order for non-dine-in order types
+    if (existingOrderDetails || (route.params?.existingOrderDetails)) {
+      return `Update Order - ${toTitleCase(orderType)}`;
+    }
+    
     return `Create Order - ${toTitleCase(orderType)}`;
   };
 
@@ -604,21 +711,12 @@ const DemoScreen = () => {
         }}
       >
         <View style={styles.categoryContent}>
-          {item.image ? (
-            <Image
-              source={{ uri: item.image }}
-              style={styles.categoryImage}
-            />
-          ) : (
-            <View style={[styles.categoryImage, styles.defaultCategoryImageContainer]}>
-              <RemixIcon 
-                name="ri-restaurant-fill"
-                size={24}
-                color="#999" 
-              />
-            </View>
-          )}
-          <Text style={styles.categoryName}>{item.category_name}</Text>
+          <Text style={[
+            styles.categoryName,
+            selectedCategory === item.category_name && styles.activeCategoryName
+          ]}>
+            {item.category_name}
+          </Text>
           
           {badgeCount > 0 && (
             <View style={styles.categoryBadge}>
@@ -700,6 +798,9 @@ const DemoScreen = () => {
             source={{ uri: item.image }}
             style={styles.menuImage}
             onError={() => console.log('Image failed to load:', item.image)}
+            loading="lazy"
+            progressiveRenderingEnabled={true}
+            fadeDuration={300}
           />
         ) : (
           <View style={[styles.menuImage, styles.defaultImageContainer]}>
@@ -801,8 +902,9 @@ const DemoScreen = () => {
             tableData,
             cartItems: cart,
             orderType,
-           
             existingOrderDetails: existingOrderDetails,
+            customerName: customerName,
+            customerMobile: customerMobile,
           });
         }}
       >
@@ -1047,9 +1149,6 @@ const DemoScreen = () => {
     <SafeAreaView style={styles.container}>
       <CustomHeader title={getHeaderTitle()} />
       
-      {/* Reserve button in top right corner */}
-     
-      
       {/* Show "Reserved" status at the top when table is reserved */}
       {tableData?.is_reserved && (
         <View style={styles.reservedBanner}>
@@ -1074,60 +1173,69 @@ const DemoScreen = () => {
         ) : null}
       </View>
       
-      {loading ? (
-        <ActivityIndicator size="large" color="#0dcaf0" />
-      ) : (
-        <View style={styles.content}>
-          <View style={styles.categoriesContainer}>
-            <Text style={styles.sectionTitle}>Category</Text>
-            <FlatList
-              data={categories}
-              keyExtractor={(item) => item.menu_cat_id.toString()}
-              renderItem={renderCategoryItem}
-              showsVerticalScrollIndicator={false}
-              style={styles.categoryList}
-            />
-          </View>
-          <View style={styles.menusContainer}>
-            <Text style={styles.sectionTitle}>Menus</Text>
-            <FlatList
-              data={filteredMenuItems}
-              renderItem={renderMenuItem}
-              keyExtractor={(item) => item.menu_id.toString()}
-              numColumns={2}
-              columnWrapperStyle={{ justifyContent: 'space-between' }}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-              }
-              ListEmptyComponent={() => (
+      <View style={styles.content}>
+        <View style={styles.categoriesContainer}>
+          <Text style={styles.sectionTitle}>Category</Text>
+          <FlatList
+            data={categories}
+            keyExtractor={(item) => item.menu_cat_id.toString()}
+            renderItem={renderCategoryItem}
+            showsVerticalScrollIndicator={false}
+            style={styles.categoryList}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            removeClippedSubviews={true}
+            getItemLayout={(data, index) => (
+              {length: 54, offset: 54 * index, index}
+            )}
+          />
+        </View>
+        <View style={styles.menusContainer}>
+          <Text style={styles.sectionTitle}>Menus</Text>
+          <FlatList
+            data={filteredMenuItems}
+            renderItem={renderMenuItem}
+            keyExtractor={(item) => item.menu_id.toString()}
+            numColumns={2}
+            columnWrapperStyle={{ justifyContent: 'space-between' }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListEmptyComponent={() => (
+              filteredMenuItems.length === 0 && !loading && !isInitialLoad ? (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>No items found in this category</Text>
                 </View>
-              )}
-            />
-          </View>
-          <View style={styles.actionButtons}>
-            {/* Only show Create Order button if table is not reserved */}
-            {!tableData?.is_reserved && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.createOrderButton]}
-                onPress={() => navigateToOrderCreate()}
-              >
-                <Text style={styles.actionButtonText}>Create Order</Text>
-              </TouchableOpacity>
+              ) : null
             )}
-          </View>
+            initialNumToRender={12}
+            maxToRenderPerBatch={12}
+            windowSize={5}
+            removeClippedSubviews={true}
+            getItemLayout={(data, index) => (
+              {length: 220, offset: 220 * index, index}
+            )}
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: 10,
+            }}
+          />
         </View>
-      )}
+        <View style={styles.actionButtons}>
+          {/* Only show Create Order button if table is not reserved */}
+          {!tableData?.is_reserved && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.createOrderButton, { padding: 15, width: '90%' }]}
+              onPress={() => navigateToOrderCreate()}
+            >
+              <Text style={[styles.actionButtonText, { fontSize: 18 }]}>Create Order</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
       
       {/* Only show the cart button if table is NOT reserved */}
       {!tableData?.is_reserved && renderFloatingCart()}
-      
-      {/* Show the unreserve button if table IS reserved */}
-      
-      
-      {/* Modal for selecting price type */}
-    
       
       {renderTableSwitcherModal()}
     </SafeAreaView>
@@ -1147,19 +1255,33 @@ const styles = StyleSheet.create({
     width: "25%",
     borderRightWidth: 1,
     borderColor: "#ccc",
-    paddingRight: 10,
-  
+    backgroundColor: "#f9f9f9",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 1,
+      height: 0,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    fontWeight: "bold",
   },
   categoryItem: {
-    padding: 10,
+    padding: 15,
+    paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#ccc",
+    marginBottom: 2,
   },
   activeCategoryItem: {
     backgroundColor: "#0dcaf0", // Active background color
+    borderLeftWidth: 4,
+    borderLeftColor: "#0088a9",
   },
   categoryContent: {
     alignItems: "center", // Center items vertically
+    justifyContent: "center",
+    position: "relative",
   },
   categoryImage: {
     width: 50,
@@ -1175,20 +1297,28 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   categoryName: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#000", // Default text color
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#333", // Default text color
     textAlign: "center", // Center the text
+  },
+  activeCategoryName: {
+    color: "#fff", // White text for active category
+    fontWeight: "bold",
   },
   menusContainer: {
     width: "75%",
-    paddingLeft: 10,
+    
    
   },
   menuItem: {
     flex: 1,
-    margin: 5,
-    padding: 10,
+    marginTop: 5,
+    marginRight: 10,
+    marginLeft: 0,
+    marginBottom: 5,
+    padding: 0, // Removed padding to allow image to go edge to edge
+    paddingBottom: 10, // Keep some padding at the bottom for the content
     backgroundColor: "#fff",
     borderRadius: 8,
     width: "48%",
@@ -1206,13 +1336,16 @@ const styles = StyleSheet.create({
   menuImage: {
     width: "100%",
     height: 120,
-    borderRadius: 8,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     marginBottom: 5,
   },
   menuName: {
     fontSize: 13,
     marginBottom: 5,
-    paddingHorizontal: 2,
+    paddingHorizontal: 10, // Added horizontal padding for the text
     flexWrap: 'wrap',
     width: '100%',
   },
@@ -1221,7 +1354,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     width: "100%",
-    paddingHorizontal: 5,
+    paddingHorizontal: 10,
   },
   menuPrice: {
     fontSize: 12,
@@ -1242,15 +1375,17 @@ const styles = StyleSheet.create({
   },
   floatingCart: {
     position: "absolute",
-    bottom: 20,
-    left: "45%",
+    bottom: 50,
+    left: "42%",
     transform: [{ translateX: -50 }],
     backgroundColor: "#fff",
     borderRadius: 30,
-    padding: 10,
+    padding: 18,
     elevation: 5,
     flexDirection: "row",
     alignItems: "center",
+    borderColor: "#0dcaf0",
+    borderWidth: 1,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -1258,10 +1393,12 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    // On iOS, we need to add this for shadows to work properly
+    overflow: 'visible',
   },
   cartCount: {
     marginLeft: 8,
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "bold",
     color: "#0dcaf0",
   },
@@ -1269,6 +1406,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#0dcaf0",
     marginLeft: 10,
+    fontSize: 16,
   },
   modalContainer: {
     flex: 1,
@@ -1390,7 +1528,7 @@ modalButtonText: {
     backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 0,
     borderColor: '#e0e0e0',
   },
   defaultCategoryImageContainer: {
@@ -1402,14 +1540,15 @@ modalButtonText: {
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "600",
     color: '#333',
     padding: 10,
     backgroundColor: '#fff',
     textAlign: 'center', // Center the text
   },
   categoryList: {
-    marginTop: 5,
+    marginTop: 0,
+    paddingTop: 5,
   },
   existingItemBadge: {
     position: 'absolute',
@@ -1426,21 +1565,21 @@ modalButtonText: {
     fontWeight: 'bold',
   },
   categoryBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: '#FF4B4B',
+    position: "absolute",
+    top: -10,
+    right: -10,
+    backgroundColor: "#FF4B4B",
     width: 20,
     height: 20,
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 1,
   },
   categoryBadgeText: {
-    color: 'white',
+    color: "white",
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   differentCategoryItem: {
     borderLeftWidth: 3,
