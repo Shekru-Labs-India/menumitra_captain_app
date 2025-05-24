@@ -947,16 +947,17 @@ const ServedOrderDetails = ({ route }) => {
         // Use final_grand_total if available, otherwise use grand_total
         ...textToBytes(formatAmountLine("Total", finalGrandTotal || grandTotal)),
         ...textToBytes("\n"),
-
+        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n\n`),
+        ...textToBytes("\n"),
         // Footer section with QR code
         ...textToBytes("\x1B\x61\x01"), // Center align
-        ...textToBytes("PhonePe  GPay  Paytm  UPI\n\n"),
-        ...textToBytes("------------------------\n"),
+       
         
         ...generateQRCode(qrData),
         ...textToBytes('\n\n'),
-        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n\n`),
-        ...textToBytes("\n"),
+        ...textToBytes("PhonePe  GPay  Paytm  UPI\n\n"),
+        ...textToBytes("------------------------\n"),
+       
         ...textToBytes("-----Thank You Visit Again!-----"),
         ...textToBytes("https://menumitra.com/\n"), // Fixed missing slash and removed extra parenthesis
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
@@ -1388,40 +1389,55 @@ const ServedOrderDetails = ({ route }) => {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Customer Details</Text>
         
-        {name ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Name:</Text>
-            <Text style={styles.detailText}>{name}</Text>
+        <View style={styles.customerDetailsGrid}>
+          {/* First row */}
+          <View style={styles.customerGridItem}>
+            {name ? (
+              <>
+                <Text style={styles.customerValue}>{name}</Text>
+                <Text style={styles.customerLabel}>Name</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {mobile ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Mobile:</Text>
-            <Text style={styles.detailText}>{mobile}</Text>
+          
+          <View style={styles.customerGridItem}>
+            {mobile ? (
+              <>
+                <Text style={styles.customerValue}>{mobile}</Text>
+                <Text style={styles.customerLabel}>Mobile</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {customer_alternate_mobile ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Alt. Mobile:</Text>
-            <Text style={styles.detailText}>{customer_alternate_mobile}</Text>
+          
+          {/* Second row */}
+          <View style={styles.customerGridItem}>
+            {customer_alternate_mobile ? (
+              <>
+                <Text style={styles.customerValue}>{customer_alternate_mobile}</Text>
+                <Text style={styles.customerLabel}>Alt. Mobile</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {customer_address ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Address:</Text>
-            <Text style={styles.detailText}>{customer_address}</Text>
+          
+          <View style={styles.customerGridItem}>
+            {customer_address ? (
+              <>
+                <Text style={styles.customerValue}>{customer_address}</Text>
+                <Text style={styles.customerLabel}>Address</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {customer_landmark ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Landmark:</Text>
-            <Text style={styles.detailText}>{customer_landmark}</Text>
-          </View>
-        ) : null}
+          
+          {/* Third row if needed */}
+          {customer_landmark ? (
+            <View style={styles.customerGridItem}>
+              <>
+                <Text style={styles.customerValue}>{customer_landmark}</Text>
+                <Text style={styles.customerLabel}>Landmark</Text>
+              </>
+            </View>
+          ) : null}
+        </View>
       </View>
     );
   };
@@ -1538,14 +1554,20 @@ const ServedOrderDetails = ({ route }) => {
           style={[styles.printButton, { backgroundColor: "#3498db", marginHorizontal: 16, marginTop: 16 }]}
           onPress={openPaymentModal}
         >
-          <Text style={styles.printButtonText}>Print & Settle</Text>
+          <View style={styles.buttonContent}>
+            <RemixIcon name="printer-line" size={20} color="#fff" />
+            <Text style={styles.printButtonText}>Print & Settle</Text>
+          </View>
         </TouchableOpacity>
         
         <TouchableOpacity
           style={[styles.printButton, { backgroundColor: "#000", marginHorizontal: 16, marginTop: 8 }]}
           onPress={printKOT}
         >
-          <Text style={styles.printButtonText}>KOT</Text>
+          <View style={styles.buttonContent}>
+            <RemixIcon name="file-list-3-line" size={20} color="#fff" />
+            <Text style={styles.printButtonText}>KOT</Text>
+          </View>
         </TouchableOpacity>
       </View>
     );
@@ -1625,7 +1647,11 @@ const ServedOrderDetails = ({ route }) => {
       return [
         ...textToBytes("\x1B\x40"), // Initialize printer
         ...textToBytes("\x1B\x61\x01"), // Center alignment
+        
+        // Add KOT header
         ...textToBytes("\x1B\x21\x10"), // Double width, double height
+        ...textToBytes("*** KOT ***\n\n"),
+        
         ...textToBytes(`${orderDetails?.order_details?.outlet_name || "Restaurant"}\n`),
         ...textToBytes("\x1B\x21\x00"), // Normal text
         ...textToBytes(`${orderDetails?.order_details?.outlet_address || ""}\n`),
@@ -2143,10 +2169,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
     alignItems: "center",
   },
-  printButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   modalContainer: {
     flex: 1,
@@ -2683,6 +2709,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
+  },
+  printButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginLeft: 8,
+  },
+  customerDetailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  customerGridItem: {
+    width: '50%',
+    marginBottom: 10,
+  },
+  customerValue: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#000',
+    marginBottom: 4,
+  },
+  customerLabel: {
+    fontSize: 13,
+    color: '#666',
   },
 });
 
