@@ -1622,7 +1622,6 @@ const RestaurantTables = () => {
 
   // Update the order type buttons rendering
   const renderOrderTypeButtons = () => {
-    // Make sure settings is not null
     if (!settings) {
       console.log("Settings not loaded yet");
       return null;
@@ -1630,33 +1629,32 @@ const RestaurantTables = () => {
 
     console.log("Rendering buttons with settings:", settings);
 
-    // Create array of enabled order types
     const enabledButtons = [
       settings.has_counter && {
         type: "counter",
         icon: "store-2-fill",
         label: "Counter",
-        color: "#000000" // Black for counter
+        color: "#000000"
       },
       settings.has_parcel && {
         type: "parcel",
         icon: "hand-heart-fill",
         label: "Parcel",
-        color: "#000000" // Black for parcel
+        color: "#000000"
       },
       settings.has_delivery && {
         type: "delivery",
         icon: "motorbike-fill",
         label: "Delivery",
-        color: "#000000" // Black for delivery
+        color: "#000000"
       },
       settings.has_drive_through && {
         type: "drive-through",
         icon: "car-fill",
         label: "Drive",
-        color: "#000000" // Black for drive-through
+        color: "#000000"
       }
-    ].filter(Boolean); // Remove false values
+    ].filter(Boolean);
     
     console.log("Enabled buttons:", enabledButtons);
 
@@ -1664,24 +1662,30 @@ const RestaurantTables = () => {
       return null;
     }
 
-    // Calculate button width based on number of enabled buttons
-    const buttonWidth = `${(100 / enabledButtons.length) - 2}%`;
-
     return (
       <View style={styles.orderTypeContainer}>
-        {enabledButtons.map((button) => (
+        {enabledButtons.map((button, idx) => (
           <TouchableOpacity
             key={button.type}
-                        style={[              styles.orderTypeButton,               {                 width: buttonWidth,                borderColor: "#000000",                backgroundColor: "#FFFFFF"              }            ]}
+            style={[
+              styles.orderTypeButton,
+              idx === 0 && styles.orderTypeButtonFirst,
+              idx === enabledButtons.length - 1 && styles.orderTypeButtonLast,
+              { 
+                borderColor: button.color || '#0dcaf0',
+              }
+            ]}
             onPress={() => handleOrderTypeSelect(button.type)}
           >
-            <RemixIcon name={button.icon} size={16} color="#777777" />
-            <Text style={[styles.orderTypeButtonText, { color: "#000000" }]}>{button.label}</Text>
+            <RemixIcon name={button.icon} size={16} color={button.color || '#0dcaf0'} />
+            <Text style={[styles.orderTypeButtonText, { color: button.color || '#0dcaf0' }]}>
+              {button.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
     );
-  };
+};
 
   // Update the shareQR function to use its own loading state
   const shareQR = async () => {
@@ -2940,32 +2944,40 @@ const styles = StyleSheet.create({
   },
   orderTypeContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     padding: 8,
-    backgroundColor: '#fff',
+    marginHorizontal: 2,
     borderRadius: 8,
-    marginHorizontal: 12,
-    marginTop: 8,
-    marginBottom: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   orderTypeButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#0dcaf0',
-    borderRadius: 6,
     paddingVertical: 6,
     paddingHorizontal: 8,
+    borderRadius: 0,
+    marginLeft: -1,
   },
-    orderTypeButtonText: {    color: '#000000',    marginLeft: 4,    fontSize: 12,    fontWeight: '500',  },
+  orderTypeButtonFirst: {
+    borderTopLeftRadius: 6,
+    borderBottomLeftRadius: 6,
+    marginLeft: 0,
+  },
+  orderTypeButtonLast: {
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
+  },
+  orderTypeButtonText: {
+    color: '#000000',
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: '500',
+  },
   orderTypeModalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -3517,6 +3529,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
+  },
+  orderTypeButtonFirst: {
+    borderTopLeftRadius: 6,
+    borderBottomLeftRadius: 6,
+  },
+  orderTypeButtonLast: {
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
   },
 });
 
