@@ -1048,7 +1048,7 @@ export default function UpdateMenuProduct({ navigation, route }) {
                   value={rating}
                   editable={false}
                   mode="outlined"
-                  right={<TextInput.Icon icon="chevron-down" />}
+                  right={<TextInput.Icon onPress={() => setRatingModalVisible(true)} icon="chevron-down" />}
                 />
               </Pressable>
             </View>
