@@ -981,37 +981,96 @@ const PlacedOrderDetails = ({ route }) => {
 
     return (
       <>
-        <View
-          style={[styles.row, styles.firstRow, { backgroundColor: "#4b89dc" }]}
-        >
-          <RemixIcon name="ri-file-list-3-fill" size={30} color="#fff" />
-          <View style={styles.column}>
-            <Text style={styles.orderStatus}>
-              Status: {order_details.order_status}
-            </Text>
-            <Text style={styles.orderTime}>{order_details.datetime}</Text>
+        <View style={[styles.headerCard, { backgroundColor: "#4b89dc" }]}>
+          <View style={styles.headerContent}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.orderStatus}>
+                Status: {order_details.order_status}
+              </Text>
+              <Text style={styles.orderTime}>{order_details.datetime}</Text>
 
-            {/* Timer Display */}
-            {order_details.order_status?.toLowerCase() === "placed" && remainingTime > 0 && (
-              <View style={styles.timerContainer}>
-                <RemixIcon name="time-line" size={14} color="#FFE5E5" />
-                <Text style={styles.timerText}>{remainingTime} seconds</Text>
-              </View>
-            )}
+              {/* Timer Display */}
+              {order_details.order_status?.toLowerCase() === "placed" && remainingTime > 0 && (
+                <View style={styles.timerContainer}>
+                  <RemixIcon name="time-line" size={14} color="#FFE5E5" />
+                  <Text style={styles.timerText}>{remainingTime} seconds</Text>
+                </View>
+              )}
+              
+              {order_details.order_type && (
+                <View style={styles.orderTypeContainer}>
+                  <RemixIcon
+                    name={
+                      order_details.order_type?.toLowerCase() === "dine-in"
+                        ? "restaurant-fill"
+                        : order_details.order_type?.toLowerCase() === "take-away" || 
+                          order_details.order_type?.toLowerCase() === "parcel"
+                        ? "takeaway-fill"
+                        : order_details.order_type?.toLowerCase() === "drive-through"
+                        ? "car-fill"
+                        : "restaurant-2-fill"
+                    }
+                    size={16}
+                    color="#fff"
+                  />
+                  <Text style={styles.orderTypeText}>
+                    {order_details.order_type}
+                  </Text>
+                </View>
+              )}
+            </View>
+            
+            <View style={styles.headerRight}>
+              <Text style={styles.orderNumber}>
+                #{order_details.order_number}
+              </Text>
+              
+              {/* Add timeline button here */}
+              <TouchableOpacity 
+                style={styles.timelineButton}
+                onPress={fetchOrderTimeline}
+                disabled={timelineLoading}
+              >
+                <RemixIcon name="time-line" size={14} color="#fff" />
+                <Text style={styles.timelineButtonText}>
+                  {timelineLoading ? "Loading..." : "Timeline"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          
-          {/* Add timeline button here */}
-          <TouchableOpacity 
-            style={styles.timelineButton}
-            onPress={fetchOrderTimeline}
-            disabled={timelineLoading}
-          >
-            <RemixIcon name="time-line" size={14} color="#fff" />
-            <Text style={styles.timelineButtonText}>
-              {timelineLoading ? "Loading..." : "Timeline"}
-            </Text>
-          </TouchableOpacity>
         </View>
+
+        {/* Table information for dine-in orders */}
+        {order_details.order_type?.toLowerCase() === "dine-in" && order_details.table_number && (
+          <View style={styles.tableContainer}>
+            <View style={styles.tableInfoContainer}>
+              <RemixIcon name="restaurant-2-fill" size={18} color="#666" />
+              <Text style={styles.tableText}>
+                Table {order_details.table_number}
+                {order_details.section ? ` (${order_details.section})` : ''}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Menu count for all order types */}
+        <View style={[styles.tableContainer, {marginTop: order_details.order_type?.toLowerCase() === "dine-in" ? 0 : 8}]}>
+          <View style={styles.menuCountContainer}>
+            <RemixIcon name="file-list-2-fill" size={16} color="#4b89dc" />
+            <Text style={styles.menuCountLabel}>Menu Count:</Text>
+            <Text style={styles.menuCountText}>{menu_details?.length || order_details?.menu_count || 0}</Text>
+          </View>
+        </View>
+
+        {order_details.comment && (
+          <View style={styles.commentContainer}>
+            <View style={styles.commentHeader}>
+              <RemixIcon name="chat-1-fill" size={18} color="#4b89dc" />
+              <Text style={styles.commentLabel}>Order Comment:</Text>
+            </View>
+            <Text style={styles.commentText}>{order_details.comment}</Text>
+          </View>
+        )}
 
         {order_details.order_status.toLowerCase() !== "cancelled" && (
           <TouchableOpacity
@@ -1037,40 +1096,6 @@ const PlacedOrderDetails = ({ route }) => {
             <Text style={styles.cancelButtonText}>Cancel Order</Text>
           </TouchableOpacity>
         )}
-
-        <View style={styles.orderTypeRow}>
-          <View style={styles.typeContainer}>
-            <Text style={styles.orderTypeText}>
-              Menu Count: {order_details.menu_count}
-            </Text>
-          </View>
-          <View style={styles.typeContainer}>
-            {order_details.order_type === "dine-in" ? (
-              <Text style={styles.orderTypeText}>
-                Table Number: {Array.isArray(order_details.table_number) 
-                  ? order_details.table_number.join(", ") || "N/A"
-                  : order_details.table_number || "N/A"}
-              </Text>
-            ) : (
-              <Text style={styles.orderTypeText}>
-                Type: {(order_details.order_type || "")
-                  .split("-")
-                  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                  .join(" ")}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        {order_details.comment && (
-          <View style={styles.commentContainer}>
-            <View style={styles.commentHeader}>
-              <RemixIcon name="chat-1-line" size={18} color="#666" />
-              <Text style={styles.commentLabel}>Customer Comment:</Text>
-            </View>
-            <Text style={styles.commentText}>{order_details.comment}</Text>
-          </View>
-        )}
       </>
     );
   };
@@ -1089,32 +1114,31 @@ const PlacedOrderDetails = ({ route }) => {
   };
 
   const renderMenuItem = ({ item }) => (
-    <View style={styles.menuTable}>
-      <Text style={styles.menuName} numberOfLines={2}>
-        {item.menu_name}
-        {item.half_or_full && (
-          <Text style={styles.halfFullText}> ({item.half_or_full})</Text>
-        )}
-      </Text>
+    <View style={styles.menuItem}>
+      <View style={styles.menuHeader}>
+        <Text style={styles.menuName} numberOfLines={2}>
+          {item.menu_name}
+          {item.half_or_full && (
+            <Text style={styles.halfFullText}> ({item.half_or_full})</Text>
+          )}
+        </Text>
+        <Text style={styles.menuQuantity}>x{item.quantity}</Text>
+      </View>
+      
       {item.comment && (
         <Text style={styles.menuComment}>{item.comment}</Text>
       )}
-      <View style={styles.menuRow}>
-        <Text style={styles.menuDetailsTextPrice}>
+      
+      <View style={styles.menuPriceRow}>
+        <Text style={styles.menuPrice}>
           ₹{Number(item.price).toFixed(2)}
         </Text>
         {Number(item.offer) > 0 && (
-          <Text style={styles.menuDetailsTextOffer}>{item.offer}% Off</Text>
+          <Text style={styles.menuOffer}>
+            {item.offer}% Off
+          </Text>
         )}
-        <Text
-          style={[
-            styles.menuDetailsTextQuantity,
-            Number(item.offer) === 0 && { flex: 2 },
-          ]}
-        >
-          x{item.quantity}
-        </Text>
-        <Text style={styles.menuDetailsTextTotal}>
+        <Text style={styles.menuTotal}>
           ₹{Number(item.menu_sub_total).toFixed(2)}
         </Text>
       </View>
@@ -1361,16 +1385,16 @@ const PlacedOrderDetails = ({ route }) => {
         // Use final_grand_total if available, otherwise use grand_total
         ...textToBytes(formatAmountLine("Total", finalGrandTotal || grandTotal)),
         ...textToBytes("\n"),
-
+        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n\n`),
+        ...textToBytes("\n"),
         // Footer section with correct QR code implementation
         ...textToBytes("\x1B\x61\x01"), // Center align
-        ...textToBytes("PhonePe  GPay  Paytm  UPI\n\n"),
-        ...textToBytes("------------------------\n"),
+      
         
         ...generateQRCode(qrData),
         ...textToBytes('\n\n'),
-        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n\n`),
-        ...textToBytes("\n"),
+        ...textToBytes("PhonePe  GPay  Paytm  UPI\n\n"),
+        ...textToBytes("------------------------\n"),
         ...textToBytes("-----Thank You Visit Again!-----\n"),
         ...textToBytes("https://menumitra.com/\n"),
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
@@ -1507,11 +1531,14 @@ const PlacedOrderDetails = ({ route }) => {
 
       // Get outlet mobile from order details
       const outletMobile = orderDetails?.order_details?.outlet_mobile || "";
-
       return [
         ...textToBytes("\x1B\x40"), // Initialize printer
         ...textToBytes("\x1B\x61\x01"), // Center alignment
+        
+        // Add KOT header
         ...textToBytes("\x1B\x21\x10"), // Double width, double height
+        ...textToBytes("*** KOT ***\n\n"),
+        
         ...textToBytes(`${orderDetails?.order_details?.outlet_name || "Restaurant"}\n`),
         ...textToBytes("\x1B\x21\x00"), // Normal text
         ...textToBytes(`${orderDetails?.order_details?.outlet_address || ""}\n`),
@@ -1641,40 +1668,55 @@ const PlacedOrderDetails = ({ route }) => {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Customer Details</Text>
         
-        {name ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Name:</Text>
-            <Text style={styles.detailText}>{name}</Text>
+        <View style={styles.customerDetailsGrid}>
+          {/* First row */}
+          <View style={styles.customerGridItem}>
+            {name ? (
+              <>
+                <Text style={styles.customerValue}>{name}</Text>
+                <Text style={styles.customerLabel}>Name</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {mobile ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Mobile:</Text>
-            <Text style={styles.detailText}>{mobile}</Text>
+          
+          <View style={styles.customerGridItem}>
+            {mobile ? (
+              <>
+                <Text style={styles.customerValue}>{mobile}</Text>
+                <Text style={styles.customerLabel}>Mobile</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {customer_alternate_mobile ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Alt. Mobile:</Text>
-            <Text style={styles.detailText}>{customer_alternate_mobile}</Text>
+          
+          {/* Second row */}
+          <View style={styles.customerGridItem}>
+            {customer_alternate_mobile ? (
+              <>
+                <Text style={styles.customerValue}>{customer_alternate_mobile}</Text>
+                <Text style={styles.customerLabel}>Alt. Mobile</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {customer_address ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Address:</Text>
-            <Text style={styles.detailText}>{customer_address}</Text>
+          
+          <View style={styles.customerGridItem}>
+            {customer_address ? (
+              <>
+                <Text style={styles.customerValue}>{customer_address}</Text>
+                <Text style={styles.customerLabel}>Address</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {customer_landmark ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Landmark:</Text>
-            <Text style={styles.detailText}>{customer_landmark}</Text>
-          </View>
-        ) : null}
+          
+          {/* Third row if needed */}
+          {customer_landmark ? (
+            <View style={styles.customerGridItem}>
+              <>
+                <Text style={styles.customerValue}>{customer_landmark}</Text>
+                <Text style={styles.customerLabel}>Landmark</Text>
+              </>
+            </View>
+          ) : null}
+        </View>
       </View>
     );
   };
@@ -1783,19 +1825,27 @@ const PlacedOrderDetails = ({ route }) => {
       {/* Customer Details Card */}
       {renderCustomerDetails()}
 
-      <TouchableOpacity
-        style={[styles.printButton, { backgroundColor: "#3498db", marginHorizontal: 16, marginTop: 16 }]}
-        onPress={openPaymentModal}
-      >
-        <Text style={styles.printButtonText}>Print & Settle</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.printButton, { backgroundColor: "#000", marginHorizontal: 16, marginTop: 8 }]}
-        onPress={printKOT}
-      >
-        <Text style={styles.printButtonText}>KOT</Text>
-      </TouchableOpacity>
+      <View>
+        <TouchableOpacity
+          style={[styles.printButton, { backgroundColor: "#3498db", marginHorizontal: 16, marginTop: 16 }]}
+          onPress={openPaymentModal}
+        >
+          <View style={styles.buttonContent}>
+            <RemixIcon name="printer-line" size={20} color="#fff" />
+            <Text style={styles.printButtonText}>Print & Settle</Text>
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.printButton, { backgroundColor: "#000", marginHorizontal: 16, marginTop: 8 }]}
+          onPress={printKOT}
+        >
+          <View style={styles.buttonContent}>
+            <RemixIcon name="file-list-3-line" size={20} color="#fff" />
+            <Text style={styles.printButtonText}>KOT</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -1892,8 +1942,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   listContent: {
-    padding: 16,
-    paddingBottom: 100, // Extra padding for TabBar
+    paddingBottom: 80,
   },
   row: {
     flexDirection: "row",
@@ -1910,16 +1959,16 @@ const styles = StyleSheet.create({
     justifyContent: "center", // Better vertical alignment
   },
   orderStatus: {
-    fontSize: 16,
     fontWeight: "bold",
+    fontSize: 16,
     color: "#fff",
-    marginBottom: 4, // Added spacing
+    marginBottom: 4,
   },
   orderTime: {
     fontSize: 14,
     color: "#fff",
     opacity: 0.9,
-    marginBottom: 4, // Added spacing
+    marginBottom: 4,
   },
   orderId: {
     fontSize: 16,
@@ -1947,70 +1996,87 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   orderTypeText: {
-    marginLeft: 8,
-    fontSize: 16,
-    fontWeight: "500",
+    marginLeft: 6,
+    fontSize: 14,
+    color: '#fff',
   },
   tableInfo: {
     flexDirection: "row",
     alignItems: "center",
   },
   tableText: {
-    marginLeft: 4,
-    fontSize: 16,
-    color: "#666",
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#333',
   },
-  menuTable: {
-    borderWidth: 1,
-    borderColor: "#000000",
-    backgroundColor: "#f8f9fa",
-    borderRadius: 5,
+  menuItem: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginVertical: 8,
     padding: 12,
-    marginVertical: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    borderRadius: 8,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowRadius: 1,
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   menuName: {
-    fontSize: 13,
-    fontWeight: "bold",
-    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
     paddingRight: 8,
   },
-  menuRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  menuQuantity: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#FF9800',
+    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  menuComment: {
+    fontSize: 13,
+    color: '#666',
+    fontStyle: 'italic',
     marginTop: 4,
+    marginBottom: 8,
+    paddingLeft: 4,
+    borderLeftWidth: 2,
+    borderLeftColor: '#ddd',
   },
-  menuDetailsTextPrice: {
-    fontSize: 13,
-    fontWeight: "bold",
-    color: "#4d80ff",
-    textAlign: "left",
-    flex: 1,
+  menuPriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
-  menuDetailsTextOffer: {
-    fontSize: 13,
-    color: "#28a745",
-    flex: 1,
-    textAlign: "center",
+  menuPrice: {
+    fontSize: 14,
+    color: '#666',
   },
-  menuDetailsTextQuantity: {
+  menuOffer: {
     fontSize: 13,
-    fontWeight: "bold",
-    color: "#000",
-    flex: 1,
-    textAlign: "center",
+    color: '#28a745',
+    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
   },
-  menuDetailsTextTotal: {
-    fontSize: 13,
-    fontWeight: "bold",
-    color: "#4d80ff",
-    flex: 1,
-    textAlign: "right",
+  menuTotal: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#4b89dc',
   },
   card: {
     backgroundColor: '#fff',
@@ -2111,27 +2177,25 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 8,
     padding: 12,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#fff3cd",
     borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: "#4b89dc",
+    borderWidth: 1,
+    borderColor: "#ffeeba",
   },
   commentHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   commentLabel: {
     marginLeft: 8,
     fontSize: 14,
     fontWeight: "600",
-    color: "#666",
+    color: "#856404",
   },
   commentText: {
-    marginLeft: 26,
     fontSize: 14,
-    color: "#333",
-    lineHeight: 20,
+    color: "#666",
   },
   printButton: {
     backgroundColor: "#219ebc",
@@ -2143,8 +2207,10 @@ const styles = StyleSheet.create({
   },
   printButtonText: {
     color: "#fff",
-    fontWeight: "bold",
     fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginLeft: 4,
   },
   modalContainer: {
     flex: 1,
@@ -2236,14 +2302,6 @@ const styles = StyleSheet.create({
     borderColor: "#ffeeba",
     borderWidth: 1,
   },
-  menuComment: {
-    fontSize: 12,
-    color: "#666",
-    fontStyle: "italic",
-    marginTop: 2,
-    marginBottom: 4,
-    paddingLeft: 4,
-  },
   halfFullText: {
     fontSize: 12,
     color: "#666",
@@ -2265,40 +2323,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  customerSection: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-    marginBottom: 16,
-    marginHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  sectionHeader: {
-    fontSize: 16,
-    fontWeight: '600',
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#333',
     marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eaeaea',
-    paddingBottom: 6,
   },
-  customerRow: {
+  customerDetailsGrid: {
     flexDirection: 'row',
-    paddingVertical: 4,
+    flexWrap: 'wrap',
+    marginTop: 8,
   },
-  customerLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
-    width: '30%',
+  customerGridItem: {
+    width: '50%',
+    marginBottom: 16,
   },
   customerValue: {
-    fontSize: 14,
-    color: '#333',
-    flex: 1,
-    flexWrap: 'wrap',
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#000',
+    marginBottom: 4,
+  },
+  customerLabel: {
+    fontSize: 13,
+    color: '#666',
   },
   timelineButton: {
     flexDirection: 'row',
@@ -2417,6 +2465,114 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 14,
     fontWeight: '500',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  closeButton: {
+    backgroundColor: "#219ebc",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  closeButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  refreshButton: {
+    position: "absolute",
+    right: 20,
+    top: 20,
+    padding: 8,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 5,
+  },
+  scanningContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 10,
+  },
+  scanningText: {
+    marginLeft: 10,
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  headerCard: {
+    margin: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  headerContent: {
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+  },
+  tableContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tableInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuCountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(75, 137, 220, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  menuCountLabel: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#666',
+  },
+  menuCountText: {
+    marginLeft: 4,
+    fontWeight: 'bold',
+    color: '#4b89dc',
+    fontSize: 14,
+  },
+  orderTypeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  orderNumber: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 8,
+  },
+  successText: {
+    color: '#4CAF50',
+  },
+  errorText: {
+    color: '#f44336',
   },
 });
 
