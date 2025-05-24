@@ -246,26 +246,55 @@ export default function AddInventoryProduct({ navigation, route }) {
           return "Only letters and spaces allowed";
         }
         return "";
+
       case "supplier_id":
-        return !formData.supplier_id ? "Supplier is required" : "";
+        if (!formData.supplier_id) {
+          return "Please select a supplier";
+        }
+        if (!suppliers.some(s => s.value === formData.supplier_id)) {
+          return "Selected supplier is not valid";
+        }
+        return "";
+
       case "category_id":
-        return !formData.category_id ? "Category is required" : "";
+        if (!formData.category_id) {
+          return "Please select a category";
+        }
+        if (!categories.some(c => c.value === formData.category_id)) {
+          return "Selected category is not valid";
+        }
+        return "";
+
       case "unit_price":
         if (!formData.unit_price) {
           return "Unit price is required";
         }
+        if (!/^\d*\.?\d*$/.test(formData.unit_price)) {
+          return "Unit price must be a valid number";
+        }
         if (parseFloat(formData.unit_price) <= 0) {
           return "Unit price must be greater than 0";
         }
+        if (parseFloat(formData.unit_price) > 999999) {
+          return "Unit price is too high";
+        }
         return "";
+
       case "quantity":
         if (!formData.quantity) {
           return "Quantity is required";
         }
+        if (!/^\d+$/.test(formData.quantity)) {
+          return "Quantity must be a whole number";
+        }
         if (parseInt(formData.quantity) <= 0) {
           return "Quantity must be greater than 0";
         }
+        if (parseInt(formData.quantity) > 999999) {
+          return "Quantity is too high";
+        }
         return "";
+
       case "unit_of_measure":
         if (!formData.unit_of_measure?.trim()) {
           return "Unit of measure is required";
@@ -274,16 +303,31 @@ export default function AddInventoryProduct({ navigation, route }) {
           return "Only letters and spaces allowed";
         }
         return "";
+
       case "tax_rate":
         if (!formData.tax_rate) {
           return "Tax rate is required";
         }
+        if (!/^\d*\.?\d*$/.test(formData.tax_rate)) {
+          return "Tax rate must be a valid number";
+        }
         if (parseFloat(formData.tax_rate) < 0) {
           return "Tax rate cannot be negative";
         }
+        if (parseFloat(formData.tax_rate) > 100) {
+          return "Tax rate cannot exceed 100%";
+        }
         return "";
+
       case "in_or_out":
-        return !formData.in_or_out ? "In/Out status is required" : "";
+        if (!formData.in_or_out) {
+          return "Please select In/Out status";
+        }
+        if (!inOutOptions.some(opt => opt.value === formData.in_or_out)) {
+          return "Selected status is not valid";
+        }
+        return "";
+
       default:
         return "";
     }
