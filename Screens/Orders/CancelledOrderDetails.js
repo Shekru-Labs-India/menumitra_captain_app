@@ -872,102 +872,182 @@ const CancelledOrderDetails = ({ route }) => {
     const order_details = orderDetails.order_details;
     
     return (
-      <View style={styles.card}>
-        {/* Total */}
-        <View style={styles.cardRow}>
-          <Text style={styles.cardLabel}>Total</Text>
-          <Text style={styles.cardAmount}>
-            ₹{parseFloat(order_details.total_bill_amount || 0).toFixed(2)}
-          </Text>
+      <>
+        {renderCustomerDetails()}
+        <View style={styles.card}>
+          {/* Total */}
+          <View style={styles.cardRow}>
+            <Text style={styles.cardLabel}>Total</Text>
+            <Text style={styles.cardAmount}>
+              ₹{parseFloat(order_details.total_bill_amount || 0).toFixed(2)}
+            </Text>
+          </View>
+
+          {/* Discount */}
+          {parseFloat(order_details.discount_amount || 0) > 0 && (
+            <View style={styles.cardRow}>
+              <Text style={styles.cardLabel}>
+                Discount {parseFloat(order_details.discount_percent || 0) > 0 ? 
+                  `(${order_details.discount_percent}%)` : ''}
+              </Text>
+              <Text style={[styles.cardAmount, styles.negativeAmount]}>
+                -₹{parseFloat(order_details.discount_amount || 0).toFixed(2)}
+              </Text>
+            </View>
+          )}
+
+          {/* Special Discount */}
+          {parseFloat(order_details.special_discount || 0) > 0 && (
+            <View style={styles.cardRow}>
+              <Text style={styles.cardLabel}>Special Discount</Text>
+              <Text style={[styles.cardAmount, styles.negativeAmount]}>
+                -₹{parseFloat(order_details.special_discount || 0).toFixed(2)}
+              </Text>
+            </View>
+          )}
+
+          {/* Extra Charges */}
+          {parseFloat(order_details.charges || 0) > 0 && (
+            <View style={styles.cardRow}>
+              <Text style={styles.cardLabel}>Extra Charges</Text>
+              <Text style={[styles.cardAmount, styles.positiveAmount]}>
+                +₹{parseFloat(order_details.charges || 0).toFixed(2)}
+              </Text>
+            </View>
+          )}
+
+          {/* Subtotal line - only if there are discounts or extra charges */}
+          {(parseFloat(order_details.discount_amount || 0) > 0 || 
+            parseFloat(order_details.special_discount || 0) > 0 ||
+            parseFloat(order_details.extra_charges || 0) > 0) && (
+            <View style={styles.cardRow}>
+              <Text style={styles.subtotalLabel}>Subtotal</Text>
+              <Text style={styles.subtotalAmount}>
+                ₹{parseFloat(order_details.total_bill_with_discount || 0).toFixed(2)}
+              </Text>
+            </View>
+          )}
+
+          {/* Service Charges */}
+          {parseFloat(order_details.service_charges_amount || 0) > 0 && (
+            <View style={styles.cardRow}>
+              <Text style={styles.cardLabel}>
+                Service Charges {parseFloat(order_details.service_charges_percent || 0) > 0 ? 
+                  `(${order_details.service_charges_percent}%)` : ''}
+              </Text>
+              <Text style={[styles.cardAmount, styles.positiveAmount]}>
+                +₹{parseFloat(order_details.service_charges_amount || 0).toFixed(2)}
+              </Text>
+            </View>
+          )}
+
+          {/* GST */}
+          {parseFloat(order_details.gst_amount || 0) > 0 && (
+            <View style={styles.cardRow}>
+              <Text style={styles.cardLabel}>
+                GST {parseFloat(order_details.gst_percent || 0) > 0 ? 
+                  `(${order_details.gst_percent}%)` : ''}
+              </Text>
+              <Text style={[styles.cardAmount, styles.positiveAmount]}>
+                +₹{parseFloat(order_details.gst_amount || 0).toFixed(2)}
+              </Text>
+            </View>
+          )}
+
+          {/* Tip */}
+          {parseFloat(order_details.tip || 0) > 0 && (
+            <View style={styles.cardRow}>
+              <Text style={styles.cardLabel}>Tip</Text>
+              <Text style={[styles.cardAmount, styles.positiveAmount]}>
+                +₹{parseFloat(order_details.tip || 0).toFixed(2)}
+              </Text>
+            </View>
+          )}
+
+          {/* Grand Total */}
+          <View style={[styles.cardRow, styles.grandTotalRow]}>
+            <Text style={styles.grandTotalLabel}>Final Grand Total</Text>
+            <Text style={styles.grandTotalAmount}>
+              ₹{parseFloat(order_details.final_grand_total || 0).toFixed(2)}
+            </Text>
+          </View>
         </View>
-
-        {/* Discount */}
-        {parseFloat(order_details.discount_amount || 0) > 0 && (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>
-              Discount {parseFloat(order_details.discount_percent || 0) > 0 ? 
-                `(${order_details.discount_percent}%)` : ''}
-            </Text>
-            <Text style={[styles.cardAmount, styles.negativeAmount]}>
-              -₹{parseFloat(order_details.discount_amount || 0).toFixed(2)}
-            </Text>
-          </View>
-        )}
-
-        {/* Special Discount */}
-        {parseFloat(order_details.special_discount || 0) > 0 && (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>Special Discount</Text>
-            <Text style={[styles.cardAmount, styles.negativeAmount]}>
-              -₹{parseFloat(order_details.special_discount || 0).toFixed(2)}
+        <TouchableOpacity
+          style={styles.printButton}
+          onPress={
+            printerConnected
+              ? printReceipt
+              : () => navigation.navigate("PrinterManagement")
+          }
+        >
+          <View style={styles.buttonContent}>
+            <RemixIcon name="printer-line" size={20} color="#fff" />
+            <Text style={styles.printButtonText}>
+             Print
             </Text>
           </View>
-        )}
+        </TouchableOpacity>
+      </>
+    );
+  };
 
-        {/* Extra Charges */}
-        {parseFloat(order_details.charges || 0) > 0 && (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>Extra Charges</Text>
-            <Text style={[styles.cardAmount, styles.positiveAmount]}>
-              +₹{parseFloat(order_details.charges || 0).toFixed(2)}
-            </Text>
+  // Add renderCustomerDetails function
+  const renderCustomerDetails = () => {
+    if (!orderDetails?.order_details) return null;
+    const { customer_name, customer_mobile, customer_alternate_mobile, customer_address, customer_landmark } = orderDetails.order_details;
+    if (!customer_name && !customer_mobile && !customer_address) return null;
+    return (
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Customer Details</Text>
+        
+        <View style={styles.customerDetailsGrid}>
+          {/* First row */}
+          <View style={styles.customerGridItem}>
+            {customer_name ? (
+              <>
+                <Text style={styles.customerValue}>{customer_name}</Text>
+                <Text style={styles.customerLabel}>Name</Text>
+              </>
+            ) : null}
           </View>
-        )}
-
-        {/* Subtotal line - only if there are discounts or extra charges */}
-        {(parseFloat(order_details.discount_amount || 0) > 0 || 
-          parseFloat(order_details.special_discount || 0) > 0 ||
-          parseFloat(order_details.extra_charges || 0) > 0) && (
-          <View style={styles.cardRow}>
-            <Text style={styles.subtotalLabel}>Subtotal</Text>
-            <Text style={styles.subtotalAmount}>
-              ₹{parseFloat(order_details.total_bill_with_discount || 0).toFixed(2)}
-            </Text>
+          
+          <View style={styles.customerGridItem}>
+            {customer_mobile ? (
+              <>
+                <Text style={styles.customerValue}>{customer_mobile}</Text>
+                <Text style={styles.customerLabel}>Mobile</Text>
+              </>
+            ) : null}
           </View>
-        )}
-
-        {/* Service Charges */}
-        {parseFloat(order_details.service_charges_amount || 0) > 0 && (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>
-              Service Charges {parseFloat(order_details.service_charges_percent || 0) > 0 ? 
-                `(${order_details.service_charges_percent}%)` : ''}
-            </Text>
-            <Text style={[styles.cardAmount, styles.positiveAmount]}>
-              +₹{parseFloat(order_details.service_charges_amount || 0).toFixed(2)}
-            </Text>
+          
+          {/* Second row */}
+          <View style={styles.customerGridItem}>
+            {customer_alternate_mobile ? (
+              <>
+                <Text style={styles.customerValue}>{customer_alternate_mobile}</Text>
+                <Text style={styles.customerLabel}>Alt. Mobile</Text>
+              </>
+            ) : null}
           </View>
-        )}
-
-        {/* GST */}
-        {parseFloat(order_details.gst_amount || 0) > 0 && (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>
-              GST {parseFloat(order_details.gst_percent || 0) > 0 ? 
-                `(${order_details.gst_percent}%)` : ''}
-            </Text>
-            <Text style={[styles.cardAmount, styles.positiveAmount]}>
-              +₹{parseFloat(order_details.gst_amount || 0).toFixed(2)}
-            </Text>
+          
+          <View style={styles.customerGridItem}>
+            {customer_address ? (
+              <>
+                <Text style={styles.customerValue}>{customer_address}</Text>
+                <Text style={styles.customerLabel}>Address</Text>
+              </>
+            ) : null}
           </View>
-        )}
-
-        {/* Tip */}
-        {parseFloat(order_details.tip || 0) > 0 && (
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>Tip</Text>
-            <Text style={[styles.cardAmount, styles.positiveAmount]}>
-              +₹{parseFloat(order_details.tip || 0).toFixed(2)}
-            </Text>
-          </View>
-        )}
-
-        {/* Grand Total */}
-        <View style={[styles.cardRow, styles.grandTotalRow]}>
-          <Text style={styles.grandTotalLabel}>Final Grand Total</Text>
-          <Text style={styles.grandTotalAmount}>
-            ₹{parseFloat(order_details.final_grand_total || 0).toFixed(2)}
-          </Text>
+          
+          {/* Third row if needed */}
+          {customer_landmark ? (
+            <View style={styles.customerGridItem}>
+              <>
+                <Text style={styles.customerValue}>{customer_landmark}</Text>
+                <Text style={styles.customerLabel}>Landmark</Text>
+              </>
+            </View>
+          ) : null}
         </View>
       </View>
     );
@@ -1052,23 +1132,7 @@ const CancelledOrderDetails = ({ route }) => {
             keyExtractor={(item, index) => index.toString()}
             ListHeaderComponent={renderHeader}
             renderItem={renderMenuItem}
-            ListFooterComponent={
-              <>
-                {renderFooter()}
-                <TouchableOpacity
-                  style={styles.printButton}
-                  onPress={
-                    printerConnected
-                      ? printReceipt
-                      : () => navigation.navigate("PrinterManagement")
-                  }
-                >
-                  <Text style={styles.printButtonText}>
-                    {printerConnected ? "Print Receipt" : "Connect Printer"}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            }
+            ListFooterComponent={renderFooter}
             contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl
@@ -1273,8 +1337,9 @@ const styles = StyleSheet.create({
   },
   printButtonText: {
     color: "#fff",
-    fontWeight: "bold",
     fontSize: 16,
+    fontWeight: "bold",
+    marginLeft: 8,
   },
   modalContainer: {
     flex: 1,
@@ -1526,6 +1591,35 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     paddingBottom: 80,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  customerDetailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  customerGridItem: {
+    width: '50%',
+    marginBottom: 10,
+  },
+  customerValue: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#000',
+    marginBottom: 4,
+  },
+  customerLabel: {
+    fontSize: 13,
+    color: '#666',
   },
 });
 
