@@ -372,18 +372,21 @@ export default function MenuDetails({ route, navigation }) {
                 .join(" ")}
             </Text>
             
-            {/* Add the status badge here, before the special badge */}
-            <View style={[styles.statusBadge, { backgroundColor: menuData.is_active ? '#26c963' : '#dc3545' }]}>
-              <Text style={styles.statusBadgeText}>
-                {menuData.is_active ? 'Active' : 'Inactive'}
-              </Text>
-            </View>
-            
-            {menuData.is_special && (
-              <View style={styles.specialBadge}>
-                <Text style={styles.specialBadgeText}>Special</Text>
+            <View style={styles.badgesContainer}>
+              {/* Status badge */}
+              <View style={[styles.statusBadge, { backgroundColor: menuData.is_active ? '#26c963' : '#dc3545' }]}>
+                <Text style={styles.statusBadgeText}>
+                  {menuData.is_active ? 'Active' : 'Inactive'}
+                </Text>
               </View>
-            )}
+              
+              {/* Special badge */}
+              {menuData.is_special && (
+                <View style={styles.specialBadge}>
+                  <Text style={styles.specialBadgeText}>Special</Text>
+                </View>
+              )}
+            </View>
           </View>
 
           <View style={styles.categoryRow}>
@@ -414,16 +417,11 @@ export default function MenuDetails({ route, navigation }) {
           </View>
           {/* Pricing Section */}
           <View style={styles.priceSection}>
-            <Text style={styles.priceLabel}>Price:</Text>
+            
             <View style={styles.priceDetails}>
-              {menuData.half_price && (
-                <View style={styles.priceItem}>
-                  <Text style={styles.priceType}>Half:</Text>
-                  <Text style={styles.price}>₹{menuData.half_price}</Text>
-                </View>
-              )}
+             
               <View style={styles.priceItem}>
-                <Text style={styles.priceType}>Full:</Text>
+                <Text style={styles.priceLabel}>Price:</Text>
                 <Text style={styles.price}>₹{menuData.full_price}</Text>
               </View>
             </View>
@@ -616,14 +614,21 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+    marginBottom: 16,
+    gap: 8,
+    width: "100%",
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
     color: "#333",
+    flex: 1,
     marginLeft: 8,
+    paddingRight: 8,
+    flexWrap: "wrap",
+    marginVertical: 4,
   },
   ratingContainer: {
     flexDirection: "row",
@@ -894,5 +899,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '500',
+  },
+  badgesContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 0,
+    flexWrap: "wrap",
+    marginTop: 4,
   },
 });
