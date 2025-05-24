@@ -1940,30 +1940,62 @@ const RestaurantTables = () => {
               <>
                 {/* ViewShot wrapper with ref - IMPORTANT for capture */}
                 <ViewShot ref={qrViewRef} options={{ format: 'png', quality: 1 }}>
-                  <View style={styles.qrWrapper}>
-                    <View style={styles.qrFrame}>
-                      {/* QR Code image */}
-                      <Image
-                        source={{ uri: selectedQRData?.qrCodeUrl }}
-                        style={styles.qrCodeImage}
-                      />
-                      
-                      {/* Logo overlay */}
-                      <View style={styles.logoWhiteSpace}>
-                        <View style={styles.logoContainer}>
-                          <Image
-                            source={require('../../assets/icon.png')}
-                            style={styles.logoOverlay}
-                            resizeMode="contain"
-                          />
+                  <View style={styles.qrWrapperContainer}>
+                    <View style={styles.qrWrapper}>
+                      <View style={styles.qrFrame}>
+                        {/* QR Code image */}
+                        <Image
+                          source={{ uri: selectedQRData?.qrCodeUrl }}
+                          style={styles.qrCodeImage}
+                        />
+                        
+                        {/* T column display INSIDE the QR border - TOP */}
+                        <View style={[styles.qrInfoColumnsInsideBorder, { left: 8, top: 20 }]}>
+                          <View style={styles.qrInfoTable}>
+                            <View style={styles.qrInfoDigitsContainer}>
+                              {String(selectedQRData?.tableNumber || '').split('').reverse().map((digit, idx) => (
+                                <Text key={idx} style={styles.qrInfoDigitSmall}>{digit}</Text>
+                              ))}
+                            </View>
+                            <Text style={styles.qrInfoLabelSmall}>T</Text>
+                          </View>
+                        </View>
+                        
+                        {/* S column display INSIDE the QR border - MIDDLE */}
+                        <View style={[styles.qrInfoColumnsInsideBorder, { left: 8, top: 120 }]}>
+                          <View style={styles.qrInfoTable}>
+                            <View style={styles.qrInfoDigitsContainer}>
+                              {String(selectedQRData?.sectionId || '').split('').reverse().map((digit, idx) => (
+                                <Text key={idx} style={styles.qrInfoDigitSmall}>{digit}</Text>
+                              ))}
+                            </View>
+                            <Text style={styles.qrInfoLabelSmall}>S</Text>
+                          </View>
+                        </View>
+                        
+                        {/* O column display INSIDE the QR border - BOTTOM */}
+                        <View style={[styles.qrInfoColumnsInsideBorder, { left: 8, top: 210 }]}>
+                          <View style={styles.qrInfoTable}>
+                            <View style={styles.qrInfoDigitsContainer}>
+                              {String(selectedQRData?.outletCode || '').split('').reverse().map((digit, idx) => (
+                                <Text key={idx} style={styles.qrInfoDigitSmall}>{digit}</Text>
+                              ))}
+                            </View>
+                            <Text style={styles.qrInfoLabelSmall}>O</Text>
+                          </View>
+                        </View>
+                        
+                        {/* Logo overlay */}
+                        <View style={styles.logoWhiteSpace}>
+                          <View style={styles.logoContainer}>
+                            <Image
+                              source={require('../../assets/icon.png')}
+                              style={styles.logoOverlay}
+                              resizeMode="contain"
+                            />
+                          </View>
                         </View>
                       </View>
-                      
-                      {/* Corner markers */}
-                      <View style={[styles.cornerMarker, styles.topLeftMarker]} />
-                      <View style={[styles.cornerMarker, styles.topRightMarker]} />
-                      <View style={[styles.cornerMarker, styles.bottomLeftMarker]} />
-                      <View style={[styles.cornerMarker, styles.bottomRightMarker]} />
                     </View>
                   </View>
                 </ViewShot>
@@ -3140,7 +3172,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 20,
+    marginVertical: 0,
   },
   qrFrame: {
     position: 'relative',
@@ -3151,6 +3183,7 @@ const styles = StyleSheet.create({
     borderColor: '#FF7043',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   qrCodeImage: {
     width: 260,
@@ -3559,6 +3592,45 @@ const styles = StyleSheet.create({
   orderTypeButtonLast: {
     borderTopRightRadius: 6,
     borderBottomRightRadius: 6,
+  },
+  qrWrapperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
+    width: '100%',
+  },
+  qrInfoColumnsInsideBorder: {
+    position: 'absolute',
+    left: 8,
+    top: 20,
+    flexDirection: 'row',
+    justifyContent: 'flex-center',
+    alignItems: 'flex-center',
+    zIndex: 10,
+  },
+  qrInfoTable: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
+  qrInfoDigitsContainer: {
+    alignItems: 'center',
+    marginTop: 0,
+  },
+  qrInfoLabelSmall: {
+    fontWeight: 'bold',
+    fontSize: 10,
+    color: '#0066FF',
+    transform: [{ rotate: '270deg' }], // Rotate labels to face away from QR
+  },
+  qrInfoDigitSmall: {
+    fontSize: 10,
+    color: '#333',
+    lineHeight: 10,
+    fontWeight: '500',
+    transform: [{ rotate: '270deg' }], // Rotate digits to face north
+    marginVertical: -1, // Negative margin to remove spacing between digits
   },
 });
 
