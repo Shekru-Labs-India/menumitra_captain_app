@@ -2264,6 +2264,27 @@ const RestaurantTables = () => {
     }
   };
 
+  // Add this helper function for Indian currency formatting
+  const formatIndianCurrency = (amount) => {
+    if (!amount) return "0";
+    
+    // Convert to string and remove any existing commas
+    const numStr = amount.toString().replace(/,/g, '');
+    
+    // Split into whole and decimal parts
+    const [wholePart, decimalPart] = numStr.split('.');
+    
+    // Format whole part with Indian grouping
+    const lastThree = wholePart.slice(-3);
+    const remaining = wholePart.slice(0, -3);
+    const formattedWhole = remaining ? 
+      remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree : 
+      lastThree;
+    
+    // Return with decimal part if exists
+    return decimalPart ? `${formattedWhole}.${decimalPart}` : formattedWhole;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
@@ -2348,13 +2369,13 @@ const RestaurantTables = () => {
       {renderOrderTypeButtons()}
         {/* Sales Summary badges */}
         <View style={styles.salesContainer}>
-          <View style={[styles.salesBadge]}>
+          <View style={styles.salesBadge}>
+            <Text style={styles.salesAmount}>₹{formatIndianCurrency(todaySales)}</Text>
             <Text style={styles.salesLabel}>Today's Sales</Text>
-            <Text style={styles.salesAmount}>₹{todaySales}</Text>
           </View>
           <View style={[styles.salesBadge, styles.liveSalesBadge]}>
+            <Text style={styles.salesAmount}>₹{formatIndianCurrency(liveSales)}</Text>
             <Text style={styles.salesLabel}>Live Sales</Text>
-            <Text style={styles.salesAmount}>₹{liveSales}</Text>
           </View>
         </View>
 
@@ -3500,6 +3521,7 @@ const styles = StyleSheet.create({
   },
   salesBadge: {
     flex: 1,
+    // Changed to column orientation for vertical label/value display
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
