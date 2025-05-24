@@ -71,6 +71,7 @@ const RestaurantInfo = ({ navigation }) => {
   const [isSharing, setIsSharing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState(null);
+  const [outletName, setOutletName] = useState("");
 
   const qrViewRef = useRef();
 
@@ -113,12 +114,14 @@ const RestaurantInfo = ({ navigation }) => {
       );
 
       if (response.data.st === 1) {
+        console.log("response.data", response.data);
         const restaurantData = response.data.data;
         setRestaurantData(restaurantData);
         setVegNonveg(restaurantData.veg_nonveg);
         setRestaurantType(restaurantData.outlet_type);
         setImage(restaurantData.image);
         setRestaurantIsOpen(restaurantData.is_open);
+        setOutletName(restaurantData.name);
 
         // Store GST and service charge
         if (
@@ -363,8 +366,21 @@ const RestaurantInfo = ({ navigation }) => {
       const cleanRestaurantName = restaurantName.replace(/[^a-zA-Z0-9]/g, '_');
       const fileName = `${cleanRestaurantName}_QR.png`;
       
-      // Use ViewShot to capture the entire QR view with styling
-      const uri = await qrViewRef.current.capture();
+      let uri;
+      
+      try {
+        // Try to capture the QR view with ViewShot
+        uri = await qrViewRef.current.capture();
+      } catch (captureError) {
+        console.log("ViewShot capture failed, using fallback method:", captureError);
+        
+        // Fallback: Download the QR code directly from the URL
+        const qrUrl = selectedQRData.qrCodeUrl;
+        const fileUri = FileSystem.documentDirectory + fileName;
+        
+        const downloadResult = await FileSystem.downloadAsync(qrUrl, fileUri);
+        uri = downloadResult.uri;
+      }
       
       // Save to media library with proper metadata
       if (Platform.OS === 'android') {
@@ -564,28 +580,7 @@ const RestaurantInfo = ({ navigation }) => {
   };
 
   // Update the downloadQR function to show options
-  const downloadQR = () => {
-    // Show download options alert
-    Alert.alert(
-      "Download QR Code",
-      "Choose download format",
-      [
-        {
-          text: "Download as PNG",
-          onPress: () => downloadAsPNG(),
-        },
-        {
-          text: "Download as PDF",
-          onPress: () => downloadAsPDF(),
-        },
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-      ],
-      { cancelable: true }
-    );
-  };
+ 
 
   // Update the QR Code Modal Component to match RestaurantTables.js
   const QRCodeModal = () => {
@@ -597,9 +592,9 @@ const RestaurantInfo = ({ navigation }) => {
         onRequestClose={() => setIsQRModalVisible(false)}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { position: 'relative', alignSelf: 'center' }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>COUNTER QR Code</Text>
+              <Text style={styles.modalTitle}>{outletName || "Restaurant"} QR Code</Text>
               <TouchableOpacity onPress={() => setIsQRModalVisible(false)}>
                 <RemixIcon name="close-line" size={24} color="#333" />
               </TouchableOpacity>
@@ -608,27 +603,37 @@ const RestaurantInfo = ({ navigation }) => {
             {selectedQRData ? (
               <>
                 <ViewShot ref={qrViewRef} options={{ format: 'png', quality: 1 }}>
-                  <View style={styles.qrContainer}>
-                    {/* Corner markers */}
-                    <View style={[styles.cornerMarker, styles.topLeftMarker]} />
-                    <View style={[styles.cornerMarker, styles.topRightMarker]} />
-                    <View style={[styles.cornerMarker, styles.bottomLeftMarker]} />
-                    <View style={[styles.cornerMarker, styles.bottomRightMarker]} />
-                    
-                    {/* QR Image */}
-                    <Image
-                      source={{ uri: selectedQRData?.qrCodeUrl }}
-                      style={styles.qrImage}
-                    />
-                    
-                    {/* Logo in center */}
-                    <View style={styles.logoWhiteSpace}>
-                      <View style={styles.logoContainer}>
+                  <View style={styles.qrWrapperContainer}>
+                    <View style={styles.qrWrapper}>
+                      <View style={styles.qrFrame}>
+                        {/* QR Code image */}
                         <Image
-                          source={require('../../assets/icon.png')} // Your app logo
-                          style={styles.logoOverlay}
-                          resizeMode="contain"
+                          source={{ uri: selectedQRData?.qrCodeUrl }}
+                          style={styles.qrCodeImage}
                         />
+                        
+                        {/* O column display INSIDE the QR border - centered vertically */}
+                        <View style={[styles.qrInfoColumnsInsideBorder, { left: 7, top: 120 }]}>
+                          <View style={styles.qrInfoTable}>
+                            <View style={styles.qrInfoDigitsContainer}>
+                              {String(selectedQRData?.outletCode || '').split('').reverse().map((digit, idx) => (
+                                <Text key={idx} style={styles.qrInfoDigitSmall}>{digit}</Text>
+                              ))}
+                            </View>
+                            <Text style={styles.qrInfoLabelSmall}>O</Text>
+                          </View>
+                        </View>
+                        
+                        {/* Logo in center */}
+                        <View style={styles.logoWhiteSpace}>
+                          <View style={styles.logoContainer}>
+                            <Image
+                              source={require('../../assets/icon.png')} // Your app logo
+                              style={styles.logoOverlay}
+                              resizeMode="contain"
+                            />
+                          </View>
+                        </View>
                       </View>
                     </View>
                   </View>
@@ -646,7 +651,26 @@ const RestaurantInfo = ({ navigation }) => {
                       styles.downloadButton,
                       (isDownloading || isSharing) && styles.disabledButton,
                     ]}
-                    onPress={downloadQR}
+                    onPress={() => {
+                      Alert.alert(
+                        "Download QR Code",
+                        "Choose format to download",
+                        [
+                          {
+                            text: "PNG",
+                            onPress: downloadAsPNG
+                          },
+                          {
+                            text: "PDF",
+                            onPress: downloadAsPDF
+                          },
+                          {
+                            text: "Cancel",
+                            style: "cancel"
+                          }
+                        ]
+                      );
+                    }}
                     disabled={isDownloading || isSharing}
                   >
                     {isDownloading ? (
@@ -791,50 +815,50 @@ const RestaurantInfo = ({ navigation }) => {
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.value}>
-                {toTitleCase(restaurantData.name) || "-"}
+                {toTitleCase(restaurantData.name)}
               </Text>
               <Text style={styles.label}>Restaurant Name</Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.value}>
-                {toTitleCase(restaurantData.owner_name) || "-"}
+                {toTitleCase(restaurantData.owner_name)}
               </Text>
               <Text style={styles.label}>Owner Name</Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.value}>
-                {toTitleCase(restaurantData.outlet_type) || "-"}
+                {toTitleCase(restaurantData.outlet_type)}
               </Text>
               <Text style={styles.label}>Restaurant Type</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.value}>{restaurantData.mobile || "-"}</Text>
+              <Text style={styles.value}>{restaurantData.mobile}</Text>
               <Text style={styles.label}>Mobile</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.value}>{restaurantData.fssainumber || "-"}</Text>
+              <Text style={styles.value}>{restaurantData.fssainumber}</Text>
               <Text style={styles.label}>FSSAI Number</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.value}>{restaurantData.gstnumber || "-"}</Text>
+              <Text style={styles.value}>{restaurantData.gstnumber}</Text>
               <Text style={styles.label}>GST Number</Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.value}>
-                {restaurantData.veg_nonveg?.toUpperCase() || "-"}
+                {restaurantData.veg_nonveg?.toUpperCase()}
               </Text>
               <Text style={styles.label}>Veg/Non-veg</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.value}>{restaurantData.address || "-"}</Text>
+              <Text style={styles.value}>{restaurantData.address}</Text>
               <Text style={styles.label}>Address</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.value}>{restaurantData.upi_id || "-"}</Text>
+              <Text style={styles.value}>{restaurantData.upi_id}</Text>
               <Text style={styles.label}>UPI ID</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.value}>{restaurantData.website || "-"}</Text>
+              <Text style={styles.value}>{restaurantData.website}</Text>
               <Text style={styles.label}>Website</Text>
             </View>
           </View>
@@ -993,14 +1017,14 @@ const RestaurantInfo = ({ navigation }) => {
 
       {/* Add the QR Code Modal */}
       <QRCodeModal />
-{/* 
+
       <TouchableOpacity
         style={styles.editButton}
         onPress={() => navigation.navigate("EditRestaurantInfo")}
       >
         <RemixIcon name="pencil-line" size={24} color="#fff" />
         <Text style={styles.editButtonText}>Edit</Text>
-      </TouchableOpacity> */}
+      </TouchableOpacity>
 
       <CustomTabBar />
     </>
@@ -1207,22 +1231,77 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  qrContainer: {
-    width: 250,
-    height: 250,
-    padding: 10,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 3,
-    borderColor: '#FF7043',
-    borderRadius: 10,
+  qrWrapperContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
-  },
-  qrImage: {
+    marginVertical: 20,
     width: '100%',
-    height: '100%',
-    borderRadius: 5,
+  },
+  qrWrapper: {
+    padding: 0,
+    backgroundColor: "transparent",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 0,
+  },
+  qrFrame: {
+    position: 'relative',
+    padding: 15,
+    backgroundColor: "white",
+    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: '#FF7043',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  qrCodeImage: {
+    width: 260,
+    height: 260,
+    borderRadius: 8,
+  },
+  qrInfoColumnsInsideBorder: {
+    position: 'absolute',
+    left: 8,
+    top: 20,
+    flexDirection: 'row',
+    justifyContent: 'flex-center',
+    alignItems: 'flex-center',
+    zIndex: 10,
+  },
+  qrInfoTable: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
+  qrInfoDigitsContainer: {
+    alignItems: 'center',
+    marginTop: 0,
+  },
+  qrInfoLabelSmall: {
+    fontWeight: 'bold',
+    fontSize: 10,
+    color: '#0066FF',
+    transform: [{ rotate: '270deg' }], // Rotate labels to face away from QR
+  },
+  qrInfoDigitSmall: {
+    fontSize: 10,
+    color: '#333',
+    lineHeight: 10,
+    fontWeight: '500',
+    transform: [{ rotate: '270deg' }], // Rotate digits to face north
+    marginVertical: -1, // Negative margin to remove spacing between digits
   },
   logoWhiteSpace: {
     position: 'absolute',
@@ -1250,41 +1329,6 @@ const styles = StyleSheet.create({
   logoOverlay: {
     width: 40,
     height: 40,
-  },
-  cornerMarker: {
-    position: 'absolute',
-    width: 20,
-    height: 20,
-    borderWidth: 4,
-    borderColor: '#0066FF',
-  },
-  topLeftMarker: {
-    top: 10,
-    left: 10,
-    borderBottomWidth: 0,
-    borderRightWidth: 0,
-    borderTopLeftRadius: 8,
-  },
-  topRightMarker: {
-    top: 10,
-    right: 10,
-    borderBottomWidth: 0,
-    borderLeftWidth: 0,
-    borderTopRightRadius: 8,
-  },
-  bottomLeftMarker: {
-    bottom: 10,
-    left: 10,
-    borderTopWidth: 0,
-    borderRightWidth: 0,
-    borderBottomLeftRadius: 8,
-  },
-  bottomRightMarker: {
-    bottom: 10,
-    right: 10,
-    borderTopWidth: 0,
-    borderLeftWidth: 0,
-    borderBottomRightRadius: 8,
   },
   scanText: {
     marginTop: 15,
