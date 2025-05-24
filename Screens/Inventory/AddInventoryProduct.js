@@ -66,11 +66,16 @@ export default function AddInventoryProduct({ navigation, route }) {
     unit_price: false,
     quantity: false,
     unit_of_measure: false,
+    tax_rate: false,
+    in_or_out: false
   });
   const [supplierModalVisible, setSupplierModalVisible] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [inOutModalVisible, setInOutModalVisible] = useState(false);
   const [inOutOptions, setInOutOptions] = useState([]);
+
+  // Add new state for form validity
+  const [isFormValid, setIsFormValid] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -163,11 +168,54 @@ export default function AddInventoryProduct({ navigation, route }) {
     }
   };
 
+  // Add function to check if all mandatory fields are valid
+  const checkFormValidity = (currentFormData) => {
+    const mandatoryFields = [
+      "name",
+      "supplier_id", 
+      "category_id",
+      "unit_price",
+      "quantity", 
+      "unit_of_measure",
+      "tax_rate",
+      "in_or_out"
+    ];
+
+    const isValid = mandatoryFields.every(field => {
+      switch (field) {
+        case "name":
+          return currentFormData.name?.trim() && /^[a-zA-Z\s]+$/.test(currentFormData.name);
+        case "supplier_id":
+          return !!currentFormData.supplier_id;
+        case "category_id":
+          return !!currentFormData.category_id;
+        case "unit_price":
+          return !!currentFormData.unit_price && parseFloat(currentFormData.unit_price) > 0;
+        case "quantity":
+          return !!currentFormData.quantity && parseInt(currentFormData.quantity) > 0;
+        case "unit_of_measure":
+          return currentFormData.unit_of_measure?.trim() && /^[a-zA-Z\s]+$/.test(currentFormData.unit_of_measure);
+        case "tax_rate":
+          return !!currentFormData.tax_rate && parseFloat(currentFormData.tax_rate) >= 0;
+        case "in_or_out":
+          return !!currentFormData.in_or_out;
+        default:
+          return true;
+      }
+    });
+
+    setIsFormValid(isValid);
+  };
+
+  // Modify setFormData calls to check validity after each update
+  const updateFormData = (updates) => {
+    const newFormData = { ...formData, ...updates };
+    setFormData(newFormData);
+    checkFormValidity(newFormData);
+  };
+
   const handleCategoryChange = (value) => {
-    setFormData((prev) => ({
-      ...prev,
-      category_id: value,
-    }));
+    updateFormData({ category_id: value });
   };
 
   const handleDateChange = (event, selectedDate) => {
@@ -203,13 +251,21 @@ export default function AddInventoryProduct({ navigation, route }) {
       case "category_id":
         return !formData.category_id ? "Category is required" : "";
       case "unit_price":
-        return !formData.unit_price || parseFloat(formData.unit_price) <= 0
-          ? "Unit price must be greater than 0"
-          : "";
+        if (!formData.unit_price) {
+          return "Unit price is required";
+        }
+        if (parseFloat(formData.unit_price) <= 0) {
+          return "Unit price must be greater than 0";
+        }
+        return "";
       case "quantity":
-        return !formData.quantity || parseInt(formData.quantity) <= 0
-          ? "Quantity must be greater than 0"
-          : "";
+        if (!formData.quantity) {
+          return "Quantity is required";
+        }
+        if (parseInt(formData.quantity) <= 0) {
+          return "Quantity must be greater than 0";
+        }
+        return "";
       case "unit_of_measure":
         if (!formData.unit_of_measure?.trim()) {
           return "Unit of measure is required";
@@ -219,16 +275,26 @@ export default function AddInventoryProduct({ navigation, route }) {
         }
         return "";
       case "tax_rate":
-        return !formData.tax_rate || parseFloat(formData.tax_rate) <= 0
-          ? "Tax rate must be greater than 0"
-          : "";
+        if (!formData.tax_rate) {
+          return "Tax rate is required";
+        }
+        if (parseFloat(formData.tax_rate) < 0) {
+          return "Tax rate cannot be negative";
+        }
+        return "";
+      case "in_or_out":
+        return !formData.in_or_out ? "In/Out status is required" : "";
       default:
         return "";
     }
   };
 
   const handleSubmit = async () => {
-    // Mark all fields as touched
+    // Log when save button is clicked
+    console.log('Save button clicked - Starting form validation');
+    console.log('Current Form Data:', formData);
+
+    // Mark all mandatory fields as touched
     setTouchedFields({
       name: true,
       supplier_id: true,
@@ -236,29 +302,56 @@ export default function AddInventoryProduct({ navigation, route }) {
       unit_price: true,
       quantity: true,
       unit_of_measure: true,
+      tax_rate: true,
+      in_or_out: true
     });
 
-    // Check for validation errors
-    const hasErrors = [
+    // Check for validation errors in all mandatory fields
+    const mandatoryFields = [
       "name",
-      "supplier_id",
+      "supplier_id", 
       "category_id",
       "unit_price",
-      "quantity",
+      "quantity", 
       "unit_of_measure",
-    ].some((field) => !!getFieldError(field));
+      "tax_rate",
+      "in_or_out"
+    ];
+
+    // Log validation status for each field
+    console.log('Validation Status:');
+    const validationErrors = {};
+    mandatoryFields.forEach(field => {
+      const error = getFieldError(field);
+      validationErrors[field] = error || 'Valid';
+      console.log(`${field}: ${error || 'Valid'}`);
+    });
+
+    const hasErrors = mandatoryFields.some(field => !!getFieldError(field));
 
     if (hasErrors) {
+      console.log('Form validation failed - Missing or invalid fields');
+      Alert.alert(
+        "Validation Error",
+        "Please fill in all required fields correctly",
+        [{ text: "OK" }]
+      );
       return;
     }
 
+    console.log('Form validation passed - Proceeding with submission');
     setLoading(true);
+    
     try {
+      console.log('Fetching required IDs and token');
       const [restaurantId, userId, accessToken] = await Promise.all([
         getRestaurantId(),
         AsyncStorage.getItem(WebService.USER_ID),
         AsyncStorage.getItem("access_token"),
       ]);
+
+      console.log('Restaurant ID:', restaurantId);
+      console.log('User ID:', userId);
 
       // If status is "out" and no out_date is selected, set current date
       if (formData.in_or_out === "out" && !formData.out_date) {
@@ -267,20 +360,25 @@ export default function AddInventoryProduct({ navigation, route }) {
           month: "short",
           year: "numeric",
         });
+        console.log('Setting default out_date:', currentDate);
         setFormData(prev => ({
           ...prev,
           out_date: currentDate
         }));
       }
 
+      const requestData = {
+        ...formData,
+        outlet_id: restaurantId,
+        user_id: userId,
+        out_date: formData.in_or_out === "out" ? (formData.out_date || getCurrentFormattedDate()) : formData.out_date,
+      };
+
+      console.log('Submitting inventory data:', requestData);
+
       const response = await axiosInstance.post(
         `${onGetProductionUrl()}inventory_create`,
-        {
-          ...formData,
-          outlet_id: restaurantId,
-          user_id: userId,
-          out_date: formData.in_or_out === "out" ? (formData.out_date || getCurrentFormattedDate()) : formData.out_date,
-        },
+        requestData,
         {
           headers: {
             "Content-Type": "application/json",
@@ -289,12 +387,15 @@ export default function AddInventoryProduct({ navigation, route }) {
         }
       );
 
+      console.log('Server Response:', response.data);
+
       if (response.data.st === 1) {
+        console.log('Inventory created successfully');
         Alert.alert("Success", "Inventory created successfully", [
           {
             text: "OK",
             onPress: () => {
-              // Call the success callback if provided
+              console.log('Navigating back after successful creation');
               if (route.params?.onSuccess) {
                 route.params.onSuccess();
               }
@@ -303,16 +404,23 @@ export default function AddInventoryProduct({ navigation, route }) {
           },
         ]);
       } else {
+        console.log('Server returned error:', response.data.msg);
         Alert.alert("Error", response.data.msg || "Failed to create inventory");
       }
     } catch (error) {
-      console.error("Error creating inventory:", error);
+      console.error('Error during submission:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       Alert.alert(
         "Error",
         error.response?.data?.msg ||
           "Failed to create inventory. Please try again."
       );
     } finally {
+      console.log('Submission process completed');
       setLoading(false);
     }
   };
@@ -335,9 +443,8 @@ export default function AddInventoryProduct({ navigation, route }) {
               }
               value={formData.name}
               onChangeText={(text) => {
-                // Only allow letters and spaces
                 const formattedText = text.replace(/[^a-zA-Z\s]/g, "");
-                setFormData((prev) => ({ ...prev, name: formattedText }));
+                updateFormData({ name: formattedText });
                 setTouchedFields((prev) => ({ ...prev, name: true }));
               }}
               onBlur={() =>
@@ -427,7 +534,7 @@ export default function AddInventoryProduct({ navigation, route }) {
               value={formData.unit_price}
               onChangeText={(text) => {
                 const numericValue = text.replace(/[^0-9.]/g, "");
-                setFormData((prev) => ({ ...prev, unit_price: numericValue }));
+                updateFormData({ unit_price: numericValue });
                 setTouchedFields((prev) => ({ ...prev, unit_price: true }));
               }}
               onBlur={() =>
@@ -448,7 +555,7 @@ export default function AddInventoryProduct({ navigation, route }) {
               value={formData.quantity}
               onChangeText={(text) => {
                 const numericValue = text.replace(/[^0-9]/g, "");
-                setFormData((prev) => ({ ...prev, quantity: numericValue }));
+                updateFormData({ quantity: numericValue });
                 setTouchedFields((prev) => ({ ...prev, quantity: true }));
               }}
               onBlur={() =>
@@ -468,12 +575,8 @@ export default function AddInventoryProduct({ navigation, route }) {
               }
               value={formData.unit_of_measure}
               onChangeText={(text) => {
-                // Only allow letters and spaces
                 const formattedText = text.replace(/[^a-zA-Z\s]/g, "");
-                setFormData((prev) => ({
-                  ...prev,
-                  unit_of_measure: formattedText,
-                }));
+                updateFormData({ unit_of_measure: formattedText });
                 setTouchedFields((prev) => ({
                   ...prev,
                   unit_of_measure: true,
@@ -528,7 +631,7 @@ export default function AddInventoryProduct({ navigation, route }) {
               value={formData.tax_rate}
               onChangeText={(text) => {
                 const numericValue = text.replace(/[^0-9.]/g, "");
-                setFormData((prev) => ({ ...prev, tax_rate: numericValue }));
+                updateFormData({ tax_rate: numericValue });
                 setTouchedFields((prev) => ({ ...prev, tax_rate: true }));
               }}
               onBlur={() =>
@@ -622,9 +725,7 @@ export default function AddInventoryProduct({ navigation, route }) {
                     <Text style={styles.required}>*</Text> In/Out Status
                   </Text>
                 }
-                value={
-                  formData.in_or_out ? formData.in_or_out.toUpperCase() : ""
-                }
+                value={formData.in_or_out ? formData.in_or_out.toUpperCase() : ""}
                 editable={false}
                 mode="outlined"
                 right={
@@ -633,16 +734,26 @@ export default function AddInventoryProduct({ navigation, route }) {
                     onPress={() => setInOutModalVisible(true)}
                   />
                 }
-                error={getFieldError("in_or_out")}
+                error={!!getFieldError("in_or_out")}
               />
             </TouchableOpacity>
+
+            {getFieldError("in_or_out") && (
+              <Text style={styles.errorText}>{getFieldError("in_or_out")}</Text>
+            )}
 
             <Button
               mode="contained"
               onPress={handleSubmit}
               loading={loading}
-              disabled={loading}
-              style={[newstyles.submitButton, { marginTop: 20 }]}
+              disabled={loading || !isFormValid}
+              style={[
+                newstyles.submitButton, 
+                { 
+                  marginTop: 20,
+                  opacity: isFormValid ? 1 : 0.5 // Visual feedback for disabled state
+                }
+              ]}
               icon={() => (
                 <RemixIcon name="checkbox-circle-line" size={20} color="#fff" />
               )}
@@ -688,10 +799,7 @@ export default function AddInventoryProduct({ navigation, route }) {
                     key={supplier.value}
                     style={styles.modalItem}
                     onPress={() => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        supplier_id: supplier.value,
-                      }));
+                      updateFormData({ supplier_id: supplier.value });
                       setSupplierModalVisible(false);
                     }}
                   >
@@ -765,11 +873,7 @@ export default function AddInventoryProduct({ navigation, route }) {
                     key={option.value}
                     style={styles.modalItem}
                     onPress={() => {
-                      setFormData((prev) => {
-                        // Only update the in_or_out status without modifying dates
-                        return { ...prev, in_or_out: option.value };
-                      });
-                      
+                      updateFormData({ in_or_out: option.value });
                       setInOutModalVisible(false);
                       setTouchedFields((prev) => ({
                         ...prev,
