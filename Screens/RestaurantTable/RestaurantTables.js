@@ -273,7 +273,19 @@ const RestaurantTables = () => {
   };
 
   const confirmDeleteTable = async (tableId, sectionId) => {
-    Alert.alert("Delete Table", "Are you sure you want to delete this table?", [
+    // Find the table details from the sections data
+    let tableNumber = "";
+    for (const section of sections) {
+      if (section.section_id === sectionId) {
+        const table = section.tables.find(t => t.table_id === tableId);
+        if (table) {
+          tableNumber = table.table_number;
+          break;
+        }
+      }
+    }
+    
+    Alert.alert("Delete Table", `Are you sure you want to delete Table ${tableNumber}?`, [
       {
         text: "Cancel",
         style: "cancel",
@@ -1469,17 +1481,35 @@ const RestaurantTables = () => {
             </View>
           </View>
           {filteredTables.length > 0 ? (
-            <FlatList
-              data={[...filteredTables, ...(showIcons ? [{ isAddTableCard: true }] : [])]}
-              renderItem={({ item }) => 
-                item.isAddTableCard ? 
-                  <AddTableCard sectionId={updatedSection.section_id} /> : 
-                  renderTableItem({ item, section: updatedSection })
-              }
-              keyExtractor={(item) => item.isAddTableCard ? 'add-table' : item.table_id.toString()}
-              numColumns={3}
-              columnWrapperStyle={styles.tableRow}
-            />
+            <View>
+              <View style={styles.tableContainer}>
+                {filteredTables.map((table) => renderTableItem({ 
+                  item: table, 
+                  section: item,
+                  showDeleteIcon: false
+                }))}
+                
+                {/* Add Table icon */}
+                {showIcons && (
+                  <TouchableOpacity
+                    style={[styles.iconAsTable, styles.addTableIconCustom]}
+                    onPress={() => handleAddTable(item.section_id)}
+                  >
+                    <RemixIcon name="add-circle-line" size={28} color="#0dcaf0" />
+                  </TouchableOpacity>
+                )}
+                
+                {/* Delete table button - only show if there are tables and last table is not occupied */}
+                {showIcons && sortedTables.length > 0 && sortedTables[0].is_occupied === 0 && (
+                  <TouchableOpacity
+                    style={[styles.iconAsTable, styles.deleteTableIconCustom]}
+                    onPress={() => confirmDeleteTable(sortedTables[0].table_id, item.section_id)}
+                  >
+                    <RemixIcon name="delete-bin-line" size={28} color="#dc3545" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
           ) : (
             <Text style={styles.noTablesText}>
               No tables match the filter criteria
@@ -1843,13 +1873,22 @@ const RestaurantTables = () => {
   // Add handleAddTable function
   const handleAddTable = async (sectionId) => {
     try {
-      const [restaurantId, accessToken, userId] = await Promise.all([
+      // Get all required data using Promise.all for better performance
+      const [restaurantId, userId, accessToken] = await Promise.all([
         getRestaurantId(),
+        getUserId(),
         AsyncStorage.getItem("access_token"),
-        AsyncStorage.getItem("user_id"),
       ]);
+
+      // Set loading state
       setLoading(true);
 
+      // Validate required data
+      if (!restaurantId || !userId || !accessToken) {
+        throw new Error("Missing required data for creating table");
+      }
+
+      // Make API call with proper error handling
       const response = await axiosInstance.post(
         onGetProductionUrl() + "table_create",
         {
@@ -1865,16 +1904,51 @@ const RestaurantTables = () => {
         }
       );
 
+      // Handle API response
       if (response.data.st === 1) {
-        await fetchTables();
+        // Success case
+        await fetchTables(); // Refresh tables list
         Alert.alert("Success", "Table created successfully");
       } else {
-        Alert.alert("Error", response.data.msg || "Failed to create table");
+        // API error case
+        throw new Error(response.data.msg || "Failed to create table");
       }
     } catch (error) {
+      // Error handling
       console.error("Error creating table:", error);
-      Alert.alert("Error", "Failed to create table. Please try again.");
+      
+      // Handle different types of errors
+      if (error.response?.status === 401) {
+        // Unauthorized - token expired
+        await AsyncStorage.removeItem('access_token');
+        Alert.alert(
+          "Session Expired",
+          "Your session has expired. Please login again.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Navigate to login or handle session expiry
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Login' }],
+                });
+              },
+            },
+          ]
+        );
+      } else if (error.response?.data?.msg) {
+        // Server returned an error message
+        Alert.alert("Error", error.response.data.msg);
+      } else {
+        // Generic error
+        Alert.alert(
+          "Error",
+          "Failed to create table. Please try again."
+        );
+      }
     } finally {
+      // Always clean up loading state
       setLoading(false);
     }
   };
@@ -3621,6 +3695,37 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     transform: [{ rotate: '270deg' }], // Rotate digits to face north
     marginVertical: -1, // Negative margin to remove spacing between digits
+  },
+  tableContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    width: '100%',
+    paddingHorizontal: 4,
+  },
+  iconAsTable: {
+    width: "31%",
+    margin: "1%",
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 10,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderStyle: 'dashed',
+  },
+  addTableIconCustom: {
+    borderColor: '#0dcaf0',
+    borderWidth: 2,
+    borderStyle: 'dotted',
+    backgroundColor: 'rgba(13, 202, 240, 0.1)',
+  },
+  deleteTableIconCustom: {
+    borderColor: '#dc3545',
+    borderWidth: 2,
+    borderStyle: 'dotted',
+    backgroundColor: 'rgba(220, 53, 69, 0.1)',
   },
 });
 
