@@ -2344,12 +2344,12 @@ const RestaurantTables = () => {
       {renderOrderTypeButtons()}
         {/* Sales Summary badges */}
         <View style={styles.salesContainer}>
-          <View style={styles.todaysSalesBadge}>
-            <Text style={styles.salesLabel}>Today's Sales:</Text>
+          <View style={[styles.salesBadge]}>
+            <Text style={styles.salesLabel}>Today's Sales</Text>
             <Text style={styles.salesAmount}>₹{todaySales}</Text>
           </View>
-          <View style={styles.liveSalesBadge}>
-            <Text style={styles.salesLabel}>Live Sales:</Text>
+          <View style={[styles.salesBadge, styles.liveSalesBadge]}>
+            <Text style={styles.salesLabel}>Live Sales</Text>
             <Text style={styles.salesAmount}>₹{liveSales}</Text>
           </View>
         </View>
@@ -3482,39 +3482,36 @@ const styles = StyleSheet.create({
   },
   salesContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8, // Reduced gap to match image
-  },
-  todaysSalesBadge: {
-    width: '48.5%', // Fixed width instead of flex
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  salesBadge: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#e3f2fd',
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8, // Slightly reduced padding
+    paddingVertical: 3,
+    marginRight: 8,
     borderWidth: 1,
-    borderColor: '#90caf9',
+    borderColor: 'grey',
   },
   liveSalesBadge: {
-    width: '48.5%', // Fixed width instead of flex
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: 'rgba(253,237,232,0.8)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8, // Slightly reduced padding
+    borderLeftColor: '#FF9A6C',
+    marginRight: 0,
+    marginLeft: 8,
     borderWidth: 1,
-    borderColor: '#ffccbc',
+    borderColor: '#FF9A6C'
   },
   salesLabel: {
     fontSize: 14,
     fontWeight: '500',
     color: '#555',
+    marginBottom: 4,
   },
   salesAmount: {
     fontSize: 16,
