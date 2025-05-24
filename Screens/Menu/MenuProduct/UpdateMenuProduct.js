@@ -955,7 +955,7 @@ export default function UpdateMenuProduct({ navigation, route }) {
                       {spicyIndex
                         ? spicyIndexList.find((item) => item.key === spicyIndex)
                             ?.name
-                        : "Select Spicy Level *"}
+                        : "Select Spicy Level"}
                     </Text>
                     <Icon name="keyboard-arrow-down" size={24} color="#666" />
                   </TouchableOpacity>
