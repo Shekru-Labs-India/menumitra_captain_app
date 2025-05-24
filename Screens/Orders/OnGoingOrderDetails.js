@@ -34,8 +34,6 @@ import { usePrinter } from "../../contexts/PrinterContext";
 import axiosInstance from "../../utils/axiosConfig";
 import { useNavigation } from "@react-navigation/native";
 import PaymentModal from "../../components/PaymentModal";
-import * as FileSystem from 'expo-file-system';
-import { Asset } from 'expo-asset';
 
 
 const PRINTER_SERVICE_UUIDS = [
@@ -57,25 +55,6 @@ const COMMANDS = {
   TEXT_CENTERED: [ESC, "a", 1],
   LINE_SPACING: [ESC, "3", 60],
   CUT_PAPER: [GS, "V", 1],
-};
-
-// Add getImageBase64 function to get the logo as base64
-const getImageBase64 = async () => {
-  try {
-    // Load the asset
-    const asset = Asset.fromModule(require('../../assets/icon.png')); // Default logo
-    await asset.downloadAsync();
-
-    // Read the file and convert to base64
-    const base64Image = await FileSystem.readAsStringAsync(asset.localUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    return `data:image/png;base64,${base64Image}`;
-  } catch (error) {
-    console.error('Error loading image:', error);
-    return null;
-  }
 };
 
 const OnGoingOrderDetails = ({ route }) => {
@@ -145,9 +124,7 @@ const OnGoingOrderDetails = ({ route }) => {
             existingOrderDetails: {
               ...orderDetails.order_details,
               payment_method: orderDetails.order_details.payment_method || "cash",
-              menu_details: menu_details,
-              customer_name: orderDetails.order_details.customer_name || orderDetails.order_details.user_name || "",
-              customer_mobile: orderDetails.order_details.customer_mobile || orderDetails.order_details.user_mobile || "",
+              menu_details: menu_details
             }
           });
         }}
@@ -181,33 +158,6 @@ const OnGoingOrderDetails = ({ route }) => {
               },
             }
           );
-          
-          // Log the response to debug customer information
-          console.log("API Response - Order View:", JSON.stringify(response.data));
-          
-          // Check if customer details exist
-          if (response.data.lists?.order_details) {
-            const customerData = {
-              name: response.data.lists.order_details.customer_name || response.data.lists.order_details.user_name,
-              mobile: response.data.lists.order_details.customer_mobile || response.data.lists.order_details.user_mobile,
-              address: response.data.lists.order_details.customer_address,
-              landmark: response.data.lists.order_details.customer_landmark
-            };
-            console.log("Customer details from API:", customerData);
-            
-            // If we have user_name or user_mobile but no customer_name or customer_mobile, update the order details
-            if (response.data.lists?.order_details) {
-              if (!response.data.lists.order_details.customer_name && response.data.lists.order_details.user_name) {
-                response.data.lists.order_details.customer_name = response.data.lists.order_details.user_name;
-              }
-              if (!response.data.lists.order_details.customer_mobile && response.data.lists.order_details.user_mobile) {
-                response.data.lists.order_details.customer_mobile = response.data.lists.order_details.user_mobile;
-              }
-            }
-          } else {
-            console.log("No customer details found in the response");
-          }
-          
           setOrderDetails(response.data.lists);
         } catch (error) {
           console.error("Error fetching order details:", error);
@@ -234,20 +184,6 @@ const OnGoingOrderDetails = ({ route }) => {
           },
         }
       );
-      
-      // Also log on refresh
-      console.log("Refresh API Response - Order View:", JSON.stringify(response.data));
-      
-      // If we have user_name or user_mobile but no customer_name or customer_mobile, update the order details
-      if (response.data.lists?.order_details) {
-        if (!response.data.lists.order_details.customer_name && response.data.lists.order_details.user_name) {
-          response.data.lists.order_details.customer_name = response.data.lists.order_details.user_name;
-        }
-        if (!response.data.lists.order_details.customer_mobile && response.data.lists.order_details.user_mobile) {
-          response.data.lists.order_details.customer_mobile = response.data.lists.order_details.user_mobile;
-        }
-      }
-      
       setOrderDetails(response.data.lists);
     } catch (error) {
       console.error("Error fetching order details:", error);
@@ -264,20 +200,6 @@ const OnGoingOrderDetails = ({ route }) => {
         AsyncStorage.getItem("access_token"),
       ]);
 
-      const { 
-        customer_name, 
-        customer_mobile, 
-        customer_alternate_mobile, 
-        customer_address, 
-        customer_landmark,
-        user_name,
-        user_mobile
-      } = orderDetails.order_details;
-
-      // Use customer info if available, otherwise use user info
-      const nameToUse = customer_name || user_name || "";
-      const mobileToUse = customer_mobile || user_mobile || "";
-
       const response = await axiosInstance.post(
         onGetProductionUrl() + "update_order_status",
         {
@@ -287,8 +209,8 @@ const OnGoingOrderDetails = ({ route }) => {
           order_status: "served",
           payment_method: orderDetails.order_details.payment_method || "",
           is_paid: orderDetails.order_details.is_paid || "0",
-          customer_name: nameToUse,
-          customer_mobile: mobileToUse,
+          customer_name: orderDetails.order_details.customer_name || "",
+          customer_mobile: orderDetails.order_details.customer_mobile || "",
           customer_alternate_mobile: orderDetails.order_details.customer_alternate_mobile || "",
           customer_address: orderDetails.order_details.customer_address || "",
           customer_landmark: orderDetails.order_details.customer_landmark || "",
@@ -333,10 +255,6 @@ const OnGoingOrderDetails = ({ route }) => {
       // Use provided orderData if available, otherwise use state orderDetails
       const orderDetailsToUse = orderData || orderDetails;
 
-      // Get the logo image as base64
-      const logoBase64 = await getImageBase64();
-      const logoB64Data = logoBase64 ? logoBase64.replace('data:image/png;base64,', '') : null;
-
       const getCurrentDateTime = () => {
         const now = new Date();
         
@@ -380,19 +298,12 @@ const OnGoingOrderDetails = ({ route }) => {
         final_grand_total: finalGrandTotal,
         // Customer details
         customer_name: customerName,
-        customer_mobile: customerMobile,
-        user_name: userName,
-        user_mobile: userMobile,
         
         // Payment details
         is_paid: isPaid,
         payment_method: paymentMethod,
         is_complementary: isComplementary
       } = orderDetailsToUse.order_details;
-
-      // Use customer_name/mobile if available, otherwise fallback to user_name/mobile
-      const displayName = customerName || userName;
-      const displayMobile = customerMobile || userMobile;
 
       const upiId = (await AsyncStorage.getItem("upi_id")) || "merchant@upi";
       const websiteUrl =
@@ -467,7 +378,7 @@ const OnGoingOrderDetails = ({ route }) => {
       console.log("Receipt generation - paymentMethod:", paymentMethod);
       console.log("Receipt generation - isComplementary:", isComplementary);
 
-      const commands = [
+      return [
         ...COMMANDS.INITIALIZE,
         ...textToBytes("\x1B\x61\x01"), // Center align
         
@@ -487,51 +398,9 @@ const OnGoingOrderDetails = ({ route }) => {
           ...textToBytes("\x1B\x21\x00") // Reset text size
         ] : 
         []),
-      ];
-      
-      // Add logo if available
-      if (logoB64Data) {
-        // ESC/POS command for printing images
-        // Using the GS v 0 command for raster bit image
-        const logoImageWidth = 250; // Width in pixels (adjust based on your needs)
-        const logoImageWidthBytes = Math.ceil(logoImageWidth / 8); // Width in bytes
-          
-        // Add command to print logo using base64 data
-        commands.push(
-          ...textToBytes("\x1B\x61\x01"), // Center align
-          ...textToBytes("\x1D\x76\x30\x00"), // GS v 0 - Print raster bit image command
-          ...textToBytes(String.fromCharCode(logoImageWidthBytes % 256)), // Width low byte
-          ...textToBytes(String.fromCharCode(Math.floor(logoImageWidthBytes / 256))), // Width high byte
-          ...textToBytes("\x40\x00") // Height (64 pixels for example)
-        );
-          
-        // Add the base64 decoded logo data
-        // In a real implementation, you'd properly decode and format this data
-        // This is a simplified approach 
-        const logoBytes = [];
-        try {
-          for (let i = 0; i < 480; i++) { // Send some sample data (this is a placeholder)
-            logoBytes.push(0xFF); // Sample data to print some black pixels
-          }
-          commands.push(...logoBytes);
-        } catch (logoError) {
-          console.error("Error adding logo data:", logoError);
-        }
-          
-        commands.push(...textToBytes("\n")); // Line feed after logo
-      } else {
-        // Fallback if no logo is available - just print the restaurant name with larger text
-        commands.push(
-          ...textToBytes("\x1B\x61\x01"), // Center align
-          ...textToBytes("\x1B\x21\x30"), // Larger text (double width, double height)
-          ...textToBytes("MENUMITRA\n"),
-          ...textToBytes("\x1B\x21\x00") // Normal text
-        );
-      }
-      
-      // Continue with the rest of the receipt
-      commands.push(
+        
         ...textToBytes("\x1B\x21\x08"), // Double height for outlet name
+        
         ...textToBytes(`${orderDetailsToUse.order_details.outlet_name}\n`),
         ...textToBytes("\x1B\x21\x00"), // Normal height
         ...textToBytes(`${orderDetailsToUse.order_details.outlet_address}\n`),
@@ -556,7 +425,7 @@ const OnGoingOrderDetails = ({ route }) => {
         ...textToBytes(`DateTime: ${getCurrentDateTime()}\n`),
         
         // Add customer name if available (but not mobile/address)
-        ...(displayName ? textToBytes(`Customer: ${displayName}\n`) : []),
+        ...(customerName ? textToBytes(`Customer: ${customerName}\n`) : []),
         
         // Display payment method if paid and method exists
         ...((isPaid === 1 || isPaid === "paid" || isPaid === true) && paymentMethod ? 
@@ -614,19 +483,18 @@ const OnGoingOrderDetails = ({ route }) => {
         ...textToBytes("\n"),
 
         ...textToBytes("\x1B\x61\x01"), // Center align
-        ...textToBytes("PhonePe  GPay  Paytm  UPI\n\n"),
-        ...textToBytes("------------------------\n"),
+        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n\n`),
+        ...textToBytes("\n"),
+       
         
         ...generateQRCode(qrData),
         ...textToBytes('\n\n'),
-        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n\n`),
-        ...textToBytes("\n"),
+        ...textToBytes("PhonePe  GPay  Paytm  UPI\n\n"),
+        ...textToBytes("------------------------\n"),
         ...textToBytes("-----Thank You Visit Again!-----"),
         ...textToBytes("https://menumitra.com/\n"), // Fixed missing slash
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
-      );
-
-      return commands;
+      ];
     } catch (error) {
       console.error("Error generating receipt data:", error);
       throw error;
@@ -641,9 +509,6 @@ const OnGoingOrderDetails = ({ route }) => {
       const websiteUrl =
         (await AsyncStorage.getItem("website_url")) || "menumitra.com";
 
-      // Get logo base64
-      const logoBase64 = await getImageBase64();
-
       const formatCurrency = (amount) => `₹${parseFloat(amount).toFixed(2)}`;
 
       return `
@@ -652,7 +517,6 @@ const OnGoingOrderDetails = ({ route }) => {
             <style>
               body { font-family: monospace; text-align: center; }
               .header { margin-bottom: 20px; }
-              .logo-image { width: 80px; height: 80px; margin: 0 auto 10px; }
               .order-info { text-align: left; margin: 10px 0; }
               .items { width: 100%; text-align: left; }
               .dotted-line { border-top: 1px dotted black; margin: 10px 0; }
@@ -662,7 +526,6 @@ const OnGoingOrderDetails = ({ route }) => {
           </head>
           <body>
             <div class="header">
-              ${logoBase64 ? `<img src="${logoBase64}" alt="Restaurant Logo" class="logo-image" />` : ''}
               <h2>${orderDetailsToUse.order_details.outlet_name}</h2>
               <p>${orderDetailsToUse.order_details.outlet_address}</p>
               <p>${orderDetailsToUse.order_details.outlet_mobile}</p>
@@ -1351,6 +1214,8 @@ const OnGoingOrderDetails = ({ route }) => {
     try {
       const getDottedLine = () => "-------------------------------\n";
       
+
+
       const getCurrentDateTime = () => {
         const now = new Date();
         
@@ -1387,13 +1252,10 @@ const OnGoingOrderDetails = ({ route }) => {
         ...textToBytes("\x1B\x40"), // Initialize printer
         ...textToBytes("\x1B\x61\x01"), // Center alignment
         
-        // Print logo - added raster command for logo
-        ...textToBytes("\x1D\x76\x30\x00"), // GS v 0 - Print raster bit image
-        ...textToBytes("\x30\x30"), // Normal width and normal height
-        ...textToBytes("\x20\x20"), // Width = 32 bytes (256 pixels)
-        ...textToBytes("\x10\x00"), // Height = 16 pixels
-        
+        // Add KOT header
         ...textToBytes("\x1B\x21\x10"), // Double width, double height
+        ...textToBytes("*** KOT ***\n\n"),
+        
         ...textToBytes(`${orderDetails?.order_details?.outlet_name || "Restaurant"}\n`),
         ...textToBytes("\x1B\x21\x00"), // Normal text
         ...textToBytes(`${orderDetails?.order_details?.outlet_address || ""}\n`),
@@ -1629,60 +1491,64 @@ const OnGoingOrderDetails = ({ route }) => {
   const renderCustomerDetails = () => {
     if (!orderDetails?.order_details) return null;
     
-    const { 
-      customer_name, 
-      customer_mobile, 
-      customer_alternate_mobile, 
-      customer_address, 
-      customer_landmark,
-      user_name,
-      user_mobile 
-    } = orderDetails.order_details;
+    const { customer_name, customer_mobile, customer_alternate_mobile, customer_address, customer_landmark } = orderDetails.order_details;
     
     // Only show this section if we have any customer details
-    const name = customer_name || user_name;
-    const mobile = customer_mobile || user_mobile;
-    
-    if (!name && !mobile && !customer_address) return null;
+    if (!customer_name && !customer_mobile && !customer_address) return null;
     
     return (
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Customer Details</Text>
         
-        {name ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Name:</Text>
-            <Text style={styles.detailText}>{name}</Text>
+        <View style={styles.customerDetailsGrid}>
+          {/* First row */}
+          <View style={styles.customerGridItem}>
+            {customer_name ? (
+              <>
+                <Text style={styles.customerValue}>{customer_name}</Text>
+                <Text style={styles.customerLabel}>Name</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {mobile ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Mobile:</Text>
-            <Text style={styles.detailText}>{mobile}</Text>
+          
+          <View style={styles.customerGridItem}>
+            {customer_mobile ? (
+              <>
+                <Text style={styles.customerValue}>{customer_mobile}</Text>
+                <Text style={styles.customerLabel}>Mobile</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {customer_alternate_mobile ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Alt. Mobile:</Text>
-            <Text style={styles.detailText}>{customer_alternate_mobile}</Text>
+          
+          {/* Second row */}
+          <View style={styles.customerGridItem}>
+            {customer_alternate_mobile ? (
+              <>
+                <Text style={styles.customerValue}>{customer_alternate_mobile}</Text>
+                <Text style={styles.customerLabel}>Alt. Mobile</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {customer_address ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Address:</Text>
-            <Text style={styles.detailText}>{customer_address}</Text>
+          
+          <View style={styles.customerGridItem}>
+            {customer_address ? (
+              <>
+                <Text style={styles.customerValue}>{customer_address}</Text>
+                <Text style={styles.customerLabel}>Address</Text>
+              </>
+            ) : null}
           </View>
-        ) : null}
-        
-        {customer_landmark ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Landmark:</Text>
-            <Text style={styles.detailText}>{customer_landmark}</Text>
-          </View>
-        ) : null}
+          
+          {/* Third row if needed */}
+          {customer_landmark ? (
+            <View style={styles.customerGridItem}>
+              <>
+                <Text style={styles.customerValue}>{customer_landmark}</Text>
+                <Text style={styles.customerLabel}>Landmark</Text>
+              </>
+            </View>
+          ) : null}
+        </View>
       </View>
     );
   };
@@ -1698,21 +1564,6 @@ const OnGoingOrderDetails = ({ route }) => {
 
         // Determine if this is a complementary order
         const isComplementary = paymentMethod === 'COMPLEMENTARY';
-
-        // Get customer or user details
-        const { 
-          customer_name, 
-          customer_mobile, 
-          customer_alternate_mobile, 
-          customer_address, 
-          customer_landmark,
-          user_name,
-          user_mobile
-        } = orderDetails.order_details;
-
-        // Use customer info if available, otherwise use user info
-        const nameToUse = customer_name || user_name || "";
-        const mobileToUse = customer_mobile || user_mobile || "";
 
         // Close the payment modal immediately to avoid UI delays
         setIsPaymentModalVisible(false);
@@ -1756,8 +1607,8 @@ const OnGoingOrderDetails = ({ route }) => {
             payment_method: isComplementary ? null : (paymentMethod || selectedPaymentMethod),
             is_paid: isComplementary ? "complementary" : "paid",
             is_complementary: isComplementary ? 1 : 0,
-            customer_name: nameToUse,
-            customer_mobile: mobileToUse,
+            customer_name: orderDetails.order_details.customer_name || "",
+            customer_mobile: orderDetails.order_details.customer_mobile || "",
             customer_alternate_mobile: orderDetails.order_details.customer_alternate_mobile || "",
             customer_address: orderDetails.order_details.customer_address || "",
             customer_landmark: orderDetails.order_details.customer_landmark || "",
@@ -1875,14 +1726,20 @@ const OnGoingOrderDetails = ({ route }) => {
               style={[styles.printButton, { backgroundColor: "#3498db", marginHorizontal: 16, marginTop: 16 }]}
               onPress={openPaymentModal}
             >
-              <Text style={styles.printButtonText}>Print & Settle</Text>
+              <View style={styles.buttonContent}>
+                <RemixIcon name="printer-line" size={20} color="#fff" />
+                <Text style={styles.printButtonText}>Print & Settle</Text>
+              </View>
             </TouchableOpacity>
             
             <TouchableOpacity
               style={[styles.printButton, { backgroundColor: "#000", marginHorizontal: 16, marginTop: 8 }]}
               onPress={printKOT}
             >
-              <Text style={styles.printButtonText}>KOT</Text>
+              <View style={styles.buttonContent}>
+                <RemixIcon name="file-list-3-line" size={20} color="#fff" />
+                <Text style={styles.printButtonText}>KOT</Text>
+              </View>
             </TouchableOpacity>
           </>
         }
@@ -2164,8 +2021,10 @@ const styles = StyleSheet.create({
   },
   printButtonText: {
     color: "#fff",
-    fontWeight: "bold",
     fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginLeft: 4,
   },
   modalContainer: {
     flex: 1,
@@ -2574,6 +2433,31 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 14,
     fontWeight: '500',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  customerDetailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  customerGridItem: {
+    width: '50%',
+    marginBottom: 1,
+  },
+  customerValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  customerLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
   },
 });
 
