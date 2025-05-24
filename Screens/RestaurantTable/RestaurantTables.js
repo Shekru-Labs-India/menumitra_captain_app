@@ -1325,7 +1325,7 @@ const RestaurantTables = () => {
             style={styles.reserveTableIcon}
             onPress={handleReservePress}
           >
-            <RemixIcon name="lock-line" size={20} color="#ff9800" />
+            <RemixIcon name="lock-line" size={20} color="#757575" />
           </TouchableOpacity>
         )}
 
