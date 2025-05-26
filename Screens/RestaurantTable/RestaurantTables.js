@@ -1370,14 +1370,14 @@ const RestaurantTables = () => {
         )}
         
 
-        {showDeleteIcon && (
+        {/* {showDeleteIcon && (
           <TouchableOpacity
             style={styles.deleteTableButton}
             onPress={() => confirmDeleteTable(item.table_id, section.section_id)}
           >
             <RemixIcon name="delete-bin-line" size={20} color="#dc3545" />
           </TouchableOpacity>
-        )}
+        )} */}
       </Pressable>
     );
   };
