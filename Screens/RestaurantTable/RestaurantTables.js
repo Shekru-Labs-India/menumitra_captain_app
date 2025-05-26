@@ -2563,10 +2563,7 @@ const RestaurantTables = () => {
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>Add Section</Text>
                 <TextInput
-                  style={[
-                    styles.input,
-                    sectionNameError ? styles.inputError : null,
-                  ]}
+                  style={[styles.input, { marginBottom: sectionNameError ? 4 : 15 }]}
                   value={newSectionName}
                   onChangeText={(text) => {
                     setNewSectionName(text);
@@ -2579,6 +2576,8 @@ const RestaurantTables = () => {
                   }
                   mode="outlined"
                   error={!!sectionNameError}
+                  outlineColor={sectionNameError ? "#dc3545" : "#ccc"}
+                  activeOutlineColor={sectionNameError ? "#dc3545" : "#0dcaf0"}
                 />
                 {sectionNameError ? (
                   <Text style={styles.errorText}>{sectionNameError}</Text>
@@ -2660,7 +2659,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   input: {
-    marginBottom: 15,
+    backgroundColor: '#fff',
   },
   modalButtons: {
     flexDirection: "row",
@@ -2708,13 +2707,11 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 5,
   },
-  inputError: {
-    borderColor: '#dc3545',
-  },
   errorText: {
     color: '#dc3545',
-    fontSize: 14,
-    marginTop: 5,
+    fontSize: 12,
+    marginBottom: 15,
+    marginLeft: 4,
   },
   header: {
     flexDirection: "row",
@@ -3114,17 +3111,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     width: "80%",
     padding: 20,
-  },
-  inputError: {
-    borderColor: "red",
-    borderWidth: 1,
-  },
-  errorText: {
-    color: "red",
-    fontSize: 12,
-    marginTop: 4,
-    marginBottom: 8,
-    marginLeft: 4,
   },
   pickerError: {
     borderColor: "red",
