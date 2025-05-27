@@ -2662,6 +2662,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   modalButtons: {
+    marginTop: 10,
     flexDirection: "row",
     justifyContent: "space-between",
   },
