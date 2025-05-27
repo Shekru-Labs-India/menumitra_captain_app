@@ -1018,13 +1018,13 @@ const RestaurantInfo = ({ navigation }) => {
       {/* Add the QR Code Modal */}
       <QRCodeModal />
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.editButton}
         onPress={() => navigation.navigate("EditRestaurantInfo")}
       >
         <RemixIcon name="pencil-line" size={24} color="#fff" />
         <Text style={styles.editButtonText}>Edit</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       <CustomTabBar />
     </>
