@@ -180,7 +180,99 @@ eas update --channel production --message "What's new in this update"
 4. Create the required update channels on expo.dev
 5. Build and test both preview and production versions
 
-## 8. Best Practices
+## 8. Branch Management & Version Control
+
+### Branch Structure
+```
+GitHub Repository
+├── main (preview/development branch)
+└── production (stable release branch)
+```
+
+### Branch Workflow
+
+1. **Main Branch (Preview)**:
+   - Primary development branch
+   - Used for preview builds and testing
+   - Contains latest features and changes
+   - Commands while on main branch:
+     ```bash
+     git checkout main
+     eas build --profile preview --platform android
+     eas update --channel preview --message "New feature: XYZ"
+     ```
+
+2. **Production Branch**:
+   - Contains stable, production-ready code
+   - Only pull from main when preview is thoroughly tested
+   - Commands while on production branch:
+     ```bash
+     git checkout production
+     git pull origin main    # Pull tested changes from main
+     eas build --profile production --platform android
+     eas update --channel production --message "Release v1.2.3"
+     ```
+
+### Version Control Best Practices
+
+1. **Development Flow**:
+   ```bash
+   # For development and testing (preview)
+   git checkout main
+   # Make changes, commit, and push
+   eas build --profile preview --platform android
+   
+   # Once preview is tested and stable
+   git checkout production
+   git pull origin main    # Get clean, tested code from main
+   eas build --profile production --platform android
+   ```
+
+2. **Version Management**:
+   - Main branch (Preview): Development versions (e.g., 1.2.3-preview)
+   - Production branch: Stable versions (e.g., 1.2.3)
+
+3. **Release Process**:
+   ```bash
+   # After thorough testing on preview
+   git checkout production
+   git pull origin main
+   # Update version number if needed
+   git tag -a v1.2.3 -m "Release version 1.2.3"
+   git push origin production
+   git push origin --tags
+   ```
+
+### Important Notes:
+- Main branch is for preview/development
+- Production branch only gets updates from main when preview is stable
+- Always test thoroughly on preview (main branch) before pulling to production
+- Keep branch and channel alignment:
+  - main branch → preview channel
+  - production branch → production channel
+
+### Build and Update Commands by Branch:
+
+1. **Main Branch (Preview)**:
+   ```bash
+   git checkout main
+   # For preview builds
+   eas build --profile preview --platform android
+   # For preview updates
+   eas update --channel preview --message "Preview: New features"
+   ```
+
+2. **Production Branch**:
+   ```bash
+   git checkout production
+   git pull origin main    # Get stable code from main
+   # For production builds
+   eas build --profile production --platform android
+   # For production updates
+   eas update --channel production --message "Release: v1.2.3"
+   ```
+
+## 9. Best Practices
 
 1. Always test updates on preview builds first
 2. Use meaningful update messages
@@ -188,7 +280,7 @@ eas update --channel production --message "What's new in this update"
 4. Test both preview and production builds after setup
 5. Verify update channels are working correctly for both builds
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 1. If updates aren't received:
    - Check the channel configuration in `eas.json`
