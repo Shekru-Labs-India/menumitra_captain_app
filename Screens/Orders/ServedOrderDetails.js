@@ -947,11 +947,9 @@ const ServedOrderDetails = ({ route }) => {
         // Use final_grand_total if available, otherwise use grand_total
         ...textToBytes(formatAmountLine("Total", finalGrandTotal || grandTotal)),
         ...textToBytes("\n"),
-        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n\n`),
-        ...textToBytes("\n"),
+        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n`),
         // Footer section with QR code
         ...textToBytes("\x1B\x61\x01"), // Center align
-       
         
         ...generateQRCode(qrData),
         ...textToBytes('\n\n'),
@@ -959,7 +957,7 @@ const ServedOrderDetails = ({ route }) => {
         ...textToBytes("------------------------\n"),
        
         ...textToBytes("-----Thank You Visit Again!-----"),
-        ...textToBytes("https://menumitra.com/\n"), // Fixed missing slash and removed extra parenthesis
+        ...textToBytes("https://menumitra.com/\n\n\n"), // Added extra newlines after website
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
       ];
     } catch (error) {

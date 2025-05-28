@@ -564,10 +564,9 @@ const OrderDetails = ({ route, navigation }) => {
         
         ...generateQRCode(qrData),
         ...textToBytes('\n\n'),
-        ...textToBytes(`Scan to Pay ${grandTotal.toFixed(2)}\n\n`),
-        ...textToBytes("\n"),
+        ...textToBytes(`Scan to Pay ${grandTotal.toFixed(2)}\n`),
         ...textToBytes("-----Thank You Visit Again!-----"),
-        ...textToBytes("https://menumitra.com/)\n\n\n\n"),
+        ...textToBytes("https://menumitra.com/\n\n\n\n"),
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
       ];
     } catch (error) {
