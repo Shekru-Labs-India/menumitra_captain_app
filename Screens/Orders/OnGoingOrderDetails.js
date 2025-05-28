@@ -476,23 +476,20 @@ const OnGoingOrderDetails = ({ route }) => {
         ...(Math.abs(tip) > 0.001 ? 
           textToBytes(formatAmountLine("Tip", tip, "+"))
           : []),
-
         ...textToBytes(getDottedLine()),
         // Use final_grand_total if available, otherwise use grand_total
         ...textToBytes(formatAmountLine("Total", finalGrandTotal || grandTotal)),
         ...textToBytes("\n"),
 
         ...textToBytes("\x1B\x61\x01"), // Center align
-        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n\n`),
-        ...textToBytes("\n"),
-       
+        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n`),
         
         ...generateQRCode(qrData),
         ...textToBytes('\n\n'),
         ...textToBytes("PhonePe  GPay  Paytm  UPI\n\n"),
         ...textToBytes("------------------------\n"),
         ...textToBytes("-----Thank You Visit Again!-----"),
-        ...textToBytes("https://menumitra.com/\n"), // Fixed missing slash
+        ...textToBytes("https://menumitra.com/\n\n\n"), // Added extra newlines for better spacing
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
       ];
     } catch (error) {

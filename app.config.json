@@ -34,7 +34,6 @@
         "backgroundColor": "#ffffff"
       },
       "softwareKeyboardLayoutMode": "pan",
-      "package": "com.menumitra.captainapp",
       "permissions": [
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_ADMIN",
@@ -100,4 +99,4 @@
     },
     "owner": "menumitra"
   }
-}
+} 

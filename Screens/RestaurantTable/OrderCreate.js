@@ -2120,19 +2120,15 @@ const currentDate = (() => {
 
         // Footer - centered
         ...textToBytes("\x1B\x61\x01"), // Center align
-        ...textToBytes(`Scan to Pay ${grandTotal.toFixed(2)}\n\n`),
-        
-        ...textToBytes("------------------------\n"),
+        ...textToBytes(`Scan to Pay ${grandTotal.toFixed(2)}\n`),
         
         // QR Code
         ...generateQRCode(qrData),
         ...textToBytes('\n'),
-        ...textToBytes("------ Payment Options ------\n\n"),
-        ...textToBytes("\x1B\x21\x00"), // Normal text
         ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
         ...textToBytes("\n"),
         ...textToBytes("-----Thank You Visit Again!-----"),
-        ...textToBytes("https://menumitra.com/)\n"),
+        ...textToBytes("https://menumitra.com/)\n\n\n"),
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
       ];
     } catch (error) {

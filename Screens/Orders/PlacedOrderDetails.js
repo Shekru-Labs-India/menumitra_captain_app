@@ -1380,23 +1380,19 @@ const PlacedOrderDetails = ({ route }) => {
         ...(Math.abs(tip) > 0.001 ? 
           textToBytes(formatAmountLine("Tip", tip, "+"))
           : []),
-
         ...textToBytes(getDottedLine()),
         // Use final_grand_total if available, otherwise use grand_total
         ...textToBytes(formatAmountLine("Total", finalGrandTotal || grandTotal)),
         ...textToBytes("\n"),
-        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n\n`),
-        ...textToBytes("\n"),
+        ...textToBytes(`Scan to Pay ${finalGrandTotal ? finalGrandTotal.toFixed(2) : grandTotal.toFixed(2)}\n`),
         // Footer section with correct QR code implementation
         ...textToBytes("\x1B\x61\x01"), // Center align
-      
-        
         ...generateQRCode(qrData),
         ...textToBytes('\n\n'),
         ...textToBytes("PhonePe  GPay  Paytm  UPI\n\n"),
         ...textToBytes("------------------------\n"),
         ...textToBytes("-----Thank You Visit Again!-----\n"),
-        ...textToBytes("https://menumitra.com/\n"),
+        ...textToBytes("https://menumitra.com/\n\n\n"),
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
       ];
     } catch (error) {
