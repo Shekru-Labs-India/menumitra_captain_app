@@ -1,4 +1,5 @@
-const { APP_ENV } = require('./Screens/utils/ConstantFunctions');
+// Import not supported in app.config.js, use inline value for now
+const APP_ENV = process.env.APP_ENV || 'dev';
 
 module.exports = ({ config }) => {
   const buildType = process.env.EAS_BUILD_PROFILE || 'development';
