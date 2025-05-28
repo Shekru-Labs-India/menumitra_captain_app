@@ -8,12 +8,19 @@ module.exports = ({ config }) => {
   const basePackageName = 'com.menumitra.captainapp';
   
   // Determine package name based on build profile and APP_ENV
-  const packageName = buildType === 'production' && APP_ENV === 'prod'
+  const packageName = APP_ENV === 'prod' && buildType === 'production'
     ? basePackageName 
     : `${basePackageName}.preview`;
 
   // Determine app name suffix based on environment
-  const appNameSuffix = APP_ENV === 'prod' ? '' : ' (Preview)';
+  const appNameSuffix = APP_ENV === 'prod' && buildType === 'production' ? '' : ' (Preview)';
+
+  console.log('Build Configuration:', {
+    APP_ENV,
+    buildType,
+    packageName,
+    appNameSuffix
+  });
 
   return {
     ...config,
