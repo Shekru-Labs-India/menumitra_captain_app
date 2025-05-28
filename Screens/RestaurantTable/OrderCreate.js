@@ -2120,7 +2120,7 @@ const currentDate = (() => {
 
         // Footer - centered
         ...textToBytes("\x1B\x61\x01"), // Center align
-        ...textToBytes(`Scan to Pay ${grandTotal.toFixed(2)}\n`),
+        ...textToBytes(`Scan to Pay ${grandTotal.toFixed(2)}\n\n`),
         
         // QR Code
         ...generateQRCode(qrData),
@@ -2128,7 +2128,7 @@ const currentDate = (() => {
         ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
         ...textToBytes("\n"),
         ...textToBytes("-----Thank You Visit Again!-----"),
-        ...textToBytes("https://menumitra.com/)\n\n\n"),
+        ...textToBytes("https://menumitra.com/)\n"),
         ...textToBytes("\x1D\x56\x42\x40"), // Cut paper
       ];
     } catch (error) {
