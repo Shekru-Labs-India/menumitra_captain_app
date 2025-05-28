@@ -2122,13 +2122,9 @@ const currentDate = (() => {
         ...textToBytes("\x1B\x61\x01"), // Center align
         ...textToBytes(`Scan to Pay ${grandTotal.toFixed(2)}\n\n`),
         
-        ...textToBytes("------------------------\n"),
-        
         // QR Code
         ...generateQRCode(qrData),
         ...textToBytes('\n'),
-        ...textToBytes("------ Payment Options ------\n\n"),
-        ...textToBytes("\x1B\x21\x00"), // Normal text
         ...textToBytes("PhonePe  GPay  Paytm  UPI\n"),
         ...textToBytes("\n"),
         ...textToBytes("-----Thank You Visit Again!-----"),
