@@ -321,13 +321,16 @@ export default function VerifyOTPScreen({ navigation, route }) {
           const outletData = {
             outlet_id: json.outlet_id,
             outlet_name: json.outlet_name || "",
+            outlet_mobile: json.mobile,
+            outlet_address: json.address,
             config: {
               gst: json.gst,
               service_charges: json.service_charges,
               is_open: json.is_open,
               outlet_status: json.outlet_status,
               order_number_sequence: json.order_number_sequence,
-              address: json.address
+              // address: json.address,
+              outlet_address: json.address,
             },
             metrics: {
               today_sale: json.today_sale || 0,
@@ -341,6 +344,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
           // Store current format
           await AsyncStorage.setItem("outlet_id", json.outlet_id?.toString());
           await AsyncStorage.setItem("outlet_name", json.outlet_name || "");
+          await AsyncStorage.setItem("outlet_address", json.address || "");
           await AsyncStorage.setItem("outlet_config", JSON.stringify(outletData.config));
           await AsyncStorage.setItem("sales_data", JSON.stringify(outletData.metrics));
 
@@ -348,6 +352,9 @@ export default function VerifyOTPScreen({ navigation, route }) {
           if (json.settings) {
             await AsyncStorage.setItem("app_settings", JSON.stringify(json.settings));
           }
+
+          // Also store mobile separately for easy access if needed
+          await AsyncStorage.setItem("outlet_mobile", json.mobile);
 
           console.log("All data stored successfully in both formats");
         } catch (error) {
