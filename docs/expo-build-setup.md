@@ -291,3 +291,70 @@ GitHub Repository
    - Verify the project ID in `app.config.json`
    - Check the build profile configuration in `eas.json`
    - Ensure all required assets are present 
+
+## 11. Environment Integration
+
+### Environment Setup
+The app uses two levels of environment control:
+
+1. **APP_ENV in ConstantFunctions.js**:
+```javascript
+export const APP_ENV = 'dev'; // Changes to 'prod' for production
+```
+Controls:
+- API endpoints (dev/prod URLs)
+- Environment-specific configurations
+- Backend service connections
+
+2. **Build Profile in EAS**:
+```bash
+eas build --profile preview    # For preview builds
+eas build --profile production # For production builds
+```
+Controls:
+- Package naming
+- Update channels
+- Build configurations
+
+### Environment Matrix
+
+| Branch     | APP_ENV | Build Profile | Package Name                    | Update Channel |
+|------------|---------|---------------|--------------------------------|----------------|
+| main       | dev     | preview       | com.menumitra.captainapp.preview| preview        |
+| production | prod    | production    | com.menumitra.captainapp       | production     |
+
+### Best Practices for Environment Management
+
+1. **Branch and Environment Alignment**:
+   ```bash
+   # On main branch (development/preview)
+   APP_ENV = 'dev'
+   eas build --profile preview
+
+   # On production branch
+   APP_ENV = 'prod'
+   eas build --profile production
+   ```
+
+2. **Before Production Release**:
+   - Ensure APP_ENV is set to 'prod' in ConstantFunctions.js
+   - Verify all API endpoints are pointing to production
+   - Build using production profile
+
+3. **Development Flow**:
+   ```bash
+   # Development/Testing (main branch)
+   - APP_ENV = 'dev'
+   - Preview builds and updates
+   - Development API endpoints
+
+   # Production Release (production branch)
+   - APP_ENV = 'prod'
+   - Production builds and updates
+   - Production API endpoints
+   ```
+
+4. **Version Control**:
+   - Keep APP_ENV as 'dev' in main branch
+   - Change APP_ENV to 'prod' when merging to production
+   - Include environment check in pre-release checklist 
