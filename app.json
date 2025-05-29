@@ -52,7 +52,7 @@
         "resizeMode": "contain",
         "image": "./assets/splash.png"
       },
-      "package": "com.menumitra.captainapp.preview"
+      "package": "com.menumitra.captainapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
