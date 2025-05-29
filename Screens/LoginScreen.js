@@ -445,7 +445,7 @@ export default function LoginScreen({ navigation }) {
       <View style={styles.footerContainer}>
         <View style={styles.logoRow}>
           <Image
-            source={require("../assets/icon-transparent.png")}
+            source={require("../assets/MenuMitraLOGO.png")}
             style={styles.footerLogo}
           />
           <Text style={styles.footerTitle}>MenuMitra</Text>
