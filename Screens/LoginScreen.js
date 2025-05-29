@@ -20,6 +20,7 @@ import { onGetProductionUrl } from "./utils/ConstantFunctions";
 import * as Updates from 'expo-updates';
 import axiosInstance from "../utils/axiosConfig";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
 const CURRENT_APP_VERSION = "1.3";
 
@@ -440,6 +441,83 @@ export default function LoginScreen({ navigation }) {
         </View>
       </TouchableWithoutFeedback>
 
+      {/* Footer */}
+      <View style={styles.footerContainer}>
+        <View style={styles.logoRow}>
+          <Image
+            source={require("../assets/icon-transparent.png")}
+            style={styles.footerLogo}
+          />
+          <Text style={styles.footerTitle}>MenuMitra</Text>
+        </View>
+
+        <View style={styles.socialContainer}>
+          <TouchableOpacity
+            style={styles.socialIcon}
+            onPress={() =>
+              Linking.openURL(
+                "https://www.facebook.com/people/Menu-Mitra/61565082412478/"
+              )
+            }
+          >
+            <MaterialCommunityIcons
+              name="facebook"
+              size={28}
+              color="#1877F2"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.socialIcon}
+            onPress={() =>
+              Linking.openURL("https://www.instagram.com/menumitra/")
+            }
+          >
+            <MaterialCommunityIcons
+              name="instagram"
+              size={28}
+              color="#E4405F"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.socialIcon}
+            onPress={() =>
+              Linking.openURL("https://www.youtube.com/@menumitra")
+            }
+          >
+            <MaterialCommunityIcons
+              name="youtube"
+              size={28}
+              color="#FF0000"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.socialIcon}
+            onPress={() => Linking.openURL("https://x.com/MenuMitra")}
+          >
+            <MaterialCommunityIcons
+              name="twitter"
+              size={28}
+              color="#000000"
+            />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.footerTextContainer}>
+          <View style={styles.poweredByContainer}>
+            <MaterialCommunityIcons name="flash" size={14} color="#666" />
+            <Text style={styles.poweredByText}>Powered by</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => Linking.openURL("https://www.shekruweb.com")}
+          >
+            <Text style={styles.companyText}>
+              Shekru Labs India Pvt. Ltd.
+            </Text>
+          </TouchableOpacity>
+          <Text style={styles.versionText}>version 1.3</Text>
+        </View>
+      </View>
+
       <StoreUpdateModal visible={showUpdateModal && updateType === 'store'} />
       <UpdateLoadingOverlay />
     </KeyboardAvoidingView>
@@ -691,5 +769,69 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 8,
     flex: 1,
+  },
+  footerContainer: {
+    alignItems: "center",
+    paddingVertical: 20,
+    // backgroundColor: "#f5f5f5",
+    borderTopColor: "#e0e0e0",
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    marginTop: 20,
+    width: '100%',
+  },
+  logoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 5,
+    gap: 8,
+  },
+  footerLogo: {
+    width: 35,
+    height: 35,
+    resizeMode: "contain",
+  },
+  footerTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  socialContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+    marginTop: 8,
+    marginBottom: 5,
+  },
+  socialIcon: {
+    padding: 4,
+    marginHorizontal: 8,
+  },
+  footerTextContainer: {
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  poweredByContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  poweredByText: {
+    fontSize: 12,
+    color: "#666666",
+  },
+  companyText: {
+    fontSize: 12,
+    color: "#4CAF50",
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  versionText: {
+    fontSize: 10,
+    color: "#666666",
+    marginTop: 4,
+    textAlign: "center",
+    paddingBottom: 4,
   },
 });

@@ -1,7 +1,7 @@
 import { Platform, Keyboard } from "react-native";
 
 // Define the environment variable at the top
-export const APP_ENV = 'prod'; // Change this to 'prod' for production
+export const APP_ENV = 'dev'; // Change this to 'prod' for production
 
 // Define base URLs
 const BASE_URLS = {
