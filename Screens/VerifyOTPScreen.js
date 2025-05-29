@@ -350,7 +350,10 @@ export default function VerifyOTPScreen({ navigation, route }) {
           await AsyncStorage.setItem("sales_data", JSON.stringify(outletData.metrics));
           
           // Store UPI ID separately for direct access
-          await AsyncStorage.setItem("upi_id", json.upi_id || "");
+          if (json.upi_id) {
+            await AsyncStorage.setItem("upi_id", json.upi_id);
+            console.log("Stored UPI ID:", json.upi_id);
+          }
 
           // Store settings
           if (json.settings) {
