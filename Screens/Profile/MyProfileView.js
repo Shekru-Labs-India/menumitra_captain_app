@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Clipboard,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Text } from "react-native-paper";
@@ -15,7 +16,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import CustomTabBar from "../CustomTabBar";
 import CustomHeader from "../../components/CustomHeader";
 import { getUserId, clearUserData } from "../utils/getOwnerData";
-import { onGetOwnerUrl, onGetProductionUrl } from "../utils/ConstantFunctions";
+import { onGetOwnerUrl, onGetProductionUrl, isDevelopment } from "../utils/ConstantFunctions";
 import RemixIcon from "react-native-remix-icon";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axiosInstance from "../../utils/axiosConfig";
@@ -749,8 +750,62 @@ export default function MyProfileView({ navigation }) {
               <RemixIcon name="logout-box-r-line" size={24} color="#dc3545" />
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
+
+            {isDevelopment() && (
+              <TouchableOpacity
+                style={[styles.logoutButton, { marginTop: 10 }]}
+                onPress={async () => {
+                  try {
+                    const allKeys = await AsyncStorage.getAllKeys();
+                    const allData = await AsyncStorage.multiGet(allKeys);
+                    
+                    let storageData = 'AsyncStorage Data:\n\n';
+                    allData.forEach(([key, value]) => {
+                      // Skip orderListCache key
+                      if (key === 'orderListCache') return;
+                      if (key === 'cachedCategoriesData') return;
+                      if (key === 'cachedMenuData') return;
+                      
+                      try {
+                        // Try to parse JSON values
+                        const parsedValue = JSON.parse(value);
+                        storageData += `${key}: ${JSON.stringify(parsedValue, null, 2)}\n\n`;
+                      } catch {
+                        // If not JSON, log as is
+                        storageData += `${key}: ${value}\n\n`;
+                      }
+                    });
+                    
+                    // Show in both console and popup
+                    console.log('All AsyncStorage Data:', storageData);
+                    Alert.alert(
+                      'AsyncStorage Data',
+                      storageData,
+                      [
+                        { 
+                          text: 'Copy',
+                          onPress: () => {
+                            Clipboard.setString(storageData);
+                            Alert.alert('Success', 'Data copied to clipboard');
+                          }
+                        },
+                        { text: 'OK' }
+                      ]
+                    );
+                  } catch (error) {
+                    console.error('Error reading AsyncStorage:', error);
+                    Alert.alert('Error', 'Failed to read AsyncStorage data');
+                  }
+                }}
+              >
+                <RemixIcon name="database-2-line" size={24} color="#007bff" />
+                <Text style={[styles.logoutText, { color: '#007bff' }]}>View Storage Data</Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
         )}
+
+       
 
         <TouchableOpacity
           style={styles.editButton}
