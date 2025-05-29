@@ -330,8 +330,8 @@ export default function VerifyOTPScreen({ navigation, route }) {
               is_open: json.is_open,
               outlet_status: json.outlet_status,
               order_number_sequence: json.order_number_sequence,
-              // address: json.address,
               outlet_address: json.address,
+              upi_id: json.upi_id || "",
             },
             metrics: {
               today_sale: json.today_sale || 0,
@@ -348,6 +348,9 @@ export default function VerifyOTPScreen({ navigation, route }) {
           await AsyncStorage.setItem("outlet_address", json.address || "");
           await AsyncStorage.setItem("outlet_config", JSON.stringify(outletData.config));
           await AsyncStorage.setItem("sales_data", JSON.stringify(outletData.metrics));
+          
+          // Store UPI ID separately for direct access
+          await AsyncStorage.setItem("upi_id", json.upi_id || "");
 
           // Store settings
           if (json.settings) {
