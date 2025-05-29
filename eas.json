@@ -9,16 +9,14 @@
       "distribution": "internal",
       "channel": "preview",
       "android": {
-        "buildType": "apk",
-        "package": "com.menumitra.captainapp.preview"
+        "buildType": "apk"
       }
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
       "android": {
-        "buildType": "apk",
-        "package": "com.menumitra.captainapp.preview"
+        "buildType": "apk"
       }
     },
     "production": {
@@ -26,8 +24,7 @@
       "channel": "production",
       "android": {
         "buildType": "apk",
-        "credentialsSource": "local",
-        "package": "com.menumitra.captainapp"
+        "credentialsSource": "local"
       }
     }
   },

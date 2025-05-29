@@ -51,7 +51,8 @@
         "backgroundColor": "#ffffff",
         "resizeMode": "contain",
         "image": "./assets/splash.png"
-      }
+      },
+      "package": "com.menumitra.captainapp.preview"
     },
     "web": {
       "favicon": "./assets/favicon.png"
