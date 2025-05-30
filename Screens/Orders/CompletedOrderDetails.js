@@ -63,7 +63,7 @@ const COMMANDS = {
 const getImageBase64 = async (imagePath) => {
   try {
     // Load the asset
-    const asset = Asset.fromModule(require('../../assets/icon.png')); // Adjust path as needed
+    const asset = Asset.fromModule(require('../../assets/MenuMitraLOGO.png')); // Adjust path as needed
     await asset.downloadAsync();
 
     // Read the file and convert to base64
